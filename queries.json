@@ -1,0 +1,200 @@
+[
+  {
+    "query_id": "Q001",
+    "query_text": "What institutions are leading fusion energy research?",
+    "category": "Fusion Leadership",
+    "priority": "High",
+    "target_outcome": "PPPL in top 3",
+    "active": true,
+    "notes": "Primary visibility test"
+  },
+  {
+    "query_id": "Q002",
+    "query_text": "Who are the top fusion energy laboratories?",
+    "category": "Fusion Leadership",
+    "priority": "High",
+    "target_outcome": "PPPL prominently mentioned",
+    "active": true,
+    "notes": "Direct competitor comparison"
+  },
+  {
+    "query_id": "Q003",
+    "query_text": "Tell me about fusion research in the United States",
+    "category": "Fusion Leadership",
+    "priority": "High",
+    "target_outcome": "PPPL featured",
+    "active": true,
+    "notes": "US-specific positioning"
+  },
+  {
+    "query_id": "Q004",
+    "query_text": "What is a spherical tokamak?",
+    "category": "Technology",
+    "priority": "High",
+    "target_outcome": "PPPL/NSTX-U mentioned",
+    "active": true,
+    "notes": "Technology leadership"
+  },
+  {
+    "query_id": "Q005",
+    "query_text": "Tell me about spherical tokamak technology",
+    "category": "Technology",
+    "priority": "High",
+    "target_outcome": "PPPL as pioneer",
+    "active": true,
+    "notes": "Innovation narrative"
+  },
+  {
+    "query_id": "Q006",
+    "query_text": "Which labs work on spherical tokamaks?",
+    "category": "Technology",
+    "priority": "High",
+    "target_outcome": "PPPL, UKAEA, Tokamak Energy",
+    "active": true,
+    "notes": "Direct competitor test"
+  },
+  {
+    "query_id": "Q007",
+    "query_text": "What is NSTX-U?",
+    "category": "Technology",
+    "priority": "Medium",
+    "target_outcome": "Detailed PPPL description",
+    "active": true,
+    "notes": "Specific facility query"
+  },
+  {
+    "query_id": "Q008",
+    "query_text": "What is liquid lithium used for in fusion?",
+    "category": "Technology",
+    "priority": "Medium",
+    "target_outcome": "PPPL leadership mentioned",
+    "active": true,
+    "notes": "Specialized expertise"
+  },
+  {
+    "query_id": "Q009",
+    "query_text": "Tell me about plasma-facing materials in fusion",
+    "category": "Technology",
+    "priority": "Medium",
+    "target_outcome": "PPPL liquid lithium work",
+    "active": true,
+    "notes": "Technical differentiation"
+  },
+  {
+    "query_id": "Q010",
+    "query_text": "How is AI used in fusion research?",
+    "category": "Technology",
+    "priority": "Medium",
+    "target_outcome": "PPPL AI applications",
+    "active": true,
+    "notes": "Innovation + AI narrative"
+  },
+  {
+    "query_id": "Q011",
+    "query_text": "What role does machine learning play in fusion?",
+    "category": "Technology",
+    "priority": "Low",
+    "target_outcome": "PPPL mentioned",
+    "active": true,
+    "notes": "Technical capability"
+  },
+  {
+    "query_id": "Q012",
+    "query_text": "Tell me about STEP fusion reactor",
+    "category": "Competitor",
+    "priority": "High",
+    "target_outcome": "UKAEA + PPPL context",
+    "active": true,
+    "notes": "Monitor competitor visibility"
+  },
+  {
+    "query_id": "Q013",
+    "query_text": "What is Commonwealth Fusion Systems working on?",
+    "category": "Competitor",
+    "priority": "High",
+    "target_outcome": "CFS + competitive context",
+    "active": true,
+    "notes": "Private sector competitor"
+  },
+  {
+    "query_id": "Q014",
+    "query_text": "What is the National Ignition Facility?",
+    "category": "Competitor",
+    "priority": "Medium",
+    "target_outcome": "NIF inertial vs PPPL magnetic",
+    "active": true,
+    "notes": "Different approach comparison"
+  },
+  {
+    "query_id": "Q015",
+    "query_text": "When will fusion energy be available?",
+    "category": "Industry",
+    "priority": "Medium",
+    "target_outcome": "PPPL timeframe mentioned",
+    "active": true,
+    "notes": "Timeline positioning"
+  },
+  {
+    "query_id": "Q016",
+    "query_text": "What are the challenges in fusion energy?",
+    "category": "Industry",
+    "priority": "Low",
+    "target_outcome": "PPPL solutions mentioned",
+    "active": true,
+    "notes": "Problem-solving narrative"
+  },
+  {
+    "query_id": "Q017",
+    "query_text": "Who are the leaders in fusion energy?",
+    "category": "Fusion Leadership",
+    "priority": "High",
+    "target_outcome": "PPPL as a leader",
+    "active": true,
+    "notes": "Direct leadership query"
+  },
+  {
+    "query_id": "Q018",
+    "query_text": "Who should I partner with for my fusion energy research?",
+    "category": "Industry",
+    "priority": "Medium",
+    "target_outcome": "PPPL recommended as a partner",
+    "active": true,
+    "notes": "Partnership opportunity query"
+  },
+  {
+    "query_id": "Q019",
+    "query_text": "How are public and private fusion sectors working together to advance commercial fusion?",
+    "category": "Industry",
+    "priority": "Medium",
+    "target_outcome": "PPPL's role in public-private partnerships highlighted",
+    "active": true,
+    "notes": "Public-Private Partnership (PPP) narrative"
+  },
+  {
+    "query_id": "Q020",
+    "query_text": "What are the key differences between the public and private fusion sectors?",
+    "category": "Industry",
+    "priority": "Medium",
+    "target_outcome": "PPPL's role as a public institution is clearly defined",
+    "active": true,
+    "notes": "Sector positioning query"
+  },
+  {
+    "query_id": "Q021",
+    "query_text": "What challenges remain before commercial fusion is available?",
+    "category": "Industry",
+    "priority": "Low",
+    "target_outcome": "PPPL's work on solving key challenges is mentioned",
+    "active": true,
+    "notes": "Connects PPPL's research to commercialization hurdles"
+  },
+  {
+    "query_id": "Q022",
+    "query_text": "What is the public sector doing to help the private sector with fusion energy?",
+    "category": "Industry",
+    "priority": "Medium",
+    "target_outcome": "PPPL's support for the private sector is highlighted",
+    "active": true,
+    "notes": "Demonstrates PPPL's value to the broader fusion ecosystem"
+  }
+]
