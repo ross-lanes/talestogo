@@ -3,3 +3,10 @@ tenacity
 openai
 anthropic
 google-generativeai
+fastapi
+uvicorn[standard]
+sqlalchemy
+celery
+redis
+pytest
+httpx

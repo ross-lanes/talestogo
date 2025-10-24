@@ -4,7 +4,6 @@ import datetime
 
 # --- Query Schemas ---
 class QueryBase(BaseModel):
-    query_id: str
     query_text: str
     category: Optional[str] = None
     priority: Optional[str] = None
@@ -13,7 +12,7 @@ class QueryBase(BaseModel):
     notes: Optional[str] = None
 
 class QueryCreate(QueryBase):
-    pass
+    query_id: Optional[str] = None  # Optional - will be auto-generated if not provided
 
 class QueryUpdate(BaseModel):
     query_text: Optional[str] = None
@@ -25,6 +24,7 @@ class QueryUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
 class Query(QueryBase):
+    query_id: str  # Required in the response
     id: int
     created_at: datetime.datetime
     updated_at: datetime.datetime

@@ -24,9 +24,32 @@ def get_active_queries(db: Session, skip: int = 0, limit: int = 100) -> List[mod
     """Gets a list of active queries, with pagination."""
     return db.query(models.Query).filter(models.Query.active == True).order_by(models.Query.query_id).offset(skip).limit(limit).all()
 
+def generate_next_query_id(db: Session) -> str:
+    """Generates the next sequential query ID (Q001, Q002, etc.)."""
+    # Get the highest existing query_id
+    last_query = db.query(models.Query).order_by(models.Query.query_id.desc()).first()
+
+    if not last_query or not last_query.query_id:
+        return "Q001"
+
+    # Extract the number from the last query_id (e.g., "Q015" -> 15)
+    try:
+        last_num = int(last_query.query_id[1:])
+        next_num = last_num + 1
+        return f"Q{next_num:03d}"  # Format as Q001, Q002, etc.
+    except (ValueError, IndexError):
+        # If parsing fails, start from Q001
+        return "Q001"
+
 def create_query(db: Session, query: schemas.QueryCreate) -> models.Query:
     """Creates a new query in the database."""
-    db_query = models.Query(**query.model_dump())
+    query_data = query.model_dump()
+
+    # Auto-generate query_id if not provided
+    if not query_data.get('query_id'):
+        query_data['query_id'] = generate_next_query_id(db)
+
+    db_query = models.Query(**query_data)
     db.add(db_query)
     db.commit()
     db.refresh(db_query)

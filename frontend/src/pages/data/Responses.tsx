@@ -1,0 +1,252 @@
+import { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from '@mui/material';
+import {
+  Refresh as RefreshIcon,
+  Visibility as VisibilityIcon,
+} from '@mui/icons-material';
+import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
+import type { GridColDef } from '@mui/x-data-grid';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '../../services/api';
+
+interface Response {
+  id: number;
+  query_id: string;
+  query_text: string;
+  platform: string;
+  response_text: string;
+  timestamp: string;
+  pppl_mentioned?: string;
+  pppl_position?: string;
+  sentiment?: string;
+  analyzed_at?: string;
+}
+
+export default function Responses() {
+  const queryClient = useQueryClient();
+  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+
+  // Fetch responses
+  const { data: responses = [], isLoading } = useQuery({
+    queryKey: ['responses'],
+    queryFn: async () => {
+      const response = await api.get<Response[]>('/responses/');
+      return response.data;
+    },
+  });
+
+  const handleViewResponse = (response: Response) => {
+    setSelectedResponse(response);
+    setViewDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setViewDialogOpen(false);
+    setSelectedResponse(null);
+  };
+
+  const columns: GridColDef<Response>[] = [
+    {
+      field: 'id',
+      headerName: 'ID',
+      width: 70,
+    },
+    {
+      field: 'query_id',
+      headerName: 'Query',
+      width: 90,
+    },
+    {
+      field: 'query_text',
+      headerName: 'Query Text',
+      flex: 1,
+      minWidth: 200,
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {params.value}
+        </Typography>
+      ),
+    },
+    {
+      field: 'platform',
+      headerName: 'Platform',
+      width: 120,
+      renderCell: (params) => {
+        const color =
+          params.value === 'ChatGPT' ? 'success' :
+          params.value === 'Claude' ? 'primary' :
+          params.value === 'Gemini' ? 'secondary' : 'default';
+        return <Chip label={params.value} color={color} size="small" />;
+      },
+    },
+    {
+      field: 'timestamp',
+      headerName: 'Collected',
+      width: 160,
+      valueFormatter: (params) => {
+        return new Date(params).toLocaleString();
+      },
+    },
+    {
+      field: 'pppl_mentioned',
+      headerName: 'PPPL',
+      width: 100,
+      renderCell: (params) => {
+        if (!params.value) return <Chip label="Not Analyzed" size="small" variant="outlined" />;
+        const color =
+          params.value === 'Yes' ? 'success' :
+          params.value === 'Indirect' ? 'warning' : 'error';
+        return <Chip label={params.value} color={color} size="small" />;
+      },
+    },
+    {
+      field: 'sentiment',
+      headerName: 'Sentiment',
+      width: 120,
+      renderCell: (params) => {
+        if (!params.value) return null;
+        const color =
+          params.value === 'Very Positive' || params.value === 'Positive' ? 'success' :
+          params.value === 'Neutral' ? 'default' :
+          params.value === 'Negative' ? 'error' : 'warning';
+        return <Chip label={params.value} color={color} size="small" />;
+      },
+    },
+    {
+      field: 'actions',
+      type: 'actions',
+      headerName: 'Actions',
+      width: 80,
+      getActions: (params) => [
+        <GridActionsCellItem
+          icon={<VisibilityIcon />}
+          label="View"
+          onClick={() => handleViewResponse(params.row)}
+        />,
+      ],
+    },
+  ];
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Responses
+        </Typography>
+        <IconButton
+          color="primary"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['responses'] })}
+          title="Refresh"
+        >
+          <RefreshIcon />
+        </IconButton>
+      </Box>
+
+      <Paper sx={{ height: 600, width: '100%' }}>
+        <DataGrid
+          rows={responses}
+          columns={columns}
+          loading={isLoading}
+          initialState={{
+            pagination: {
+              paginationModel: { pageSize: 25, page: 0 },
+            },
+            sorting: {
+              sortModel: [{ field: 'timestamp', sort: 'desc' }],
+            },
+          }}
+          pageSizeOptions={[10, 25, 50, 100]}
+          disableRowSelectionOnClick
+          sx={{
+            '& .MuiDataGrid-cell': {
+              py: 1,
+            },
+          }}
+        />
+      </Paper>
+
+      {/* View Dialog */}
+      <Dialog
+        open={viewDialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Response Details - {selectedResponse?.platform}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedResponse && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Query ID: {selectedResponse.query_id}
+                </Typography>
+                <Typography variant="body1" gutterBottom>
+                  <strong>Query:</strong> {selectedResponse.query_text}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Platform: <Chip label={selectedResponse.platform} size="small" sx={{ ml: 1 }} />
+                </Typography>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Collected: {new Date(selectedResponse.timestamp).toLocaleString()}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  Response Text:
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', maxHeight: 400, overflow: 'auto' }}>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedResponse.response_text}
+                  </Typography>
+                </Paper>
+              </Box>
+
+              {selectedResponse.analyzed_at && (
+                <Box>
+                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    Analysis:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {selectedResponse.pppl_mentioned && (
+                      <Chip label={`PPPL: ${selectedResponse.pppl_mentioned}`} />
+                    )}
+                    {selectedResponse.pppl_position && (
+                      <Chip label={`Position: ${selectedResponse.pppl_position}`} />
+                    )}
+                    {selectedResponse.sentiment && (
+                      <Chip label={`Sentiment: ${selectedResponse.sentiment}`} />
+                    )}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Analyzed: {new Date(selectedResponse.analyzed_at).toLocaleString()}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}

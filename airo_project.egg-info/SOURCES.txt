@@ -9,6 +9,7 @@ app/database.py
 app/main.py
 app/models.py
 app/schemas.py
+app/seed_db.py
 app/services/__init__.py
 app/services/llm_service.py
 app/services/metrics_service.py
@@ -17,4 +18,6 @@ celery_app/__init__.py
 celery_app/celery.py
 celery_app/celery_config.py
 celery_app/tasks.py
+tests/test_api.py
+tests/test_main.py
 tests/test_tasks.py

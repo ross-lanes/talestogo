@@ -6,17 +6,6 @@ from sqlalchemy import (
 # Import Base from your database setup file
 from .database import Base
 
-# Using a naming convention for constraints can be helpful for migrations later
-# (though less critical with SQLite initially)
-convention = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
-}
-Base.metadata = MetaData(naming_convention=convention)
-
 class Query(Base):
     __tablename__ = "queries"
     id = Column(Integer, primary_key=True, index=True)

@@ -1,10 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import os
+import subprocess
 
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
+from app.routers import analytics
 
 # This line ensures tables are created if they don't exist when the app starts.
 # It's convenient for development. For production, you'd use a migration tool.
@@ -16,6 +20,18 @@ app = FastAPI(
     description="API for tracking and analyzing LLM depictions of PPPL.",
     version="0.1.0"
 )
+
+# Configure CORS to allow frontend to access backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
+
+# Include routers
+app.include_router(analytics.router)
 
 # --- Dependency ---
 def get_db():
@@ -185,7 +201,60 @@ async def trigger_analysis_on_unanalyzed(db: Session = Depends(get_db)):
     unanalyzed_responses = crud.get_unanalyzed_responses(db, limit=1000)
     if not unanalyzed_responses:
         raise HTTPException(status_code=404, detail="No unanalyzed responses found.")
-    
+
     response_ids = [resp.id for resp in unanalyzed_responses]
     task = analyze_responses_batch_task.delay(response_ids)
     return {"message": f"Analysis triggered for {len(response_ids)} responses.", "task_id": task.id}
+
+# --- Direct Collection and Analysis Triggers (without Celery) ---
+@app.post("/tasks/run-collection/", status_code=202, tags=["Tasks"])
+async def run_collection():
+    """Trigger response collection using the collection script."""
+    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
+    try:
+        # Run the collection script in the background
+        process = subprocess.Popen(
+            ["python3", script_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        # Send "1" to run all queries
+        process.stdin.write("1\n")
+        process.stdin.flush()
+
+        return {
+            "message": "Response collection started.",
+            "status": "running",
+            "note": "Collection is running in the background. Check the Responses page to see new data."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start collection: {str(e)}")
+
+@app.post("/tasks/run-analysis/", status_code=202, tags=["Tasks"])
+async def run_analysis(db: Session = Depends(get_db)):
+    """Trigger analysis on unanalyzed responses using the analysis script."""
+    unanalyzed_responses = crud.get_unanalyzed_responses(db, limit=1000)
+    if not unanalyzed_responses:
+        raise HTTPException(status_code=404, detail="No unanalyzed responses found.")
+
+    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
+
+    try:
+        # Run the analysis script in the background with --all flag
+        process = subprocess.Popen(
+            ["python3", script_path, "--all"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        return {
+            "message": f"Analysis started for {len(unanalyzed_responses)} responses.",
+            "status": "running",
+            "count": len(unanalyzed_responses),
+            "note": "Analysis is running in the background using Gemini AI. Check the Dashboard to see updated metrics."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
