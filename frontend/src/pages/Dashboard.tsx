@@ -11,6 +11,10 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 
+interface BrandInfo {
+  brand_name: string;
+}
+
 interface DashboardMetrics {
   mention_rate: number;
   mention_count: number;
@@ -32,6 +36,18 @@ export default function Dashboard() {
     severity: 'info',
   });
   const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
+
+  // Fetch brand info
+  const { data: brandInfo } = useQuery<BrandInfo>({
+    queryKey: ['brand-info'],
+    queryFn: async () => {
+      const response = await api.get('/brand-info/');
+      return response.data;
+    },
+    retry: false,
+  });
+
+  const brandName = brandInfo?.brand_name || 'Your Brand';
 
   // Fetch dashboard metrics
   const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
@@ -176,10 +192,10 @@ export default function Dashboard() {
       {metrics.total_responses === 0 && (
         <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
           <Typography variant="h6" gutterBottom>
-            To get started:
+            New to AIRO?
           </Typography>
           <Typography>
-            Click on the word <strong>Manage</strong> on the upper right. Select <strong>Queries</strong>, <strong>Descriptors</strong>, and <strong>Competitors</strong> to add information about the data you want to gather.
+            Click on <strong>Customize → Brand Info</strong> to begin!
           </Typography>
         </Paper>
       )}
@@ -192,7 +208,7 @@ export default function Dashboard() {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
-                    PPPL Mentions
+                    {brandName} Mentions
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
                     {metrics.mention_rate}%
@@ -221,7 +237,7 @@ export default function Dashboard() {
                   </Typography>
                   {formatChange(metrics.change_sentiment)}
                   <Typography variant="caption" color="textSecondary">
-                    Of PPPL mentions
+                    Of {brandName} mentions
                   </Typography>
                 </Box>
                 <SentimentIcon sx={{ fontSize: 48, color: 'success.main', opacity: 0.3 }} />

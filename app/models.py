@@ -56,8 +56,8 @@ class Response(Base):
     response_text = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
     # Analysis fields
-    pppl_mentioned = Column(String(10)) # Yes, No, Indirect
-    pppl_position = Column(String(20)) # Leader, Top 3, Featured, Listed, Not Mentioned
+    brand_mentioned = Column(String(10)) # Yes, No, Indirect
+    brand_position = Column(String(20)) # Leader, Top 3, Featured, Listed, Not Mentioned
     sentiment = Column(String(20)) # Very Positive, Positive, Neutral, Negative, Mixed
     descriptors = Column(Text) # Comma-separated
     competitors = Column(Text) # Comma-separated
@@ -85,7 +85,7 @@ class TargetDescriptor(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     descriptor = Column(String(200), nullable=False, index=True)
     category = Column(String(100)) # Technical, Leadership, Innovation
-    target_for_pppl = Column(Boolean, default=True)
+    is_target = Column(Boolean, default=True)
     current_ownership = Column(String(200)) # Who 'owns' this term now
     priority = Column(String(20)) # High, Medium, Low
     notes = Column(Text)
@@ -111,7 +111,7 @@ class CitedSource(Base):
     source_name = Column(String(200), nullable=False, index=True)
     source_type = Column(String(100)) # News, Academic, Official, Social, Reference
     authority_level = Column(String(20)) # High, Medium, Low
-    pppl_coverage = Column(Text) # Notes on quality of coverage
+    brand_coverage = Column(Text) # Notes on quality of coverage
     last_cited = Column(Date)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -170,6 +170,18 @@ class Configuration(Base):
     key = Column(String(100), primary_key=True)
     value = Column(Text)
     # encrypted = Column(Boolean, default=False) # Removed for simplicity with SQLite
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class BrandInfo(Base):
+    __tablename__ = "brand_info"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)  # One brand per user
+    brand_name = Column(String(200), nullable=False)
+    website_url = Column(String(500), nullable=True)
+    industry = Column(String(200), nullable=True)
+    description = Column(Text, nullable=True)  # Brand blurb for analysis
+    strategic_messages = Column(Text, nullable=True)  # Key messages/narratives you want people to say
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 # --- End of Models ---

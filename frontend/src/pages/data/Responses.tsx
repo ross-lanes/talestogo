@@ -46,6 +46,8 @@ export default function Responses() {
     queryKey: ['responses'],
     queryFn: async () => {
       const response = await api.get<Response[]>('/responses/');
+      console.log('API Response:', response.data);
+      console.log('First response:', response.data[0]);
       return response.data;
     },
   });
@@ -125,10 +127,7 @@ export default function Responses() {
     {
       field: 'timestamp',
       headerName: 'Collected',
-      width: 160,
-      valueFormatter: (params) => {
-        return new Date(params).toLocaleString();
-      },
+      width: 180,
     },
     {
       field: 'pppl_mentioned',

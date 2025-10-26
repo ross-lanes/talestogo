@@ -343,6 +343,46 @@ def get_analysis_histories(db: Session, user_id: int, skip: int = 0, limit: int 
         models.AnalysisHistory.user_id == user_id
     ).order_by(models.AnalysisHistory.timestamp.desc()).offset(skip).limit(limit).all()
 
+
+# === BrandInfo CRUD Functions ===
+
+def get_brand_info(db: Session, user_id: int) -> Optional[models.BrandInfo]:
+    """Gets brand info for a specific user (one brand per user)."""
+    return db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == user_id
+    ).first()
+
+def create_brand_info(db: Session, brand_info: schemas.BrandInfoCreate, user_id: int) -> models.BrandInfo:
+    """Creates brand info for a user."""
+    brand_data = brand_info.model_dump()
+    brand_data['user_id'] = user_id
+    db_brand = models.BrandInfo(**brand_data)
+    db.add(db_brand)
+    db.commit()
+    db.refresh(db_brand)
+    return db_brand
+
+def update_brand_info(db: Session, brand_info_update: schemas.BrandInfoUpdate, user_id: int) -> Optional[models.BrandInfo]:
+    """Updates brand info for a user."""
+    db_brand = get_brand_info(db, user_id=user_id)
+    if not db_brand:
+        return None
+    update_data = brand_info_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_brand, key, value)
+    db.commit()
+    db.refresh(db_brand)
+    return db_brand
+
+def delete_brand_info(db: Session, user_id: int) -> Optional[models.BrandInfo]:
+    """Deletes brand info for a user."""
+    db_brand = get_brand_info(db, user_id=user_id)
+    if not db_brand:
+        return None
+    db.delete(db_brand)
+    db.commit()
+    return db_brand
+
 def get_responses_by_ids(db: Session, response_ids: List[int], user_id: int) -> List[models.Response]:
     """Gets a list of responses from a list of IDs for a specific user."""
     if not response_ids:

@@ -184,8 +184,7 @@ const Settings: React.FC = () => {
         <Divider sx={{ mb: 3 }} />
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Your API keys are encrypted and stored securely. They are never visible to admins or other users.
-          Only enter keys if you want to update them.
+          Your API keys are needed to collect and analyze data. They are encrypted and stored securely. They are never visible to admins or other users.
         </Typography>
 
         <Grid container spacing={2}>
@@ -237,7 +236,6 @@ const Settings: React.FC = () => {
               value={geminiKey}
               onChange={(e) => setGeminiKey(e.target.value)}
               placeholder="AIza..."
-              helperText="Required for analysis and reports"
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">

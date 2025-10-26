@@ -41,8 +41,8 @@ class ResponseCreate(ResponseBase):
     pass
 
 class ResponseAnalysisInput(BaseModel):
-    pppl_mentioned: Optional[str] = None
-    pppl_position: Optional[str] = None
+    brand_mentioned: Optional[str] = None
+    brand_position: Optional[str] = None
     sentiment: Optional[str] = None
     descriptors: Optional[str] = None
     competitors: Optional[str] = None
@@ -53,8 +53,8 @@ class ResponseAnalysisInput(BaseModel):
 class Response(ResponseBase):
     id: int
     timestamp: datetime.datetime
-    pppl_mentioned: Optional[str] = None
-    pppl_position: Optional[str] = None
+    brand_mentioned: Optional[str] = None
+    brand_position: Optional[str] = None
     sentiment: Optional[str] = None
     descriptors: Optional[str] = None
     competitors: Optional[str] = None
@@ -96,7 +96,7 @@ class Competitor(CompetitorBase):
 class TargetDescriptorBase(BaseModel):
     descriptor: str
     category: Optional[str] = None
-    target_for_pppl: bool = True
+    is_target: bool = True
     current_ownership: Optional[str] = None
     priority: Optional[str] = None
     notes: Optional[str] = None
@@ -107,7 +107,7 @@ class TargetDescriptorCreate(TargetDescriptorBase):
 class TargetDescriptorUpdate(BaseModel):
     descriptor: Optional[str] = None
     category: Optional[str] = None
-    target_for_pppl: Optional[bool] = None
+    is_target: Optional[bool] = None
     current_ownership: Optional[str] = None
     priority: Optional[str] = None
     notes: Optional[str] = None
@@ -151,7 +151,7 @@ class CitedSourceBase(BaseModel):
     source_name: str
     source_type: Optional[str] = None
     authority_level: Optional[str] = None
-    pppl_coverage: Optional[str] = None
+    brand_coverage: Optional[str] = None
     last_cited: Optional[datetime.date] = None
     notes: Optional[str] = None
 
@@ -162,7 +162,7 @@ class CitedSourceUpdate(BaseModel):
     source_name: Optional[str] = None
     source_type: Optional[str] = None
     authority_level: Optional[str] = None
-    pppl_coverage: Optional[str] = None
+    brand_coverage: Optional[str] = None
     last_cited: Optional[datetime.date] = None
     notes: Optional[str] = None
     model_config = ConfigDict(extra='forbid')
@@ -211,6 +211,32 @@ class AnalysisHistory(AnalysisHistoryBase):
     id: int
     timestamp: datetime.datetime
     created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+# --- BrandInfo Schemas ---
+class BrandInfoBase(BaseModel):
+    brand_name: str
+    website_url: Optional[str] = None
+    industry: Optional[str] = None
+    description: Optional[str] = None
+    strategic_messages: Optional[str] = None
+
+class BrandInfoCreate(BrandInfoBase):
+    pass
+
+class BrandInfoUpdate(BaseModel):
+    brand_name: Optional[str] = None
+    website_url: Optional[str] = None
+    industry: Optional[str] = None
+    description: Optional[str] = None
+    strategic_messages: Optional[str] = None
+    model_config = ConfigDict(extra='forbid')
+
+class BrandInfo(BrandInfoBase):
+    id: int
+    user_id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
 # --- User/Auth Schemas ---

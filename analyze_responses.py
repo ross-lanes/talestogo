@@ -39,9 +39,12 @@ COMPETITORS = []
 class ResponseAnalyzer:
     """Analyzes responses using Gemini AI."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user_id: int):
         self.db = db
+        self.user_id = user_id
         self.google_model = None
+        self.brand_name = "your brand"
+        self.brand_info = None
 
         # Set up Google Gemini
         if GOOGLE_AVAILABLE:
@@ -54,20 +57,39 @@ class ResponseAnalyzer:
                 print("⚠️  GEMINI_API_KEY not found in environment")
                 sys.exit(1)
 
+        # Load brand info
+        self.load_brand_info()
+
         # Load descriptors and competitors from database
         self.load_reference_data()
+
+    def load_brand_info(self):
+        """Load brand information for the user."""
+        brand_info = self.db.query(models.BrandInfo).filter(
+            models.BrandInfo.user_id == self.user_id
+        ).first()
+
+        if brand_info:
+            self.brand_info = brand_info
+            self.brand_name = brand_info.brand_name
+            print(f"✓ Loaded brand info for: {self.brand_name}")
+        else:
+            print("⚠️  No brand info found - using generic brand name")
 
     def load_reference_data(self):
         """Load target descriptors and competitors from database."""
         global TARGET_DESCRIPTORS, COMPETITORS
 
         descriptors = self.db.query(models.TargetDescriptor).filter(
-            models.TargetDescriptor.target_for_pppl == True
+            models.TargetDescriptor.user_id == self.user_id,
+            models.TargetDescriptor.is_target == True
         ).all()
         TARGET_DESCRIPTORS = [d.descriptor for d in descriptors]
 
-        competitors = self.db.query(models.Competitor).all()
-        COMPETITORS = [c.organization for c in competitors]
+        competitors = self.db.query(models.Competitor).filter(
+            models.Competitor.user_id == self.user_id
+        ).all()
+        COMPETITORS = [c.name for c in competitors]
 
         print(f"✓ Loaded {len(TARGET_DESCRIPTORS)} target descriptors")
         print(f"✓ Loaded {len(COMPETITORS)} competitors")
@@ -78,7 +100,15 @@ class ResponseAnalyzer:
         descriptors_list = "\n".join([f"  - {d}" for d in TARGET_DESCRIPTORS])
         competitors_list = "\n".join([f"  - {c}" for c in COMPETITORS])
 
-        prompt = f"""You are analyzing an AI platform's response to a fusion energy query to determine how it depicts the Princeton Plasma Physics Laboratory (PPPL).
+        # Build brand context
+        brand_context = f"the brand '{self.brand_name}'"
+        if self.brand_info:
+            if self.brand_info.industry:
+                brand_context += f" (in the {self.brand_info.industry} industry)"
+            if self.brand_info.description:
+                brand_context += f"\n\nBrand Description: {self.brand_info.description}"
+
+        prompt = f"""You are analyzing an AI platform's response to determine how it depicts {brand_context}.
 
 QUERY: {query_text}
 
@@ -87,26 +117,26 @@ RESPONSE TO ANALYZE:
 
 Please analyze this response and provide a JSON object with the following fields:
 
-1. **pppl_mentioned**: Is PPPL mentioned in the response?
-   - "Yes" if PPPL is explicitly mentioned by name
-   - "Indirect" if the response discusses PPPL's work without naming it (e.g., mentions NSTX-U, spherical tokamaks at Princeton, etc.)
-   - "No" if PPPL is not mentioned at all
+1. **brand_mentioned**: Is {self.brand_name} mentioned in the response?
+   - "Yes" if {self.brand_name} is explicitly mentioned by name
+   - "Indirect" if the response discusses {self.brand_name}'s work or related topics without naming it directly
+   - "No" if {self.brand_name} is not mentioned at all
 
-2. **pppl_position**: How prominently is PPPL featured? (only if mentioned)
-   - "Leader" if PPPL is described as a top/leading institution
-   - "Top 3" if PPPL is listed among 2-4 top institutions
-   - "Featured" if PPPL gets a dedicated paragraph or significant discussion
-   - "Listed" if PPPL is just mentioned in a list
+2. **brand_position**: How prominently is {self.brand_name} featured? (only if mentioned)
+   - "Leader" if {self.brand_name} is described as a top/leading organization
+   - "Top 3" if {self.brand_name} is listed among 2-4 top organizations
+   - "Featured" if {self.brand_name} gets a dedicated paragraph or significant discussion
+   - "Listed" if {self.brand_name} is just mentioned in a list
    - "Not Mentioned" if not mentioned
 
-3. **sentiment**: What is the sentiment toward PPPL? (only if mentioned)
+3. **sentiment**: What is the sentiment toward {self.brand_name}? (only if mentioned)
    - "Very Positive" - exceptional praise, leader/pioneer language
    - "Positive" - favorable but not exceptional
    - "Neutral" - factual, no clear positive or negative tone
    - "Negative" - critical or unfavorable
    - "Mixed" - both positive and negative elements
 
-4. **descriptors**: Which of these target descriptors are used in connection with PPPL?
+4. **descriptors**: Which of these target descriptors are used in connection with {self.brand_name}?
    Return as a comma-separated list or empty string if none match.
 {descriptors_list}
 
@@ -114,24 +144,24 @@ Please analyze this response and provide a JSON object with the following fields
    Return as a comma-separated list or empty string if none mentioned.
 {competitors_list}
 
-6. **sources**: Are any sources cited for information about PPPL or fusion research?
+6. **sources**: Are any sources cited for information about {self.brand_name} or the topic?
    List any URLs, papers, organizations, or attributions mentioned.
    Return as a comma-separated list or empty string if none.
 
-7. **notes**: Any other relevant observations about how PPPL is depicted.
+7. **notes**: Any other relevant observations about how {self.brand_name} is depicted.
    Keep this brief (1-2 sentences max).
 
 IMPORTANT: Return ONLY a valid JSON object with these exact field names. No additional text.
 
 Example format:
 {{
-  "pppl_mentioned": "Yes",
-  "pppl_position": "Featured",
+  "brand_mentioned": "Yes",
+  "brand_position": "Featured",
   "sentiment": "Very Positive",
-  "descriptors": "pioneering, innovative, spherical tokamak",
-  "competitors": "MIT Plasma Science and Fusion Center, ITER",
-  "sources": "https://pppl.gov, Department of Energy",
-  "notes": "PPPL is described as a leader in spherical tokamak research."
+  "descriptors": "pioneering, innovative",
+  "competitors": "Competitor A, Competitor B",
+  "sources": "https://example.com",
+  "notes": "{self.brand_name} is described as a leader in the field."
 }}"""
 
         return prompt
@@ -170,8 +200,8 @@ Example format:
     def save_analysis(self, response: models.Response, analysis_data: Dict) -> bool:
         """Save analysis results to the database."""
         try:
-            response.pppl_mentioned = analysis_data.get('pppl_mentioned', '')
-            response.pppl_position = analysis_data.get('pppl_position', '')
+            response.brand_mentioned = analysis_data.get('brand_mentioned', '')
+            response.brand_position = analysis_data.get('brand_position', '')
             response.sentiment = analysis_data.get('sentiment', '')
             response.descriptors = analysis_data.get('descriptors', '')
             response.competitors = analysis_data.get('competitors', '')
@@ -201,18 +231,21 @@ Example format:
             success = self.save_analysis(response, analysis_data)
             if success:
                 print(f"   ✓ Analysis saved")
-                print(f"     PPPL: {analysis_data.get('pppl_mentioned')}")
-                if analysis_data.get('pppl_mentioned') in ['Yes', 'Indirect']:
-                    print(f"     Position: {analysis_data.get('pppl_position')}")
+                print(f"     {self.brand_name}: {analysis_data.get('brand_mentioned')}")
+                if analysis_data.get('brand_mentioned') in ['Yes', 'Indirect']:
+                    print(f"     Position: {analysis_data.get('brand_position')}")
                     print(f"     Sentiment: {analysis_data.get('sentiment')}")
                 return True
 
         return False
 
     def analyze_batch(self, limit: Optional[int] = None) -> Dict[str, int]:
-        """Analyze all unanalyzed responses."""
-        # Get unanalyzed responses
-        query = self.db.query(models.Response).filter(models.Response.analyzed_at.is_(None))
+        """Analyze all unanalyzed responses for this user."""
+        # Get unanalyzed responses for this user
+        query = self.db.query(models.Response).filter(
+            models.Response.user_id == self.user_id,
+            models.Response.analyzed_at.is_(None)
+        )
         if limit:
             query = query.limit(limit)
 
@@ -228,9 +261,9 @@ Example format:
             'total': len(responses),
             'successful': 0,
             'failed': 0,
-            'pppl_yes': 0,
-            'pppl_indirect': 0,
-            'pppl_no': 0,
+            'brand_yes': 0,
+            'brand_indirect': 0,
+            'brand_no': 0,
         }
 
         for i, response in enumerate(responses, 1):
@@ -243,17 +276,17 @@ Example format:
                 if success:
                     stats['successful'] += 1
 
-                    # Track PPPL mention stats
-                    pppl_mentioned = analysis_data.get('pppl_mentioned', '')
-                    if pppl_mentioned == 'Yes':
-                        stats['pppl_yes'] += 1
-                    elif pppl_mentioned == 'Indirect':
-                        stats['pppl_indirect'] += 1
-                    elif pppl_mentioned == 'No':
-                        stats['pppl_no'] += 1
+                    # Track brand mention stats
+                    brand_mentioned = analysis_data.get('brand_mentioned', '')
+                    if brand_mentioned == 'Yes':
+                        stats['brand_yes'] += 1
+                    elif brand_mentioned == 'Indirect':
+                        stats['brand_indirect'] += 1
+                    elif brand_mentioned == 'No':
+                        stats['brand_no'] += 1
 
-                    print(f"  ✓ Analyzed - PPPL: {pppl_mentioned}", end="")
-                    if pppl_mentioned in ['Yes', 'Indirect']:
+                    print(f"  ✓ Analyzed - {self.brand_name}: {brand_mentioned}", end="")
+                    if brand_mentioned in ['Yes', 'Indirect']:
                         print(f", Sentiment: {analysis_data.get('sentiment')}")
                     else:
                         print()
@@ -271,12 +304,12 @@ Example format:
         print(f"  • Total responses analyzed: {stats['total']}")
         print(f"  • Successful: {stats['successful']}")
         print(f"  • Failed: {stats['failed']}")
-        print(f"  • PPPL mentioned (Yes): {stats['pppl_yes']}")
-        print(f"  • PPPL mentioned (Indirect): {stats['pppl_indirect']}")
-        print(f"  • PPPL not mentioned: {stats['pppl_no']}")
+        print(f"  • {self.brand_name} mentioned (Yes): {stats['brand_yes']}")
+        print(f"  • {self.brand_name} mentioned (Indirect): {stats['brand_indirect']}")
+        print(f"  • {self.brand_name} not mentioned: {stats['brand_no']}")
         if stats['successful'] > 0:
-            mention_rate = (stats['pppl_yes'] + stats['pppl_indirect']) / stats['successful'] * 100
-            print(f"  • PPPL mention rate: {mention_rate:.1f}%")
+            mention_rate = (stats['brand_yes'] + stats['brand_indirect']) / stats['successful'] * 100
+            print(f"  • {self.brand_name} mention rate: {mention_rate:.1f}%")
         print(f"{'='*60}\n")
 
         return stats
@@ -295,10 +328,18 @@ def main():
 
     db = SessionLocal()
     try:
-        analyzer = ResponseAnalyzer(db)
+        # Get first user (for now - in production this should be passed as argument)
+        user = db.query(models.User).first()
+        if not user:
+            print("❌ No users found in database. Please create a user first.")
+            return
 
-        # Get count of unanalyzed responses
+        print(f"📋 Analyzing responses for user: {user.email}\n")
+        analyzer = ResponseAnalyzer(db, user_id=user.id)
+
+        # Get count of unanalyzed responses for this user
         unanalyzed_count = db.query(models.Response).filter(
+            models.Response.user_id == user.id,
             models.Response.analyzed_at.is_(None)
         ).count()
 

@@ -115,7 +115,12 @@ export default function Layout({ children }: LayoutProps) {
           minHeight: { xs: 106, sm: 114 },
           height: { xs: 106, sm: 114 },
           gap: 1,
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'rgba(128, 161, 212, 0.04)',
+          },
         }}
+        onClick={() => navigate('/')}
       >
         <img
           src="/airologopurple.png"

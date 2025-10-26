@@ -9,6 +9,7 @@ import Manage from './pages/Manage';
 import Queries from './pages/manage/Queries';
 import Competitors from './pages/manage/Competitors';
 import Descriptors from './pages/manage/Descriptors';
+import BrandInfo from './pages/manage/BrandInfo';
 import Reports from './pages/Reports';
 import DataAnalysis from './pages/DataAnalysis';
 import Data from './pages/Data';
@@ -164,6 +165,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Competitors />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manage/brand-info"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <BrandInfo />
                     </Layout>
                   </ProtectedRoute>
                 }

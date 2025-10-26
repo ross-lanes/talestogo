@@ -29,9 +29,8 @@ interface Response {
   id: number;
   query_id: string;
   platform: string;
-  model_name: string;
   response_text: string;
-  collected_at: string;
+  timestamp: string;
   analyzed_at: string | null;
   mentioned_pppl: boolean | null;
   sentiment_score: number | null;
@@ -160,7 +159,6 @@ export default function Data() {
               <TableHead>
                 <TableRow>
                   <TableCell><strong>Platform</strong></TableCell>
-                  <TableCell><strong>Model</strong></TableCell>
                   <TableCell><strong>Query</strong></TableCell>
                   <TableCell><strong>Response Text</strong></TableCell>
                   <TableCell><strong>Collected</strong></TableCell>
@@ -178,7 +176,6 @@ export default function Data() {
                     sx={{ cursor: 'pointer' }}
                   >
                     <TableCell>{response.platform}</TableCell>
-                    <TableCell>{response.model_name}</TableCell>
                     <TableCell sx={{ maxWidth: 200 }}>
                       <Typography variant="body2" noWrap>
                         {response.query_id}
@@ -199,7 +196,7 @@ export default function Data() {
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {response.collected_at ? format(new Date(response.collected_at), 'MMM dd, yyyy h:mm a') : '-'}
+                      {response.timestamp ? format(new Date(response.timestamp), 'MMM dd, yyyy h:mm a') : '-'}
                     </TableCell>
                     <TableCell>
                       {response.mentioned_pppl !== null ? (
@@ -303,13 +300,6 @@ export default function Data() {
               </Typography>
 
               <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 2 }}>
-                Model
-              </Typography>
-              <Typography variant="body1" gutterBottom>
-                {selectedResponse.model_name}
-              </Typography>
-
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 2 }}>
                 Query
               </Typography>
               <Typography variant="body1" gutterBottom>
@@ -331,7 +321,7 @@ export default function Data() {
                     Collected
                   </Typography>
                   <Typography variant="body2">
-                    {selectedResponse.collected_at ? format(new Date(selectedResponse.collected_at), 'MMM dd, yyyy h:mm a') : '-'}
+                    {selectedResponse.timestamp ? format(new Date(selectedResponse.timestamp), 'MMM dd, yyyy h:mm a') : '-'}
                   </Typography>
                 </Box>
                 <Box>

@@ -551,6 +551,81 @@ def delete_report(
     return deleted_report
 
 
+# --- Brand Info Endpoints ---
+@app.get("/brand-info/", response_model=schemas.BrandInfo, tags=["Brand Info"])
+def get_brand_info_endpoint(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get brand info for the current user."""
+    brand_info = crud.get_brand_info(db, user_id=current_user.id)
+    if not brand_info:
+        raise HTTPException(status_code=404, detail="Brand info not found. Please create it first.")
+    return brand_info
+
+@app.post("/brand-info/", response_model=schemas.BrandInfo, status_code=201, tags=["Brand Info"])
+def create_brand_info_endpoint(
+    brand_info: schemas.BrandInfoCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create brand info for the current user."""
+    # Check if brand info already exists
+    existing_brand = crud.get_brand_info(db, user_id=current_user.id)
+    if existing_brand:
+        raise HTTPException(status_code=400, detail="Brand info already exists. Use PUT to update.")
+    return crud.create_brand_info(db, brand_info=brand_info, user_id=current_user.id)
+
+@app.put("/brand-info/", response_model=schemas.BrandInfo, tags=["Brand Info"])
+def update_brand_info_endpoint(
+    brand_info: schemas.BrandInfoUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update brand info for the current user."""
+    updated_brand = crud.update_brand_info(db, brand_info_update=brand_info, user_id=current_user.id)
+    if not updated_brand:
+        raise HTTPException(status_code=404, detail="Brand info not found")
+    return updated_brand
+
+@app.delete("/brand-info/", response_model=schemas.BrandInfo, tags=["Brand Info"])
+def delete_brand_info_endpoint(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete brand info for the current user."""
+    deleted_brand = crud.delete_brand_info(db, user_id=current_user.id)
+    if not deleted_brand:
+        raise HTTPException(status_code=404, detail="Brand info not found")
+    return deleted_brand
+
+
+@app.post("/brand-info/generate", tags=["Brand Info"])
+def generate_content_from_brand_info(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate queries, descriptors, and competitors based on brand info using AI.
+    This will replace any existing queries, descriptors, and competitors.
+    """
+    from app.ai_generator import AIGenerator
+
+    try:
+        generator = AIGenerator(db)
+        result = generator.generate_all(user_id=current_user.id)
+        return {
+            "message": "Content generated successfully",
+            "queries_created": result["queries_created"],
+            "descriptors_created": result["descriptors_created"],
+            "competitors_created": result["competitors_created"]
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate content: {str(e)}")
+
+
 # --- Celery Task Trigger for the main weekly run ---
 from celery_app.tasks import run_weekly_queries_task
 @app.post("/tasks/trigger-weekly-run/", status_code=202, tags=["Tasks"])
