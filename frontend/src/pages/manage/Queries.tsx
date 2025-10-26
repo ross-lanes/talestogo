@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -14,13 +15,17 @@ import {
   MenuItem,
   IconButton,
   Chip,
+  Menu,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Download as DownloadIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
+import * as XLSX from 'xlsx';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,9 +34,11 @@ import type { Query, QueryCreate, QueryUpdate } from '../../types';
 
 export default function Queries() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<Query | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [formData, setFormData] = useState<Omit<QueryCreate, 'query_id'>>({
     query_text: '',
     category: '',
@@ -137,6 +144,42 @@ export default function Queries() {
     }
   };
 
+  const handleDownloadSpreadsheet = () => {
+    // Prepare data for export
+    const exportData = queries.map((query) => ({
+      'Query ID': query.query_id,
+      'Query Text': query.query_text,
+      'Category': query.category,
+      'Priority': query.priority,
+      'Target Outcome': query.target_outcome,
+      'Active': query.active ? 'Yes' : 'No',
+      'Notes': query.notes || '',
+    }));
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Queries');
+
+    // Generate file and trigger download
+    XLSX.writeFile(wb, 'AIRO_Queries.xlsx');
+  };
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    handleMenuClose();
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'query_id',
@@ -211,11 +254,36 @@ export default function Queries() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h2">Manage Queries</Typography>
+        <Box display="flex" alignItems="center">
+          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
+          <Box
+            onClick={handleMenuClick}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+          >
+            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
+              Queries
+            </Typography>
+            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
+          </Box>
+        </Box>
         <Box>
           <IconButton onClick={() => queryClient.invalidateQueries({ queryKey: ['queries'] })}>
             <RefreshIcon />
           </IconButton>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadSpreadsheet}
+            sx={{ ml: 1 }}
+            disabled={queries.length === 0}
+          >
+            Download
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -239,6 +307,20 @@ export default function Queries() {
           disableRowSelectionOnClick
         />
       </Paper>
+
+      {/* Navigation Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={() => handleNavigate('/manage/descriptors')}>
+          Descriptors
+        </MenuItem>
+        <MenuItem onClick={() => handleNavigate('/manage/competitors')}>
+          Competitors
+        </MenuItem>
+      </Menu>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>

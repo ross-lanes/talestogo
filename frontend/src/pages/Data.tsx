@@ -1,0 +1,373 @@
+import { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Alert,
+  Snackbar,
+} from '@mui/material';
+import { CloudDownload as CollectionIcon } from '@mui/icons-material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '../services/api';
+import { format } from 'date-fns';
+
+interface Response {
+  id: number;
+  query_id: string;
+  platform: string;
+  model_name: string;
+  response_text: string;
+  collected_at: string;
+  analyzed_at: string | null;
+  mentioned_pppl: boolean | null;
+  sentiment_score: number | null;
+}
+
+export default function Data() {
+  const queryClient = useQueryClient();
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
+
+  // Fetch responses
+  const { data: responses, isLoading, error } = useQuery<Response[]>({
+    queryKey: ['responses'],
+    queryFn: async () => {
+      const response = await api.get('/responses/');
+      return response.data;
+    },
+    retry: false,
+  });
+
+  // Collection mutation
+  const collectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/tasks/run-collection/');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setSnackbar({
+        open: true,
+        message: data.message + ' ' + (data.note || ''),
+        severity: 'success',
+      });
+      // Refresh data after collection
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['responses'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      }, 2000);
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to start collection',
+        severity: 'error',
+      });
+    },
+  });
+
+  const handleOpenConfirmDialog = () => {
+    setConfirmDialogOpen(true);
+  };
+
+  const handleConfirmCollection = () => {
+    setConfirmDialogOpen(false);
+    collectionMutation.mutate();
+  };
+
+  const handleCancelCollection = () => {
+    setConfirmDialogOpen(false);
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleRowClick = (response: Response) => {
+    setSelectedResponse(response);
+  };
+
+  const handleCloseResponseDialog = () => {
+    setSelectedResponse(null);
+  };
+
+  const getSentimentColor = (score: number | null) => {
+    if (score === null) return 'default';
+    if (score >= 0.5) return 'success';
+    if (score >= 0) return 'warning';
+    return 'error';
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h2" component="h1">
+          AI Responses
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<CollectionIcon />}
+          onClick={handleOpenConfirmDialog}
+          disabled={collectionMutation.isPending}
+          sx={{
+            backgroundColor: '#80A1D4',
+            '&:hover': {
+              backgroundColor: '#6B8BC0',
+            },
+          }}
+        >
+          {collectionMutation.isPending ? 'Collecting...' : 'Collect Data'}
+        </Button>
+      </Box>
+
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        View all responses collected from LLM platforms. Click "Collect Data" to gather new responses.
+      </Typography>
+
+      {/* Responses Table */}
+      <Paper sx={{ p: 3 }}>
+        {error ? (
+          <Box sx={{ py: 4, textAlign: 'center' }}>
+            <Alert severity="error">
+              Failed to load responses. Please try refreshing the page.
+            </Alert>
+          </Box>
+        ) : isLoading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+            <CircularProgress />
+          </Box>
+        ) : responses && responses.length > 0 ? (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell><strong>Platform</strong></TableCell>
+                  <TableCell><strong>Model</strong></TableCell>
+                  <TableCell><strong>Query</strong></TableCell>
+                  <TableCell><strong>Response Text</strong></TableCell>
+                  <TableCell><strong>Collected</strong></TableCell>
+                  <TableCell><strong>Mentioned</strong></TableCell>
+                  <TableCell><strong>Sentiment</strong></TableCell>
+                  <TableCell><strong>Status</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {responses.map((response) => (
+                  <TableRow
+                    key={response.id}
+                    hover
+                    onClick={() => handleRowClick(response)}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <TableCell>{response.platform}</TableCell>
+                    <TableCell>{response.model_name}</TableCell>
+                    <TableCell sx={{ maxWidth: 200 }}>
+                      <Typography variant="body2" noWrap>
+                        {response.query_id}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 400 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {response.response_text || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {response.collected_at ? format(new Date(response.collected_at), 'MMM dd, yyyy h:mm a') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {response.mentioned_pppl !== null ? (
+                        <Chip
+                          label={response.mentioned_pppl ? 'Yes' : 'No'}
+                          color={response.mentioned_pppl ? 'success' : 'default'}
+                          size="small"
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {response.sentiment_score !== null && response.sentiment_score !== undefined ? (
+                        <Chip
+                          label={response.sentiment_score.toFixed(2)}
+                          color={getSentimentColor(response.sentiment_score)}
+                          size="small"
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={response.analyzed_at ? 'Analyzed' : 'Pending'}
+                        color={response.analyzed_at ? 'success' : 'warning'}
+                        size="small"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Box sx={{ py: 4, textAlign: 'center' }}>
+            <Typography variant="body1" color="text.secondary">
+              No responses collected yet. Click "Collect Data" to start gathering responses from LLM platforms.
+            </Typography>
+          </Box>
+        )}
+      </Paper>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={handleCancelCollection}
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-description"
+      >
+        <DialogTitle id="confirm-dialog-title">
+          Confirm Data Collection
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="confirm-dialog-description">
+            Are you sure you want to run data collection? This will query all configured LLM platforms
+            and may take a few minutes to complete.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelCollection} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmCollection} variant="contained" color="primary" autoFocus>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Response Detail Dialog */}
+      <Dialog
+        open={Boolean(selectedResponse)}
+        onClose={handleCloseResponseDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Response Details
+        </DialogTitle>
+        <DialogContent>
+          {selectedResponse && (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Platform
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {selectedResponse.platform}
+              </Typography>
+
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 2 }}>
+                Model
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {selectedResponse.model_name}
+              </Typography>
+
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 2 }}>
+                Query
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                {selectedResponse.query_id}
+              </Typography>
+
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mt: 2 }}>
+                Response Text
+              </Typography>
+              <Paper sx={{ p: 2, backgroundColor: 'background.default' }}>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {selectedResponse.response_text || 'No response text available'}
+                </Typography>
+              </Paper>
+
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Collected
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedResponse.collected_at ? format(new Date(selectedResponse.collected_at), 'MMM dd, yyyy h:mm a') : '-'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Mentioned
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedResponse.mentioned_pppl !== null ? (selectedResponse.mentioned_pppl ? 'Yes' : 'No') : '-'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Sentiment Score
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedResponse.sentiment_score !== null && selectedResponse.sentiment_score !== undefined
+                      ? selectedResponse.sentiment_score.toFixed(2)
+                      : '-'}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Status
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedResponse.analyzed_at ? 'Analyzed' : 'Pending'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseResponseDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}

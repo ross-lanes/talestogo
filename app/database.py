@@ -20,3 +20,16 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create a Base class. Your ORM models will inherit from this class.
 Base = declarative_base()
+
+
+# Dependency function that provides a database session per request
+def get_db():
+    """
+    Dependency function that provides a database session per request.
+    Ensures the session is always closed, even if errors occur.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

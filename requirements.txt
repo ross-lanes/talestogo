@@ -10,3 +10,7 @@ celery
 redis
 pytest
 httpx
+authlib
+python-jose[cryptography]
+bcrypt
+google-auth

@@ -1,7 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException
+from dotenv import load_dotenv
+load_dotenv(override=True)  # Load environment variables from .env file
+
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import timedelta
 import os
 import subprocess
 
@@ -9,6 +14,18 @@ import subprocess
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
 from app.routers import analytics
+from app.auth import (
+    get_current_user,
+    get_current_admin_user,
+    authenticate_user,
+    create_access_token,
+    get_password_hash,
+    encrypt_api_key,
+    decrypt_api_key,
+    verify_google_token,
+    get_or_create_oauth_user,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 # This line ensures tables are created if they don't exist when the app starts.
 # It's convenient for development. For production, you'd use a migration tool.
@@ -52,44 +69,243 @@ async def read_root():
     return {"message": "Welcome to the AIRO API!"}
 
 
+# --- Authentication Endpoints ---
+@app.post("/auth/register", response_model=schemas.User, status_code=201, tags=["Authentication"])
+def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    """
+    Register a new user (invite-only).
+    User account will be inactive until admin approves.
+    """
+    # Check if user already exists
+    db_user = crud.get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Hash password and create user
+    hashed_password = get_password_hash(user.password)
+    new_user = crud.create_user(db=db, user=user, hashed_password=hashed_password, is_invited=False)
+    return new_user
+
+
+@app.post("/auth/login", response_model=schemas.Token, tags=["Authentication"])
+def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+    """
+    Login with email and password.
+    Returns JWT access token.
+    """
+    user = authenticate_user(db, email=user_credentials.email, password=user_credentials.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not active. Please contact admin for approval."
+        )
+
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/auth/google", response_model=schemas.Token, tags=["Authentication"])
+def google_login(google_token: schemas.GoogleLogin, db: Session = Depends(get_db)):
+    """
+    Login with Google OAuth.
+    Accepts Google ID token and returns JWT access token.
+    Creates new user if doesn't exist (auto-activated).
+    """
+    # Verify Google token and get user info
+    google_info = verify_google_token(google_token.token)
+
+    # Ensure email is verified
+    if not google_info.get('email_verified'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email not verified with Google"
+        )
+
+    # Get or create user
+    user = get_or_create_oauth_user(db, google_info)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not active. Please contact admin for approval."
+        )
+
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/auth/me", response_model=schemas.User, tags=["Authentication"])
+def get_current_user_info(current_user: models.User = Depends(get_current_user)):
+    """Get current logged-in user information."""
+    return current_user
+
+
+@app.put("/auth/me", response_model=schemas.User, tags=["Authentication"])
+def update_current_user_profile(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update current user's profile and API keys."""
+    updated_user = crud.update_user(
+        db,
+        user_id=current_user.id,
+        user_update=user_update,
+        encrypt_keys_func=encrypt_api_key
+    )
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated_user
+
+
+# --- Admin User Management Endpoints ---
+@app.get("/admin/users", response_model=List[schemas.User], tags=["Admin"])
+def list_all_users(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """List all users (admin only)."""
+    return crud.get_users(db, skip=skip, limit=limit)
+
+
+@app.post("/admin/users/invite", response_model=schemas.User, status_code=201, tags=["Admin"])
+def invite_user(
+    user_invite: schemas.UserInvite,
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create an invited user (admin only).
+    Invited users are pre-approved (is_active=True).
+    """
+    # Check if user already exists
+    db_user = crud.get_user_by_email(db, email=user_invite.email)
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+
+    # Create temporary password (user should change on first login)
+    temp_password = "TempPassword123!"
+    hashed_password = get_password_hash(temp_password)
+
+    # Create user object
+    user_create = schemas.UserCreate(
+        email=user_invite.email,
+        password=temp_password,
+        full_name=user_invite.full_name,
+        organization=user_invite.organization
+    )
+
+    new_user = crud.create_user(db=db, user=user_create, hashed_password=hashed_password, is_invited=True)
+
+    # Activate invited user immediately
+    admin_update = schemas.UserAdminUpdate(is_active=True)
+    crud.admin_update_user(db, user_id=new_user.id, user_update=admin_update)
+
+    return new_user
+
+
+@app.put("/admin/users/{user_id}", response_model=schemas.User, tags=["Admin"])
+def admin_update_user_status(
+    user_id: int,
+    user_update: schemas.UserAdminUpdate,
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Update user status (activate/deactivate, make admin) - admin only."""
+    updated_user = crud.admin_update_user(db, user_id=user_id, user_update=user_update)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated_user
+
+
 # --- Query Endpoints ---
 @app.post("/queries/", response_model=schemas.Query, status_code=201, tags=["Queries"])
-def create_query(query: schemas.QueryCreate, db: Session = Depends(get_db)):
-    """Create a new query."""
-    db_query = crud.get_query_by_query_id(db, query_id=query.query_id)
+def create_query(
+    query: schemas.QueryCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new query for the current user."""
+    db_query = crud.get_query_by_query_id(db, query_id=query.query_id, user_id=current_user.id)
     if db_query:
-        raise HTTPException(status_code=400, detail=f"Query ID {query.query_id} already registered")
-    return crud.create_query(db=db, query=query)
+        raise HTTPException(status_code=400, detail=f"Query ID {query.query_id} already exists for this user")
+    return crud.create_query(db=db, query=query, user_id=current_user.id)
 
 @app.get("/queries/", response_model=List[schemas.Query], tags=["Queries"])
-def read_queries(active_only: bool = False, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Retrieve a list of queries."""
+def read_queries(
+    active_only: bool = False,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a list of queries for the current user."""
     if active_only:
-        queries = crud.get_active_queries(db, skip=skip, limit=limit)
+        queries = crud.get_active_queries(db, user_id=current_user.id, skip=skip, limit=limit)
     else:
-        queries = crud.get_queries(db, skip=skip, limit=limit)
+        queries = crud.get_queries(db, user_id=current_user.id, skip=skip, limit=limit)
     return queries
 
 @app.get("/queries/{query_id}", response_model=schemas.Query, tags=["Queries"])
-def read_query(query_id: str, db: Session = Depends(get_db)):
-    """Retrieve a single query by its user-facing ID (e.g., 'Q001')."""
-    db_query = crud.get_query_by_query_id(db, query_id=query_id)
+def read_query(
+    query_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a single query by its user-facing ID (e.g., 'Q001') for the current user."""
+    db_query = crud.get_query_by_query_id(db, query_id=query_id, user_id=current_user.id)
     if db_query is None:
         raise HTTPException(status_code=404, detail="Query not found")
     return db_query
 
 @app.put("/queries/{query_id}", response_model=schemas.Query, tags=["Queries"])
-def update_query(query_id: str, query_update: schemas.QueryUpdate, db: Session = Depends(get_db)):
-    """Update a query."""
-    db_query = crud.update_query(db, query_id=query_id, query_update=query_update)
+def update_query(
+    query_id: str,
+    query_update: schemas.QueryUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a query for the current user."""
+    db_query = crud.update_query(db, query_id=query_id, query_update=query_update, user_id=current_user.id)
     if db_query is None:
         raise HTTPException(status_code=404, detail="Query not found")
     return db_query
 
 @app.delete("/queries/{query_id}", response_model=schemas.Query, tags=["Queries"])
-def delete_query(query_id: str, db: Session = Depends(get_db)):
-    """Delete a query."""
-    deleted_query = crud.delete_query(db, query_id=query_id)
+def delete_query(
+    query_id: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a query for the current user."""
+    deleted_query = crud.delete_query(db, query_id=query_id, user_id=current_user.id)
     if deleted_query is None:
         raise HTTPException(status_code=404, detail="Query not found")
     return deleted_query
@@ -97,52 +313,110 @@ def delete_query(query_id: str, db: Session = Depends(get_db)):
 
 # --- Response Endpoints ---
 @app.post("/responses/", response_model=schemas.Response, status_code=201, tags=["Responses"])
-def create_response(response: schemas.ResponseCreate, db: Session = Depends(get_db)):
-    """Submit a raw response from an LLM platform."""
-    return crud.create_response(db=db, response=response)
+def create_response(
+    response: schemas.ResponseCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Submit a raw response from an LLM platform for the current user."""
+    return crud.create_response(db=db, response=response, user_id=current_user.id)
 
 @app.get("/responses/", response_model=List[schemas.Response], tags=["Responses"])
-def read_responses(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Retrieve a list of responses."""
-    return crud.get_responses(db, skip=skip, limit=limit)
-    
+def read_responses(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a list of responses for the current user."""
+    return crud.get_responses(db, user_id=current_user.id, skip=skip, limit=limit)
+
 @app.get("/responses/unanalyzed/", response_model=List[schemas.Response], tags=["Responses"])
-def read_unanalyzed_responses(limit: int = 100, db: Session = Depends(get_db)):
-    """Retrieve responses that are pending analysis."""
-    return crud.get_unanalyzed_responses(db, limit=limit)
+def read_unanalyzed_responses(
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve responses that are pending analysis for the current user."""
+    return crud.get_unanalyzed_responses(db, user_id=current_user.id, limit=limit)
 
 @app.put("/responses/{response_id}/analyze", response_model=schemas.Response, tags=["Responses"])
-def update_response_analysis(response_id: int, analysis_data: schemas.ResponseAnalysisInput, db: Session = Depends(get_db)):
-    """Update a response with analysis data."""
-    db_response = crud.update_response_analysis(db, response_id=response_id, analysis_data=analysis_data)
+def update_response_analysis(
+    response_id: int,
+    analysis_data: schemas.ResponseAnalysisInput,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a response with analysis data for the current user."""
+    db_response = crud.update_response_analysis(
+        db,
+        response_id=response_id,
+        analysis_data=analysis_data.model_dump(exclude_unset=True),
+        user_id=current_user.id
+    )
     if db_response is None:
         raise HTTPException(status_code=404, detail="Response not found")
     return db_response
 
+@app.delete("/responses/{response_id}", response_model=schemas.Response, tags=["Responses"])
+def delete_response(
+    response_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a response for the current user."""
+    deleted_response = crud.delete_response(db, response_id=response_id, user_id=current_user.id)
+    if deleted_response is None:
+        raise HTTPException(status_code=404, detail="Response not found")
+    return deleted_response
+
 
 # --- Competitor Endpoints ---
 @app.post("/competitors/", response_model=schemas.Competitor, status_code=201, tags=["Competitors"])
-def create_competitor(competitor: schemas.CompetitorCreate, db: Session = Depends(get_db)):
-    """Create a new competitor."""
-    return crud.create_competitor(db=db, competitor=competitor)
+def create_competitor(
+    competitor: schemas.CompetitorCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new competitor for the current user."""
+    return crud.create_competitor(db=db, competitor=competitor, user_id=current_user.id)
 
 @app.get("/competitors/", response_model=List[schemas.Competitor], tags=["Competitors"])
-def read_competitors(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Retrieve a list of competitors."""
-    return crud.get_competitors(db, skip=skip, limit=limit)
+def read_competitors(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a list of competitors for the current user."""
+    return crud.get_competitors(db, user_id=current_user.id, skip=skip, limit=limit)
 
 @app.put("/competitors/{competitor_id}", response_model=schemas.Competitor, tags=["Competitors"])
-def update_competitor(competitor_id: int, competitor_update: schemas.CompetitorUpdate, db: Session = Depends(get_db)):
-    """Update a competitor."""
-    db_competitor = crud.update_competitor(db, competitor_id=competitor_id, competitor_update=competitor_update)
+def update_competitor(
+    competitor_id: int,
+    competitor_update: schemas.CompetitorUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a competitor for the current user."""
+    db_competitor = crud.update_competitor(
+        db,
+        competitor_id=competitor_id,
+        competitor_update=competitor_update,
+        user_id=current_user.id
+    )
     if db_competitor is None:
         raise HTTPException(status_code=404, detail="Competitor not found")
     return db_competitor
 
 @app.delete("/competitors/{competitor_id}", response_model=schemas.Competitor, tags=["Competitors"])
-def delete_competitor(competitor_id: int, db: Session = Depends(get_db)):
-    """Delete a competitor."""
-    deleted_competitor = crud.delete_competitor(db, competitor_id=competitor_id)
+def delete_competitor(
+    competitor_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a competitor for the current user."""
+    deleted_competitor = crud.delete_competitor(db, competitor_id=competitor_id, user_id=current_user.id)
     if deleted_competitor is None:
         raise HTTPException(status_code=404, detail="Competitor not found")
     return deleted_competitor
@@ -150,40 +424,131 @@ def delete_competitor(competitor_id: int, db: Session = Depends(get_db)):
 
 # --- Descriptor Endpoints ---
 @app.post("/descriptors/", response_model=schemas.TargetDescriptor, status_code=201, tags=["Descriptors"])
-def create_descriptor(descriptor: schemas.TargetDescriptorCreate, db: Session = Depends(get_db)):
-    """Create a new descriptor."""
-    return crud.create_descriptor(db=db, descriptor=descriptor)
+def create_descriptor(
+    descriptor: schemas.TargetDescriptorCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new descriptor for the current user."""
+    return crud.create_descriptor(db=db, descriptor=descriptor, user_id=current_user.id)
 
 @app.get("/descriptors/", response_model=List[schemas.TargetDescriptor], tags=["Descriptors"])
-def read_descriptors(target_only: bool = False, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Retrieve a list of descriptors."""
+def read_descriptors(
+    target_only: bool = False,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a list of descriptors for the current user."""
     if target_only:
-        return crud.get_target_descriptors(db, skip=skip, limit=limit)
-    return crud.get_descriptors(db, skip=skip, limit=limit)
+        return crud.get_target_descriptors(db, user_id=current_user.id, skip=skip, limit=limit)
+    return crud.get_descriptors(db, user_id=current_user.id, skip=skip, limit=limit)
 
 @app.get("/descriptors/{descriptor_id}", response_model=schemas.TargetDescriptor, tags=["Descriptors"])
-def read_descriptor(descriptor_id: int, db: Session = Depends(get_db)):
-    """Retrieve a single descriptor by its primary key."""
-    db_descriptor = crud.get_descriptor(db, descriptor_id=descriptor_id)
+def read_descriptor(
+    descriptor_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a single descriptor by its primary key for the current user."""
+    db_descriptor = crud.get_descriptor(db, descriptor_id=descriptor_id, user_id=current_user.id)
     if db_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
     return db_descriptor
 
 @app.put("/descriptors/{descriptor_id}", response_model=schemas.TargetDescriptor, tags=["Descriptors"])
-def update_descriptor(descriptor_id: int, descriptor_update: schemas.TargetDescriptorUpdate, db: Session = Depends(get_db)):
-    """Update a descriptor."""
-    db_descriptor = crud.update_descriptor(db, descriptor_id=descriptor_id, descriptor_update=descriptor_update)
+def update_descriptor(
+    descriptor_id: int,
+    descriptor_update: schemas.TargetDescriptorUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a descriptor for the current user."""
+    db_descriptor = crud.update_descriptor(
+        db,
+        descriptor_id=descriptor_id,
+        descriptor_update=descriptor_update,
+        user_id=current_user.id
+    )
     if db_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
     return db_descriptor
 
 @app.delete("/descriptors/{descriptor_id}", response_model=schemas.TargetDescriptor, tags=["Descriptors"])
-def delete_descriptor(descriptor_id: int, db: Session = Depends(get_db)):
-    """Delete a descriptor."""
-    deleted_descriptor = crud.delete_descriptor(db, descriptor_id=descriptor_id)
+def delete_descriptor(
+    descriptor_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a descriptor for the current user."""
+    deleted_descriptor = crud.delete_descriptor(db, descriptor_id=descriptor_id, user_id=current_user.id)
     if deleted_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
     return deleted_descriptor
+
+
+# --- Report Endpoints ---
+@app.post("/reports/", response_model=schemas.Report, status_code=201, tags=["Reports"])
+def create_report(
+    report: schemas.ReportCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new report for the current user."""
+    return crud.create_report(db=db, report=report, user_id=current_user.id)
+
+@app.get("/reports/", response_model=List[schemas.Report], tags=["Reports"])
+def read_reports(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a list of reports for the current user."""
+    return crud.get_reports(db, user_id=current_user.id, skip=skip, limit=limit)
+
+@app.get("/reports/{report_id}", response_model=schemas.Report, tags=["Reports"])
+def read_report(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve a single report by its ID for the current user."""
+    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return db_report
+
+@app.put("/reports/{report_id}", response_model=schemas.Report, tags=["Reports"])
+def update_report(
+    report_id: int,
+    report_update: schemas.ReportUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a report (mainly for adding Google Doc URL) for the current user."""
+    db_report = crud.update_report(
+        db,
+        report_id=report_id,
+        report_update=report_update,
+        user_id=current_user.id
+    )
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return db_report
+
+@app.delete("/reports/{report_id}", response_model=schemas.Report, tags=["Reports"])
+def delete_report(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a report for the current user."""
+    deleted_report = crud.delete_report(db, report_id=report_id, user_id=current_user.id)
+    if deleted_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return deleted_report
 
 
 # --- Celery Task Trigger for the main weekly run ---
@@ -208,19 +573,19 @@ async def trigger_analysis_on_unanalyzed(db: Session = Depends(get_db)):
 
 # --- Direct Collection and Analysis Triggers (without Celery) ---
 @app.post("/tasks/run-collection/", status_code=202, tags=["Tasks"])
-async def run_collection():
+async def run_collection(current_user: models.User = Depends(get_current_user)):
     """Trigger response collection using the collection script."""
     script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
     try:
-        # Run the collection script in the background
+        # Run the collection script in the background with user_id as argument
         process = subprocess.Popen(
-            ["python3", script_path],
+            ["python3", script_path, str(current_user.id)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
-        # Send "1" to run all queries
+        # Send "1" to run all queries (auto-select option 1)
         process.stdin.write("1\n")
         process.stdin.flush()
 
@@ -233,9 +598,12 @@ async def run_collection():
         raise HTTPException(status_code=500, detail=f"Failed to start collection: {str(e)}")
 
 @app.post("/tasks/run-analysis/", status_code=202, tags=["Tasks"])
-async def run_analysis(db: Session = Depends(get_db)):
+async def run_analysis(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Trigger analysis on unanalyzed responses using the analysis script."""
-    unanalyzed_responses = crud.get_unanalyzed_responses(db, limit=1000)
+    unanalyzed_responses = crud.get_unanalyzed_responses(db, user_id=current_user.id, limit=1000)
     if not unanalyzed_responses:
         raise HTTPException(status_code=404, detail="No unanalyzed responses found.")
 

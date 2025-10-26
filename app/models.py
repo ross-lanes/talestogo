@@ -1,16 +1,41 @@
 import datetime
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Float, Text, Date,
-    MetaData, Table, create_engine
+    MetaData, Table, create_engine, ForeignKey
 )
+from sqlalchemy.orm import relationship
 # Import Base from your database setup file
 from .database import Base
+
+# === User Model (for authentication and multi-tenancy) ===
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Nullable for OAuth users
+    full_name = Column(String(200))
+    organization = Column(String(200))  # The brand/org they're tracking (e.g., "PPPL", "MIT", etc.)
+    is_admin = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=False)  # Must be approved by admin to use system
+    is_invited = Column(Boolean, default=False)  # Has received invite email
+    # OAuth fields
+    google_id = Column(String(255), unique=True, index=True, nullable=True)  # Google OAuth ID
+    oauth_provider = Column(String(50), nullable=True)  # 'google', 'github', etc.
+    picture_url = Column(String(500), nullable=True)  # Profile picture URL from OAuth
+    # Encrypted API keys (user-provided, encrypted at rest)
+    openai_api_key_encrypted = Column(Text, nullable=True)
+    anthropic_api_key_encrypted = Column(Text, nullable=True)
+    gemini_api_key_encrypted = Column(Text, nullable=True)
+    perplexity_api_key_encrypted = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 class Query(Base):
     __tablename__ = "queries"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     # Using String(10) assuming format like Q001 up to Q9999999
-    query_id = Column(String(10), unique=True, index=True, nullable=False)
+    query_id = Column(String(10), index=True, nullable=False)  # No longer globally unique - unique per user
     query_text = Column(Text, nullable=False)
     category = Column(String(100))
     priority = Column(String(20)) # High, Medium, Low
@@ -23,6 +48,7 @@ class Query(Base):
 class Response(Base):
     __tablename__ = "responses"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     # No Foreign Key constraint, just index for faster lookups by query_id
     query_id = Column(String(10), index=True, nullable=False)
     query_text = Column(Text) # Denormalized
@@ -43,6 +69,7 @@ class Response(Base):
 class Competitor(Base):
     __tablename__ = "competitors"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     organization = Column(String(200), nullable=False, index=True)
     type = Column(String(100)) # National Lab, University, Private Company
     focus_area = Column(Text)
@@ -55,6 +82,7 @@ class Competitor(Base):
 class TargetDescriptor(Base):
     __tablename__ = "target_descriptors"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     descriptor = Column(String(200), nullable=False, index=True)
     category = Column(String(100)) # Technical, Leadership, Innovation
     target_for_pppl = Column(Boolean, default=True)
@@ -66,6 +94,7 @@ class TargetDescriptor(Base):
 class Campaign(Base):
     __tablename__ = "campaigns"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     campaign_name = Column(String(200), nullable=False, index=True)
     start_date = Column(Date)
     end_date = Column(Date)
@@ -78,6 +107,7 @@ class Campaign(Base):
 class CitedSource(Base):
     __tablename__ = "cited_sources"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     source_name = Column(String(200), nullable=False, index=True)
     source_type = Column(String(100)) # News, Academic, Official, Social, Reference
     authority_level = Column(String(20)) # High, Medium, Low
@@ -89,9 +119,24 @@ class CitedSource(Base):
 # Note: DashboardMetrics table is omitted - we'll calculate these on-demand or cache them.
 # Storing them directly can lead to stale data unless updated rigorously.
 
+class Report(Base):
+    __tablename__ = "reports"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    title = Column(String(200), nullable=False)
+    report_content = Column(Text, nullable=False) # Full markdown content
+    start_date = Column(DateTime, nullable=True) # Analysis period start
+    end_date = Column(DateTime, nullable=True) # Analysis period end
+    total_responses = Column(Integer, default=0)
+    mention_rate = Column(Float, nullable=True)
+    google_doc_url = Column(String(500), nullable=True) # Export URL
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 class AnalysisHistory(Base):
     __tablename__ = "analyses"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     analysis_type = Column(String(50), nullable=False) # Full, ShareOfVoice, Campaign
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     # Storing report content directly for simplicity, could store URLs instead
@@ -105,6 +150,7 @@ class AnalysisHistory(Base):
 class Trend(Base):
     __tablename__ = "trends"
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     # E.g., '2025-10-14' for week, '2025-10' for month
     period = Column(String(20), nullable=False, index=True)
     grouping = Column(String(10), nullable=False, index=True) # 'week' or 'month'
@@ -116,8 +162,8 @@ class Trend(Base):
     response_count = Column(Integer)
     pppl_mention_count = Column(Integer)
     calculated_at = Column(DateTime, default=datetime.datetime.utcnow)
-    # Add unique constraint for period+grouping if needed by DB
-    # __table_args__ = (UniqueConstraint('period', 'grouping', name='uq_period_grouping'),)
+    # Add unique constraint for period+grouping+user_id if needed by DB
+    # __table_args__ = (UniqueConstraint('period', 'grouping', 'user_id', name='uq_period_grouping_user'),)
 
 class Configuration(Base):
     __tablename__ = "configuration"

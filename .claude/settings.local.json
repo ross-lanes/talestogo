@@ -20,7 +20,15 @@
       "Bash(nslookup api.perplexity.ai)",
       "Bash(timeout 3 curl:*)",
       "Bash(git rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(source airo-env/bin/activate:*)",
+      "Bash(uvicorn:*)",
+      "Bash(python3:*)",
+      "Bash(/Users/rachelkremen/Documents/Code/airo_project/.venv/bin/pip list:*)",
+      "Bash(sqlite3:*)",
+      "Bash(timeout 5 python3:*)",
+      "Bash(printenv:*)"
     ],
     "deny": [],
     "ask": []

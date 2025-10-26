@@ -8,26 +8,39 @@ from . import models, schemas
 
 # === Query CRUD Functions ===
 
-def get_query(db: Session, query_id_internal: int) -> Optional[models.Query]:
-    """Gets a single query by its internal database ID."""
-    return db.query(models.Query).filter(models.Query.id == query_id_internal).first()
+def get_query(db: Session, query_id_internal: int, user_id: int) -> Optional[models.Query]:
+    """Gets a single query by its internal database ID for a specific user."""
+    return db.query(models.Query).filter(
+        models.Query.id == query_id_internal,
+        models.Query.user_id == user_id
+    ).first()
 
-def get_query_by_query_id(db: Session, query_id: str) -> Optional[models.Query]:
-    """Gets a single query by its user-facing Query ID (e.g., 'Q001')."""
-    return db.query(models.Query).filter(models.Query.query_id == query_id).first()
+def get_query_by_query_id(db: Session, query_id: str, user_id: int) -> Optional[models.Query]:
+    """Gets a single query by its user-facing Query ID (e.g., 'Q001') for a specific user."""
+    return db.query(models.Query).filter(
+        models.Query.query_id == query_id,
+        models.Query.user_id == user_id
+    ).first()
 
-def get_queries(db: Session, skip: int = 0, limit: int = 100) -> List[models.Query]:
-    """Gets a list of all queries, with pagination."""
-    return db.query(models.Query).order_by(models.Query.query_id).offset(skip).limit(limit).all()
+def get_queries(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Query]:
+    """Gets a list of all queries for a specific user, with pagination."""
+    return db.query(models.Query).filter(
+        models.Query.user_id == user_id
+    ).order_by(models.Query.query_id).offset(skip).limit(limit).all()
 
-def get_active_queries(db: Session, skip: int = 0, limit: int = 100) -> List[models.Query]:
-    """Gets a list of active queries, with pagination."""
-    return db.query(models.Query).filter(models.Query.active == True).order_by(models.Query.query_id).offset(skip).limit(limit).all()
+def get_active_queries(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Query]:
+    """Gets a list of active queries for a specific user, with pagination."""
+    return db.query(models.Query).filter(
+        models.Query.user_id == user_id,
+        models.Query.active == True
+    ).order_by(models.Query.query_id).offset(skip).limit(limit).all()
 
-def generate_next_query_id(db: Session) -> str:
-    """Generates the next sequential query ID (Q001, Q002, etc.)."""
-    # Get the highest existing query_id
-    last_query = db.query(models.Query).order_by(models.Query.query_id.desc()).first()
+def generate_next_query_id(db: Session, user_id: int) -> str:
+    """Generates the next sequential query ID (Q001, Q002, etc.) for a specific user."""
+    # Get the highest existing query_id for this user
+    last_query = db.query(models.Query).filter(
+        models.Query.user_id == user_id
+    ).order_by(models.Query.query_id.desc()).first()
 
     if not last_query or not last_query.query_id:
         return "Q001"
@@ -41,23 +54,24 @@ def generate_next_query_id(db: Session) -> str:
         # If parsing fails, start from Q001
         return "Q001"
 
-def create_query(db: Session, query: schemas.QueryCreate) -> models.Query:
-    """Creates a new query in the database."""
+def create_query(db: Session, query: schemas.QueryCreate, user_id: int) -> models.Query:
+    """Creates a new query in the database for a specific user."""
     query_data = query.model_dump()
 
     # Auto-generate query_id if not provided
     if not query_data.get('query_id'):
-        query_data['query_id'] = generate_next_query_id(db)
+        query_data['query_id'] = generate_next_query_id(db, user_id)
 
+    query_data['user_id'] = user_id
     db_query = models.Query(**query_data)
     db.add(db_query)
     db.commit()
     db.refresh(db_query)
     return db_query
 
-def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate) -> Optional[models.Query]:
-    """Updates an existing query by its user-facing Query ID."""
-    db_query = get_query_by_query_id(db, query_id=query_id)
+def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate, user_id: int) -> Optional[models.Query]:
+    """Updates an existing query by its user-facing Query ID for a specific user."""
+    db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id)
     if not db_query:
         return None
 
@@ -69,9 +83,9 @@ def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate) 
     db.refresh(db_query)
     return db_query
 
-def delete_query(db: Session, query_id: str) -> Optional[models.Query]:
-    """Deletes a query by its user-facing Query ID. Returns the deleted object."""
-    db_query = get_query_by_query_id(db, query_id=query_id)
+def delete_query(db: Session, query_id: str, user_id: int) -> Optional[models.Query]:
+    """Deletes a query by its user-facing Query ID for a specific user. Returns the deleted object."""
+    db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id)
     if not db_query:
         return None
     db.delete(db_query)
@@ -81,29 +95,42 @@ def delete_query(db: Session, query_id: str) -> Optional[models.Query]:
 
 # === Response CRUD Functions ===
 
-def get_response(db: Session, response_id: int) -> Optional[models.Response]:
-    """Gets a single response by its internal database ID."""
-    return db.query(models.Response).filter(models.Response.id == response_id).first()
+def get_response(db: Session, response_id: int, user_id: int) -> Optional[models.Response]:
+    """Gets a single response by its internal database ID for a specific user."""
+    return db.query(models.Response).filter(
+        models.Response.id == response_id,
+        models.Response.user_id == user_id
+    ).first()
 
-def get_responses(db: Session, skip: int = 0, limit: int = 100) -> List[models.Response]:
-    """Gets a list of all responses, with pagination."""
-    return db.query(models.Response).order_by(models.Response.timestamp.desc()).offset(skip).limit(limit).all()
+def get_responses(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Response]:
+    """Gets a list of all responses for a specific user, with pagination."""
+    return db.query(models.Response).filter(
+        models.Response.user_id == user_id
+    ).order_by(models.Response.timestamp.desc()).offset(skip).limit(limit).all()
 
-def create_response(db: Session, response: schemas.ResponseCreate) -> models.Response:
-    """Creates a new response entry."""
-    db_response = models.Response(**response.model_dump())
+def create_response(db: Session, response: schemas.ResponseCreate, user_id: int) -> models.Response:
+    """Creates a new response entry for a specific user."""
+    response_data = response.model_dump()
+    response_data['user_id'] = user_id
+    db_response = models.Response(**response_data)
     db.add(db_response)
     db.commit()
     db.refresh(db_response)
     return db_response
 
-def get_unanalyzed_responses(db: Session, limit: int = 100) -> List[models.Response]:
-    """Gets responses that haven't been analyzed yet."""
-    return db.query(models.Response).filter(models.Response.analyzed_at == None).limit(limit).all()
+def get_unanalyzed_responses(db: Session, user_id: int, limit: int = 100) -> List[models.Response]:
+    """Gets responses that haven't been analyzed yet for a specific user."""
+    return db.query(models.Response).filter(
+        models.Response.user_id == user_id,
+        models.Response.analyzed_at == None
+    ).limit(limit).all()
 
-def update_response_analysis(db: Session, response_id: int, analysis_data: dict) -> Optional[models.Response]:
-    """Updates the analysis fields of a specific response."""
-    db_response = db.query(models.Response).filter(models.Response.id == response_id).first()
+def update_response_analysis(db: Session, response_id: int, analysis_data: dict, user_id: int) -> Optional[models.Response]:
+    """Updates the analysis fields of a specific response for a specific user."""
+    db_response = db.query(models.Response).filter(
+        models.Response.id == response_id,
+        models.Response.user_id == user_id
+    ).first()
     if not db_response:
         return None
     for key, value in analysis_data.items():
@@ -113,24 +140,40 @@ def update_response_analysis(db: Session, response_id: int, analysis_data: dict)
     db.refresh(db_response)
     return db_response
 
+def delete_response(db: Session, response_id: int, user_id: int) -> Optional[models.Response]:
+    """Deletes a response by its ID for a specific user. Returns the deleted object."""
+    db_response = get_response(db, response_id=response_id, user_id=user_id)
+    if not db_response:
+        return None
+    db.delete(db_response)
+    db.commit()
+    return db_response
+
 
 # === Competitor CRUD Functions ===
 
-def get_competitor(db: Session, competitor_id: int) -> Optional[models.Competitor]:
-    return db.query(models.Competitor).filter(models.Competitor.id == competitor_id).first()
+def get_competitor(db: Session, competitor_id: int, user_id: int) -> Optional[models.Competitor]:
+    return db.query(models.Competitor).filter(
+        models.Competitor.id == competitor_id,
+        models.Competitor.user_id == user_id
+    ).first()
 
-def get_competitors(db: Session, skip: int = 0, limit: int = 100) -> List[models.Competitor]:
-    return db.query(models.Competitor).order_by(models.Competitor.organization).offset(skip).limit(limit).all()
+def get_competitors(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Competitor]:
+    return db.query(models.Competitor).filter(
+        models.Competitor.user_id == user_id
+    ).order_by(models.Competitor.organization).offset(skip).limit(limit).all()
 
-def create_competitor(db: Session, competitor: schemas.CompetitorCreate) -> models.Competitor:
-    db_competitor = models.Competitor(**competitor.model_dump())
+def create_competitor(db: Session, competitor: schemas.CompetitorCreate, user_id: int) -> models.Competitor:
+    competitor_data = competitor.model_dump()
+    competitor_data['user_id'] = user_id
+    db_competitor = models.Competitor(**competitor_data)
     db.add(db_competitor)
     db.commit()
     db.refresh(db_competitor)
     return db_competitor
 
-def update_competitor(db: Session, competitor_id: int, competitor_update: schemas.CompetitorUpdate) -> Optional[models.Competitor]:
-    db_competitor = get_competitor(db, competitor_id)
+def update_competitor(db: Session, competitor_id: int, competitor_update: schemas.CompetitorUpdate, user_id: int) -> Optional[models.Competitor]:
+    db_competitor = get_competitor(db, competitor_id, user_id)
     if not db_competitor:
         return None
     update_data = competitor_update.model_dump(exclude_unset=True)
@@ -140,45 +183,61 @@ def update_competitor(db: Session, competitor_id: int, competitor_update: schema
     db.refresh(db_competitor)
     return db_competitor
 
-def delete_competitor(db: Session, competitor_id: int) -> Optional[models.Competitor]:
-    db_competitor = get_competitor(db, competitor_id)
+def delete_competitor(db: Session, competitor_id: int, user_id: int) -> Optional[models.Competitor]:
+    db_competitor = get_competitor(db, competitor_id, user_id)
     if not db_competitor:
         return None
     db.delete(db_competitor)
     db.commit()
     return db_competitor
 
-def get_competitor_by_organization(db: Session, organization: str) -> Optional[models.Competitor]:
-    """Gets a single competitor by its organization name."""
-    return db.query(models.Competitor).filter(models.Competitor.organization == organization).first()
+def get_competitor_by_organization(db: Session, organization: str, user_id: int) -> Optional[models.Competitor]:
+    """Gets a single competitor by its organization name for a specific user."""
+    return db.query(models.Competitor).filter(
+        models.Competitor.organization == organization,
+        models.Competitor.user_id == user_id
+    ).first()
 
 
 # === TargetDescriptor CRUD Functions ===
 
-def get_descriptor(db: Session, descriptor_id: int) -> Optional[models.TargetDescriptor]:
-    return db.query(models.TargetDescriptor).filter(models.TargetDescriptor.id == descriptor_id).first()
+def get_descriptor(db: Session, descriptor_id: int, user_id: int) -> Optional[models.TargetDescriptor]:
+    return db.query(models.TargetDescriptor).filter(
+        models.TargetDescriptor.id == descriptor_id,
+        models.TargetDescriptor.user_id == user_id
+    ).first()
 
-def get_descriptors(db: Session, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
-    return db.query(models.TargetDescriptor).order_by(models.TargetDescriptor.descriptor).offset(skip).limit(limit).all()
+def get_descriptors(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
+    return db.query(models.TargetDescriptor).filter(
+        models.TargetDescriptor.user_id == user_id
+    ).order_by(models.TargetDescriptor.descriptor).offset(skip).limit(limit).all()
 
-def get_descriptor_by_name(db: Session, name: str) -> Optional[models.TargetDescriptor]:
-    """Gets a single descriptor by its name."""
-    return db.query(models.TargetDescriptor).filter(models.TargetDescriptor.descriptor == name).first()
+def get_descriptor_by_name(db: Session, name: str, user_id: int) -> Optional[models.TargetDescriptor]:
+    """Gets a single descriptor by its name for a specific user."""
+    return db.query(models.TargetDescriptor).filter(
+        models.TargetDescriptor.descriptor == name,
+        models.TargetDescriptor.user_id == user_id
+    ).first()
 
-def create_descriptor(db: Session, descriptor: schemas.TargetDescriptorCreate) -> models.TargetDescriptor:
-    db_descriptor = models.TargetDescriptor(**descriptor.model_dump())
+def create_descriptor(db: Session, descriptor: schemas.TargetDescriptorCreate, user_id: int) -> models.TargetDescriptor:
+    descriptor_data = descriptor.model_dump()
+    descriptor_data['user_id'] = user_id
+    db_descriptor = models.TargetDescriptor(**descriptor_data)
     db.add(db_descriptor)
     db.commit()
     db.refresh(db_descriptor)
     return db_descriptor
 
-def get_target_descriptors(db: Session, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
-    """Gets a list of descriptors that are marked as targets for PPPL."""
-    return db.query(models.TargetDescriptor).filter(models.TargetDescriptor.target_for_pppl == True).order_by(models.TargetDescriptor.priority).offset(skip).limit(limit).all()
+def get_target_descriptors(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
+    """Gets a list of descriptors that are marked as targets for the user's brand."""
+    return db.query(models.TargetDescriptor).filter(
+        models.TargetDescriptor.user_id == user_id,
+        models.TargetDescriptor.target_for_pppl == True
+    ).order_by(models.TargetDescriptor.priority).offset(skip).limit(limit).all()
 
-def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schemas.TargetDescriptorUpdate) -> Optional[models.TargetDescriptor]:
-    """Updates an existing descriptor."""
-    db_descriptor = get_descriptor(db, descriptor_id)
+def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schemas.TargetDescriptorUpdate, user_id: int) -> Optional[models.TargetDescriptor]:
+    """Updates an existing descriptor for a specific user."""
+    db_descriptor = get_descriptor(db, descriptor_id, user_id)
     if not db_descriptor:
         return None
     update_data = descriptor_update.model_dump(exclude_unset=True)
@@ -188,9 +247,9 @@ def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schema
     db.refresh(db_descriptor)
     return db_descriptor
 
-def delete_descriptor(db: Session, descriptor_id: int) -> Optional[models.TargetDescriptor]:
-    """Deletes a descriptor by its ID."""
-    db_descriptor = get_descriptor(db, descriptor_id)
+def delete_descriptor(db: Session, descriptor_id: int, user_id: int) -> Optional[models.TargetDescriptor]:
+    """Deletes a descriptor by its ID for a specific user."""
+    db_descriptor = get_descriptor(db, descriptor_id, user_id)
     if not db_descriptor:
         return None
     db.delete(db_descriptor)
@@ -200,34 +259,167 @@ def delete_descriptor(db: Session, descriptor_id: int) -> Optional[models.Target
 
 # === Campaign CRUD Functions ===
 
-def get_campaign(db: Session, campaign_id: int) -> Optional[models.Campaign]:
-    return db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+def get_campaign(db: Session, campaign_id: int, user_id: int) -> Optional[models.Campaign]:
+    return db.query(models.Campaign).filter(
+        models.Campaign.id == campaign_id,
+        models.Campaign.user_id == user_id
+    ).first()
 
-def get_campaigns(db: Session, skip: int = 0, limit: int = 100) -> List[models.Campaign]:
-    return db.query(models.Campaign).order_by(models.Campaign.start_date.desc()).offset(skip).limit(limit).all()
+def get_campaigns(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Campaign]:
+    return db.query(models.Campaign).filter(
+        models.Campaign.user_id == user_id
+    ).order_by(models.Campaign.start_date.desc()).offset(skip).limit(limit).all()
 
-def create_campaign(db: Session, campaign: schemas.CampaignCreate) -> models.Campaign:
-    db_campaign = models.Campaign(**campaign.model_dump())
+def create_campaign(db: Session, campaign: schemas.CampaignCreate, user_id: int) -> models.Campaign:
+    campaign_data = campaign.model_dump()
+    campaign_data['user_id'] = user_id
+    db_campaign = models.Campaign(**campaign_data)
     db.add(db_campaign)
     db.commit()
     db.refresh(db_campaign)
     return db_campaign
 
 
+# === Report CRUD Functions ===
+
+def create_report(db: Session, report: schemas.ReportCreate, user_id: int) -> models.Report:
+    """Creates a new report for a specific user."""
+    report_data = report.model_dump()
+    report_data['user_id'] = user_id
+    db_report = models.Report(**report_data)
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+def get_report(db: Session, report_id: int, user_id: int) -> Optional[models.Report]:
+    """Gets a single report by ID for a specific user."""
+    return db.query(models.Report).filter(
+        models.Report.id == report_id,
+        models.Report.user_id == user_id
+    ).first()
+
+def get_reports(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Report]:
+    """Gets a list of all reports for a specific user, ordered by creation date (newest first)."""
+    return db.query(models.Report).filter(
+        models.Report.user_id == user_id
+    ).order_by(models.Report.created_at.desc()).offset(skip).limit(limit).all()
+
+def update_report(db: Session, report_id: int, report_update: schemas.ReportUpdate, user_id: int) -> Optional[models.Report]:
+    """Updates an existing report (mainly for adding Google Doc URL) for a specific user."""
+    db_report = get_report(db, report_id=report_id, user_id=user_id)
+    if not db_report:
+        return None
+    update_data = report_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_report, key, value)
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+def delete_report(db: Session, report_id: int, user_id: int) -> Optional[models.Report]:
+    """Deletes a report by its ID for a specific user."""
+    db_report = get_report(db, report_id=report_id, user_id=user_id)
+    if not db_report:
+        return None
+    db.delete(db_report)
+    db.commit()
+    return db_report
+
+
 # === AnalysisHistory CRUD Functions ===
 
-def create_analysis_history(db: Session, analysis: schemas.AnalysisHistoryCreate) -> models.AnalysisHistory:
-    db_analysis = models.AnalysisHistory(**analysis.model_dump())
+def create_analysis_history(db: Session, analysis: schemas.AnalysisHistoryCreate, user_id: int) -> models.AnalysisHistory:
+    analysis_data = analysis.model_dump()
+    analysis_data['user_id'] = user_id
+    db_analysis = models.AnalysisHistory(**analysis_data)
     db.add(db_analysis)
     db.commit()
     db.refresh(db_analysis)
     return db_analysis
 
-def get_analysis_histories(db: Session, skip: int = 0, limit: int = 10) -> List[models.AnalysisHistory]:
-    return db.query(models.AnalysisHistory).order_by(models.AnalysisHistory.timestamp.desc()).offset(skip).limit(limit).all()
+def get_analysis_histories(db: Session, user_id: int, skip: int = 0, limit: int = 10) -> List[models.AnalysisHistory]:
+    return db.query(models.AnalysisHistory).filter(
+        models.AnalysisHistory.user_id == user_id
+    ).order_by(models.AnalysisHistory.timestamp.desc()).offset(skip).limit(limit).all()
 
-def get_responses_by_ids(db: Session, response_ids: List[int]) -> List[models.Response]:
-    """Gets a list of responses from a list of IDs."""
+def get_responses_by_ids(db: Session, response_ids: List[int], user_id: int) -> List[models.Response]:
+    """Gets a list of responses from a list of IDs for a specific user."""
     if not response_ids:
         return []
-    return db.query(models.Response).filter(models.Response.id.in_(response_ids)).all()
+    return db.query(models.Response).filter(
+        models.Response.id.in_(response_ids),
+        models.Response.user_id == user_id
+    ).all()
+
+
+# === User CRUD Functions ===
+
+def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
+    """Gets a user by email address."""
+    return db.query(models.User).filter(models.User.email == email).first()
+
+def get_user_by_id(db: Session, user_id: int) -> Optional[models.User]:
+    """Gets a user by ID."""
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
+def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]:
+    """Gets all users (admin only)."""
+    return db.query(models.User).order_by(models.User.created_at.desc()).offset(skip).limit(limit).all()
+
+def create_user(db: Session, user: schemas.UserCreate, hashed_password: str, is_invited: bool = False) -> models.User:
+    """Creates a new user."""
+    db_user = models.User(
+        email=user.email,
+        hashed_password=hashed_password,
+        full_name=user.full_name,
+        organization=user.organization,
+        is_invited=is_invited,
+        is_active=False,  # Must be approved by admin
+        is_admin=False
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def update_user(db: Session, user_id: int, user_update: schemas.UserUpdate, encrypt_keys_func=None) -> Optional[models.User]:
+    """Updates user profile and API keys."""
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        return None
+
+    update_data = user_update.model_dump(exclude_unset=True)
+
+    # Handle API key encryption if provided
+    if encrypt_keys_func:
+        if 'openai_api_key' in update_data and update_data['openai_api_key']:
+            db_user.openai_api_key_encrypted = encrypt_keys_func(update_data.pop('openai_api_key'))
+        if 'anthropic_api_key' in update_data and update_data['anthropic_api_key']:
+            db_user.anthropic_api_key_encrypted = encrypt_keys_func(update_data.pop('anthropic_api_key'))
+        if 'gemini_api_key' in update_data and update_data['gemini_api_key']:
+            db_user.gemini_api_key_encrypted = encrypt_keys_func(update_data.pop('gemini_api_key'))
+        if 'perplexity_api_key' in update_data and update_data['perplexity_api_key']:
+            db_user.perplexity_api_key_encrypted = encrypt_keys_func(update_data.pop('perplexity_api_key'))
+
+    # Update remaining fields
+    for key, value in update_data.items():
+        setattr(db_user, key, value)
+
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def admin_update_user(db: Session, user_id: int, user_update: schemas.UserAdminUpdate) -> Optional[models.User]:
+    """Admin updates user status (is_active, is_admin)."""
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        return None
+
+    update_data = user_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_user, key, value)
+
+    db.commit()
+    db.refresh(db_user)
+    return db_user

@@ -1,42 +1,43 @@
 import { createTheme } from '@mui/material/styles';
 
-// PPPL Brand Colors
-// Core: Orange #f58025, Grey #405965, Magenta #c12d63, Yellow #ffdd00, Cyan #008c9d
+// Custom Brand Colors
+// Palette: #665775, #80a1d4, #75c9c8, #c0b9dd, #ded9e2
 export const theme = createTheme({
   palette: {
     primary: {
-      main: '#405965', // PPPL Grey - primary base color
-      light: '#5a7685',
-      dark: '#2d3f47',
+      main: '#665775', // Deep purple - primary base color
+      light: '#8876a3',
+      dark: '#4a3d52',
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#f58025', // PPPL Orange - accent color
-      light: '#ff9a4d',
-      dark: '#d66a19',
-      contrastText: '#000000',
+      main: '#80a1d4', // Soft blue - accent color
+      light: '#a3b9e0',
+      dark: '#5a7599',
+      contrastText: '#ffffff',
     },
     error: {
-      main: '#c12d63', // PPPL Magenta
+      main: '#c12d63',
       light: '#d65083',
       dark: '#8d1e47',
     },
     warning: {
-      main: '#ffdd00', // PPPL Yellow
+      main: '#ffdd00',
       light: '#ffe74d',
       dark: '#ccb100',
       contrastText: '#000000',
     },
     info: {
-      main: '#008c9d', // PPPL Cyan
-      light: '#33a6b5',
-      dark: '#00616e',
+      main: '#75c9c8', // Teal - info color
+      light: '#95d8d7',
+      dark: '#528c8b',
+      contrastText: '#000000',
     },
     success: {
       main: '#4caf50',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#ded9e2', // Light lavender - background
       paper: '#ffffff',
     },
   },

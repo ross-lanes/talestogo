@@ -31,6 +31,7 @@ export default function Dashboard() {
     message: '',
     severity: 'info',
   });
+  const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
 
   // Fetch dashboard metrics
   const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
@@ -49,16 +50,30 @@ export default function Dashboard() {
       return response.data;
     },
     onSuccess: (data) => {
+      setCollectionStatus('running');
       setSnackbar({
         open: true,
         message: data.message + ' ' + (data.note || ''),
         severity: 'success',
       });
-      // Refresh metrics after a delay to allow collection to complete
-      setTimeout(() => {
+      // Refresh metrics and check status periodically
+      const checkInterval = setInterval(() => {
         queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
         queryClient.invalidateQueries({ queryKey: ['responses'] });
-      }, 2000);
+      }, 5000);
+
+      // Assume collection completes after 60 seconds and stop checking
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        setCollectionStatus('idle');
+        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+        queryClient.invalidateQueries({ queryKey: ['responses'] });
+        setSnackbar({
+          open: true,
+          message: 'Collection completed! Dashboard has been updated.',
+          severity: 'success',
+        });
+      }, 60000);
     },
     onError: (error: any) => {
       setSnackbar({
@@ -138,40 +153,33 @@ export default function Dashboard() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ mb: 4 }}>
         <Typography variant="h2" component="h1">
           Key Metrics Dashboard
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<CollectionIcon />}
-            onClick={() => collectionMutation.mutate()}
-            disabled={collectionMutation.isPending}
-          >
-            {collectionMutation.isPending ? 'Running...' : 'Run Collection'}
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AnalysisIcon />}
-            onClick={() => analysisMutation.mutate()}
-            disabled={analysisMutation.isPending}
-          >
-            {analysisMutation.isPending ? 'Running...' : 'Run Analysis'}
-          </Button>
-        </Box>
       </Box>
+
+      {/* Collection Status Banner */}
+      {collectionStatus === 'running' && (
+        <Alert severity="info" sx={{ mb: 3 }} icon={<CircularProgress size={20} />}>
+          <Typography variant="body1" fontWeight={600}>
+            Collection in Progress
+          </Typography>
+          <Typography variant="body2">
+            The system is collecting responses from LLM platforms. This may take a few minutes.
+            The dashboard will automatically refresh with new data.
+          </Typography>
+        </Alert>
+      )}
 
       {/* Show message if no data */}
       {metrics.total_responses === 0 && (
         <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
           <Typography variant="h6" gutterBottom>
-            No Data Available
+            To get started:
           </Typography>
           <Typography>
-            Start by adding queries in the "Management" section, then click "Run Collection" above to collect LLM responses.
+            Click on the word <strong>Manage</strong> on the upper right. Select <strong>Queries</strong>, <strong>Descriptors</strong>, and <strong>Competitors</strong> to add information about the data you want to gather.
           </Typography>
         </Paper>
       )}

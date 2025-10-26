@@ -14,10 +14,11 @@ import {
 import {
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { api } from '../../services/api';
 
 interface Response {
@@ -37,6 +38,8 @@ export default function Responses() {
   const queryClient = useQueryClient();
   const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [responseToDelete, setResponseToDelete] = useState<Response | null>(null);
 
   // Fetch responses
   const { data: responses = [], isLoading } = useQuery({
@@ -44,6 +47,18 @@ export default function Responses() {
     queryFn: async () => {
       const response = await api.get<Response[]>('/responses/');
       return response.data;
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (responseId: number) => {
+      await api.delete(`/responses/${responseId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['responses'] });
+      setDeleteDialogOpen(false);
+      setResponseToDelete(null);
     },
   });
 
@@ -55,6 +70,22 @@ export default function Responses() {
   const handleCloseDialog = () => {
     setViewDialogOpen(false);
     setSelectedResponse(null);
+  };
+
+  const handleDeleteClick = (response: Response) => {
+    setResponseToDelete(response);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (responseToDelete) {
+      deleteMutation.mutate(responseToDelete.id);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setResponseToDelete(null);
   };
 
   const columns: GridColDef<Response>[] = [
@@ -128,12 +159,18 @@ export default function Responses() {
       field: 'actions',
       type: 'actions',
       headerName: 'Actions',
-      width: 80,
+      width: 100,
       getActions: (params) => [
         <GridActionsCellItem
           icon={<VisibilityIcon />}
           label="View"
           onClick={() => handleViewResponse(params.row)}
+        />,
+        <GridActionsCellItem
+          icon={<DeleteIcon />}
+          label="Delete"
+          onClick={() => handleDeleteClick(params.row)}
+          showInMenu
         />,
       ],
     },
@@ -245,6 +282,42 @@ export default function Responses() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCancelDelete}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Response</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete response ID {responseToDelete?.id}?
+          </Typography>
+          {responseToDelete && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Query: {responseToDelete.query_text}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Platform: {responseToDelete.platform}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete}>Cancel</Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -51,8 +51,9 @@ PERPLEXITY_AVAILABLE = OPENAI_AVAILABLE
 class ResponseCollector:
     """Collects responses from AI platforms."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user_id: int):
         self.db = db
+        self.user_id = user_id
 
         # Initialize API clients
         self.openai_client = None
@@ -176,6 +177,7 @@ class ResponseCollector:
                      response_text: str) -> models.Response:
         """Save a response to the database."""
         response = models.Response(
+            user_id=self.user_id,
             query_id=query_id,
             query_text=query_text,
             platform=platform,
@@ -222,8 +224,11 @@ class ResponseCollector:
         return results
 
     def collect_all(self, limit: Optional[int] = None, platforms: List[str] = None) -> Dict[str, int]:
-        """Collect responses for all active queries."""
-        queries = self.db.query(models.Query).filter(models.Query.active == True).all()
+        """Collect responses for all active queries for this user."""
+        queries = self.db.query(models.Query).filter(
+            models.Query.user_id == self.user_id,
+            models.Query.active == True
+        ).all()
 
         if limit:
             queries = queries[:limit]
@@ -276,8 +281,38 @@ def main():
     """Main function to run response collection."""
     print("\n🚀 AIRO Response Collection Tool\n")
 
+    # Get user_id from command line argument or prompt
+    user_id = None
+    if len(sys.argv) > 1:
+        try:
+            user_id = int(sys.argv[1])
+            print(f"Running collection for user_id: {user_id}")
+        except ValueError:
+            print("❌ Invalid user_id provided. Must be an integer.")
+            sys.exit(1)
+    else:
+        # Interactive mode - show available users
+        db_temp = SessionLocal()
+        users = db_temp.query(models.User).filter(models.User.is_active == True).all()
+        db_temp.close()
+
+        if not users:
+            print("❌ No active users found in database!")
+            sys.exit(1)
+
+        print("Available users:")
+        for user in users:
+            print(f"  {user.id}: {user.email} ({user.full_name or 'No name'})")
+
+        user_input = input(f"\nEnter user_id [1]: ").strip() or "1"
+        try:
+            user_id = int(user_input)
+        except ValueError:
+            print("❌ Invalid user_id. Must be an integer.")
+            sys.exit(1)
+
     # Check for API keys
-    print("Checking API keys...")
+    print("\nChecking API keys...")
     has_openai = bool(os.getenv('OPENAI_API_KEY'))
     has_anthropic = bool(os.getenv('ANTHROPIC_API_KEY'))
     has_google = bool(os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY'))
@@ -288,7 +323,6 @@ def main():
         print("  OPENAI_API_KEY=your-key-here")
         print("  ANTHROPIC_API_KEY=your-key-here")
         print("  GEMINI_API_KEY=your-key-here")
-        print("\nYour .env file is located at: /Users/rkremen/Documents/Code/airo_project/.env")
         sys.exit(1)
 
     print()
@@ -297,11 +331,22 @@ def main():
     db = SessionLocal()
 
     try:
-        # Initialize collector
-        collector = ResponseCollector(db)
+        # Verify user exists
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            print(f"❌ User with id {user_id} not found!")
+            sys.exit(1)
 
-        # Check if we have queries
-        query_count = db.query(models.Query).filter(models.Query.active == True).count()
+        print(f"Collection for: {user.email} ({user.full_name or 'No name'})\n")
+
+        # Initialize collector with user_id
+        collector = ResponseCollector(db, user_id)
+
+        # Check if we have queries for this user
+        query_count = db.query(models.Query).filter(
+            models.Query.user_id == user_id,
+            models.Query.active == True
+        ).count()
         if query_count == 0:
             print("❌ No active queries found in database!")
             print("Please add queries through the web interface at http://localhost:5173/manage/queries")

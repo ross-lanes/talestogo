@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -14,13 +15,17 @@ import {
   MenuItem,
   IconButton,
   Chip,
+  Menu,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Download as DownloadIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
+import * as XLSX from 'xlsx';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -29,9 +34,11 @@ import type { Competitor, CompetitorCreate, CompetitorUpdate } from '../../types
 
 export default function Competitors() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [formData, setFormData] = useState<CompetitorCreate>({
     organization: '',
     type: '',
@@ -138,6 +145,42 @@ export default function Competitors() {
     }
   };
 
+  const handleDownloadSpreadsheet = () => {
+    // Prepare data for export
+    const exportData = competitors.map((competitor) => ({
+      'Organization': competitor.organization,
+      'Type': competitor.type,
+      'Focus Area': competitor.focus_area || '',
+      'Track': competitor.track ? 'Yes' : 'No',
+      'Key Descriptors': competitor.key_descriptors || '',
+      'Website': competitor.website || '',
+      'Notes': competitor.notes || '',
+    }));
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Competitors');
+
+    // Generate file and trigger download
+    XLSX.writeFile(wb, 'AIRO_Competitors.xlsx');
+  };
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    handleMenuClose();
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'organization',
@@ -204,13 +247,38 @@ export default function Competitors() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h2">Manage Competitors</Typography>
+        <Box display="flex" alignItems="center">
+          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
+          <Box
+            onClick={handleMenuClick}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+          >
+            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
+              Competitors
+            </Typography>
+            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
+          </Box>
+        </Box>
         <Box>
           <IconButton
             onClick={() => queryClient.invalidateQueries({ queryKey: ['competitors'] })}
           >
             <RefreshIcon />
           </IconButton>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadSpreadsheet}
+            sx={{ ml: 1 }}
+            disabled={competitors.length === 0}
+          >
+            Download
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -234,6 +302,20 @@ export default function Competitors() {
           disableRowSelectionOnClick
         />
       </Paper>
+
+      {/* Navigation Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={() => handleNavigate('/manage/queries')}>
+          Queries
+        </MenuItem>
+        <MenuItem onClick={() => handleNavigate('/manage/descriptors')}>
+          Descriptors
+        </MenuItem>
+      </Menu>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>

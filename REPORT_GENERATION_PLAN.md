@@ -184,7 +184,7 @@ Generates professional analysis reports from analyzed response data.
 # 1. Query database for all analyzed responses
 # 2. Calculate all metrics programmatically
 # 3. Build data structures for each report section
-# 4. Use Claude API to generate:
+# 4. Use Gemini API to generate:
 #    - Executive summary (synthesize findings)
 #    - Strategic recommendations (analyze gaps, suggest actions)
 #    - Professional narrative connecting metrics
@@ -200,8 +200,8 @@ Generates professional analysis reports from analyzed response data.
 # - analyze_competitors()
 # - generate_platform_analysis()
 # - generate_category_analysis()
-# - generate_recommendations() <- Uses Claude AI
-# - generate_executive_summary() <- Uses Claude AI
+# - generate_recommendations() <- Uses Gemini AI
+# - generate_executive_summary() <- Uses Gemini AI
 # - compile_report()
 # - export_to_markdown()
 # - export_to_google_docs() [future]

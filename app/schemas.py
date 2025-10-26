@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional, List
 import datetime
 
@@ -172,6 +172,30 @@ class CitedSource(CitedSourceBase):
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
+# --- Report Schemas ---
+class ReportBase(BaseModel):
+    title: str
+    report_content: str
+    start_date: Optional[datetime.datetime] = None
+    end_date: Optional[datetime.datetime] = None
+    total_responses: int = 0
+    mention_rate: Optional[float] = None
+    google_doc_url: Optional[str] = None
+
+class ReportCreate(ReportBase):
+    pass
+
+class ReportUpdate(BaseModel):
+    title: Optional[str] = None
+    google_doc_url: Optional[str] = None
+    model_config = ConfigDict(extra='forbid')
+
+class Report(ReportBase):
+    id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
 # --- AnalysisHistory Schemas ---
 class AnalysisHistoryBase(BaseModel):
     analysis_type: str
@@ -188,4 +212,59 @@ class AnalysisHistory(AnalysisHistoryBase):
     timestamp: datetime.datetime
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
+
+# --- User/Auth Schemas ---
+class UserBase(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    organization: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class GoogleLogin(BaseModel):
+    token: str  # Google OAuth ID token
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    organization: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    perplexity_api_key: Optional[str] = None
+    model_config = ConfigDict(extra='forbid')
+
+class User(UserBase):
+    id: int
+    is_admin: bool
+    is_active: bool
+    is_invited: bool
+    google_id: Optional[str] = None
+    oauth_provider: Optional[str] = None
+    picture_url: Optional[str] = None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class TokenData(BaseModel):
+    user_id: Optional[int] = None
+
+class UserInvite(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    organization: Optional[str] = None
+
+class UserAdminUpdate(BaseModel):
+    """Schema for admin to update user status"""
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+    model_config = ConfigDict(extra='forbid')
 
