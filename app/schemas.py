@@ -230,13 +230,24 @@ class BrandInfoUpdate(BaseModel):
     industry: Optional[str] = None
     description: Optional[str] = None
     strategic_messages: Optional[str] = None
+    is_active: Optional[bool] = None
     model_config = ConfigDict(extra='forbid')
 
 class BrandInfo(BrandInfoBase):
     id: int
     user_id: int
+    is_active: bool
     created_at: datetime.datetime
     updated_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+# Simple schema for listing brands
+class BrandInfoList(BaseModel):
+    id: int
+    brand_name: str
+    is_active: bool
+    industry: Optional[str] = None
+    created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
 # --- User/Auth Schemas ---

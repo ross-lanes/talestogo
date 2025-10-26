@@ -34,8 +34,9 @@ class Query(Base):
     __tablename__ = "queries"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     # Using String(10) assuming format like Q001 up to Q9999999
-    query_id = Column(String(10), index=True, nullable=False)  # No longer globally unique - unique per user
+    query_id = Column(String(10), index=True, nullable=False)  # No longer globally unique - unique per user+brand
     query_text = Column(Text, nullable=False)
     category = Column(String(100))
     priority = Column(String(20)) # High, Medium, Low
@@ -49,6 +50,7 @@ class Response(Base):
     __tablename__ = "responses"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     # No Foreign Key constraint, just index for faster lookups by query_id
     query_id = Column(String(10), index=True, nullable=False)
     query_text = Column(Text) # Denormalized
@@ -70,6 +72,7 @@ class Competitor(Base):
     __tablename__ = "competitors"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     organization = Column(String(200), nullable=False, index=True)
     type = Column(String(100)) # National Lab, University, Private Company
     focus_area = Column(Text)
@@ -83,6 +86,7 @@ class TargetDescriptor(Base):
     __tablename__ = "target_descriptors"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     descriptor = Column(String(200), nullable=False, index=True)
     category = Column(String(100)) # Technical, Leadership, Innovation
     is_target = Column(Boolean, default=True)
@@ -95,6 +99,7 @@ class Campaign(Base):
     __tablename__ = "campaigns"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     campaign_name = Column(String(200), nullable=False, index=True)
     start_date = Column(Date)
     end_date = Column(Date)
@@ -108,6 +113,7 @@ class CitedSource(Base):
     __tablename__ = "cited_sources"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     source_name = Column(String(200), nullable=False, index=True)
     source_type = Column(String(100)) # News, Academic, Official, Social, Reference
     authority_level = Column(String(20)) # High, Medium, Low
@@ -123,6 +129,7 @@ class Report(Base):
     __tablename__ = "reports"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     title = Column(String(200), nullable=False)
     report_content = Column(Text, nullable=False) # Full markdown content
     start_date = Column(DateTime, nullable=True) # Analysis period start
@@ -175,12 +182,13 @@ class Configuration(Base):
 class BrandInfo(Base):
     __tablename__ = "brand_info"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)  # One brand per user
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-brand support: user can have up to 20 brands
     brand_name = Column(String(200), nullable=False)
     website_url = Column(String(500), nullable=True)
     industry = Column(String(200), nullable=True)
     description = Column(Text, nullable=True)  # Brand blurb for analysis
     strategic_messages = Column(Text, nullable=True)  # Key messages/narratives you want people to say
+    is_active = Column(Boolean, default=True)  # Which brand is currently active for the user
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
