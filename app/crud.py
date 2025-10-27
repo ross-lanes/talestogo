@@ -8,39 +8,51 @@ from . import models, schemas
 
 # === Query CRUD Functions ===
 
-def get_query(db: Session, query_id_internal: int, user_id: int) -> Optional[models.Query]:
-    """Gets a single query by its internal database ID for a specific user."""
-    return db.query(models.Query).filter(
+def get_query(db: Session, query_id_internal: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Query]:
+    """Gets a single query by its internal database ID for a specific user and brand."""
+    query = db.query(models.Query).filter(
         models.Query.id == query_id_internal,
         models.Query.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Query.brand_id == brand_id)
+    return query.first()
 
-def get_query_by_query_id(db: Session, query_id: str, user_id: int) -> Optional[models.Query]:
-    """Gets a single query by its user-facing Query ID (e.g., 'Q001') for a specific user."""
-    return db.query(models.Query).filter(
+def get_query_by_query_id(db: Session, query_id: str, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Query]:
+    """Gets a single query by its user-facing Query ID (e.g., 'Q001') for a specific user and brand."""
+    query = db.query(models.Query).filter(
         models.Query.query_id == query_id,
         models.Query.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Query.brand_id == brand_id)
+    return query.first()
 
-def get_queries(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Query]:
-    """Gets a list of all queries for a specific user, with pagination."""
-    return db.query(models.Query).filter(
-        models.Query.user_id == user_id
-    ).order_by(models.Query.query_id).offset(skip).limit(limit).all()
+def get_queries(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Query]:
+    """Gets a list of all queries for a specific user and optionally a specific brand, with pagination."""
+    query = db.query(models.Query).filter(models.Query.user_id == user_id)
+    if brand_id is not None:
+        query = query.filter(models.Query.brand_id == brand_id)
+    return query.order_by(models.Query.query_id).offset(skip).limit(limit).all()
 
-def get_active_queries(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Query]:
-    """Gets a list of active queries for a specific user, with pagination."""
-    return db.query(models.Query).filter(
+def get_active_queries(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Query]:
+    """Gets a list of active queries for a specific user and optionally a specific brand, with pagination."""
+    query = db.query(models.Query).filter(
         models.Query.user_id == user_id,
         models.Query.active == True
-    ).order_by(models.Query.query_id).offset(skip).limit(limit).all()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Query.brand_id == brand_id)
+    return query.order_by(models.Query.query_id).offset(skip).limit(limit).all()
 
-def generate_next_query_id(db: Session, user_id: int) -> str:
-    """Generates the next sequential query ID (Q001, Q002, etc.) for a specific user."""
-    # Get the highest existing query_id for this user
-    last_query = db.query(models.Query).filter(
-        models.Query.user_id == user_id
-    ).order_by(models.Query.query_id.desc()).first()
+def generate_next_query_id(db: Session, user_id: int, brand_id: Optional[int] = None) -> str:
+    """Generates the next sequential query ID (Q001, Q002, etc.) for a specific user and brand."""
+    # Get the highest existing query_id for this user and brand
+    query = db.query(models.Query).filter(models.Query.user_id == user_id)
+    if brand_id is not None:
+        query = query.filter(models.Query.brand_id == brand_id)
+
+    last_query = query.order_by(models.Query.query_id.desc()).first()
 
     if not last_query or not last_query.query_id:
         return "Q001"
@@ -54,24 +66,27 @@ def generate_next_query_id(db: Session, user_id: int) -> str:
         # If parsing fails, start from Q001
         return "Q001"
 
-def create_query(db: Session, query: schemas.QueryCreate, user_id: int) -> models.Query:
-    """Creates a new query in the database for a specific user."""
+def create_query(db: Session, query: schemas.QueryCreate, user_id: int, brand_id: Optional[int] = None) -> models.Query:
+    """Creates a new query in the database for a specific user and brand."""
     query_data = query.model_dump()
 
     # Auto-generate query_id if not provided
     if not query_data.get('query_id'):
-        query_data['query_id'] = generate_next_query_id(db, user_id)
+        query_data['query_id'] = generate_next_query_id(db, user_id, brand_id)
 
     query_data['user_id'] = user_id
+    if brand_id is not None:
+        query_data['brand_id'] = brand_id
+
     db_query = models.Query(**query_data)
     db.add(db_query)
     db.commit()
     db.refresh(db_query)
     return db_query
 
-def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate, user_id: int) -> Optional[models.Query]:
-    """Updates an existing query by its user-facing Query ID for a specific user."""
-    db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id)
+def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Query]:
+    """Updates an existing query by its user-facing Query ID for a specific user and brand."""
+    db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id, brand_id=brand_id)
     if not db_query:
         return None
 
@@ -83,9 +98,9 @@ def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate, 
     db.refresh(db_query)
     return db_query
 
-def delete_query(db: Session, query_id: str, user_id: int) -> Optional[models.Query]:
-    """Deletes a query by its user-facing Query ID for a specific user. Returns the deleted object."""
-    db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id)
+def delete_query(db: Session, query_id: str, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Query]:
+    """Deletes a query by its user-facing Query ID for a specific user and brand. Returns the deleted object."""
+    db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id, brand_id=brand_id)
     if not db_query:
         return None
     db.delete(db_query)
@@ -95,23 +110,29 @@ def delete_query(db: Session, query_id: str, user_id: int) -> Optional[models.Qu
 
 # === Response CRUD Functions ===
 
-def get_response(db: Session, response_id: int, user_id: int) -> Optional[models.Response]:
-    """Gets a single response by its internal database ID for a specific user."""
-    return db.query(models.Response).filter(
+def get_response(db: Session, response_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Response]:
+    """Gets a single response by its internal database ID for a specific user and brand."""
+    query = db.query(models.Response).filter(
         models.Response.id == response_id,
         models.Response.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Response.brand_id == brand_id)
+    return query.first()
 
-def get_responses(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Response]:
-    """Gets a list of all responses for a specific user, with pagination."""
-    return db.query(models.Response).filter(
-        models.Response.user_id == user_id
-    ).order_by(models.Response.timestamp.desc()).offset(skip).limit(limit).all()
+def get_responses(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Response]:
+    """Gets a list of all responses for a specific user and optionally a specific brand, with pagination."""
+    query = db.query(models.Response).filter(models.Response.user_id == user_id)
+    if brand_id is not None:
+        query = query.filter(models.Response.brand_id == brand_id)
+    return query.order_by(models.Response.timestamp.desc()).offset(skip).limit(limit).all()
 
-def create_response(db: Session, response: schemas.ResponseCreate, user_id: int) -> models.Response:
-    """Creates a new response entry for a specific user."""
+def create_response(db: Session, response: schemas.ResponseCreate, user_id: int, brand_id: Optional[int] = None) -> models.Response:
+    """Creates a new response entry for a specific user and brand."""
     response_data = response.model_dump()
     response_data['user_id'] = user_id
+    if brand_id is not None:
+        response_data['brand_id'] = brand_id
     db_response = models.Response(**response_data)
     db.add(db_response)
     db.commit()
@@ -125,12 +146,16 @@ def get_unanalyzed_responses(db: Session, user_id: int, limit: int = 100) -> Lis
         models.Response.analyzed_at == None
     ).limit(limit).all()
 
-def update_response_analysis(db: Session, response_id: int, analysis_data: dict, user_id: int) -> Optional[models.Response]:
-    """Updates the analysis fields of a specific response for a specific user."""
-    db_response = db.query(models.Response).filter(
+def update_response_analysis(db: Session, response_id: int, analysis_data: dict, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Response]:
+    """Updates the analysis fields of a specific response for a specific user and brand."""
+    query = db.query(models.Response).filter(
         models.Response.id == response_id,
         models.Response.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Response.brand_id == brand_id)
+
+    db_response = query.first()
     if not db_response:
         return None
     for key, value in analysis_data.items():
@@ -140,9 +165,9 @@ def update_response_analysis(db: Session, response_id: int, analysis_data: dict,
     db.refresh(db_response)
     return db_response
 
-def delete_response(db: Session, response_id: int, user_id: int) -> Optional[models.Response]:
-    """Deletes a response by its ID for a specific user. Returns the deleted object."""
-    db_response = get_response(db, response_id=response_id, user_id=user_id)
+def delete_response(db: Session, response_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Response]:
+    """Deletes a response by its ID for a specific user and brand. Returns the deleted object."""
+    db_response = get_response(db, response_id=response_id, user_id=user_id, brand_id=brand_id)
     if not db_response:
         return None
     db.delete(db_response)
@@ -152,28 +177,34 @@ def delete_response(db: Session, response_id: int, user_id: int) -> Optional[mod
 
 # === Competitor CRUD Functions ===
 
-def get_competitor(db: Session, competitor_id: int, user_id: int) -> Optional[models.Competitor]:
-    return db.query(models.Competitor).filter(
+def get_competitor(db: Session, competitor_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
+    query = db.query(models.Competitor).filter(
         models.Competitor.id == competitor_id,
         models.Competitor.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Competitor.brand_id == brand_id)
+    return query.first()
 
-def get_competitors(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Competitor]:
-    return db.query(models.Competitor).filter(
-        models.Competitor.user_id == user_id
-    ).order_by(models.Competitor.organization).offset(skip).limit(limit).all()
+def get_competitors(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Competitor]:
+    query = db.query(models.Competitor).filter(models.Competitor.user_id == user_id)
+    if brand_id is not None:
+        query = query.filter(models.Competitor.brand_id == brand_id)
+    return query.order_by(models.Competitor.organization).offset(skip).limit(limit).all()
 
-def create_competitor(db: Session, competitor: schemas.CompetitorCreate, user_id: int) -> models.Competitor:
+def create_competitor(db: Session, competitor: schemas.CompetitorCreate, user_id: int, brand_id: Optional[int] = None) -> models.Competitor:
     competitor_data = competitor.model_dump()
     competitor_data['user_id'] = user_id
+    if brand_id is not None:
+        competitor_data['brand_id'] = brand_id
     db_competitor = models.Competitor(**competitor_data)
     db.add(db_competitor)
     db.commit()
     db.refresh(db_competitor)
     return db_competitor
 
-def update_competitor(db: Session, competitor_id: int, competitor_update: schemas.CompetitorUpdate, user_id: int) -> Optional[models.Competitor]:
-    db_competitor = get_competitor(db, competitor_id, user_id)
+def update_competitor(db: Session, competitor_id: int, competitor_update: schemas.CompetitorUpdate, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
+    db_competitor = get_competitor(db, competitor_id, user_id, brand_id)
     if not db_competitor:
         return None
     update_data = competitor_update.model_dump(exclude_unset=True)
@@ -183,61 +214,76 @@ def update_competitor(db: Session, competitor_id: int, competitor_update: schema
     db.refresh(db_competitor)
     return db_competitor
 
-def delete_competitor(db: Session, competitor_id: int, user_id: int) -> Optional[models.Competitor]:
-    db_competitor = get_competitor(db, competitor_id, user_id)
+def delete_competitor(db: Session, competitor_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
+    db_competitor = get_competitor(db, competitor_id, user_id, brand_id)
     if not db_competitor:
         return None
     db.delete(db_competitor)
     db.commit()
     return db_competitor
 
-def get_competitor_by_organization(db: Session, organization: str, user_id: int) -> Optional[models.Competitor]:
-    """Gets a single competitor by its organization name for a specific user."""
-    return db.query(models.Competitor).filter(
+def get_competitor_by_organization(db: Session, organization: str, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
+    """Gets a single competitor by its organization name for a specific user and brand."""
+    query = db.query(models.Competitor).filter(
         models.Competitor.organization == organization,
         models.Competitor.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Competitor.brand_id == brand_id)
+    return query.first()
 
 
 # === TargetDescriptor CRUD Functions ===
 
-def get_descriptor(db: Session, descriptor_id: int, user_id: int) -> Optional[models.TargetDescriptor]:
-    return db.query(models.TargetDescriptor).filter(
+def get_descriptor(db: Session, descriptor_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.TargetDescriptor]:
+    query = db.query(models.TargetDescriptor).filter(
         models.TargetDescriptor.id == descriptor_id,
         models.TargetDescriptor.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.TargetDescriptor.brand_id == brand_id)
+    return query.first()
 
-def get_descriptors(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
-    return db.query(models.TargetDescriptor).filter(
-        models.TargetDescriptor.user_id == user_id
-    ).order_by(models.TargetDescriptor.descriptor).offset(skip).limit(limit).all()
+def get_descriptors(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
+    query = db.query(models.TargetDescriptor).filter(models.TargetDescriptor.user_id == user_id)
+    if brand_id is not None:
+        query = query.filter(models.TargetDescriptor.brand_id == brand_id)
+    return query.order_by(models.TargetDescriptor.descriptor).offset(skip).limit(limit).all()
 
-def get_descriptor_by_name(db: Session, name: str, user_id: int) -> Optional[models.TargetDescriptor]:
-    """Gets a single descriptor by its name for a specific user."""
-    return db.query(models.TargetDescriptor).filter(
+def get_descriptor_by_name(db: Session, name: str, user_id: int, brand_id: Optional[int] = None) -> Optional[models.TargetDescriptor]:
+    """Gets a single descriptor by its name for a specific user and brand."""
+    query = db.query(models.TargetDescriptor).filter(
         models.TargetDescriptor.descriptor == name,
         models.TargetDescriptor.user_id == user_id
-    ).first()
+    )
+    if brand_id is not None:
+        query = query.filter(models.TargetDescriptor.brand_id == brand_id)
+    return query.first()
 
-def create_descriptor(db: Session, descriptor: schemas.TargetDescriptorCreate, user_id: int) -> models.TargetDescriptor:
+def create_descriptor(db: Session, descriptor: schemas.TargetDescriptorCreate, user_id: int, brand_id: Optional[int] = None) -> models.TargetDescriptor:
     descriptor_data = descriptor.model_dump()
     descriptor_data['user_id'] = user_id
+    if brand_id is not None:
+        descriptor_data['brand_id'] = brand_id
     db_descriptor = models.TargetDescriptor(**descriptor_data)
     db.add(db_descriptor)
     db.commit()
     db.refresh(db_descriptor)
     return db_descriptor
 
-def get_target_descriptors(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
+def get_target_descriptors(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.TargetDescriptor]:
     """Gets a list of descriptors that are marked as targets for the user's brand."""
-    return db.query(models.TargetDescriptor).filter(
+    query = db.query(models.TargetDescriptor).filter(
         models.TargetDescriptor.user_id == user_id,
         models.TargetDescriptor.target_for_pppl == True
-    ).order_by(models.TargetDescriptor.priority).offset(skip).limit(limit).all()
+    )
+    if brand_id is not None:
+        query = query.filter(models.TargetDescriptor.brand_id == brand_id)
+    return query.order_by(models.TargetDescriptor.priority).offset(skip).limit(limit).all()
 
-def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schemas.TargetDescriptorUpdate, user_id: int) -> Optional[models.TargetDescriptor]:
-    """Updates an existing descriptor for a specific user."""
-    db_descriptor = get_descriptor(db, descriptor_id, user_id)
+def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schemas.TargetDescriptorUpdate, user_id: int, brand_id: Optional[int] = None) -> Optional[models.TargetDescriptor]:
+    """Updates an existing descriptor for a specific user and brand."""
+    db_descriptor = get_descriptor(db, descriptor_id, user_id, brand_id)
     if not db_descriptor:
         return None
     update_data = descriptor_update.model_dump(exclude_unset=True)
@@ -247,9 +293,9 @@ def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schema
     db.refresh(db_descriptor)
     return db_descriptor
 
-def delete_descriptor(db: Session, descriptor_id: int, user_id: int) -> Optional[models.TargetDescriptor]:
-    """Deletes a descriptor by its ID for a specific user."""
-    db_descriptor = get_descriptor(db, descriptor_id, user_id)
+def delete_descriptor(db: Session, descriptor_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.TargetDescriptor]:
+    """Deletes a descriptor by its ID for a specific user and brand."""
+    db_descriptor = get_descriptor(db, descriptor_id, user_id, brand_id)
     if not db_descriptor:
         return None
     db.delete(db_descriptor)
