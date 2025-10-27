@@ -344,41 +344,105 @@ def get_analysis_histories(db: Session, user_id: int, skip: int = 0, limit: int 
     ).order_by(models.AnalysisHistory.timestamp.desc()).offset(skip).limit(limit).all()
 
 
-# === BrandInfo CRUD Functions ===
+# === BrandInfo CRUD Functions (Multi-Brand Support) ===
 
-def get_brand_info(db: Session, user_id: int) -> Optional[models.BrandInfo]:
-    """Gets brand info for a specific user (one brand per user)."""
+def get_all_brands(db: Session, user_id: int) -> List[models.BrandInfo]:
+    """Gets all brands for a specific user (up to 20)."""
     return db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == user_id
+    ).order_by(models.BrandInfo.created_at.desc()).all()
+
+def get_brand_by_id(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
+    """Gets a specific brand by ID, ensuring it belongs to the user."""
+    return db.query(models.BrandInfo).filter(
+        models.BrandInfo.id == brand_id,
         models.BrandInfo.user_id == user_id
     ).first()
 
+def get_active_brand(db: Session, user_id: int) -> Optional[models.BrandInfo]:
+    """Gets the currently active brand for a user."""
+    return db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == user_id,
+        models.BrandInfo.is_active == True
+    ).first()
+
+def get_brand_info(db: Session, user_id: int) -> Optional[models.BrandInfo]:
+    """Legacy function - gets active brand for backward compatibility."""
+    return get_active_brand(db, user_id)
+
 def create_brand_info(db: Session, brand_info: schemas.BrandInfoCreate, user_id: int) -> models.BrandInfo:
-    """Creates brand info for a user."""
+    """Creates a new brand for a user (max 20 brands)."""
+    # Check brand limit
+    brand_count = db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == user_id
+    ).count()
+
+    if brand_count >= 20:
+        raise ValueError("Maximum 20 brands per user")
+
     brand_data = brand_info.model_dump()
     brand_data['user_id'] = user_id
+
+    # If this is the first brand, make it active
+    if brand_count == 0:
+        brand_data['is_active'] = True
+    else:
+        brand_data['is_active'] = False
+
     db_brand = models.BrandInfo(**brand_data)
     db.add(db_brand)
     db.commit()
     db.refresh(db_brand)
     return db_brand
 
-def update_brand_info(db: Session, brand_info_update: schemas.BrandInfoUpdate, user_id: int) -> Optional[models.BrandInfo]:
-    """Updates brand info for a user."""
-    db_brand = get_brand_info(db, user_id=user_id)
+def update_brand_info(db: Session, brand_id: int, brand_info_update: schemas.BrandInfoUpdate, user_id: int) -> Optional[models.BrandInfo]:
+    """Updates a specific brand."""
+    db_brand = get_brand_by_id(db, brand_id, user_id)
     if not db_brand:
         return None
+
     update_data = brand_info_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_brand, key, value)
+
     db.commit()
     db.refresh(db_brand)
     return db_brand
 
-def delete_brand_info(db: Session, user_id: int) -> Optional[models.BrandInfo]:
-    """Deletes brand info for a user."""
-    db_brand = get_brand_info(db, user_id=user_id)
+def activate_brand(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
+    """Sets a brand as active and deactivates all other brands for the user."""
+    # Verify brand belongs to user
+    db_brand = get_brand_by_id(db, brand_id, user_id)
     if not db_brand:
         return None
+
+    # Deactivate all other brands
+    db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == user_id
+    ).update({models.BrandInfo.is_active: False})
+
+    # Activate this brand
+    db_brand.is_active = True
+    db.commit()
+    db.refresh(db_brand)
+    return db_brand
+
+def delete_brand_info(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
+    """Deletes a specific brand and all associated data."""
+    db_brand = get_brand_by_id(db, brand_id, user_id)
+    if not db_brand:
+        return None
+
+    # Delete associated data
+    db.query(models.Query).filter(models.Query.brand_id == brand_id).delete()
+    db.query(models.Response).filter(models.Response.brand_id == brand_id).delete()
+    db.query(models.TargetDescriptor).filter(models.TargetDescriptor.brand_id == brand_id).delete()
+    db.query(models.Competitor).filter(models.Competitor.brand_id == brand_id).delete()
+    db.query(models.Campaign).filter(models.Campaign.brand_id == brand_id).delete()
+    db.query(models.Report).filter(models.Report.brand_id == brand_id).delete()
+    db.query(models.CitedSource).filter(models.CitedSource.brand_id == brand_id).delete()
+
+    # Delete brand
     db.delete(db_brand)
     db.commit()
     return db_brand

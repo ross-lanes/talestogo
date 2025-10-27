@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import BrandSwitcher from './BrandSwitcher';
 
 const drawerWidth = 240;
 
@@ -209,6 +210,7 @@ export default function Layout({ children }: LayoutProps) {
 
           {user && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <BrandSwitcher />
               <Typography variant="body2" color="inherit" sx={{ display: { xs: 'none', md: 'block' } }}>
                 {user.organization || user.email}
               </Typography>

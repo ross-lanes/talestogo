@@ -552,13 +552,97 @@ def delete_report(
 
 
 # --- Brand Info Endpoints ---
+# --- Multi-Brand Endpoints ---
+
+@app.get("/brands/", response_model=List[schemas.BrandInfoList], tags=["Brands"])
+def get_all_brands_endpoint(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all brands for the current user."""
+    return crud.get_all_brands(db, user_id=current_user.id)
+
+@app.get("/brands/active", response_model=schemas.BrandInfo, tags=["Brands"])
+def get_active_brand_endpoint(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get the currently active brand for the user."""
+    brand = crud.get_active_brand(db, user_id=current_user.id)
+    if not brand:
+        raise HTTPException(status_code=404, detail="No active brand found. Please create a brand first.")
+    return brand
+
+@app.get("/brands/{brand_id}", response_model=schemas.BrandInfo, tags=["Brands"])
+def get_brand_endpoint(
+    brand_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific brand by ID."""
+    brand = crud.get_brand_by_id(db, brand_id=brand_id, user_id=current_user.id)
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return brand
+
+@app.post("/brands/", response_model=schemas.BrandInfo, status_code=201, tags=["Brands"])
+def create_brand_endpoint(
+    brand_info: schemas.BrandInfoCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new brand (max 20 per user)."""
+    try:
+        return crud.create_brand_info(db, brand_info=brand_info, user_id=current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/brands/{brand_id}", response_model=schemas.BrandInfo, tags=["Brands"])
+def update_brand_endpoint(
+    brand_id: int,
+    brand_info: schemas.BrandInfoUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a specific brand."""
+    updated_brand = crud.update_brand_info(db, brand_id=brand_id, brand_info_update=brand_info, user_id=current_user.id)
+    if not updated_brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return updated_brand
+
+@app.post("/brands/{brand_id}/activate", response_model=schemas.BrandInfo, tags=["Brands"])
+def activate_brand_endpoint(
+    brand_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Set a brand as active (deactivates all other brands)."""
+    brand = crud.activate_brand(db, brand_id=brand_id, user_id=current_user.id)
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return brand
+
+@app.delete("/brands/{brand_id}", response_model=schemas.BrandInfo, tags=["Brands"])
+def delete_brand_endpoint(
+    brand_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a brand and all associated data."""
+    deleted_brand = crud.delete_brand_info(db, brand_id=brand_id, user_id=current_user.id)
+    if not deleted_brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return deleted_brand
+
+# --- Legacy Endpoints for Backward Compatibility ---
+
 @app.get("/brand-info/", response_model=schemas.BrandInfo, tags=["Brand Info"])
 def get_brand_info_endpoint(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get brand info for the current user."""
-    brand_info = crud.get_brand_info(db, user_id=current_user.id)
+    """Get active brand info (legacy endpoint - use /brands/active instead)."""
+    brand_info = crud.get_active_brand(db, user_id=current_user.id)
     if not brand_info:
         raise HTTPException(status_code=404, detail="Brand info not found. Please create it first.")
     return brand_info
@@ -569,12 +653,11 @@ def create_brand_info_endpoint(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create brand info for the current user."""
-    # Check if brand info already exists
-    existing_brand = crud.get_brand_info(db, user_id=current_user.id)
-    if existing_brand:
-        raise HTTPException(status_code=400, detail="Brand info already exists. Use PUT to update.")
-    return crud.create_brand_info(db, brand_info=brand_info, user_id=current_user.id)
+    """Create brand info (legacy endpoint - use /brands/ instead)."""
+    try:
+        return crud.create_brand_info(db, brand_info=brand_info, user_id=current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.put("/brand-info/", response_model=schemas.BrandInfo, tags=["Brand Info"])
 def update_brand_info_endpoint(
@@ -582,8 +665,11 @@ def update_brand_info_endpoint(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update brand info for the current user."""
-    updated_brand = crud.update_brand_info(db, brand_info_update=brand_info, user_id=current_user.id)
+    """Update active brand info (legacy endpoint)."""
+    active_brand = crud.get_active_brand(db, user_id=current_user.id)
+    if not active_brand:
+        raise HTTPException(status_code=404, detail="No active brand found")
+    updated_brand = crud.update_brand_info(db, brand_id=active_brand.id, brand_info_update=brand_info, user_id=current_user.id)
     if not updated_brand:
         raise HTTPException(status_code=404, detail="Brand info not found")
     return updated_brand
@@ -593,8 +679,11 @@ def delete_brand_info_endpoint(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete brand info for the current user."""
-    deleted_brand = crud.delete_brand_info(db, user_id=current_user.id)
+    """Delete active brand info (legacy endpoint)."""
+    active_brand = crud.get_active_brand(db, user_id=current_user.id)
+    if not active_brand:
+        raise HTTPException(status_code=404, detail="No active brand found")
+    deleted_brand = crud.delete_brand_info(db, brand_id=active_brand.id, user_id=current_user.id)
     if not deleted_brand:
         raise HTTPException(status_code=404, detail="Brand info not found")
     return deleted_brand
