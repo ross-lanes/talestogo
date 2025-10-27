@@ -50,7 +50,7 @@ app.add_middleware(
 # Include routers
 app.include_router(analytics.router)
 
-# --- Dependency ---
+# --- Dependencies ---
 def get_db():
     """
     Dependency function that provides a database session per request.
@@ -61,6 +61,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_active_brand_id(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Optional[int]:
+    """
+    Helper function to get the active brand_id for the current user.
+    Returns None if no active brand exists (allows multi-brand view).
+    """
+    active_brand = crud.get_active_brand(db, user_id=current_user.id)
+    return active_brand.id if active_brand else None
 
 # --- Root Endpoint ---
 @app.get("/", tags=["Root"])
@@ -250,13 +261,14 @@ def admin_update_user_status(
 def create_query(
     query: schemas.QueryCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Create a new query for the current user."""
-    db_query = crud.get_query_by_query_id(db, query_id=query.query_id, user_id=current_user.id)
+    """Create a new query for the current user's active brand."""
+    db_query = crud.get_query_by_query_id(db, query_id=query.query_id, user_id=current_user.id, brand_id=brand_id)
     if db_query:
-        raise HTTPException(status_code=400, detail=f"Query ID {query.query_id} already exists for this user")
-    return crud.create_query(db=db, query=query, user_id=current_user.id)
+        raise HTTPException(status_code=400, detail=f"Query ID {query.query_id} already exists for this brand")
+    return crud.create_query(db=db, query=query, user_id=current_user.id, brand_id=brand_id)
 
 @app.get("/queries/", response_model=List[schemas.Query], tags=["Queries"])
 def read_queries(
@@ -264,23 +276,25 @@ def read_queries(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a list of queries for the current user."""
+    """Retrieve a list of queries for the current user's active brand."""
     if active_only:
-        queries = crud.get_active_queries(db, user_id=current_user.id, skip=skip, limit=limit)
+        queries = crud.get_active_queries(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
     else:
-        queries = crud.get_queries(db, user_id=current_user.id, skip=skip, limit=limit)
+        queries = crud.get_queries(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
     return queries
 
 @app.get("/queries/{query_id}", response_model=schemas.Query, tags=["Queries"])
 def read_query(
     query_id: str,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a single query by its user-facing ID (e.g., 'Q001') for the current user."""
-    db_query = crud.get_query_by_query_id(db, query_id=query_id, user_id=current_user.id)
+    """Retrieve a single query by its user-facing ID (e.g., 'Q001') for the current user's active brand."""
+    db_query = crud.get_query_by_query_id(db, query_id=query_id, user_id=current_user.id, brand_id=brand_id)
     if db_query is None:
         raise HTTPException(status_code=404, detail="Query not found")
     return db_query
@@ -290,10 +304,11 @@ def update_query(
     query_id: str,
     query_update: schemas.QueryUpdate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Update a query for the current user."""
-    db_query = crud.update_query(db, query_id=query_id, query_update=query_update, user_id=current_user.id)
+    """Update a query for the current user's active brand."""
+    db_query = crud.update_query(db, query_id=query_id, query_update=query_update, user_id=current_user.id, brand_id=brand_id)
     if db_query is None:
         raise HTTPException(status_code=404, detail="Query not found")
     return db_query
@@ -302,10 +317,11 @@ def update_query(
 def delete_query(
     query_id: str,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Delete a query for the current user."""
-    deleted_query = crud.delete_query(db, query_id=query_id, user_id=current_user.id)
+    """Delete a query for the current user's active brand."""
+    deleted_query = crud.delete_query(db, query_id=query_id, user_id=current_user.id, brand_id=brand_id)
     if deleted_query is None:
         raise HTTPException(status_code=404, detail="Query not found")
     return deleted_query
@@ -316,20 +332,22 @@ def delete_query(
 def create_response(
     response: schemas.ResponseCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Submit a raw response from an LLM platform for the current user."""
-    return crud.create_response(db=db, response=response, user_id=current_user.id)
+    """Submit a raw response from an LLM platform for the current user's active brand."""
+    return crud.create_response(db=db, response=response, user_id=current_user.id, brand_id=brand_id)
 
 @app.get("/responses/", response_model=List[schemas.Response], tags=["Responses"])
 def read_responses(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a list of responses for the current user."""
-    return crud.get_responses(db, user_id=current_user.id, skip=skip, limit=limit)
+    """Retrieve a list of responses for the current user's active brand."""
+    return crud.get_responses(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
 
 @app.get("/responses/unanalyzed/", response_model=List[schemas.Response], tags=["Responses"])
 def read_unanalyzed_responses(
@@ -345,14 +363,16 @@ def update_response_analysis(
     response_id: int,
     analysis_data: schemas.ResponseAnalysisInput,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Update a response with analysis data for the current user."""
+    """Update a response with analysis data for the current user's active brand."""
     db_response = crud.update_response_analysis(
         db,
         response_id=response_id,
         analysis_data=analysis_data.model_dump(exclude_unset=True),
-        user_id=current_user.id
+        user_id=current_user.id,
+        brand_id=brand_id
     )
     if db_response is None:
         raise HTTPException(status_code=404, detail="Response not found")
@@ -362,10 +382,11 @@ def update_response_analysis(
 def delete_response(
     response_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Delete a response for the current user."""
-    deleted_response = crud.delete_response(db, response_id=response_id, user_id=current_user.id)
+    """Delete a response for the current user's active brand."""
+    deleted_response = crud.delete_response(db, response_id=response_id, user_id=current_user.id, brand_id=brand_id)
     if deleted_response is None:
         raise HTTPException(status_code=404, detail="Response not found")
     return deleted_response
@@ -376,34 +397,38 @@ def delete_response(
 def create_competitor(
     competitor: schemas.CompetitorCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Create a new competitor for the current user."""
-    return crud.create_competitor(db=db, competitor=competitor, user_id=current_user.id)
+    """Create a new competitor for the current user's active brand."""
+    return crud.create_competitor(db=db, competitor=competitor, user_id=current_user.id, brand_id=brand_id)
 
 @app.get("/competitors/", response_model=List[schemas.Competitor], tags=["Competitors"])
 def read_competitors(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a list of competitors for the current user."""
-    return crud.get_competitors(db, user_id=current_user.id, skip=skip, limit=limit)
+    """Retrieve a list of competitors for the current user's active brand."""
+    return crud.get_competitors(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
 
 @app.put("/competitors/{competitor_id}", response_model=schemas.Competitor, tags=["Competitors"])
 def update_competitor(
     competitor_id: int,
     competitor_update: schemas.CompetitorUpdate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Update a competitor for the current user."""
+    """Update a competitor for the current user's active brand."""
     db_competitor = crud.update_competitor(
         db,
         competitor_id=competitor_id,
         competitor_update=competitor_update,
-        user_id=current_user.id
+        user_id=current_user.id,
+        brand_id=brand_id
     )
     if db_competitor is None:
         raise HTTPException(status_code=404, detail="Competitor not found")
@@ -413,10 +438,11 @@ def update_competitor(
 def delete_competitor(
     competitor_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Delete a competitor for the current user."""
-    deleted_competitor = crud.delete_competitor(db, competitor_id=competitor_id, user_id=current_user.id)
+    """Delete a competitor for the current user's active brand."""
+    deleted_competitor = crud.delete_competitor(db, competitor_id=competitor_id, user_id=current_user.id, brand_id=brand_id)
     if deleted_competitor is None:
         raise HTTPException(status_code=404, detail="Competitor not found")
     return deleted_competitor
@@ -427,10 +453,11 @@ def delete_competitor(
 def create_descriptor(
     descriptor: schemas.TargetDescriptorCreate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Create a new descriptor for the current user."""
-    return crud.create_descriptor(db=db, descriptor=descriptor, user_id=current_user.id)
+    """Create a new descriptor for the current user's active brand."""
+    return crud.create_descriptor(db=db, descriptor=descriptor, user_id=current_user.id, brand_id=brand_id)
 
 @app.get("/descriptors/", response_model=List[schemas.TargetDescriptor], tags=["Descriptors"])
 def read_descriptors(
@@ -438,21 +465,23 @@ def read_descriptors(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a list of descriptors for the current user."""
+    """Retrieve a list of descriptors for the current user's active brand."""
     if target_only:
-        return crud.get_target_descriptors(db, user_id=current_user.id, skip=skip, limit=limit)
-    return crud.get_descriptors(db, user_id=current_user.id, skip=skip, limit=limit)
+        return crud.get_target_descriptors(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
+    return crud.get_descriptors(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
 
 @app.get("/descriptors/{descriptor_id}", response_model=schemas.TargetDescriptor, tags=["Descriptors"])
 def read_descriptor(
     descriptor_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a single descriptor by its primary key for the current user."""
-    db_descriptor = crud.get_descriptor(db, descriptor_id=descriptor_id, user_id=current_user.id)
+    """Retrieve a single descriptor by its primary key for the current user's active brand."""
+    db_descriptor = crud.get_descriptor(db, descriptor_id=descriptor_id, user_id=current_user.id, brand_id=brand_id)
     if db_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
     return db_descriptor
@@ -462,14 +491,16 @@ def update_descriptor(
     descriptor_id: int,
     descriptor_update: schemas.TargetDescriptorUpdate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Update a descriptor for the current user."""
+    """Update a descriptor for the current user's active brand."""
     db_descriptor = crud.update_descriptor(
         db,
         descriptor_id=descriptor_id,
         descriptor_update=descriptor_update,
-        user_id=current_user.id
+        user_id=current_user.id,
+        brand_id=brand_id
     )
     if db_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
@@ -479,10 +510,11 @@ def update_descriptor(
 def delete_descriptor(
     descriptor_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Delete a descriptor for the current user."""
-    deleted_descriptor = crud.delete_descriptor(db, descriptor_id=descriptor_id, user_id=current_user.id)
+    """Delete a descriptor for the current user's active brand."""
+    deleted_descriptor = crud.delete_descriptor(db, descriptor_id=descriptor_id, user_id=current_user.id, brand_id=brand_id)
     if deleted_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
     return deleted_descriptor
