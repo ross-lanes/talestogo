@@ -216,8 +216,10 @@ def get_or_create_oauth_user(db: Session, google_info: dict) -> models.User:
         user.picture_url = google_info.get('picture')
         if not user.full_name:
             user.full_name = google_info.get('name')
-        # Auto-activate OAuth users
-        user.is_active = True
+        # Only auto-activate if they're the admin, otherwise keep existing status
+        if google_info['email'].lower() == ADMIN_EMAIL.lower():
+            user.is_active = True
+            user.is_admin = True
         user.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(user)
@@ -233,9 +235,9 @@ def get_or_create_oauth_user(db: Session, google_info: dict) -> models.User:
         oauth_provider='google',
         full_name=google_info.get('name'),
         picture_url=google_info.get('picture'),
-        is_active=True,  # Auto-activate OAuth users
+        is_active=is_admin_user,  # Only auto-activate admin user, others need approval
         is_admin=is_admin_user,  # Make admin if email matches ADMIN_EMAIL
-        is_invited=True,  # Consider OAuth as invited
+        is_invited=False,  # Require admin approval for all new users
         hashed_password=None  # No password for OAuth users
     )
     db.add(new_user)
