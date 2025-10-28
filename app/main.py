@@ -4,6 +4,7 @@ load_dotenv(override=True)  # Load environment variables from .env file
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import timedelta
@@ -582,6 +583,62 @@ def delete_report(
     if deleted_report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return deleted_report
+
+
+@app.get("/reports/{report_id}/export/word", tags=["Reports"])
+def export_report_to_word(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export a report to Word document format."""
+    from app.services.report_export import export_to_word
+
+    # Get the report
+    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Generate Word document
+    word_file = export_to_word(db_report.report_content, db_report.title)
+
+    # Create safe filename
+    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{safe_filename}.docx"
+
+    return StreamingResponse(
+        word_file,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.get("/reports/{report_id}/export/pdf", tags=["Reports"])
+def export_report_to_pdf(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export a report to PDF format."""
+    from app.services.report_export import export_to_pdf
+
+    # Get the report
+    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Generate PDF
+    pdf_file = export_to_pdf(db_report.report_content, db_report.title)
+
+    # Create safe filename
+    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{safe_filename}.pdf"
+
+    return StreamingResponse(
+        pdf_file,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 # --- Brand Info Endpoints ---

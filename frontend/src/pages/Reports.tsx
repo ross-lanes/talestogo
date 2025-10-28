@@ -16,6 +16,8 @@ import {
   Visibility as VisibilityIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
+  Description as WordIcon,
+  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -102,6 +104,42 @@ export default function Reports() {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadWord = async (report: Report) => {
+    try {
+      const response = await api.get(`/reports/${report.id}/export/word`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading Word document:', error);
+    }
+  };
+
+  const handleDownloadPDF = async (report: Report) => {
+    try {
+      const response = await api.get(`/reports/${report.id}/export/pdf`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
+  };
+
   const columns: GridColDef<Report>[] = [
     {
       field: 'id',
@@ -164,8 +202,20 @@ export default function Reports() {
           onClick={() => handleViewReport(params.row)}
         />,
         <GridActionsCellItem
+          icon={<WordIcon />}
+          label="Download Word"
+          onClick={() => handleDownloadWord(params.row)}
+          showInMenu
+        />,
+        <GridActionsCellItem
+          icon={<PdfIcon />}
+          label="Download PDF"
+          onClick={() => handleDownloadPDF(params.row)}
+          showInMenu
+        />,
+        <GridActionsCellItem
           icon={<DownloadIcon />}
-          label="Download"
+          label="Download Markdown"
           onClick={() => handleDownloadMarkdown(params.row)}
           showInMenu
         />,
@@ -280,10 +330,27 @@ export default function Reports() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => selectedReport && handleDownloadMarkdown(selectedReport)}>
-            Download Markdown
+          <Button
+            startIcon={<WordIcon />}
+            onClick={() => selectedReport && handleDownloadWord(selectedReport)}
+          >
+            Word
           </Button>
-          <Button onClick={handleCloseDialog}>Close</Button>
+          <Button
+            startIcon={<PdfIcon />}
+            onClick={() => selectedReport && handleDownloadPDF(selectedReport)}
+          >
+            PDF
+          </Button>
+          <Button
+            startIcon={<DownloadIcon />}
+            onClick={() => selectedReport && handleDownloadMarkdown(selectedReport)}
+          >
+            Markdown
+          </Button>
+          <Button onClick={handleCloseDialog} variant="contained">
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 

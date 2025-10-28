@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TALES Report Generation Script
-Generates professional analysis reports from analyzed response data using Gemini AI.
+Generates professional analysis reports from analyzed response data using Claude AI.
 Brand-aware version that generates reports for specific brands.
 """
 
@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
-import google.generativeai as genai
+from anthropic import Anthropic
 
 from app.database import SessionLocal
 from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User
@@ -20,12 +20,13 @@ from app import crud, schemas
 
 # Load environment variables
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in environment variables")
+if not ANTHROPIC_API_KEY:
+    raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# Initialize Claude client
+claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 # ==================== DATA COLLECTION ====================
@@ -280,7 +281,7 @@ def generate_competitor_threat_analysis(
     competitors_list: List[Competitor],
     brand_name: str
 ) -> str:
-    """Use Gemini to generate competitor threat analysis."""
+    """Use Claude to generate competitor threat analysis."""
 
     # Prepare competitor data
     competitor_data = []
@@ -291,30 +292,33 @@ def generate_competitor_threat_analysis(
             "share_of_voice": data["sov"]
         })
 
-    model = genai.GenerativeModel('gemini-2.5-flash')
-
-    prompt = f"""
-You are a strategic analyst for {brand_name}.
-Based on the competitor mention data below, identify THREE specific threats:
+    prompt = f"""You are a strategic analyst for {brand_name}.
+Based on the competitor mention data below, identify the THREE most significant competitive threats.
 
 COMPETITOR DATA:
 {json.dumps(competitor_data, indent=2)}
 
 For each competitor threat, provide:
-1. Competitor name
-2. Specific threat description (2-3 sentences)
-3. Recommended action (1-2 sentences)
+1. Competitor name as a heading
+2. Specific threat description (2-3 sentences explaining why this competitor is a concern)
+3. Recommended action (1-2 actionable sentences)
 
-Format as markdown with ### headings for each threat.
-Be specific and strategic in your analysis.
-"""
+Format your response as clean markdown with ### headings for each threat.
+Be specific, strategic, and actionable in your analysis.
+Do NOT use emojis or icons.
+Focus on concrete business insights and tactical recommendations."""
 
-    response = model.generate_content(prompt)
-    return response.text
+    response = claude_client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.content[0].text
 
 
 def generate_strategic_priorities(metrics_summary: Dict[str, Any], brand_name: str, brand_info: Optional[BrandInfo]) -> str:
-    """Use Gemini to generate five strategic priorities."""
+    """Use Claude to generate five strategic priorities."""
 
     # Add brand context to the prompt
     brand_context = f"{brand_name}"
@@ -324,25 +328,70 @@ def generate_strategic_priorities(metrics_summary: Dict[str, Any], brand_name: s
         if brand_info.description:
             brand_context += f"\n\nBrand Description: {brand_info.description}"
 
-    prompt = f"""
-You are a strategic communications consultant for {brand_context}.
+    prompt = f"""You are a strategic communications consultant for {brand_context}.
 Based on the following AI reputation analysis metrics, generate EXACTLY FIVE strategic priorities.
 
 METRICS:
 {json.dumps(metrics_summary, indent=2)}
 
 For each priority, provide:
-1. **Priority Title** (5-8 words)
-2. Description (2-3 sentences explaining the strategic rationale)
-3. Key Actions (2-3 specific actionable steps)
+1. Priority Title (5-8 words, use bold markdown)
+2. Description (2-3 sentences explaining the strategic rationale and why this matters)
+3. Key Actions (2-3 specific, actionable steps)
 
-Format as markdown with numbered sections.
-Focus on actionable strategies to improve {brand_name}'s reputation in AI platforms.
-"""
+Format as markdown with numbered sections (1., 2., 3., etc.).
+Focus on actionable strategies to improve {brand_name}'s reputation and visibility in AI platforms.
+Do NOT use emojis or icons.
+Be thoughtful, strategic, and specific in your recommendations."""
 
-    model = genai.GenerativeModel('gemini-2.5-flash')
-    response = model.generate_content(prompt)
-    return response.text
+    response = claude_client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=3000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.content[0].text
+
+
+def generate_executive_summary(
+    metrics_summary: Dict[str, Any],
+    brand_name: str,
+    brand_info: Optional[BrandInfo],
+    total_responses: int
+) -> str:
+    """Use Claude to generate a 3-5 sentence executive summary."""
+
+    brand_context = f"{brand_name}"
+    if brand_info:
+        if brand_info.industry:
+            brand_context += f" in the {brand_info.industry} industry"
+
+    prompt = f"""You are a strategic communications analyst writing an executive summary for {brand_context}.
+
+Based on the AI reputation analysis metrics below, write a concise executive summary of 3-5 sentences that:
+1. Highlights the overall performance of {brand_name} across AI platforms
+2. Identifies the most significant finding (positive or concerning)
+3. Provides context about what this means for the brand's visibility and reputation
+
+METRICS SUMMARY:
+- Total Responses Analyzed: {total_responses}
+- Brand Mention Rate: {metrics_summary['mention_metrics']['yes_pct']}% (explicit mentions)
+- Positive Sentiment Rate: {metrics_summary['positive_sentiment_rate']}%
+- Share of Voice: {metrics_summary['share_of_voice']['brand_sov']}%
+- Average Positioning Score: {metrics_summary['positioning_average']} out of 5.0
+- Target Descriptor Match Rate: {metrics_summary['descriptor_match_rate']}%
+
+Write in a professional, analytical tone. Focus on strategic insights, not just restating numbers.
+Do NOT use emojis or icons.
+Do NOT use phrases like "This report" or "This analysis" - write directly about the findings."""
+
+    response = claude_client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=500,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.content[0].text
 
 
 # ==================== REPORT GENERATION ====================
@@ -361,6 +410,7 @@ def generate_markdown_report(
     negative_statements: List[Dict[str, str]],
     competitor_threats: str,
     strategic_priorities: str,
+    executive_summary: str,
     brand_name: str,
     brand_info: Optional[BrandInfo],
     report_date: str,
@@ -375,8 +425,7 @@ def generate_markdown_report(
     else:
         brand_header += " - AI Reputation Analysis Report"
 
-    report = f"""
-# AI Reputation Analysis Report
+    report = f"""# AI Reputation Analysis Report
 
 {brand_header}
 
@@ -384,11 +433,15 @@ def generate_markdown_report(
 **Analysis Period:** {period}
 **Total Responses Analyzed:** {mention_metrics['total']}
 
-----
+---
 
-## 1. Executive Summary
+## Executive Summary
 
-### Key Performance Indicators (KPIs)
+{executive_summary}
+
+---
+
+## 1. Key Performance Indicators (KPIs)
 
 ### a. {brand_name} Mentions as Percentage of AI Responses
 **{mention_metrics['yes_pct']}%** of AI responses explicitly mentioned {brand_name}
@@ -411,7 +464,7 @@ def generate_markdown_report(
 ### e. {brand_name} Response Positioning Average
 **{positioning_average}** out of 5.0 (Leader=5, Top 3=4, Featured=3, Listed=2, Not Mentioned=1)
 
-----
+---
 
 ## 2. Detailed Analysis
 
@@ -486,16 +539,17 @@ Top competitors mentioned alongside or instead of the brand:
         report += "*No competitors tracked in responses*\n"
 
     report += """
-----
+---
 
-## 3. Strategic Insights
+## 3. Competitive Analysis
 
-### Competitor Threat Analysis
+### Competitor Threat Assessment
 
 """
     report += competitor_threats
 
     report += """
+
 ### Negative/Mixed Sentiment Examples
 
 """
@@ -512,15 +566,15 @@ Top competitors mentioned alongside or instead of the brand:
         report += "*No negative or mixed sentiment responses found*\n"
 
     report += """
-----
+---
 
-## 4. Strategic Priorities
+## 4. Strategic Recommendations
 
 """
     report += strategic_priorities
 
     report += """
-----
+---
 
 ## 5. Methodology
 
@@ -534,7 +588,7 @@ Each response was analyzed for:
 
 All metrics are based on actual AI platform responses collected during the analysis period.
 
-----
+---
 
 *Report generated by TALES (AI Reputation Intelligence & Optimization)*
 """
@@ -546,7 +600,7 @@ All metrics are based on actual AI platform responses collected during the analy
 
 def generate_report_main(user_id: int, brand_id: int):
     """Main function to generate the complete report for a specific brand."""
-    print(f"🚀 Starting TALES Report Generation for Brand ID {brand_id}...")
+    print(f"Starting TALES Report Generation for Brand ID {brand_id}...")
 
     db = SessionLocal()
 
@@ -554,30 +608,30 @@ def generate_report_main(user_id: int, brand_id: int):
         # Get brand info
         brand_info = get_brand_info(db, brand_id)
         if not brand_info:
-            print(f"❌ Brand ID {brand_id} not found")
+            print(f"Error: Brand ID {brand_id} not found")
             return
 
         brand_name = brand_info.brand_name
-        print(f"📋 Generating report for: {brand_name}")
+        print(f"Generating report for: {brand_name}")
 
         # Step 1: Collect data
-        print("\n📊 Collecting data from database...")
+        print("\nCollecting data from database...")
         responses = get_brand_analyzed_responses(db, user_id, brand_id)
         queries = get_brand_queries(db, user_id, brand_id)
         competitors = get_brand_competitors(db, user_id, brand_id)
         descriptors = get_brand_descriptors(db, user_id, brand_id)
 
         if not responses:
-            print("❌ No analyzed responses found for this brand. Please run data collection and analysis first.")
+            print("Error: No analyzed responses found for this brand. Please run data collection and analysis first.")
             return
 
-        print(f"✓ Found {len(responses)} analyzed responses")
-        print(f"✓ Found {len(queries)} queries")
-        print(f"✓ Found {len(competitors)} competitors")
-        print(f"✓ Found {len(descriptors)} descriptors")
+        print(f"Found {len(responses)} analyzed responses")
+        print(f"Found {len(queries)} queries")
+        print(f"Found {len(competitors)} competitors")
+        print(f"Found {len(descriptors)} descriptors")
 
         # Step 2: Calculate metrics
-        print("\n📈 Calculating metrics...")
+        print("\nCalculating metrics...")
         mention_metrics = calculate_mention_metrics(responses)
         positioning_metrics = calculate_positioning_metrics(responses)
         sentiment_metrics = calculate_sentiment_metrics(responses)
@@ -590,7 +644,7 @@ def generate_report_main(user_id: int, brand_id: int):
         positioning_average = calculate_positioning_average(responses)
         negative_statements = get_negative_sentiment_statements(responses)
 
-        print("✓ All metrics calculated")
+        print("All metrics calculated")
 
         # Prepare metrics summary for AI generation
         metrics_summary = {
@@ -605,19 +659,22 @@ def generate_report_main(user_id: int, brand_id: int):
         }
 
         # Step 3: Generate AI insights
-        print("\n🤖 Generating AI-powered insights...")
-        print("  → Competitor threat analysis...")
+        print("\nGenerating AI-powered insights with Claude...")
+        print("  - Executive summary...")
+        executive_summary = generate_executive_summary(metrics_summary, brand_name, brand_info, len(responses))
+
+        print("  - Competitor threat analysis...")
         competitor_threats = generate_competitor_threat_analysis(
             share_of_voice['competitor_sov'], responses, competitors, brand_name
         )
 
-        print("  → Strategic priorities...")
+        print("  - Strategic recommendations...")
         strategic_priorities = generate_strategic_priorities(metrics_summary, brand_name, brand_info)
 
-        print("✓ AI insights generated")
+        print("AI insights generated")
 
         # Step 4: Generate report
-        print("\n📝 Generating markdown report...")
+        print("\nGenerating markdown report...")
         report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
         period = "Last analysis run"  # Could be made dynamic
 
@@ -635,6 +692,7 @@ def generate_report_main(user_id: int, brand_id: int):
             negative_statements=negative_statements,
             competitor_threats=competitor_threats,
             strategic_priorities=strategic_priorities,
+            executive_summary=executive_summary,
             brand_name=brand_name,
             brand_info=brand_info,
             report_date=report_date,
@@ -642,7 +700,7 @@ def generate_report_main(user_id: int, brand_id: int):
         )
 
         # Step 5: Save to database
-        print("\n💾 Saving report to database...")
+        print("\nSaving report to database...")
         report_title = f"{brand_name} AI Reputation Analysis - {datetime.now().strftime('%Y-%m-%d')}"
 
         report_obj = Report(
@@ -658,22 +716,22 @@ def generate_report_main(user_id: int, brand_id: int):
         db.commit()
         db.refresh(report_obj)
 
-        print(f"✓ Report saved to database (ID: {report_obj.id})")
+        print(f"Report saved to database (ID: {report_obj.id})")
 
         # Step 6: Save to file
         filename = f"report_{brand_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
         with open(filename, 'w') as f:
             f.write(markdown_report)
 
-        print(f"✓ Report saved to file: {filename}")
-        print("\n✅ Report generation complete!")
-        print(f"\n📄 Report Preview (first 500 chars):")
+        print(f"Report saved to file: {filename}")
+        print("\nReport generation complete!")
+        print(f"\nReport Preview (first 500 chars):")
         print("-" * 60)
         print(markdown_report[:500] + "...")
         print("-" * 60)
 
     except Exception as e:
-        print(f"\n❌ Error generating report: {e}")
+        print(f"\nError generating report: {e}")
         import traceback
         traceback.print_exc()
     finally:
