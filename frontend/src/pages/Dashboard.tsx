@@ -56,7 +56,7 @@ export default function Dashboard() {
       const response = await api.get('/tasks/status/');
       return response.data;
     },
-    refetchInterval: (data) => {
+    refetchInterval: (data: any) => {
       // Poll every 3 seconds if a task is running, otherwise every 30 seconds
       return data?.status === 'running' ? 3000 : 30000;
     },

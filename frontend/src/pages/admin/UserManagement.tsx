@@ -170,7 +170,7 @@ const UserManagement: React.FC = () => {
       field: 'created_at',
       headerName: 'Created',
       width: 180,
-      valueFormatter: (params) => new Date(params.value).toLocaleString(),
+      valueFormatter: (params: any) => new Date(params.value).toLocaleString(),
     },
     {
       field: 'actions',

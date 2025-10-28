@@ -222,7 +222,7 @@ export default function DataAnalysis() {
           );
         } else {
           // Regular paragraph - remove markdown formatting
-          let text = line
+          const text = line
             .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold markers
             .replace(/\*(.+?)\*/g, '$1') // Remove italic markers
             .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text

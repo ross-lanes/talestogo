@@ -140,7 +140,7 @@ export default function Queries() {
       updateMutation.mutate({ query_id: selectedQuery.query_id, data: formData });
     } else {
       // For create, send form data (backend will auto-generate query_id)
-      createMutation.mutate(formData);
+      createMutation.mutate(formData as any);
     }
   };
 
