@@ -105,12 +105,12 @@
 ┌─────────────────────────────────────────────────────────────┐
 │ Name *                                                      │
 │ ┌───────────────────────────────────────────────────────┐ │
-│ │ AIRO Web Client                          ← Type this  │ │
+│ │ TALES Web Client                          ← Type this  │ │
 │ └───────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Type:** `AIRO Web Client`
+**Type:** `TALES Web Client`
 
 ---
 
@@ -182,7 +182,7 @@ After clicking:
 │                                                             │
 │ Name *                                                      │
 │ ┌───────────────────────────────────────────────────────┐ │
-│ │ AIRO Web Client                                  ✓    │ │
+│ │ TALES Web Client                                  ✓    │ │
 │ └───────────────────────────────────────────────────────┘ │
 │                                                             │
 │ Authorized JavaScript origins                               │
@@ -238,7 +238,7 @@ After clicking:
 
 ### Backend `.env` File
 
-Location: `/Users/rachelkremen/Documents/Code/airo_project/.env`
+Location: `/Users/rachelkremen/Documents/Code/tales_project/.env`
 
 ```env
 # Before:
@@ -252,7 +252,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-ABCDEFGHijklmnop1234567
 
 ### Frontend `.env` File
 
-Location: `/Users/rachelkremen/Documents/Code/airo_project/frontend/.env`
+Location: `/Users/rachelkremen/Documents/Code/tales_project/frontend/.env`
 
 ```env
 # Before:
@@ -273,7 +273,7 @@ Follow these steps in order:
 □ Click "+ CREATE CREDENTIALS"
 □ Select "OAuth client ID"
 □ Choose "Web application"
-□ Name: "AIRO Web Client"
+□ Name: "TALES Web Client"
 □ Add JavaScript origin: http://localhost:5173
 □ Add JavaScript origin: http://localhost:3000
 □ Add Redirect URI: http://localhost:5173
@@ -293,7 +293,7 @@ Follow these steps in order:
 
 | Field | Value | Where |
 |-------|-------|-------|
-| **Name** | `AIRO Web Client` | Credentials form |
+| **Name** | `TALES Web Client` | Credentials form |
 | **App Type** | Web application | Credentials form |
 | **JS Origins** | `http://localhost:5173`<br>`http://localhost:3000` | Credentials form |
 | **Redirect URIs** | `http://localhost:5173`<br>`http://localhost:3000` | Credentials form |
@@ -344,13 +344,13 @@ Once you've updated your `.env` files, start the servers:
 
 ### Terminal 1 - Backend
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project
+cd /Users/rachelkremen/Documents/Code/tales_project
 python3 -m uvicorn app.main:app --reload
 ```
 
 ### Terminal 2 - Frontend
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project/frontend
+cd /Users/rachelkremen/Documents/Code/tales_project/frontend
 npm run dev
 ```
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Response Analysis Script for AIRO Project
+Response Analysis Script for TALES Project
 Analyzes collected LLM responses for PPPL mentions, sentiment, descriptors, and competitors.
 Uses Gemini AI for analysis.
 """
@@ -39,9 +39,10 @@ COMPETITORS = []
 class ResponseAnalyzer:
     """Analyzes responses using Gemini AI."""
 
-    def __init__(self, db: Session, user_id: int):
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
+        self.brand_id = brand_id
         self.google_model = None
         self.brand_name = "your brand"
         self.brand_info = None
@@ -64,32 +65,51 @@ class ResponseAnalyzer:
         self.load_reference_data()
 
     def load_brand_info(self):
-        """Load brand information for the user."""
-        brand_info = self.db.query(models.BrandInfo).filter(
+        """Load brand information for the user and specific brand."""
+        query = self.db.query(models.BrandInfo).filter(
             models.BrandInfo.user_id == self.user_id
-        ).first()
+        )
+
+        if self.brand_id:
+            # Load specific brand
+            query = query.filter(models.BrandInfo.id == self.brand_id)
+        else:
+            # Load active brand
+            query = query.filter(models.BrandInfo.is_active == True)
+
+        brand_info = query.first()
 
         if brand_info:
             self.brand_info = brand_info
+            self.brand_id = brand_info.id  # Store the brand_id
             self.brand_name = brand_info.brand_name
             print(f"✓ Loaded brand info for: {self.brand_name}")
         else:
             print("⚠️  No brand info found - using generic brand name")
 
     def load_reference_data(self):
-        """Load target descriptors and competitors from database."""
+        """Load target descriptors and competitors from database for specific brand."""
         global TARGET_DESCRIPTORS, COMPETITORS
 
-        descriptors = self.db.query(models.TargetDescriptor).filter(
+        # Filter by brand_id if available
+        descriptor_query = self.db.query(models.TargetDescriptor).filter(
             models.TargetDescriptor.user_id == self.user_id,
             models.TargetDescriptor.is_target == True
-        ).all()
+        )
+        if self.brand_id:
+            descriptor_query = descriptor_query.filter(models.TargetDescriptor.brand_id == self.brand_id)
+
+        descriptors = descriptor_query.all()
         TARGET_DESCRIPTORS = [d.descriptor for d in descriptors]
 
-        competitors = self.db.query(models.Competitor).filter(
+        competitor_query = self.db.query(models.Competitor).filter(
             models.Competitor.user_id == self.user_id
-        ).all()
-        COMPETITORS = [c.name for c in competitors]
+        )
+        if self.brand_id:
+            competitor_query = competitor_query.filter(models.Competitor.brand_id == self.brand_id)
+
+        competitors = competitor_query.all()
+        COMPETITORS = [c.organization for c in competitors]
 
         print(f"✓ Loaded {len(TARGET_DESCRIPTORS)} target descriptors")
         print(f"✓ Loaded {len(COMPETITORS)} competitors")
@@ -240,12 +260,17 @@ Example format:
         return False
 
     def analyze_batch(self, limit: Optional[int] = None) -> Dict[str, int]:
-        """Analyze all unanalyzed responses for this user."""
-        # Get unanalyzed responses for this user
+        """Analyze all unanalyzed responses for this user and brand."""
+        # Get unanalyzed responses for this user and brand
         query = self.db.query(models.Response).filter(
             models.Response.user_id == self.user_id,
             models.Response.analyzed_at.is_(None)
         )
+
+        # Filter by brand_id if specified
+        if self.brand_id:
+            query = query.filter(models.Response.brand_id == self.brand_id)
+
         if limit:
             query = query.limit(limit)
 
@@ -319,29 +344,48 @@ def main():
     """Main entry point for the analysis script."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='AIRO Response Analysis Tool')
+    parser = argparse.ArgumentParser(description='TALES Response Analysis Tool')
     parser.add_argument('--all', action='store_true', help='Analyze all unanalyzed responses')
     parser.add_argument('--limit', type=int, help='Limit number of responses to analyze')
+    parser.add_argument('--user-id', type=int, help='User ID to analyze responses for')
+    parser.add_argument('--brand-id', type=int, help='Brand ID to analyze responses for')
     args = parser.parse_args()
 
-    print("\n🔍 AIRO Response Analysis Tool\n")
+    print("\n🔍 TALES Response Analysis Tool\n")
 
     db = SessionLocal()
     try:
-        # Get first user (for now - in production this should be passed as argument)
-        user = db.query(models.User).first()
+        # Get user
+        if args.user_id:
+            user = db.query(models.User).filter(models.User.id == args.user_id).first()
+        else:
+            user = db.query(models.User).first()
+
         if not user:
             print("❌ No users found in database. Please create a user first.")
             return
 
-        print(f"📋 Analyzing responses for user: {user.email}\n")
-        analyzer = ResponseAnalyzer(db, user_id=user.id)
+        print(f"📋 Analyzing responses for user: {user.email}")
+        if args.brand_id:
+            brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == args.brand_id).first()
+            if brand:
+                print(f"📋 Brand: {brand.brand_name}\n")
+            else:
+                print(f"⚠️  Brand ID {args.brand_id} not found\n")
+        else:
+            print("📋 Using active brand\n")
 
-        # Get count of unanalyzed responses for this user
-        unanalyzed_count = db.query(models.Response).filter(
+        analyzer = ResponseAnalyzer(db, user_id=user.id, brand_id=args.brand_id)
+
+        # Get count of unanalyzed responses for this user/brand
+        unanalyzed_query = db.query(models.Response).filter(
             models.Response.user_id == user.id,
             models.Response.analyzed_at.is_(None)
-        ).count()
+        )
+        if args.brand_id:
+            unanalyzed_query = unanalyzed_query.filter(models.Response.brand_id == args.brand_id)
+
+        unanalyzed_count = unanalyzed_query.count()
 
         if unanalyzed_count == 0:
             print("✓ All responses are already analyzed!")

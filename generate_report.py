@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-AIRO Report Generation Script
+TALES Report Generation Script
 Generates professional analysis reports from analyzed response data using Gemini AI.
+Brand-aware version that generates reports for specific brands.
 """
 
 import os
 import json
+import sys
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from collections import Counter
@@ -13,7 +15,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 from app.database import SessionLocal
-from app.models import Response, Query, Competitor, TargetDescriptor, Report
+from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User
 from app import crud, schemas
 
 # Load environment variables
@@ -28,35 +30,53 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # ==================== DATA COLLECTION ====================
 
-def get_all_analyzed_responses(db) -> List[Response]:
-    """Fetch all responses that have been analyzed."""
-    return db.query(Response).filter(Response.analyzed_at.isnot(None)).all()
+def get_brand_analyzed_responses(db, user_id: int, brand_id: int) -> List[Response]:
+    """Fetch all responses that have been analyzed for specific brand."""
+    return db.query(Response).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.analyzed_at.isnot(None)
+    ).all()
 
 
-def get_all_queries(db) -> List[Query]:
-    """Fetch all queries."""
-    return db.query(Query).all()
+def get_brand_queries(db, user_id: int, brand_id: int) -> List[Query]:
+    """Fetch all queries for specific brand."""
+    return db.query(Query).filter(
+        Query.user_id == user_id,
+        Query.brand_id == brand_id
+    ).all()
 
 
-def get_all_competitors(db) -> List[Competitor]:
-    """Fetch all competitors."""
-    return db.query(Competitor).all()
+def get_brand_competitors(db, user_id: int, brand_id: int) -> List[Competitor]:
+    """Fetch all competitors for specific brand."""
+    return db.query(Competitor).filter(
+        Competitor.user_id == user_id,
+        Competitor.brand_id == brand_id
+    ).all()
 
 
-def get_all_descriptors(db) -> List[TargetDescriptor]:
-    """Fetch all target descriptors."""
-    return db.query(TargetDescriptor).all()
+def get_brand_descriptors(db, user_id: int, brand_id: int) -> List[TargetDescriptor]:
+    """Fetch all target descriptors for specific brand."""
+    return db.query(TargetDescriptor).filter(
+        TargetDescriptor.user_id == user_id,
+        TargetDescriptor.brand_id == brand_id
+    ).all()
+
+
+def get_brand_info(db, brand_id: int) -> Optional[BrandInfo]:
+    """Fetch brand information."""
+    return db.query(BrandInfo).filter(BrandInfo.id == brand_id).first()
 
 
 # ==================== METRIC CALCULATIONS ====================
 
 def calculate_mention_metrics(responses: List[Response]) -> Dict[str, Any]:
-    """Calculate PPPL mention rate metrics."""
+    """Calculate brand mention rate metrics."""
     total = len(responses)
     if total == 0:
         return {"total": 0, "yes": 0, "indirect": 0, "no": 0, "yes_pct": 0, "indirect_pct": 0, "no_pct": 0}
 
-    mentions = Counter([r.pppl_mentioned for r in responses])
+    mentions = Counter([r.brand_mentioned for r in responses])
 
     return {
         "total": total,
@@ -70,12 +90,12 @@ def calculate_mention_metrics(responses: List[Response]) -> Dict[str, Any]:
 
 
 def calculate_positioning_metrics(responses: List[Response]) -> Dict[str, Any]:
-    """Calculate PPPL positioning metrics."""
+    """Calculate brand positioning metrics."""
     total = len(responses)
     if total == 0:
         return {"total": 0, "leader": 0, "top_3": 0, "featured": 0, "listed": 0, "not_mentioned": 0}
 
-    positions = Counter([r.pppl_position for r in responses])
+    positions = Counter([r.brand_position for r in responses])
 
     return {
         "total": total,
@@ -138,110 +158,81 @@ def analyze_descriptors(responses: List[Response]) -> Dict[str, int]:
 
     for response in responses:
         if hasattr(response, 'descriptors') and response.descriptors:
-            # Assuming descriptors are stored as JSON array
-            try:
-                descriptors = json.loads(response.descriptors) if isinstance(response.descriptors, str) else response.descriptors
-                for descriptor in descriptors:
-                    descriptor_counts[descriptor] += 1
-            except:
-                pass
+            # Descriptors are stored as comma-separated strings
+            descriptors = [d.strip() for d in response.descriptors.split(',') if d.strip()]
+            for descriptor in descriptors:
+                descriptor_counts[descriptor] += 1
 
     return dict(descriptor_counts)
 
 
 def analyze_competitors(responses: List[Response]) -> Dict[str, int]:
-    """Count mentions of each competitor."""
+    """Count occurrences of competitors in responses."""
     competitor_counts = Counter()
 
     for response in responses:
         if hasattr(response, 'competitors') and response.competitors:
-            # Assuming competitors are stored as JSON array
-            try:
-                competitors = json.loads(response.competitors) if isinstance(response.competitors, str) else response.competitors
-                for competitor in competitors:
-                    competitor_counts[competitor] += 1
-            except:
-                pass
+            # Competitors are stored as comma-separated strings
+            competitors = [c.strip() for c in response.competitors.split(',') if c.strip()]
+            for competitor in competitors:
+                competitor_counts[competitor] += 1
 
     return dict(competitor_counts)
 
 
 def calculate_positive_sentiment_rate(responses: List[Response]) -> float:
     """Calculate percentage of responses with positive or very positive sentiment."""
-    total = len(responses)
-    if total == 0:
+    brand_responses = [r for r in responses if r.brand_mentioned in ["Yes", "Indirect"]]
+    if not brand_responses:
         return 0.0
 
-    positive_count = sum(1 for r in responses if r.sentiment in ["Positive", "Very Positive"])
-    return round((positive_count / total) * 100, 1)
+    positive_count = sum(1 for r in brand_responses if r.sentiment in ["Positive", "Very Positive"])
+    return round((positive_count / len(brand_responses)) * 100, 1)
 
 
-def calculate_descriptor_match_rate(responses: List[Response], target_descriptors: List[TargetDescriptor]) -> float:
-    """Calculate percentage of responses that include at least one target descriptor."""
-    total = len(responses)
-    if total == 0:
+def calculate_descriptor_match_rate(responses: List[Response], descriptors: List[TargetDescriptor]) -> float:
+    """Calculate percentage of responses that mention at least one target descriptor."""
+    brand_responses = [r for r in responses if r.brand_mentioned in ["Yes", "Indirect"]]
+    if not brand_responses:
         return 0.0
 
-    target_descriptor_names = {d.descriptor.lower() for d in target_descriptors if d.target_for_pppl}
-
-    responses_with_descriptors = 0
-    for response in responses:
-        if hasattr(response, 'descriptors') and response.descriptors:
-            try:
-                descriptors = json.loads(response.descriptors) if isinstance(response.descriptors, str) else response.descriptors
-                if any(d.lower() in target_descriptor_names for d in descriptors):
-                    responses_with_descriptors += 1
-            except:
-                pass
-
-    return round((responses_with_descriptors / total) * 100, 1)
+    with_descriptors = sum(1 for r in brand_responses if r.descriptors and r.descriptors.strip())
+    return round((with_descriptors / len(brand_responses)) * 100, 1)
 
 
-def calculate_share_of_voice(responses: List[Response], competitors: List[Competitor]) -> Dict[str, Any]:
-    """Calculate share of voice for PPPL vs competitors."""
+def calculate_share_of_voice(responses: List[Response], competitors: List[Competitor], brand_name: str) -> Dict[str, Any]:
+    """Calculate share of voice for brand vs competitors."""
     # Count total mentions across all organizations
     total_mentions = 0
-    pppl_mentions = 0
+    brand_mentions = 0
     competitor_mentions = Counter()
 
     for response in responses:
-        # Count PPPL mentions
-        if response.pppl_mentioned == "Yes":
-            pppl_mentions += 1
+        # Count brand mentions
+        if response.brand_mentioned == "Yes":
+            brand_mentions += 1
             total_mentions += 1
 
         # Count competitor mentions
-        if hasattr(response, 'competitors') and response.competitors:
-            try:
-                comp_list = json.loads(response.competitors) if isinstance(response.competitors, str) else response.competitors
-                for comp in comp_list:
-                    competitor_mentions[comp] += 1
-                    total_mentions += 1
-            except:
-                pass
+        if response.competitors:
+            comp_list = [c.strip() for c in response.competitors.split(',') if c.strip()]
+            for comp in comp_list:
+                competitor_mentions[comp] += 1
+                total_mentions += 1
 
-    if total_mentions == 0:
-        return {
-            "pppl_sov": 0.0,
-            "pppl_mentions": 0,
-            "total_mentions": 0,
-            "competitor_sov": {}
-        }
+    brand_sov = round((brand_mentions / total_mentions) * 100, 1) if total_mentions > 0 else 0.0
 
-    pppl_sov = round((pppl_mentions / total_mentions) * 100, 1)
-
+    # Build competitor SOV data
     competitor_sov = {}
-    for comp, count in competitor_mentions.items():
-        competitor_sov[comp] = {
-            "mentions": count,
-            "sov": round((count / total_mentions) * 100, 1)
-        }
+    for comp_name, count in competitor_mentions.most_common(5):
+        sov = round((count / total_mentions) * 100, 1) if total_mentions > 0 else 0.0
+        competitor_sov[comp_name] = {"count": count, "sov": sov}
 
     return {
-        "pppl_sov": pppl_sov,
-        "pppl_mentions": pppl_mentions,
+        "brand_mentions": brand_mentions,
         "total_mentions": total_mentions,
-        "competitor_sov": competitor_sov
+        "brand_sov": brand_sov,
+        "competitor_sov": competitor_sov,
     }
 
 
@@ -255,114 +246,108 @@ def calculate_positioning_average(responses: List[Response]) -> float:
         "Top 3": 4,
         "Featured": 3,
         "Listed": 2,
-        "Not Mentioned": 1
+        "Not Mentioned": 1,
     }
 
-    total_score = sum(position_scores.get(r.pppl_position, 0) for r in responses)
+    total_score = sum(position_scores.get(r.brand_position, 1) for r in responses)
     return round(total_score / len(responses), 2)
 
 
 def get_negative_sentiment_statements(responses: List[Response]) -> List[Dict[str, str]]:
-    """Get list of responses with negative sentiment."""
-    negative_responses = []
+    """Extract responses with negative or mixed sentiment about the brand."""
+    negative_responses = [
+        r for r in responses
+        if r.brand_mentioned in ["Yes", "Indirect"]
+        and r.sentiment in ["Negative", "Mixed"]
+    ]
 
-    for response in responses:
-        if response.sentiment == "Negative":
-            negative_responses.append({
-                "platform": response.platform,
-                "query": response.query_text,
-                "response_text": response.response_text[:500] + "..." if len(response.response_text) > 500 else response.response_text,
-                "notes": response.notes if hasattr(response, 'notes') and response.notes else ""
-            })
+    return [
+        {
+            "platform": r.platform,
+            "query": r.query_text[:100] + "..." if len(r.query_text) > 100 else r.query_text,
+            "sentiment": r.sentiment,
+            "excerpt": r.response_text[:200] + "..." if len(r.response_text) > 200 else r.response_text,
+        }
+        for r in negative_responses[:5]  # Limit to 5 examples
+    ]
 
-    return negative_responses
 
-
-# ==================== AI-POWERED GENERATION ====================
+# ==================== AI-POWERED ANALYSIS ====================
 
 def generate_competitor_threat_analysis(
     competitor_sov: Dict[str, Dict[str, Any]],
     responses: List[Response],
-    competitors_list: List[Competitor]
+    competitors_list: List[Competitor],
+    brand_name: str
 ) -> str:
     """Use Gemini to generate competitor threat analysis."""
 
     # Prepare competitor data
     competitor_data = []
-    for comp_name, data in competitor_sov.items():
-        comp_info = next((c for c in competitors_list if c.organization == comp_name), None)
+    for comp_name, data in list(competitor_sov.items())[:5]:
         competitor_data.append({
             "name": comp_name,
-            "mentions": data["mentions"],
-            "share_of_voice": data["sov"],
-            "type": comp_info.type if comp_info else "Unknown"
+            "mentions": data["count"],
+            "share_of_voice": data["sov"]
         })
 
+    model = genai.GenerativeModel('gemini-2.5-flash')
+
     prompt = f"""
-You are a strategic analyst for Princeton Plasma Physics Laboratory (PPPL).
+You are a strategic analyst for {brand_name}.
 Based on the competitor mention data below, identify THREE specific threats:
 
 COMPETITOR DATA:
 {json.dumps(competitor_data, indent=2)}
 
-Provide EXACTLY the following three threat assessments:
+For each competitor threat, provide:
+1. Competitor name
+2. Specific threat description (2-3 sentences)
+3. Recommended action (1-2 sentences)
 
-1. Primary Public Threat: Which national laboratory or university poses the biggest public perception threat and why (1-2 sentences)
-
-2. Primary Private Threat: Which private company poses the biggest competitive threat and why (1-2 sentences)
-
-3. Primary Narrative Threat: Which organization is most successfully owning the fusion narrative in AI responses and why (1-2 sentences)
-
-Be specific, data-driven, and concise. Reference the actual share of voice percentages in your analysis.
+Format as markdown with ### headings for each threat.
+Be specific and strategic in your analysis.
 """
 
-    model = genai.GenerativeModel('gemini-1.5-pro')
     response = model.generate_content(prompt)
     return response.text
 
 
-def generate_strategic_priorities(metrics_summary: Dict[str, Any]) -> str:
+def generate_strategic_priorities(metrics_summary: Dict[str, Any], brand_name: str, brand_info: Optional[BrandInfo]) -> str:
     """Use Gemini to generate five strategic priorities."""
 
+    # Add brand context to the prompt
+    brand_context = f"{brand_name}"
+    if brand_info:
+        if brand_info.industry:
+            brand_context += f" (in the {brand_info.industry} industry)"
+        if brand_info.description:
+            brand_context += f"\n\nBrand Description: {brand_info.description}"
+
     prompt = f"""
-You are a strategic communications consultant for Princeton Plasma Physics Laboratory (PPPL).
+You are a strategic communications consultant for {brand_context}.
 Based on the following AI reputation analysis metrics, generate EXACTLY FIVE strategic priorities.
 
 METRICS:
 {json.dumps(metrics_summary, indent=2)}
 
-For each of the five priorities, provide:
-- A clear, action-oriented title
-- 2-5 sentences explaining the priority, the data driving it, and the expected impact
+For each priority, provide:
+1. **Priority Title** (5-8 words)
+2. Description (2-3 sentences explaining the strategic rationale)
+3. Key Actions (2-3 specific actionable steps)
 
-Focus on:
-- Increasing visibility where mention rates are low
-- Improving positioning (moving from "Listed" to "Featured" or "Leader")
-- Addressing platform-specific gaps
-- Leveraging competitive advantages
-- Addressing sentiment issues if present
-- Increasing target descriptor usage
-
-Write in a professional, strategic consulting style with specific, actionable priorities.
-Format as:
-
-Priority 1: [Title]
-[2-5 sentences]
-
-Priority 2: [Title]
-[2-5 sentences]
-
-...and so on for all five priorities.
+Format as markdown with numbered sections.
+Focus on actionable strategies to improve {brand_name}'s reputation in AI platforms.
 """
 
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     response = model.generate_content(prompt)
     return response.text
 
 
-# ==================== REPORT COMPILATION ====================
+# ==================== REPORT GENERATION ====================
 
-def compile_report(
+def generate_markdown_report(
     mention_metrics: Dict[str, Any],
     positioning_metrics: Dict[str, Any],
     sentiment_metrics: Dict[str, Any],
@@ -374,59 +359,67 @@ def compile_report(
     share_of_voice: Dict[str, Any],
     positioning_average: float,
     negative_statements: List[Dict[str, str]],
-    competitor_threat_analysis: str,
+    competitor_threats: str,
     strategic_priorities: str,
-    queries: List[Query],
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    brand_name: str,
+    brand_info: Optional[BrandInfo],
+    report_date: str,
+    period: str,
 ) -> str:
-    """Compile all sections into a complete markdown report."""
+    """Generate a complete markdown report."""
 
-    report_date = datetime.now().strftime("%B %d, %Y")
-
-    # Determine analysis period
-    if start_date and end_date:
-        period = f"{start_date} to {end_date}"
+    # Build brand header with context
+    brand_header = f"## {brand_name}"
+    if brand_info and brand_info.industry:
+        brand_header += f" - AI Reputation Analysis Report"
     else:
-        period = "Most Recent Collection"
+        brand_header += " - AI Reputation Analysis Report"
 
-    report = f"""# AIRO: AI Reputation Intelligence & Optimization Report
-## Princeton Plasma Physics Laboratory (PPPL)
+    report = f"""
+# AI Reputation Analysis Report
+
+{brand_header}
 
 **Report Generated:** {report_date}
 **Analysis Period:** {period}
 **Total Responses Analyzed:** {mention_metrics['total']}
 
----
+----
 
-## 1. Key Metrics Dashboard
+## 1. Executive Summary
 
-### a. PPPL Mentions as Percentage of AI Responses
-**{mention_metrics['yes_pct']}%** of AI responses explicitly mentioned PPPL
+### Key Performance Indicators (KPIs)
+
+### a. {brand_name} Mentions as Percentage of AI Responses
+**{mention_metrics['yes_pct']}%** of AI responses explicitly mentioned {brand_name}
 
 | Mention Type | Count | Percentage |
 |-------------|-------|------------|
 | Yes (explicit mention) | {mention_metrics['yes']} | {mention_metrics['yes_pct']}% |
 | Indirect (work mentioned, not name) | {mention_metrics['indirect']} | {mention_metrics['indirect_pct']}% |
-| Not Mentioned | {mention_metrics['no']} | {mention_metrics['no_pct']}% |
+| Not mentioned | {mention_metrics['no']} | {mention_metrics['no_pct']}% |
 
 ### b. Positive Sentiment Rate
-**{positive_sentiment_rate}%** of AI responses had positive or very positive sentiment about PPPL
+**{positive_sentiment_rate}%** of AI responses had positive or very positive sentiment about {brand_name}
 
 ### c. Target Descriptor Match Rate
-**{descriptor_match_rate}%** of AI responses associated PPPL with at least one target descriptor
+**{descriptor_match_rate}%** of AI responses associated {brand_name} with at least one target descriptor
 
-### d. Share of Voice for PPPL
-**{share_of_voice['pppl_sov']}%** - PPPL captured {share_of_voice['pppl_sov']}% of all mentions ({share_of_voice['pppl_mentions']} out of {share_of_voice['total_mentions']} total organization mentions)
+### d. Share of Voice for {brand_name}
+**{share_of_voice['brand_sov']}%** - {brand_name} captured {share_of_voice['brand_sov']}% of all mentions ({share_of_voice['brand_mentions']} out of {share_of_voice['total_mentions']} total organization mentions)
 
-### e. PPPL Response Positioning Average
+### e. {brand_name} Response Positioning Average
 **{positioning_average}** out of 5.0 (Leader=5, Top 3=4, Featured=3, Listed=2, Not Mentioned=1)
 
----
+----
 
 ## 2. Detailed Analysis
 
-### Sentiment Breakdown
+### a. Mention Analysis
+
+**Overall Mention Rate:** {mention_metrics['yes_pct']}% explicit, {mention_metrics['indirect_pct']}% indirect
+
+### b. Sentiment Breakdown
 
 | Sentiment | Count | Percentage |
 |-----------|-------|------------|
@@ -436,136 +429,114 @@ def compile_report(
 | Negative | {sentiment_metrics['negative']} | {sentiment_metrics['negative_pct']}% |
 | Mixed | {sentiment_metrics['mixed']} | {sentiment_metrics['mixed_pct']}% |
 
-### f. Share of Voice - All Competitors
+### c. Platform-by-Platform Breakdown
 
 """
 
-    # Add competitor share of voice
-    if share_of_voice['competitor_sov']:
-        for comp, data in sorted(share_of_voice['competitor_sov'].items(), key=lambda x: x[1]['sov'], reverse=True):
-            report += f"- {comp}: {data['sov']}% ({data['mentions']} mentions)\n"
-    else:
-        report += "_No competitor mentions found_\n"
+    # Add platform analysis
+    for platform, metrics in platform_metrics.items():
+        if metrics['total'] > 0:
+            report += f"""
+#### {platform} (n={metrics['total']})
+- **Mention Rate:** {metrics['mention']['yes_pct']}% (Yes), {metrics['mention']['indirect_pct']}% (Indirect)
+- **Positive Sentiment:** {metrics['sentiment']['positive_pct'] + metrics['sentiment']['very_positive_pct']}%
+- **Leader/Top 3 Positioning:** {metrics['positioning']['leader_pct'] + metrics['positioning']['top_3_pct']}%
+"""
 
     report += f"""
-
-### g. PPPL Response Positioning Breakdown
+### g. {brand_name} Response Positioning Breakdown
 
 | Position | Count | Percentage |
 |----------|-------|------------|
+| Leader | {positioning_metrics['leader']} | {positioning_metrics['leader_pct']}% |
 | Featured | {positioning_metrics['featured']} | {positioning_metrics['featured_pct']}% |
 | Top 3 | {positioning_metrics['top_3']} | {positioning_metrics['top_3_pct']}% |
-| Included Among Others (Listed) | {positioning_metrics['listed']} | {positioning_metrics['listed_pct']}% |
+| Listed | {positioning_metrics['listed']} | {positioning_metrics['listed_pct']}% |
 | Not Mentioned | {positioning_metrics['not_mentioned']} | {positioning_metrics['not_mentioned_pct']}% |
 
-Note: "Leader" positioning ({positioning_metrics['leader']} responses, {positioning_metrics['leader_pct']}%) represents the highest tier
+### d. Descriptor Analysis
 
-### h. Descriptors Breakdown
-
-How often each descriptor was associated with PPPL in AI responses:
+How often each descriptor was associated with {brand_name} in AI responses:
 
 """
 
     # Add descriptor breakdown
     if descriptor_analysis:
-        for descriptor, count in sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True):
-            total_responses = mention_metrics['total']
-            pct = round((count / total_responses) * 100, 1) if total_responses > 0 else 0
-            report += f"- {descriptor}: {count} mentions ({pct}% of responses)\n"
+        sorted_descriptors = sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True)
+        for descriptor, count in sorted_descriptors[:10]:  # Top 10
+            report += f"- **{descriptor}:** {count} times\n"
     else:
-        report += "_No descriptor data available_\n"
+        report += "*No descriptors tracked in responses*\n"
 
-    report += "\n### i. Statements with Negative Sentiment\n\n"
+    report += """
+### e. Competitor Mentions
 
-    # Add negative sentiment statements
+Top competitors mentioned alongside or instead of the brand:
+
+"""
+
+    # Add competitor breakdown
+    if competitor_analysis:
+        sorted_competitors = sorted(competitor_analysis.items(), key=lambda x: x[1], reverse=True)
+        for competitor, count in sorted_competitors[:10]:  # Top 10
+            sov_data = share_of_voice['competitor_sov'].get(competitor, {})
+            sov = sov_data.get('sov', 0)
+            report += f"- **{competitor}:** {count} mentions ({sov}% SOV)\n"
+    else:
+        report += "*No competitors tracked in responses*\n"
+
+    report += """
+----
+
+## 3. Strategic Insights
+
+### Competitor Threat Analysis
+
+"""
+    report += competitor_threats
+
+    report += """
+### Negative/Mixed Sentiment Examples
+
+"""
+
     if negative_statements:
-        for idx, stmt in enumerate(negative_statements, 1):
+        for i, statement in enumerate(negative_statements, 1):
             report += f"""
-#### Negative Statement {idx}
-- Platform: {stmt['platform']}
-- Query: {stmt['query']}
-- Response: {stmt['response_text']}
+**Example {i}** ({statement['platform']} - {statement['sentiment']})
+- Query: {statement['query']}
+- Excerpt: "{statement['excerpt']}"
+
 """
-            if stmt['notes']:
-                report += f"- Analysis Notes: {stmt['notes']}\n"
     else:
-        report += "_No negative sentiment responses found_\n"
+        report += "*No negative or mixed sentiment responses found*\n"
 
-    report += "\n---\n\n## 3. Platform-by-Platform Analysis\n\n"
+    report += """
+----
 
-    # Add platform analysis
-    for platform_name in ["ChatGPT", "Claude", "Gemini", "Perplexity"]:
-        if platform_name in platform_metrics:
-            pm = platform_metrics[platform_name]
-            # Calculate platform-specific positioning average from positioning_metrics
-            platform_avg = "N/A"
-            if pm['positioning'] and pm['total'] > 0:
-                position_scores = {"leader": 5, "top_3": 4, "featured": 3, "listed": 2, "not_mentioned": 1}
-                total_score = sum(pm['positioning'].get(pos, 0) * score for pos, score in position_scores.items())
-                platform_avg = round(total_score / pm['total'], 2)
-
-            positive_sent_rate = round(((pm['sentiment'].get('very_positive', 0) + pm['sentiment'].get('positive', 0)) / pm['total'] * 100) if pm['total'] > 0 else 0, 1)
-
-            report += f"""### {platform_name}
-
-- Total Responses: {pm['total']}
-- Mention Rate: {pm['mention']['yes_pct']}% (Yes) + {pm['mention']['indirect_pct']}% (Indirect)
-- Positive Sentiment Rate: {positive_sent_rate}%
-- Average Position: {platform_avg}
+## 4. Strategic Priorities
 
 """
+    report += strategic_priorities
 
-    report += f"""
----
+    report += """
+----
 
-## 4. Competitor Threat Analysis
+## 5. Methodology
 
-{competitor_threat_analysis}
+This report analyzes AI platform responses (ChatGPT, Claude, Gemini, Perplexity) to strategic queries.
+Each response was analyzed for:
+- Brand mention type and positioning
+- Sentiment and tone
+- Target descriptor usage
+- Competitor mentions
+- Source citations
 
----
+All metrics are based on actual AI platform responses collected during the analysis period.
 
-## 5. Strategic Priorities
+----
 
-{strategic_priorities}
-
----
-
-## 6. Methodology
-
-### Analysis Period
-{period}
-
-### Platforms Analyzed
-- ChatGPT (OpenAI GPT-4)
-- Claude (Anthropic)
-- Gemini (Google)
-- Perplexity (AI-Powered Search)
-
-### Query Universe
-{len(queries)} strategic queries across multiple categories
-
-### Total Responses Analyzed
-{mention_metrics['total']} responses ({len(queries)} queries × 4 platforms)
-
-### Analysis Approach
-Automated AI-powered content analysis using Google Gemini 1.5 Pro
-
----
-
-## 7. Appendix: Query List
-
-"""
-
-    for i, query in enumerate(queries, 1):
-        report += f"{i}. {query.query_text}\n"
-
-    report += f"""
-
----
-
-Report generated automatically by AIRO (AI Reputation Intelligence & Optimization)
-Powered by Google Gemini 1.5 Pro
-Generation Date: {report_date}
+*Report generated by TALES (AI Reputation Intelligence & Optimization)*
 """
 
     return report
@@ -573,26 +544,37 @@ Generation Date: {report_date}
 
 # ==================== MAIN FUNCTION ====================
 
-def generate_report_main():
-    """Main function to generate the complete report."""
-    print("🚀 Starting AIRO Report Generation...")
+def generate_report_main(user_id: int, brand_id: int):
+    """Main function to generate the complete report for a specific brand."""
+    print(f"🚀 Starting TALES Report Generation for Brand ID {brand_id}...")
 
     db = SessionLocal()
 
     try:
+        # Get brand info
+        brand_info = get_brand_info(db, brand_id)
+        if not brand_info:
+            print(f"❌ Brand ID {brand_id} not found")
+            return
+
+        brand_name = brand_info.brand_name
+        print(f"📋 Generating report for: {brand_name}")
+
         # Step 1: Collect data
-        print("📊 Collecting data from database...")
-        responses = get_all_analyzed_responses(db)
-        queries = get_all_queries(db)
-        competitors = get_all_competitors(db)
-        descriptors = get_all_descriptors(db)
+        print("\n📊 Collecting data from database...")
+        responses = get_brand_analyzed_responses(db, user_id, brand_id)
+        queries = get_brand_queries(db, user_id, brand_id)
+        competitors = get_brand_competitors(db, user_id, brand_id)
+        descriptors = get_brand_descriptors(db, user_id, brand_id)
 
         if not responses:
-            print("❌ No analyzed responses found. Please run data collection and analysis first.")
+            print("❌ No analyzed responses found for this brand. Please run data collection and analysis first.")
             return
 
         print(f"✓ Found {len(responses)} analyzed responses")
         print(f"✓ Found {len(queries)} queries")
+        print(f"✓ Found {len(competitors)} competitors")
+        print(f"✓ Found {len(descriptors)} descriptors")
 
         # Step 2: Calculate metrics
         print("\n📈 Calculating metrics...")
@@ -604,7 +586,7 @@ def generate_report_main():
         competitor_analysis = analyze_competitors(responses)
         positive_sentiment_rate = calculate_positive_sentiment_rate(responses)
         descriptor_match_rate = calculate_descriptor_match_rate(responses, descriptors)
-        share_of_voice = calculate_share_of_voice(responses, competitors)
+        share_of_voice = calculate_share_of_voice(responses, competitors, brand_name)
         positioning_average = calculate_positioning_average(responses)
         negative_statements = get_negative_sentiment_statements(responses)
 
@@ -612,34 +594,34 @@ def generate_report_main():
 
         # Prepare metrics summary for AI generation
         metrics_summary = {
+            "brand_name": brand_name,
             "mention_metrics": mention_metrics,
             "positioning_metrics": positioning_metrics,
             "sentiment_metrics": sentiment_metrics,
-            "platform_metrics": platform_metrics,
-            "descriptor_analysis": descriptor_analysis,
-            "competitor_analysis": competitor_analysis,
             "positive_sentiment_rate": positive_sentiment_rate,
             "descriptor_match_rate": descriptor_match_rate,
             "share_of_voice": share_of_voice,
             "positioning_average": positioning_average,
         }
 
-        # Step 3: Generate AI content (ONLY for qualitative analysis)
-        print("\n🤖 Generating competitor threat analysis with Gemini...")
-        competitor_threat_analysis = generate_competitor_threat_analysis(
-            share_of_voice['competitor_sov'],
-            responses,
-            competitors
+        # Step 3: Generate AI insights
+        print("\n🤖 Generating AI-powered insights...")
+        print("  → Competitor threat analysis...")
+        competitor_threats = generate_competitor_threat_analysis(
+            share_of_voice['competitor_sov'], responses, competitors, brand_name
         )
-        print("✓ Competitor threat analysis generated")
 
-        print("\n🤖 Generating strategic priorities with Gemini...")
-        strategic_priorities = generate_strategic_priorities(metrics_summary)
-        print("✓ Strategic priorities generated")
+        print("  → Strategic priorities...")
+        strategic_priorities = generate_strategic_priorities(metrics_summary, brand_name, brand_info)
 
-        # Step 4: Compile report
-        print("\n📝 Compiling final report...")
-        report = compile_report(
+        print("✓ AI insights generated")
+
+        # Step 4: Generate report
+        print("\n📝 Generating markdown report...")
+        report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+        period = "Last analysis run"  # Could be made dynamic
+
+        markdown_report = generate_markdown_report(
             mention_metrics=mention_metrics,
             positioning_metrics=positioning_metrics,
             sentiment_metrics=sentiment_metrics,
@@ -651,39 +633,59 @@ def generate_report_main():
             share_of_voice=share_of_voice,
             positioning_average=positioning_average,
             negative_statements=negative_statements,
-            competitor_threat_analysis=competitor_threat_analysis,
+            competitor_threats=competitor_threats,
             strategic_priorities=strategic_priorities,
-            queries=queries,
+            brand_name=brand_name,
+            brand_info=brand_info,
+            report_date=report_date,
+            period=period,
         )
 
-        # Step 5: Save report to database
+        # Step 5: Save to database
         print("\n💾 Saving report to database...")
-        report_title = f"AIRO Report - {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
+        report_title = f"{brand_name} AI Reputation Analysis - {datetime.now().strftime('%Y-%m-%d')}"
 
-        report_data = schemas.ReportCreate(
+        report_obj = Report(
+            user_id=user_id,
+            brand_id=brand_id,
             title=report_title,
-            report_content=report,
-            total_responses=mention_metrics['total'],
-            mention_rate=mention_metrics['yes_pct'],
+            report_content=markdown_report,
+            total_responses=len(responses),
+            mention_rate=metrics_summary.get('mention_rate', 0),
         )
 
-        db_report = crud.create_report(db, report_data)
-        print(f"✓ Report saved to database with ID: {db_report.id}")
+        db.add(report_obj)
+        db.commit()
+        db.refresh(report_obj)
 
-        print(f"\n✅ Report generated successfully!")
-        print(f"📊 Report ID: {db_report.id}")
-        print(f"📄 Title: {report_title}")
-        print(f"📈 Total Responses Analyzed: {mention_metrics['total']}")
-        print(f"📍 Mention Rate: {mention_metrics['yes_pct']}%")
+        print(f"✓ Report saved to database (ID: {report_obj.id})")
+
+        # Step 6: Save to file
+        filename = f"report_{brand_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        with open(filename, 'w') as f:
+            f.write(markdown_report)
+
+        print(f"✓ Report saved to file: {filename}")
+        print("\n✅ Report generation complete!")
+        print(f"\n📄 Report Preview (first 500 chars):")
+        print("-" * 60)
+        print(markdown_report[:500] + "...")
+        print("-" * 60)
 
     except Exception as e:
         print(f"\n❌ Error generating report: {e}")
         import traceback
         traceback.print_exc()
-
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    generate_report_main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description='TALES Report Generation Tool')
+    parser.add_argument('--user-id', type=int, required=True, help='User ID to generate report for')
+    parser.add_argument('--brand-id', type=int, required=True, help='Brand ID to generate report for')
+    args = parser.parse_args()
+
+    generate_report_main(args.user_id, args.brand_id)

@@ -22,7 +22,7 @@ The OAuth consent screen is what users see when they click "Sign in with Google"
 1. Click the **project dropdown** at the top left (next to "Google Cloud")
 2. Click **"NEW PROJECT"** button (top right)
 3. Fill in:
-   - **Project name**: `AIRO` (or `AIRO Authentication`)
+   - **Project name**: `TALES` (or `TALES Authentication`)
    - **Organization**: Leave as "No organization" (unless you have a Google Workspace)
    - **Location**: Leave default
 4. Click **"CREATE"**
@@ -59,7 +59,7 @@ You'll see a form with 4 pages. Here's exactly what to enter:
 
 **App name** (Required)
 ```
-AIRO
+TALES
 ```
 
 **User support email** (Required - dropdown)
@@ -142,7 +142,7 @@ This page lets you add test users who can sign in while your app is in "Testing"
 Review your settings. You should see:
 
 ```
-✓ App name: AIRO
+✓ App name: TALES
 ✓ User support email: [your email]
 ✓ Developer contact: [your email]
 ✓ Publishing status: Testing
@@ -193,7 +193,7 @@ Now that consent screen is configured, create your OAuth credentials:
 3. Select **"OAuth client ID"**
 4. Choose **"Web application"**
 5. Configure:
-   - **Name**: `AIRO Web Client`
+   - **Name**: `TALES Web Client`
    - **Authorized JavaScript origins**:
      ```
      http://localhost:5173
@@ -221,12 +221,12 @@ When users click "Sign in with Google", they'll see:
 │                                     │
 │  ⚠️  This app isn't verified       │
 │                                     │
-│  AIRO wants to access your Google  │
+│  TALES wants to access your Google  │
 │  Account                            │
 │                                     │
 │  [email address]                    │
 │                                     │
-│  This will allow AIRO to:          │
+│  This will allow TALES to:          │
 │  • See your email address          │
 │  • See your personal info          │
 │                                     │
@@ -288,7 +288,7 @@ After completing this guide, you should have:
 
 - [x] Created Google Cloud project
 - [x] Configured OAuth consent screen
-- [x] App name: AIRO
+- [x] App name: TALES
 - [x] User support email: Added
 - [x] Developer contact: Added
 - [x] Publishing status: Testing

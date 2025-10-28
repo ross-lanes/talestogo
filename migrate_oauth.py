@@ -8,7 +8,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-def migrate_database(db_path='airo.db'):
+def migrate_database(db_path='tales.db'):
     """Add OAuth columns to the users table."""
 
     # Connect to the database
@@ -78,15 +78,15 @@ def migrate_database(db_path='airo.db'):
 
 if __name__ == "__main__":
     # Check if database exists
-    db_path = Path("airo.db")
+    db_path = Path("tales.db")
     if not db_path.exists():
-        print("✗ Database file 'airo.db' not found.")
+        print("✗ Database file 'tales.db' not found.")
         print("  The database will be created automatically when you start the backend.")
         sys.exit(1)
 
     # Run migration
     print("=" * 60)
-    print("AIRO Database Migration: Adding Google OAuth Support")
+    print("TALES Database Migration: Adding Google OAuth Support")
     print("=" * 60)
     print()
 

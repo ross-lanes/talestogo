@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Response Collection Script for AIRO Project
+Response Collection Script for TALES Project
 Queries AI platforms (ChatGPT, Claude, Gemini) and records responses.
 """
 
@@ -51,9 +51,10 @@ PERPLEXITY_AVAILABLE = OPENAI_AVAILABLE
 class ResponseCollector:
     """Collects responses from AI platforms."""
 
-    def __init__(self, db: Session, user_id: int):
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
+        self.brand_id = brand_id
 
         # Initialize API clients
         self.openai_client = None
@@ -178,6 +179,7 @@ class ResponseCollector:
         """Save a response to the database."""
         response = models.Response(
             user_id=self.user_id,
+            brand_id=self.brand_id,  # Associate response with brand
             query_id=query_id,
             query_text=query_text,
             platform=platform,
@@ -224,11 +226,17 @@ class ResponseCollector:
         return results
 
     def collect_all(self, limit: Optional[int] = None, platforms: List[str] = None) -> Dict[str, int]:
-        """Collect responses for all active queries for this user."""
-        queries = self.db.query(models.Query).filter(
+        """Collect responses for all active queries for this user and brand."""
+        query = self.db.query(models.Query).filter(
             models.Query.user_id == self.user_id,
             models.Query.active == True
-        ).all()
+        )
+
+        # Filter by brand_id if specified
+        if self.brand_id:
+            query = query.filter(models.Query.brand_id == self.brand_id)
+
+        queries = query.all()
 
         if limit:
             queries = queries[:limit]
@@ -279,17 +287,23 @@ class ResponseCollector:
 
 def main():
     """Main function to run response collection."""
-    print("\n🚀 AIRO Response Collection Tool\n")
+    import argparse
+
+    parser = argparse.ArgumentParser(description='TALES Response Collection Tool')
+    parser.add_argument('user_id', type=int, nargs='?', help='User ID to collect responses for')
+    parser.add_argument('--brand-id', type=int, help='Brand ID to collect responses for')
+    args = parser.parse_args()
+
+    print("\n🚀 TALES Response Collection Tool\n")
 
     # Get user_id from command line argument or prompt
-    user_id = None
-    if len(sys.argv) > 1:
-        try:
-            user_id = int(sys.argv[1])
-            print(f"Running collection for user_id: {user_id}")
-        except ValueError:
-            print("❌ Invalid user_id provided. Must be an integer.")
-            sys.exit(1)
+    user_id = args.user_id
+    brand_id = args.brand_id
+
+    if user_id:
+        print(f"Running collection for user_id: {user_id}")
+        if brand_id:
+            print(f"Brand ID: {brand_id}")
     else:
         # Interactive mode - show available users
         db_temp = SessionLocal()
@@ -339,14 +353,18 @@ def main():
 
         print(f"Collection for: {user.email} ({user.full_name or 'No name'})\n")
 
-        # Initialize collector with user_id
-        collector = ResponseCollector(db, user_id)
+        # Initialize collector with user_id and brand_id
+        collector = ResponseCollector(db, user_id, brand_id)
 
-        # Check if we have queries for this user
-        query_count = db.query(models.Query).filter(
+        # Check if we have queries for this user/brand
+        query_query = db.query(models.Query).filter(
             models.Query.user_id == user_id,
             models.Query.active == True
-        ).count()
+        )
+        if brand_id:
+            query_query = query_query.filter(models.Query.brand_id == brand_id)
+
+        query_count = query_query.count()
         if query_count == 0:
             print("❌ No active queries found in database!")
             print("Please add queries through the web interface at http://localhost:5173/manage/queries")

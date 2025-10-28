@@ -192,6 +192,22 @@ class BrandInfo(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+class TaskStatus(Base):
+    __tablename__ = "task_status"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)
+    task_type = Column(String(50), nullable=False)  # 'analysis', 'report_generation', 'collection'
+    status = Column(String(20), nullable=False, index=True)  # 'running', 'completed', 'failed'
+    progress = Column(Integer, default=0)  # 0-100 percentage
+    total_items = Column(Integer, default=0)  # Total items to process
+    processed_items = Column(Integer, default=0)  # Items processed so far
+    message = Column(Text, nullable=True)  # Current status message
+    error_message = Column(Text, nullable=True)  # Error details if failed
+    started_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 # --- End of Models ---
 
 # You can create the database file and tables by running this:

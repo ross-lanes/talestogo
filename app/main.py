@@ -33,8 +33,8 @@ models.Base.metadata.create_all(bind=engine)
 
 # Create the FastAPI app instance
 app = FastAPI(
-    title="AIRO API - AI Reputation Optimizer",
-    description="API for tracking and analyzing LLM depictions of PPPL.",
+    title="Tales",
+    description="An AI tool for tracking and analyzing LLM brand depictions.",
     version="0.1.0"
 )
 
@@ -77,7 +77,7 @@ def get_active_brand_id(
 @app.get("/", tags=["Root"])
 async def read_root():
     """Root endpoint to check if the API is running."""
-    return {"message": "Welcome to the AIRO API!"}
+    return {"message": "Welcome to the TALES API!"}
 
 
 # --- Authentication Endpoints ---
@@ -570,6 +570,7 @@ def update_report(
         raise HTTPException(status_code=404, detail="Report not found")
     return db_report
 
+
 @app.delete("/reports/{report_id}", response_model=schemas.Report, tags=["Reports"])
 def delete_report(
     report_id: int,
@@ -724,17 +725,21 @@ def delete_brand_info_endpoint(
 @app.post("/brand-info/generate", tags=["Brand Info"])
 def generate_content_from_brand_info(
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
     """
-    Generate queries, descriptors, and competitors based on brand info using AI.
-    This will replace any existing queries, descriptors, and competitors.
+    Generate queries, descriptors, and competitors based on active brand info using AI.
+    This will replace any existing queries, descriptors, and competitors for the active brand.
     """
     from app.ai_generator import AIGenerator
 
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
+
     try:
         generator = AIGenerator(db)
-        result = generator.generate_all(user_id=current_user.id)
+        result = generator.generate_all(user_id=current_user.id, brand_id=brand_id)
         return {
             "message": "Content generated successfully",
             "queries_created": result["queries_created"],
@@ -769,13 +774,21 @@ async def trigger_analysis_on_unanalyzed(db: Session = Depends(get_db)):
 
 # --- Direct Collection and Analysis Triggers (without Celery) ---
 @app.post("/tasks/run-collection/", status_code=202, tags=["Tasks"])
-async def run_collection(current_user: models.User = Depends(get_current_user)):
-    """Trigger response collection using the collection script."""
+async def run_collection(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Trigger response collection using the collection script for active brand."""
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
+
     script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
     try:
-        # Run the collection script in the background with user_id as argument
+        # Run the collection script in the background with user_id and brand_id as arguments
+        cmd = ["python3", script_path, str(current_user.id), "--brand-id", str(brand_id)]
         process = subprocess.Popen(
-            ["python3", script_path, str(current_user.id)],
+            cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -786,7 +799,7 @@ async def run_collection(current_user: models.User = Depends(get_current_user)):
         process.stdin.flush()
 
         return {
-            "message": "Response collection started.",
+            "message": "Response collection started for active brand.",
             "status": "running",
             "note": "Collection is running in the background. Check the Responses page to see new data."
         }
@@ -796,29 +809,100 @@ async def run_collection(current_user: models.User = Depends(get_current_user)):
 @app.post("/tasks/run-analysis/", status_code=202, tags=["Tasks"])
 async def run_analysis(
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Trigger analysis on unanalyzed responses using the analysis script."""
-    unanalyzed_responses = crud.get_unanalyzed_responses(db, user_id=current_user.id, limit=1000)
-    if not unanalyzed_responses:
-        raise HTTPException(status_code=404, detail="No unanalyzed responses found.")
+    """Trigger analysis on unanalyzed responses and auto-generate report for active brand."""
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
 
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
+    # Check for unanalyzed responses for this brand
+    unanalyzed_responses = crud.get_unanalyzed_responses(db, user_id=current_user.id, brand_id=brand_id, limit=1000)
+    if not unanalyzed_responses:
+        raise HTTPException(status_code=404, detail="No unanalyzed responses found for active brand.")
+
+    # Create task status for analysis
+    task_status = models.TaskStatus(
+        user_id=current_user.id,
+        brand_id=brand_id,
+        task_type="analysis_and_report",
+        status="running",
+        total_items=len(unanalyzed_responses),
+        processed_items=0,
+        message="Starting analysis..."
+    )
+    db.add(task_status)
+    db.commit()
+    db.refresh(task_status)
+
+    analysis_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
+    report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
 
     try:
-        # Run the analysis script in the background with --all flag
+        # Run analysis and report generation in sequence in the background
+        cmd = f"""
+python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} &&
+python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
+"""
         process = subprocess.Popen(
-            ["python3", script_path, "--all"],
+            cmd,
+            shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
 
         return {
-            "message": f"Analysis started for {len(unanalyzed_responses)} responses.",
+            "message": f"Analysis and report generation started for {len(unanalyzed_responses)} responses.",
             "status": "running",
             "count": len(unanalyzed_responses),
-            "note": "Analysis is running in the background using Gemini AI. Check the Dashboard to see updated metrics."
+            "task_id": task_status.id,
+            "note": "Analysis is running in the background. A report will be generated automatically when complete."
         }
     except Exception as e:
+        task_status.status = "failed"
+        task_status.error_message = str(e)
+        db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
+
+@app.get("/tasks/status/", tags=["Tasks"])
+def get_task_status(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Get the status of the most recent task for the active brand."""
+    if not brand_id:
+        return {"status": "no_brand", "message": "No active brand selected"}
+
+    # Get the most recent task for this user and brand
+    task = db.query(models.TaskStatus).filter(
+        models.TaskStatus.user_id == current_user.id,
+        models.TaskStatus.brand_id == brand_id
+    ).order_by(models.TaskStatus.started_at.desc()).first()
+
+    if not task:
+        return {"status": "no_tasks", "message": "No tasks found"}
+
+    # Check if the task is still running by checking unanalyzed responses
+    if task.status == "running":
+        unanalyzed = crud.get_unanalyzed_responses(db, user_id=current_user.id, brand_id=brand_id, limit=1)
+        if not unanalyzed and task.task_type == "analysis_and_report":
+            # Analysis is complete, check if we're generating report
+            # For simplicity, mark as completed if no unanalyzed responses
+            task.status = "completed"
+            task.completed_at = datetime.datetime.utcnow()
+            task.message = "Analysis and report generation completed"
+            db.commit()
+
+    return {
+        "status": task.status,
+        "task_type": task.task_type,
+        "progress": task.progress,
+        "total_items": task.total_items,
+        "processed_items": task.processed_items,
+        "message": task.message,
+        "error_message": task.error_message,
+        "started_at": task.started_at,
+        "completed_at": task.completed_at
+    }

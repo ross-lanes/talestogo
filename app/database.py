@@ -6,8 +6,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Define the database URL for SQLite
-# This ensures the path is always absolute, pointing to 'airo.db' in the project root
-DATABASE_URL = f"sqlite:///{os.path.join(PROJECT_ROOT, 'airo.db')}"
+# This ensures the path is always absolute, pointing to 'tales.db' in the project root
+DATABASE_URL = f"sqlite:///{os.path.join(PROJECT_ROOT, 'tales.db')}"
 
 # Create the SQLAlchemy engine
 # connect_args is needed only for SQLite to allow it to be used by multiple threads

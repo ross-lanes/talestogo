@@ -4,8 +4,8 @@ import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Token storage keys
-const TOKEN_KEY = 'airo_access_token';
-const USER_KEY = 'airo_user';
+const TOKEN_KEY = 'tales_access_token';
+const USER_KEY = 'tales_user';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

@@ -4,17 +4,29 @@ Analytics calculations for dashboard and reports.
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from . import models
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import datetime
 
 
-def get_dashboard_metrics(db: Session) -> Dict[str, Any]:
+def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
-    Calculate key metrics for the dashboard.
+    Calculate key metrics for the dashboard for a specific brand.
     Returns mention rate, sentiment, descriptor match, and share of voice.
+
+    Args:
+        db: Database session
+        brand_id: Optional brand ID to filter by. If None, returns metrics for all brands.
     """
+    # Base query for responses - filter by brand_id if provided
+    def apply_brand_filter(query):
+        if brand_id:
+            return query.filter(models.Response.brand_id == brand_id)
+        return query
+
     # Get total responses
-    total_responses = db.query(func.count(models.Response.id)).scalar() or 0
+    total_responses = apply_brand_filter(
+        db.query(func.count(models.Response.id))
+    ).scalar() or 0
 
     if total_responses == 0:
         return {
@@ -31,39 +43,49 @@ def get_dashboard_metrics(db: Session) -> Dict[str, Any]:
         }
 
     # Calculate mention rate (Yes or Indirect mentions)
-    pppl_mentions = db.query(func.count(models.Response.id)).filter(
-        models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+    pppl_mentions = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+        )
     ).scalar() or 0
     mention_rate = (pppl_mentions / total_responses) * 100
 
     # Calculate positive sentiment rate (Very Positive, Positive)
-    positive_responses = db.query(func.count(models.Response.id)).filter(
-        and_(
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
-            models.Response.sentiment.in_(['Very Positive', 'Positive'])
+    positive_responses = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            and_(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.sentiment.in_(['Very Positive', 'Positive'])
+            )
         )
     ).scalar() or 0
     positive_sentiment = (positive_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
 
     # Calculate descriptor match rate (responses with descriptors)
-    descriptor_responses = db.query(func.count(models.Response.id)).filter(
-        and_(
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
-            models.Response.descriptors.isnot(None),
-            models.Response.descriptors != ''
+    descriptor_responses = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            and_(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.descriptors.isnot(None),
+                models.Response.descriptors != ''
+            )
         )
     ).scalar() or 0
     descriptor_match = (descriptor_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
 
-    # Calculate share of voice (PPPL vs competitors)
-    pppl_leader_count = db.query(func.count(models.Response.id)).filter(
-        models.Response.brand_position.in_(['Leader', 'Top 3'])
+    # Calculate share of voice (brand vs competitors)
+    pppl_leader_count = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_position.in_(['Leader', 'Top 3'])
+        )
     ).scalar() or 0
     share_of_voice = (pppl_leader_count / total_responses * 100) if total_responses > 0 else 0.0
 
     # Determine leading position
-    leader_count = db.query(func.count(models.Response.id)).filter(
-        models.Response.brand_position == 'Leader'
+    leader_count = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_position == 'Leader'
+        )
     ).scalar() or 0
     leading_position = "Leading" if leader_count > (total_responses * 0.3) else "Competitive"
 
@@ -72,30 +94,38 @@ def get_dashboard_metrics(db: Session) -> Dict[str, Any]:
     fourteen_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=14)
 
     # Current period (last 7 days)
-    recent_total = db.query(func.count(models.Response.id)).filter(
-        models.Response.timestamp >= seven_days_ago
+    recent_total = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.timestamp >= seven_days_ago
+        )
     ).scalar() or 0
 
-    recent_mentions = db.query(func.count(models.Response.id)).filter(
-        and_(
-            models.Response.timestamp >= seven_days_ago,
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+    recent_mentions = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            and_(
+                models.Response.timestamp >= seven_days_ago,
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+            )
         )
     ).scalar() or 0
 
     # Previous period (7-14 days ago)
-    prev_total = db.query(func.count(models.Response.id)).filter(
-        and_(
-            models.Response.timestamp >= fourteen_days_ago,
-            models.Response.timestamp < seven_days_ago
+    prev_total = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            and_(
+                models.Response.timestamp >= fourteen_days_ago,
+                models.Response.timestamp < seven_days_ago
+            )
         )
     ).scalar() or 0
 
-    prev_mentions = db.query(func.count(models.Response.id)).filter(
-        and_(
-            models.Response.timestamp >= fourteen_days_ago,
-            models.Response.timestamp < seven_days_ago,
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+    prev_mentions = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            and_(
+                models.Response.timestamp >= fourteen_days_ago,
+                models.Response.timestamp < seven_days_ago,
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+            )
         )
     ).scalar() or 0
 
@@ -118,14 +148,19 @@ def get_dashboard_metrics(db: Session) -> Dict[str, Any]:
     }
 
 
-def get_mention_trend(db: Session, days: int = 30) -> List[Dict[str, Any]]:
+def get_mention_trend(db: Session, days: int = 30, brand_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
-    Get mention rate trend over time.
+    Get mention rate trend over time for a specific brand.
+
+    Args:
+        db: Database session
+        days: Number of days to include in the trend
+        brand_id: Optional brand ID to filter by
     """
     start_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
 
     # Get responses grouped by date
-    results = db.query(
+    query = db.query(
         func.date(models.Response.timestamp).label('date'),
         func.count(models.Response.id).label('total'),
         func.sum(
@@ -136,7 +171,12 @@ def get_mention_trend(db: Session, days: int = 30) -> List[Dict[str, Any]]:
         ).label('mentions')
     ).filter(
         models.Response.timestamp >= start_date
-    ).group_by(
+    )
+
+    if brand_id:
+        query = query.filter(models.Response.brand_id == brand_id)
+
+    results = query.group_by(
         func.date(models.Response.timestamp)
     ).order_by(
         func.date(models.Response.timestamp)
@@ -155,17 +195,26 @@ def get_mention_trend(db: Session, days: int = 30) -> List[Dict[str, Any]]:
     return trend_data
 
 
-def get_sentiment_breakdown(db: Session) -> Dict[str, Any]:
+def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
-    Get sentiment distribution for PPPL mentions.
+    Get sentiment distribution for brand mentions.
+
+    Args:
+        db: Database session
+        brand_id: Optional brand ID to filter by
     """
-    # Get all PPPL mentions grouped by sentiment
-    results = db.query(
+    # Get all brand mentions grouped by sentiment
+    query = db.query(
         models.Response.sentiment,
         func.count(models.Response.id).label('count')
     ).filter(
         models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
-    ).group_by(
+    )
+
+    if brand_id:
+        query = query.filter(models.Response.brand_id == brand_id)
+
+    results = query.group_by(
         models.Response.sentiment
     ).all()
 
@@ -187,14 +236,23 @@ def get_sentiment_breakdown(db: Session) -> Dict[str, Any]:
     }
 
 
-def get_positioning_breakdown(db: Session) -> Dict[str, Any]:
+def get_positioning_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
-    Get PPPL positioning distribution across responses.
+    Get brand positioning distribution across responses.
+
+    Args:
+        db: Database session
+        brand_id: Optional brand ID to filter by
     """
-    results = db.query(
+    query = db.query(
         models.Response.brand_position,
         func.count(models.Response.id).label('count')
-    ).group_by(
+    )
+
+    if brand_id:
+        query = query.filter(models.Response.brand_id == brand_id)
+
+    results = query.group_by(
         models.Response.brand_position
     ).all()
 
@@ -216,30 +274,58 @@ def get_positioning_breakdown(db: Session) -> Dict[str, Any]:
     }
 
 
-def get_share_of_voice(db: Session) -> List[Dict[str, Any]]:
+def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
-    Calculate share of voice for PPPL vs competitors.
+    Calculate share of voice for brand vs competitors.
+
+    Args:
+        db: Database session
+        brand_id: Optional brand ID to filter by
     """
-    # Get all competitors
-    competitors = db.query(models.Competitor).filter(models.Competitor.track == True).all()
+    # Get all competitors for this brand
+    competitors_query = db.query(models.Competitor).filter(models.Competitor.track == True)
+    if brand_id:
+        competitors_query = competitors_query.filter(models.Competitor.brand_id == brand_id)
+    competitors = competitors_query.all()
 
-    # Get PPPL mentions by position
-    pppl_leader = db.query(func.count(models.Response.id)).filter(
-        models.Response.brand_position == 'Leader'
+    # Helper function to apply brand filter
+    def apply_brand_filter(query):
+        if brand_id:
+            return query.filter(models.Response.brand_id == brand_id)
+        return query
+
+    # Get brand mentions by position
+    pppl_leader = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_position == 'Leader'
+        )
     ).scalar() or 0
 
-    pppl_top3 = db.query(func.count(models.Response.id)).filter(
-        models.Response.brand_position == 'Top 3'
+    pppl_top3 = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_position == 'Top 3'
+        )
     ).scalar() or 0
 
-    pppl_featured = db.query(func.count(models.Response.id)).filter(
-        models.Response.brand_position == 'Featured'
+    pppl_featured = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_position == 'Featured'
+        )
     ).scalar() or 0
 
-    total_responses = db.query(func.count(models.Response.id)).scalar() or 1
+    total_responses = apply_brand_filter(
+        db.query(func.count(models.Response.id))
+    ).scalar() or 1
+
+    # Get brand name for this brand_id
+    brand_name = "Your Brand"
+    if brand_id:
+        brand_info = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+        if brand_info:
+            brand_name = brand_info.brand_name
 
     sov_data = [{
-        "organization": "PPPL",
+        "organization": brand_name,
         "leader_count": pppl_leader,
         "top3_count": pppl_top3,
         "featured_count": pppl_featured,
@@ -250,8 +336,10 @@ def get_share_of_voice(db: Session) -> List[Dict[str, Any]]:
     # Add competitor data (simplified - assumes competitors in text field)
     for comp in competitors[:5]:  # Top 5 competitors
         # Count mentions in competitors field (comma-separated text)
-        comp_mentions = db.query(func.count(models.Response.id)).filter(
-            models.Response.competitors.like(f'%{comp.organization}%')
+        comp_mentions = apply_brand_filter(
+            db.query(func.count(models.Response.id)).filter(
+                models.Response.competitors.like(f'%{comp.organization}%')
+            )
         ).scalar() or 0
 
         sov_data.append({

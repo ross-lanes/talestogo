@@ -1,5 +1,5 @@
 """
-Authentication utilities for AIRO multi-user system.
+Authentication utilities for TALES multi-user system.
 Handles JWT tokens, password hashing, and user verification.
 Supports both traditional email/password and Google OAuth authentication.
 """

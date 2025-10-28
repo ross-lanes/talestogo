@@ -1,5 +1,5 @@
 """
-AI Generation Service for AIRO Project
+AI Generation Service for TALES Project
 Generates queries, descriptors, and competitors based on brand information using Gemini AI.
 """
 
@@ -139,41 +139,57 @@ Return ONLY a JSON array of competitor name strings, nothing else. Format: ["com
         competitors = json.loads(result_text.strip())
         return competitors
 
-    def generate_all(self, user_id: int) -> Dict[str, int]:
+    def generate_all(self, user_id: int, brand_id: int) -> Dict[str, int]:
         """
-        Generate queries, descriptors, and competitors for a user based on their brand info.
+        Generate queries, descriptors, and competitors for a specific brand.
         Returns count of items created for each category.
         """
         # Get brand info
         brand_info = self.db.query(models.BrandInfo).filter(
+            models.BrandInfo.id == brand_id,
             models.BrandInfo.user_id == user_id
         ).first()
 
         if not brand_info:
             raise ValueError("Brand information not found. Please save brand info first.")
 
-        # Delete existing queries, descriptors, and competitors for this user
-        self.db.query(models.Query).filter(models.Query.user_id == user_id).delete()
-        self.db.query(models.Descriptor).filter(models.Descriptor.user_id == user_id).delete()
-        self.db.query(models.Competitor).filter(models.Competitor.user_id == user_id).delete()
+        # Delete existing queries, descriptors, and competitors for this brand
+        self.db.query(models.Query).filter(
+            models.Query.user_id == user_id,
+            models.Query.brand_id == brand_id
+        ).delete()
+        self.db.query(models.TargetDescriptor).filter(
+            models.TargetDescriptor.user_id == user_id,
+            models.TargetDescriptor.brand_id == brand_id
+        ).delete()
+        self.db.query(models.Competitor).filter(
+            models.Competitor.user_id == user_id,
+            models.Competitor.brand_id == brand_id
+        ).delete()
         self.db.commit()
 
         # Generate queries
         queries = self.generate_queries(brand_info)
+        query_counter = 1
         for query_text in queries:
             query = models.Query(
                 user_id=user_id,
+                brand_id=brand_id,
+                query_id=f"Q{query_counter:03d}",
                 query_text=query_text,
-                is_active=True
+                active=True
             )
             self.db.add(query)
+            query_counter += 1
 
         # Generate descriptors
         descriptors = self.generate_descriptors(brand_info)
         for descriptor_text in descriptors:
-            descriptor = models.Descriptor(
+            descriptor = models.TargetDescriptor(
                 user_id=user_id,
-                descriptor_text=descriptor_text
+                brand_id=brand_id,
+                descriptor=descriptor_text,
+                is_target=True
             )
             self.db.add(descriptor)
 
@@ -182,7 +198,8 @@ Return ONLY a JSON array of competitor name strings, nothing else. Format: ["com
         for competitor_name in competitors:
             competitor = models.Competitor(
                 user_id=user_id,
-                name=competitor_name
+                brand_id=brand_id,
+                organization=competitor_name
             )
             self.db.add(competitor)
 

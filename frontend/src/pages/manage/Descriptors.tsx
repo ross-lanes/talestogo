@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,6 +16,7 @@ import {
   IconButton,
   Chip,
   Menu,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,10 +32,12 @@ import type { GridColDef } from '@mui/x-data-grid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import type { TargetDescriptor, TargetDescriptorCreate, TargetDescriptorUpdate } from '../../types';
+import { useBrand } from '../../contexts/BrandContext';
 
 export default function Descriptors() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { activeBrand } = useBrand();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedDescriptor, setSelectedDescriptor] = useState<TargetDescriptor | null>(null);
@@ -48,14 +51,22 @@ export default function Descriptors() {
     notes: '',
   });
 
-  // Fetch descriptors
+  // Fetch descriptors - refetch when active brand changes
   const { data: descriptors = [], isLoading } = useQuery({
-    queryKey: ['descriptors'],
+    queryKey: ['descriptors', activeBrand?.id],
     queryFn: async () => {
       const response = await api.get<TargetDescriptor[]>('/descriptors/');
       return response.data;
     },
+    enabled: !!activeBrand, // Only fetch if there's an active brand
   });
+
+  // Invalidate descriptors when active brand changes
+  useEffect(() => {
+    if (activeBrand) {
+      queryClient.invalidateQueries({ queryKey: ['descriptors', activeBrand.id] });
+    }
+  }, [activeBrand?.id, queryClient]);
 
   // Create descriptor mutation
   const createMutation = useMutation({
@@ -161,7 +172,7 @@ export default function Descriptors() {
     XLSX.utils.book_append_sheet(wb, ws, 'Descriptors');
 
     // Generate file and trigger download
-    XLSX.writeFile(wb, 'AIRO_Descriptors.xlsx');
+    XLSX.writeFile(wb, 'TALES_Descriptors.xlsx');
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -265,7 +276,7 @@ export default function Descriptors() {
         </Box>
         <Box>
           <IconButton
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['descriptors'] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['descriptors', activeBrand?.id] })}
           >
             <RefreshIcon />
           </IconButton>
@@ -274,7 +285,7 @@ export default function Descriptors() {
             startIcon={<DownloadIcon />}
             onClick={handleDownloadSpreadsheet}
             sx={{ ml: 1 }}
-            disabled={descriptors.length === 0}
+            disabled={descriptors.length === 0 || !activeBrand}
           >
             Download
           </Button>
@@ -283,11 +294,18 @@ export default function Descriptors() {
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
             sx={{ ml: 1 }}
+            disabled={!activeBrand}
           >
             Add Descriptor
           </Button>
         </Box>
       </Box>
+
+      {!activeBrand && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Please select or create a brand using the Brand Switcher in the top navigation to manage descriptors.
+        </Alert>
+      )}
 
       <Paper sx={{ height: 600, width: '100%' }}>
         <DataGrid
@@ -308,6 +326,9 @@ export default function Descriptors() {
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => handleNavigate('/manage/brand-info')}>
+          Brand Info
+        </MenuItem>
         <MenuItem onClick={() => handleNavigate('/manage/queries')}>
           Queries
         </MenuItem>

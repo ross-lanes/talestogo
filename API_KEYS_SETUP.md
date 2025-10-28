@@ -1,4 +1,4 @@
-# API Keys Setup for AIRO Response Collection
+# API Keys Setup for TALES Response Collection
 
 To collect responses from AI platforms, you need to set up API keys.
 
@@ -42,7 +42,7 @@ Then run the collection script:
 Add to `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-# AIRO API Keys
+# TALES API Keys
 export ANTHROPIC_API_KEY='sk-ant-api03-...'
 export OPENAI_API_KEY='sk-proj-...'
 export GOOGLE_API_KEY='AIza...'

@@ -2,7 +2,7 @@
 
 ## Current Status ✓
 
-Your AIRO project has been successfully configured for Google OAuth! Here's what's been done:
+Your TALES project has been successfully configured for Google OAuth! Here's what's been done:
 
 ### Completed Steps ✓
 
@@ -28,7 +28,7 @@ Your AIRO project has been successfully configured for Google OAuth! Here's what
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Click the project dropdown at the top → "New Project"
-3. Name: "AIRO Authentication" → Click "Create"
+3. Name: "TALES Authentication" → Click "Create"
 4. Wait for project creation (usually instant)
 
 ### Step 2: Configure OAuth Consent Screen (3 minutes)
@@ -36,7 +36,7 @@ Your AIRO project has been successfully configured for Google OAuth! Here's what
 1. In your new project, go to: **APIs & Services** → **OAuth consent screen**
 2. Select **External** → Click "Create"
 3. Fill in required fields:
-   - **App name**: AIRO
+   - **App name**: TALES
    - **User support email**: [Your email]
    - **Developer contact**: [Your email]
 4. Click "Save and Continue" (3 times to skip optional sections)
@@ -47,7 +47,7 @@ Your AIRO project has been successfully configured for Google OAuth! Here's what
 1. Go to: **APIs & Services** → **Credentials**
 2. Click **"+ Create Credentials"** → **"OAuth client ID"**
 3. Application type: **Web application**
-4. Name: **AIRO Web Client**
+4. Name: **TALES Web Client**
 5. **Authorized JavaScript origins**: Add these URLs:
    ```
    http://localhost:5173
@@ -66,7 +66,7 @@ Your AIRO project has been successfully configured for Google OAuth! Here's what
 ### Step 4: Configure Environment Files (1 minute)
 
 #### Backend (.env)
-Open `/Users/rachelkremen/Documents/Code/airo_project/.env` and update:
+Open `/Users/rachelkremen/Documents/Code/tales_project/.env` and update:
 
 ```env
 GOOGLE_CLIENT_ID=paste-your-client-id-here.apps.googleusercontent.com
@@ -74,7 +74,7 @@ GOOGLE_CLIENT_SECRET=paste-your-client-secret-here
 ```
 
 #### Frontend (frontend/.env)
-Open `/Users/rachelkremen/Documents/Code/airo_project/frontend/.env` and update:
+Open `/Users/rachelkremen/Documents/Code/tales_project/frontend/.env` and update:
 
 ```env
 VITE_GOOGLE_CLIENT_ID=paste-your-client-id-here.apps.googleusercontent.com
@@ -88,7 +88,7 @@ Open two terminal windows:
 
 #### Terminal 1 - Backend
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project
+cd /Users/rachelkremen/Documents/Code/tales_project
 python3 -m uvicorn app.main:app --reload
 ```
 
@@ -100,7 +100,7 @@ INFO:     Application startup complete.
 
 #### Terminal 2 - Frontend
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project/frontend
+cd /Users/rachelkremen/Documents/Code/tales_project/frontend
 npm run dev
 ```
 

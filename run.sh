@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script is used to run the FastAPI server and Celery worker for development.
-# It is designed to be run from the root of the airo_project directory.
+# It is designed to be run from the root of the tales_project directory.
 
 # --- Instructions ---
 # 1. Make this script executable: chmod +x run.sh

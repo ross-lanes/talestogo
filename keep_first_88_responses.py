@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 
 # Database path
-DB_PATH = Path(__file__).parent / "airo.db"
+DB_PATH = Path(__file__).parent / "tales.db"
 
 def keep_first_88_responses():
     """Delete all responses except the first 88 by ID."""

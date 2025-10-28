@@ -14,17 +14,34 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
-import { Analytics as AnalysisIcon } from '@mui/icons-material';
+import {
+  Analytics as AnalysisIcon,
+  Visibility as ViewIcon,
+  Download as DownloadIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { saveAs } from 'file-saver';
 
 interface Report {
   id: number;
   title: string;
   created_at: string;
-  status: string;
+  updated_at: string;
+  report_content: string;
+  total_responses: number;
+  mention_rate?: number;
   google_doc_url?: string;
 }
 
@@ -35,6 +52,8 @@ export default function DataAnalysis() {
     message: '',
     severity: 'info',
   });
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   // Fetch reports
   const { data: reports, isLoading } = useQuery<Report[]>({
@@ -76,16 +95,171 @@ export default function DataAnalysis() {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'warning';
-      case 'failed':
-        return 'error';
-      default:
-        return 'default';
+  const handleViewInBrowser = (report: Report) => {
+    setSelectedReport(report);
+    setViewDialogOpen(true);
+  };
+
+  const handleDownloadMarkdown = (report: Report) => {
+    const blob = new Blob([report.report_content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.title}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = async (report: Report) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const maxWidth = pageWidth - 2 * margin;
+
+      // Title
+      doc.setFontSize(16);
+      doc.text(report.title, margin, 20);
+
+      // Content - split markdown into lines and add to PDF
+      doc.setFontSize(10);
+      const lines = report.report_content.split('\n');
+      let yPosition = 35;
+
+      for (const line of lines) {
+        if (yPosition > 280) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        // Simple markdown rendering - you can enhance this
+        let text = line;
+        let fontSize = 10;
+
+        if (line.startsWith('# ')) {
+          text = line.substring(2);
+          fontSize = 14;
+        } else if (line.startsWith('## ')) {
+          text = line.substring(3);
+          fontSize = 12;
+        } else if (line.startsWith('### ')) {
+          text = line.substring(4);
+          fontSize = 11;
+        }
+
+        doc.setFontSize(fontSize);
+        const splitText = doc.splitTextToSize(text, maxWidth);
+        doc.text(splitText, margin, yPosition);
+        yPosition += splitText.length * (fontSize / 2 + 2);
+      }
+
+      doc.save(`${report.title}.pdf`);
+
+      setSnackbar({
+        open: true,
+        message: 'PDF downloaded successfully',
+        severity: 'success',
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to generate PDF',
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleDownloadWord = async (report: Report) => {
+    try {
+      const lines = report.report_content.split('\n');
+      const paragraphs: Paragraph[] = [];
+
+      for (const line of lines) {
+        if (line.trim() === '') {
+          paragraphs.push(new Paragraph({ text: '' }));
+          continue;
+        }
+
+        // Parse markdown headings
+        if (line.startsWith('# ')) {
+          paragraphs.push(
+            new Paragraph({
+              text: line.substring(2),
+              heading: HeadingLevel.HEADING_1,
+              spacing: { before: 240, after: 120 },
+            })
+          );
+        } else if (line.startsWith('## ')) {
+          paragraphs.push(
+            new Paragraph({
+              text: line.substring(3),
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 200, after: 100 },
+            })
+          );
+        } else if (line.startsWith('### ')) {
+          paragraphs.push(
+            new Paragraph({
+              text: line.substring(4),
+              heading: HeadingLevel.HEADING_3,
+              spacing: { before: 160, after: 80 },
+            })
+          );
+        } else if (line.startsWith('**') && line.endsWith('**')) {
+          // Bold text
+          paragraphs.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: line.replace(/\*\*/g, ''),
+                  bold: true,
+                }),
+              ],
+              spacing: { after: 120 },
+            })
+          );
+        } else {
+          // Regular paragraph - remove markdown formatting
+          let text = line
+            .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold markers
+            .replace(/\*(.+?)\*/g, '$1') // Remove italic markers
+            .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text
+            .replace(/`(.+?)`/g, '$1'); // Remove code markers
+
+          paragraphs.push(
+            new Paragraph({
+              text: text,
+              spacing: { after: 120 },
+            })
+          );
+        }
+      }
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: paragraphs,
+          },
+        ],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${report.title}.docx`);
+
+      setSnackbar({
+        open: true,
+        message: 'Word document downloaded successfully',
+        severity: 'success',
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to generate Word document',
+        severity: 'error',
+      });
     }
   };
 
@@ -125,42 +299,49 @@ export default function DataAnalysis() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Title</strong></TableCell>
-                  <TableCell><strong>Created</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Actions</strong></TableCell>
+                  <TableCell><strong>Report</strong></TableCell>
+                  <TableCell align="right"><strong>Actions</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {reports.map((report) => (
                   <TableRow key={report.id} hover>
                     <TableCell>{report.title}</TableCell>
-                    <TableCell>
-                      {format(new Date(report.created_at), 'MMM dd, yyyy h:mm a')}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={report.status}
-                        color={getStatusColor(report.status)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {report.google_doc_url ? (
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                         <Button
                           variant="outlined"
                           size="small"
-                          href={report.google_doc_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          startIcon={<ViewIcon />}
+                          onClick={() => handleViewInBrowser(report)}
                         >
-                          View Report
+                          View
                         </Button>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No link available
-                        </Typography>
-                      )}
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownloadWord(report)}
+                        >
+                          Word
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownloadPDF(report)}
+                        >
+                          PDF
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownloadMarkdown(report)}
+                        >
+                          Markdown
+                        </Button>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -175,6 +356,80 @@ export default function DataAnalysis() {
           </Box>
         )}
       </Paper>
+
+      {/* View Report Dialog */}
+      <Dialog
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { height: '90vh' }
+        }}
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">{selectedReport?.title}</Typography>
+            <IconButton onClick={() => setViewDialogOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{
+            '& h1': { fontSize: '2rem', fontWeight: 'bold', mb: 2, mt: 3 },
+            '& h2': { fontSize: '1.5rem', fontWeight: 'bold', mb: 2, mt: 2 },
+            '& h3': { fontSize: '1.25rem', fontWeight: 'bold', mb: 1.5, mt: 1.5 },
+            '& p': { mb: 2 },
+            '& ul, & ol': { mb: 2, pl: 3 },
+            '& table': {
+              width: '100%',
+              borderCollapse: 'collapse',
+              mb: 2,
+              '& th, & td': {
+                border: '1px solid #ddd',
+                padding: '8px',
+                textAlign: 'left'
+              },
+              '& th': {
+                backgroundColor: '#f5f5f5',
+                fontWeight: 'bold'
+              }
+            },
+            '& code': {
+              backgroundColor: '#f5f5f5',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontFamily: 'monospace'
+            },
+            '& pre': {
+              backgroundColor: '#f5f5f5',
+              padding: '12px',
+              borderRadius: '4px',
+              overflow: 'auto',
+              mb: 2
+            }
+          }}>
+            {selectedReport && (
+              <ReactMarkdown>{selectedReport.report_content}</ReactMarkdown>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleDownloadWord(selectedReport!)}>
+            Download Word
+          </Button>
+          <Button onClick={() => handleDownloadPDF(selectedReport!)}>
+            Download PDF
+          </Button>
+          <Button onClick={() => handleDownloadMarkdown(selectedReport!)}>
+            Download Markdown
+          </Button>
+          <Button onClick={() => setViewDialogOpen(false)} variant="contained">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar for notifications */}
       <Snackbar

@@ -36,14 +36,14 @@ export default function Manage() {
             Step 1: Start with Brand Info
           </Typography>
           <Typography variant="body2">
-            Click the <strong>Brand Info</strong> button below to enter your brand information. This is the foundation for everything else in AIRO!
+            Click the <strong>Brand Info</strong> button below to enter your brand information. This is the foundation for everything else in TALES!
           </Typography>
         </Alert>
       )}
 
       <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="body1" paragraph>
-          The first step to using AIRO successfully involves configuring your brand information, adding the questions you want to ask the AIs (queries),
+          The first step to using TALES successfully involves configuring your brand information, adding the questions you want to ask the AIs (queries),
           the words you want people to use when describing your brand (descriptors), and information about your competitors.
         </Typography>
 

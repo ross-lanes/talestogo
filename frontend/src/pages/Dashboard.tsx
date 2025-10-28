@@ -10,10 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
-
-interface BrandInfo {
-  brand_name: string;
-}
+import { useBrand } from '../contexts/BrandContext';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -28,8 +25,21 @@ interface DashboardMetrics {
   leading_position: string;
 }
 
+interface TaskStatus {
+  status: string;
+  task_type: string;
+  progress: number;
+  total_items: number;
+  processed_items: number;
+  message: string;
+  error_message?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const { activeBrand } = useBrand();
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
@@ -37,17 +47,20 @@ export default function Dashboard() {
   });
   const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
 
-  // Fetch brand info
-  const { data: brandInfo } = useQuery<BrandInfo>({
-    queryKey: ['brand-info'],
+  const brandName = activeBrand?.brand_name || 'Your Brand';
+
+  // Fetch task status
+  const { data: taskStatus } = useQuery<TaskStatus>({
+    queryKey: ['task-status'],
     queryFn: async () => {
-      const response = await api.get('/brand-info/');
+      const response = await api.get('/tasks/status/');
       return response.data;
     },
-    retry: false,
+    refetchInterval: (data) => {
+      // Poll every 3 seconds if a task is running, otherwise every 30 seconds
+      return data?.status === 'running' ? 3000 : 30000;
+    },
   });
-
-  const brandName = brandInfo?.brand_name || 'Your Brand';
 
   // Fetch dashboard metrics
   const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
@@ -169,6 +182,23 @@ export default function Dashboard() {
 
   return (
     <Box>
+      {/* Task Progress Indicator */}
+      {taskStatus && taskStatus.status === 'running' && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <CircularProgress size={20} />
+            <Box flex={1}>
+              <Typography variant="body2" fontWeight="bold">
+                {taskStatus.task_type === 'analysis_and_report' ? 'Analysis & Report Generation' : taskStatus.task_type}
+              </Typography>
+              <Typography variant="caption">
+                {taskStatus.message || `Processing ${taskStatus.processed_items} of ${taskStatus.total_items} items...`}
+              </Typography>
+            </Box>
+          </Box>
+        </Alert>
+      )}
+
       <Box sx={{ mb: 4 }}>
         <Typography variant="h2" component="h1">
           Key Metrics Dashboard
@@ -192,7 +222,7 @@ export default function Dashboard() {
       {metrics.total_responses === 0 && (
         <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
           <Typography variant="h6" gutterBottom>
-            New to AIRO?
+            New to TALES?
           </Typography>
           <Typography>
             Click on <strong>Customize → Brand Info</strong> to begin!

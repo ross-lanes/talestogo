@@ -139,12 +139,15 @@ def create_response(db: Session, response: schemas.ResponseCreate, user_id: int,
     db.refresh(db_response)
     return db_response
 
-def get_unanalyzed_responses(db: Session, user_id: int, limit: int = 100) -> List[models.Response]:
-    """Gets responses that haven't been analyzed yet for a specific user."""
-    return db.query(models.Response).filter(
+def get_unanalyzed_responses(db: Session, user_id: int, brand_id: Optional[int] = None, limit: int = 100) -> List[models.Response]:
+    """Gets responses that haven't been analyzed yet for a specific user and brand."""
+    query = db.query(models.Response).filter(
         models.Response.user_id == user_id,
         models.Response.analyzed_at == None
-    ).limit(limit).all()
+    )
+    if brand_id is not None:
+        query = query.filter(models.Response.brand_id == brand_id)
+    return query.limit(limit).all()
 
 def update_response_analysis(db: Session, response_id: int, analysis_data: dict, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Response]:
     """Updates the analysis fields of a specific response for a specific user and brand."""

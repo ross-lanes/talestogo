@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,6 +16,7 @@ import {
   IconButton,
   Chip,
   Menu,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,10 +32,12 @@ import type { GridColDef } from '@mui/x-data-grid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import type { Competitor, CompetitorCreate, CompetitorUpdate } from '../../types';
+import { useBrand } from '../../contexts/BrandContext';
 
 export default function Competitors() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { activeBrand } = useBrand();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCompetitor, setSelectedCompetitor] = useState<Competitor | null>(null);
@@ -49,14 +52,22 @@ export default function Competitors() {
     notes: '',
   });
 
-  // Fetch competitors
+  // Fetch competitors - refetch when active brand changes
   const { data: competitors = [], isLoading } = useQuery({
-    queryKey: ['competitors'],
+    queryKey: ['competitors', activeBrand?.id],
     queryFn: async () => {
       const response = await api.get<Competitor[]>('/competitors/');
       return response.data;
     },
+    enabled: !!activeBrand, // Only fetch if there's an active brand
   });
+
+  // Invalidate competitors when active brand changes
+  useEffect(() => {
+    if (activeBrand) {
+      queryClient.invalidateQueries({ queryKey: ['competitors', activeBrand.id] });
+    }
+  }, [activeBrand?.id, queryClient]);
 
   // Create competitor mutation
   const createMutation = useMutation({
@@ -165,7 +176,7 @@ export default function Competitors() {
     XLSX.utils.book_append_sheet(wb, ws, 'Competitors');
 
     // Generate file and trigger download
-    XLSX.writeFile(wb, 'AIRO_Competitors.xlsx');
+    XLSX.writeFile(wb, 'TALES_Competitors.xlsx');
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -266,7 +277,7 @@ export default function Competitors() {
         </Box>
         <Box>
           <IconButton
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['competitors'] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['competitors', activeBrand?.id] })}
           >
             <RefreshIcon />
           </IconButton>
@@ -275,7 +286,7 @@ export default function Competitors() {
             startIcon={<DownloadIcon />}
             onClick={handleDownloadSpreadsheet}
             sx={{ ml: 1 }}
-            disabled={competitors.length === 0}
+            disabled={competitors.length === 0 || !activeBrand}
           >
             Download
           </Button>
@@ -284,11 +295,18 @@ export default function Competitors() {
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
             sx={{ ml: 1 }}
+            disabled={!activeBrand}
           >
             Add Competitor
           </Button>
         </Box>
       </Box>
+
+      {!activeBrand && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Please select or create a brand using the Brand Switcher in the top navigation to manage competitors.
+        </Alert>
+      )}
 
       <Paper sx={{ height: 600, width: '100%' }}>
         <DataGrid
@@ -309,6 +327,9 @@ export default function Competitors() {
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => handleNavigate('/manage/brand-info')}>
+          Brand Info
+        </MenuItem>
         <MenuItem onClick={() => handleNavigate('/manage/queries')}>
           Queries
         </MenuItem>

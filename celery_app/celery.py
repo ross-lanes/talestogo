@@ -23,7 +23,7 @@ result_backend_url = f'db+sqlite:///{db_path}'
 # The first argument is the name of the project's main module.
 # The 'include' argument is a list of modules to import when the worker starts.
 app = Celery(
-    'airo_tasks',
+    'tales_tasks',
     broker=broker_url,
     backend=result_backend_url,
     include=['celery_app.tasks']  # This tells Celery to look for tasks in celery_app/tasks.py

@@ -1,6 +1,6 @@
 # 🎉 Google OAuth is Ready!
 
-Your AIRO project has been successfully configured for Google OAuth authentication!
+Your TALES project has been successfully configured for Google OAuth authentication!
 
 ## 📋 What's Been Done
 
@@ -27,13 +27,13 @@ Your AIRO project has been successfully configured for Google OAuth authenticati
 ### Step 1: Create Google Project
 1. Go to: https://console.cloud.google.com/
 2. Click project dropdown → "New Project"
-3. Name: "AIRO" → Create
+3. Name: "TALES" → Create
 
 ### Step 2: OAuth Consent Screen
 1. Navigate: APIs & Services → OAuth consent screen
 2. Choose "External" → Create
 3. Fill in:
-   - App name: **AIRO**
+   - App name: **TALES**
    - Your email address
 4. Save & Continue (3 times)
 
@@ -41,7 +41,7 @@ Your AIRO project has been successfully configured for Google OAuth authenticati
 1. Navigate: APIs & Services → Credentials
 2. Create Credentials → OAuth client ID
 3. Type: **Web application**
-4. Name: **AIRO Web Client**
+4. Name: **TALES Web Client**
 5. **Authorized JavaScript origins:**
    ```
    http://localhost:5173
@@ -58,7 +58,7 @@ Your AIRO project has been successfully configured for Google OAuth authenticati
 ### Step 4: Update Config Files
 
 #### File 1: `.env` (Backend)
-Location: `/Users/rachelkremen/Documents/Code/airo_project/.env`
+Location: `/Users/rachelkremen/Documents/Code/tales_project/.env`
 
 Find these lines:
 ```env
@@ -69,7 +69,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 Replace with your actual values from Google Cloud Console.
 
 #### File 2: `frontend/.env` (Frontend)
-Location: `/Users/rachelkremen/Documents/Code/airo_project/frontend/.env`
+Location: `/Users/rachelkremen/Documents/Code/tales_project/frontend/.env`
 
 Find this line:
 ```env
@@ -82,7 +82,7 @@ Replace with your actual Client ID (same as backend).
 
 #### Terminal 1 - Backend:
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project
+cd /Users/rachelkremen/Documents/Code/tales_project
 python3 -m uvicorn app.main:app --reload
 ```
 
@@ -90,7 +90,7 @@ Wait for: `INFO: Uvicorn running on http://127.0.0.1:8000`
 
 #### Terminal 2 - Frontend:
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project/frontend
+cd /Users/rachelkremen/Documents/Code/tales_project/frontend
 npm run dev
 ```
 
@@ -107,7 +107,7 @@ Wait for: `➜  Local:   http://localhost:5173/`
 ### Login Page
 ```
 ┌─────────────────────────────────┐
-│         AIRO Login              │
+│         TALES Login              │
 │                                 │
 │  Email: [________________]      │
 │  Password: [____________]       │

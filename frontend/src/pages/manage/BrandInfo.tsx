@@ -15,7 +15,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Menu,
+  MenuItem,
 } from '@mui/material';
+import { ArrowDropDown as ArrowDropDownIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
@@ -51,6 +54,7 @@ const BrandInfo: React.FC = () => {
   const [brandExists, setBrandExists] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
   // Fetch existing brand info on mount
   useEffect(() => {
@@ -146,6 +150,19 @@ const BrandInfo: React.FC = () => {
     navigate('/manage/queries');
   };
 
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchorEl(null);
+  };
+
+  const handleNavigate = (path: string) => {
+    handleMenuClose();
+    navigate(path);
+  };
+
   if (fetching || aiGenerating) {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
@@ -167,10 +184,26 @@ const BrandInfo: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
-        Brand Info
-      </Typography>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box display="flex" alignItems="center">
+          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
+          <Box
+            onClick={handleMenuClick}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.8 },
+            }}
+          >
+            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
+              Brand Info
+            </Typography>
+            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
+          </Box>
+        </Box>
+      </Box>
 
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Configure information about your brand to customize analysis and query generation.
@@ -281,6 +314,23 @@ const BrandInfo: React.FC = () => {
           </ul>
         </Alert>
       </Box>
+
+      {/* Navigation Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={() => handleNavigate('/manage/queries')}>
+          Queries
+        </MenuItem>
+        <MenuItem onClick={() => handleNavigate('/manage/descriptors')}>
+          Descriptors
+        </MenuItem>
+        <MenuItem onClick={() => handleNavigate('/manage/competitors')}>
+          Competitors
+        </MenuItem>
+      </Menu>
 
       <Dialog open={showDialog} onClose={() => setShowDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Next Steps</DialogTitle>

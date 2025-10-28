@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database migration script to add multi-user support to AIRO.
+Database migration script to add multi-user support to TALES.
 
 This script:
 1. Backs up the current database
@@ -36,12 +36,12 @@ ADMIN_ORG = "PPPL"
 
 def backup_database():
     """Create a backup of the current database."""
-    db_path = "airo.db"
+    db_path = "tales.db"
     if not os.path.exists(db_path):
         print("No existing database found - creating new one.")
         return
 
-    backup_path = f"airo.db.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    backup_path = f"tales.db.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     shutil.copy2(db_path, backup_path)
     print(f"✓ Database backed up to: {backup_path}")
 
@@ -109,7 +109,7 @@ def add_user_id_to_table(table_name: str, admin_user_id: int):
 def main():
     """Main migration function."""
     print("=" * 70)
-    print("AIRO Multi-User Migration Script")
+    print("TALES Multi-User Migration Script")
     print("=" * 70)
     print()
 

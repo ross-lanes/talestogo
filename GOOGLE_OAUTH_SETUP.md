@@ -1,10 +1,10 @@
-# Google OAuth Setup Guide for AIRO
+# Google OAuth Setup Guide for TALES
 
-This guide will walk you through setting up Google OAuth authentication for the AIRO application.
+This guide will walk you through setting up Google OAuth authentication for the TALES application.
 
 ## Overview
 
-The AIRO application now supports two authentication methods:
+The TALES application now supports two authentication methods:
 1. **Traditional Email/Password** - Users register with email and password
 2. **Google OAuth** - Users sign in with their Google account (recommended)
 
@@ -20,7 +20,7 @@ Google OAuth users are automatically activated upon first login, while email/pas
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Click on the project dropdown at the top
 3. Click "New Project"
-4. Enter a project name (e.g., "AIRO Authentication")
+4. Enter a project name (e.g., "TALES Authentication")
 5. Click "Create"
 
 ## Step 2: Enable Google+ API
@@ -35,7 +35,7 @@ Google OAuth users are automatically activated upon first login, while email/pas
 2. Select "External" (or "Internal" if using Google Workspace)
 3. Click "Create"
 4. Fill in the required information:
-   - **App name**: AIRO
+   - **App name**: TALES
    - **User support email**: Your email
    - **Developer contact information**: Your email
 5. Click "Save and Continue"
@@ -51,7 +51,7 @@ Google OAuth users are automatically activated upon first login, while email/pas
 3. Select "Web application"
 4. Configure the following:
 
-   **Name**: AIRO Web Client
+   **Name**: TALES Web Client
 
    **Authorized JavaScript origins**:
    - `http://localhost:5173` (for development)

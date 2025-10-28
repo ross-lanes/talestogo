@@ -1,8 +1,8 @@
 pyproject.toml
-airo_project.egg-info/PKG-INFO
-airo_project.egg-info/SOURCES.txt
-airo_project.egg-info/dependency_links.txt
-airo_project.egg-info/top_level.txt
+tales_project.egg-info/PKG-INFO
+tales_project.egg-info/SOURCES.txt
+tales_project.egg-info/dependency_links.txt
+tales_project.egg-info/top_level.txt
 app/__init__.py
 app/crud.py
 app/database.py

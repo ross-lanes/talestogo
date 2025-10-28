@@ -19,7 +19,7 @@
 
 Follow these steps in [Google Cloud Console](https://console.cloud.google.com/):
 
-- [ ] Create new Google Cloud project named "AIRO"
+- [ ] Create new Google Cloud project named "TALES"
 - [ ] Configure OAuth consent screen (External)
 - [ ] Create OAuth 2.0 Client ID (Web application)
 - [ ] Add authorized JavaScript origins:
@@ -51,7 +51,7 @@ VITE_GOOGLE_CLIENT_ID=your-actual-client-id.apps.googleusercontent.com
 
 #### Terminal 1 - Backend
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project
+cd /Users/rachelkremen/Documents/Code/tales_project
 python3 -m uvicorn app.main:app --reload
 ```
 
@@ -62,7 +62,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8000
 
 #### Terminal 2 - Frontend
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project/frontend
+cd /Users/rachelkremen/Documents/Code/tales_project/frontend
 npm run dev
 ```
 
@@ -106,7 +106,7 @@ Expected output:
 - `migrate_oauth.py` - Database migration script
 
 ### Database
-- `airo.db` - Migrated with new columns:
+- `tales.db` - Migrated with new columns:
   - `google_id` - Google user ID
   - `oauth_provider` - OAuth provider name
   - `picture_url` - Profile picture URL
@@ -138,7 +138,7 @@ python3 -m uvicorn app.main:app --reload
 cd frontend && npm run dev
 
 # View database schema
-sqlite3 airo.db "PRAGMA table_info(users);"
+sqlite3 tales.db "PRAGMA table_info(users);"
 
 # Check environment variables
 cat .env | grep GOOGLE

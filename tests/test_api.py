@@ -39,7 +39,7 @@ def test_read_root():
     client = TestClient(fastapi_app)
     resp = client.get("/")
     assert resp.status_code == 200
-    assert resp.json() == {"message": "Welcome to the AIRO API!"}
+    assert resp.json() == {"message": "Welcome to the TALES API!"}
 
 
 def test_create_and_read_query(test_db):

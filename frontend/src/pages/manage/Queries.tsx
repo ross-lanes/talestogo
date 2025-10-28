@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -16,6 +16,7 @@ import {
   IconButton,
   Chip,
   Menu,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,10 +32,12 @@ import type { GridColDef } from '@mui/x-data-grid';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import type { Query, QueryCreate, QueryUpdate } from '../../types';
+import { useBrand } from '../../contexts/BrandContext';
 
 export default function Queries() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { activeBrand } = useBrand();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedQuery, setSelectedQuery] = useState<Query | null>(null);
@@ -48,14 +51,22 @@ export default function Queries() {
     notes: '',
   });
 
-  // Fetch queries
+  // Fetch queries - refetch when active brand changes
   const { data: queries = [], isLoading } = useQuery({
-    queryKey: ['queries'],
+    queryKey: ['queries', activeBrand?.id],
     queryFn: async () => {
       const response = await api.get<Query[]>('/queries/');
       return response.data;
     },
+    enabled: !!activeBrand, // Only fetch if there's an active brand
   });
+
+  // Invalidate queries when active brand changes
+  useEffect(() => {
+    if (activeBrand) {
+      queryClient.invalidateQueries({ queryKey: ['queries', activeBrand.id] });
+    }
+  }, [activeBrand?.id, queryClient]);
 
   // Create query mutation
   const createMutation = useMutation({
@@ -164,7 +175,7 @@ export default function Queries() {
     XLSX.utils.book_append_sheet(wb, ws, 'Queries');
 
     // Generate file and trigger download
-    XLSX.writeFile(wb, 'AIRO_Queries.xlsx');
+    XLSX.writeFile(wb, 'TALES_Queries.xlsx');
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -272,7 +283,7 @@ export default function Queries() {
           </Box>
         </Box>
         <Box>
-          <IconButton onClick={() => queryClient.invalidateQueries({ queryKey: ['queries'] })}>
+          <IconButton onClick={() => queryClient.invalidateQueries({ queryKey: ['queries', activeBrand?.id] })}>
             <RefreshIcon />
           </IconButton>
           <Button
@@ -280,7 +291,7 @@ export default function Queries() {
             startIcon={<DownloadIcon />}
             onClick={handleDownloadSpreadsheet}
             sx={{ ml: 1 }}
-            disabled={queries.length === 0}
+            disabled={queries.length === 0 || !activeBrand}
           >
             Download
           </Button>
@@ -289,11 +300,18 @@ export default function Queries() {
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
             sx={{ ml: 1 }}
+            disabled={!activeBrand}
           >
             Add Query
           </Button>
         </Box>
       </Box>
+
+      {!activeBrand && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Please select or create a brand using the Brand Switcher in the top navigation to manage queries.
+        </Alert>
+      )}
 
       <Paper sx={{ height: 600, width: '100%' }}>
         <DataGrid
@@ -314,6 +332,9 @@ export default function Queries() {
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
       >
+        <MenuItem onClick={() => handleNavigate('/manage/brand-info')}>
+          Brand Info
+        </MenuItem>
         <MenuItem onClick={() => handleNavigate('/manage/descriptors')}>
           Descriptors
         </MenuItem>

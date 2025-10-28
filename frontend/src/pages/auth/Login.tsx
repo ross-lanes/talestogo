@@ -51,7 +51,7 @@ const Login: React.FC = () => {
     }}>
       <Paper elevation={3} sx={{ p: 4, width: 400 }}>
           <Typography variant="h4" component="h1" gutterBottom align="center">
-            AIRO Login
+            TALES Login
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom align="center" sx={{ mb: 3 }}>
             AI Reputation Insights & Optimization
@@ -80,7 +80,7 @@ const Login: React.FC = () => {
           </Box>
 
           <Typography variant="body2" color="text.secondary" align="center">
-            Sign in with your Google account to access AIRO
+            Sign in with your Google account to access TALES
           </Typography>
       </Paper>
     </div>

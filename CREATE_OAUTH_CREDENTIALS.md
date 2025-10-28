@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-After configuring your OAuth consent screen, you need to create OAuth credentials (Client ID and Client Secret) to enable Google login in AIRO.
+After configuring your OAuth consent screen, you need to create OAuth credentials (Client ID and Client Secret) to enable Google login in TALES.
 
 **Time needed:** 3 minutes
 **Prerequisites:** OAuth consent screen configured ✓
@@ -14,7 +14,7 @@ After configuring your OAuth consent screen, you need to create OAuth credential
 ### Step 1: Navigate to Credentials
 
 1. Go to **https://console.cloud.google.com/**
-2. Make sure your project is selected (top left dropdown should show "AIRO")
+2. Make sure your project is selected (top left dropdown should show "TALES")
 3. In the left sidebar, click **"APIs & Services"**
 4. Click **"Credentials"**
 
@@ -86,7 +86,7 @@ Now you'll see a form. Here's exactly what to enter:
 │                                                 │
 │ Name *                                          │
 │ ┌─────────────────────────────────────────┐    │
-│ │ AIRO Web Client                   ← Type│    │
+│ │ TALES Web Client                   ← Type│    │
 │ └─────────────────────────────────────────┘    │
 │                                                 │
 │ Authorized JavaScript origins                   │
@@ -107,7 +107,7 @@ Now you'll see a form. Here's exactly what to enter:
 
 **Name:**
 ```
-AIRO Web Client
+TALES Web Client
 ```
 
 **Authorized JavaScript origins:**
@@ -140,7 +140,7 @@ http://localhost:3000
 ┌─────────────────────────────────────────────────┐
 │ Name *                                          │
 │ ┌─────────────────────────────────────────┐    │
-│ │ AIRO Web Client                          │    │
+│ │ TALES Web Client                          │    │
 │ └─────────────────────────────────────────┘    │
 │                                                 │
 │ Authorized JavaScript origins                   │
@@ -209,11 +209,11 @@ GOCSPX-ABCdefGHIjklMNOpqrSTUvwxYZ
 
 ## 💾 Step 7: Save Your Credentials
 
-Now update your AIRO `.env` files with these credentials:
+Now update your TALES `.env` files with these credentials:
 
 ### Backend: `.env`
 
-Open: `/Users/rachelkremen/Documents/Code/airo_project/.env`
+Open: `/Users/rachelkremen/Documents/Code/tales_project/.env`
 
 Find these lines:
 ```env
@@ -229,7 +229,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-ABCdefGHIjklMNOpqrSTU
 
 ### Frontend: `frontend/.env`
 
-Open: `/Users/rachelkremen/Documents/Code/airo_project/frontend/.env`
+Open: `/Users/rachelkremen/Documents/Code/tales_project/frontend/.env`
 
 Find this line:
 ```env
@@ -277,13 +277,13 @@ Now you can start your servers and test Google login:
 
 ### Terminal 1 - Backend:
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project
+cd /Users/rachelkremen/Documents/Code/tales_project
 python3 -m uvicorn app.main:app --reload
 ```
 
 ### Terminal 2 - Frontend:
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project/frontend
+cd /Users/rachelkremen/Documents/Code/tales_project/frontend
 npm run dev
 ```
 
@@ -306,7 +306,7 @@ npm run dev
 ### If You Lose Your Client Secret
 
 1. Go to **Credentials** page
-2. Click on your "AIRO Web Client"
+2. Click on your "TALES Web Client"
 3. Scroll to "Client secrets"
 4. Click **"+ ADD SECRET"**
 5. Copy the new secret
@@ -317,7 +317,7 @@ npm run dev
 When you deploy to production:
 
 1. Go to **Credentials** page
-2. Click your "AIRO Web Client" credential
+2. Click your "TALES Web Client" credential
 3. Under "Authorized JavaScript origins", click **"+ ADD URI"**
 4. Add your production domain: `https://yourdomain.com`
 5. Under "Authorized redirect URIs", add: `https://yourdomain.com`
@@ -353,14 +353,14 @@ When you deploy to production:
 **Solution:**
 1. Click ☰ hamburger menu
 2. APIs & Services → Credentials
-3. Make sure project "AIRO" is selected (top left)
+3. Make sure project "TALES" is selected (top left)
 
 ### "This app isn't verified" Warning
 
 **Cause:** Your app is in Testing mode
 
 **Solution:**
-- This is normal! Click "Continue" or "Advanced" → "Go to AIRO (unsafe)"
+- This is normal! Click "Continue" or "Advanced" → "Go to TALES (unsafe)"
 - Better: Add yourself as a test user in OAuth consent screen
 
 ---
@@ -371,7 +371,7 @@ Use these exact values when creating credentials:
 
 **Name:**
 ```
-AIRO Web Client
+TALES Web Client
 ```
 
 **Authorized JavaScript origins:**

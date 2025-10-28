@@ -32,9 +32,9 @@ Both files have detailed comments and checklists to help you configure them.
 
 ---
 
-### 2. LLM API Keys (At least ONE required for AIRO features)
+### 2. LLM API Keys (At least ONE required for TALES features)
 
-AIRO uses LLM APIs to analyze responses. You need at least one of these:
+TALES uses LLM APIs to analyze responses. You need at least one of these:
 
 #### Option A: Google Gemini (RECOMMENDED - Cheapest!)
 
@@ -86,7 +86,7 @@ PERPLEXITY_API_KEY=pplx-your-key-here
 
 ### Step 1: Open Backend `.env`
 
-Location: `/Users/rachelkremen/Documents/Code/airo_project/.env`
+Location: `/Users/rachelkremen/Documents/Code/tales_project/.env`
 
 **Find these lines and update:**
 
@@ -117,7 +117,7 @@ ANTHROPIC_API_KEY=sk-ant-your-actual-key-here
 
 ### Step 2: Open Frontend `.env`
 
-Location: `/Users/rachelkremen/Documents/Code/airo_project/frontend/.env`
+Location: `/Users/rachelkremen/Documents/Code/tales_project/frontend/.env`
 
 **Find this line and update:**
 
@@ -161,7 +161,7 @@ After filling out your `.env` files:
 ### 1. Test Backend Starts
 
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project
+cd /Users/rachelkremen/Documents/Code/tales_project
 python3 -m uvicorn app.main:app --reload
 ```
 
@@ -178,7 +178,7 @@ INFO:     Application startup complete.
 ### 2. Test Frontend Starts
 
 ```bash
-cd /Users/rachelkremen/Documents/Code/airo_project/frontend
+cd /Users/rachelkremen/Documents/Code/tales_project/frontend
 npm run dev
 ```
 

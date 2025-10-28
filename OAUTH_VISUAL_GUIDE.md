@@ -8,7 +8,7 @@ Here's exactly where to click in Google Cloud Console:
 Google Cloud Console (console.cloud.google.com)
 │
 ├── 1️⃣ Create Project (if needed)
-│   └── Click: Project dropdown → NEW PROJECT → Name: "AIRO" → CREATE
+│   └── Click: Project dropdown → NEW PROJECT → Name: "TALES" → CREATE
 │
 ├── 2️⃣ Navigate to OAuth
 │   └── Click: ☰ Menu → APIs & Services → OAuth consent screen
@@ -97,7 +97,7 @@ Google Cloud Console (console.cloud.google.com)
 │                                                 │
 │ App name *                                      │
 │ ┌─────────────────────────────────────────┐    │
-│ │ AIRO                              ← Type│    │
+│ │ TALES                              ← Type│    │
 │ └─────────────────────────────────────────┘    │
 │                                                 │
 │ User support email *                            │
@@ -183,7 +183,7 @@ Google Cloud Console (console.cloud.google.com)
 │                                                 │
 │ Review your OAuth consent screen:               │
 │                                                 │
-│ App name:         AIRO                          │
+│ App name:         TALES                          │
 │ User type:        External                      │
 │ Publishing status: Testing                      │
 │ User support:     your.email@gmail.com          │
@@ -206,7 +206,7 @@ After completing, your dashboard should show:
 │ OAuth consent screen                            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│ 📱 AIRO                                         │
+│ 📱 TALES                                         │
 │                                                 │
 │ Publishing status: 🟡 Testing                   │
 │ User type: External                             │
@@ -265,7 +265,7 @@ Use these exact values:
 
 **App name:**
 ```
-AIRO
+TALES
 ```
 
 **User support email:**
@@ -295,7 +295,7 @@ AIRO
 ### Issue: "Internal option is grayed out"
 
 **Solution:**
-This means you don't have Google Workspace. Just choose "External" - it works great for AIRO!
+This means you don't have Google Workspace. Just choose "External" - it works great for TALES!
 
 ### Issue: "Need to verify my app?"
 

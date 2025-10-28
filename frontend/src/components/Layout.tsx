@@ -42,6 +42,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import BrandSwitcher from './BrandSwitcher';
+import talesWhite from './tales_white.png';
 
 const drawerWidth = 240;
 
@@ -106,42 +107,53 @@ export default function Layout({ children }: LayoutProps) {
 
   const drawer = (
     <Box>
-      <Toolbar
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          px: 2,
-          minHeight: { xs: 106, sm: 114 },
-          height: { xs: 106, sm: 114 },
-          gap: 1,
-          cursor: 'pointer',
-          '&:hover': {
-            backgroundColor: 'rgba(128, 161, 212, 0.04)',
-          },
-        }}
-        onClick={() => navigate('/')}
-      >
-        <img
-          src="/airologopurple.png"
-          alt="AIRO Logo"
-          style={{ height: '40px', width: 'auto' }}
-        />
-        <Typography
-          variant="body2"
-          component="div"
-          color="text.secondary"
-          sx={{
-            textAlign: 'center',
-            fontSize: '0.875rem',
-            fontStyle: 'italic',
-            lineHeight: 1.3,
-          }}
-        >
-          See your brand through<br />the eyes of AIs
-        </Typography>
-      </Toolbar>
+  <Toolbar
+  sx={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    px: 2,
+    minHeight: { xs: 106, sm: 114 },
+    height: { xs: 106, sm: 114 },
+    gap: 1,
+    cursor: 'pointer',
+    backgroundColor: '#665775',          // 💜 background color
+    color: 'common.white',               // make all text inside white
+    '&:hover': {
+    },
+    '& h1': {
+      margin: 0,
+      color: 'common.white',             // ensure h1 text is white
+    },
+  }}
+  onClick={() => navigate('/')}
+>
+  <Typography
+    variant="body2"
+    component="div"
+    sx={{
+      textAlign: 'center',
+      fontSize: '0.875rem',
+      fontStyle: 'italic',
+      lineHeight: 1.3,
+      color: 'common.white',             // ensure secondary text is white
+    }}
+  >
+    <img
+      src={talesWhite}
+      alt="Tales"
+      style={{
+        width: 120,
+        maxWidth: '100%',
+        display: 'block',
+        margin: '0 auto',
+      }}
+    />
+    Shape your AI story.
+  </Typography>
+</Toolbar>
+
       <Divider />
       <List>
         {menuItems.map((item) => (
@@ -189,52 +201,51 @@ export default function Layout({ children }: LayoutProps) {
           backgroundColor: 'primary.main',
         }}
       >
-        <Toolbar
-          sx={{
-            minHeight: { xs: 106, sm: 114 },
-            height: { xs: 106, sm: 114 },
-          }}
-        >
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h4" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            AI Reputation Optimizer
-          </Typography>
-
-          {user && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <BrandSwitcher />
-              <Typography variant="body2" color="inherit" sx={{ display: { xs: 'none', md: 'block' } }}>
-                {user.organization || user.email}
-              </Typography>
-              {isAdmin && (
-                <Chip
-                  label="Admin"
-                  size="small"
-                  color="secondary"
-                  sx={{ display: { xs: 'none', sm: 'flex' } }}
-                />
-              )}
-
-              <IconButton
-                onClick={handleUserMenuOpen}
-                color="inherit"
-                sx={{ p: 0.5 }}
-              >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                  {user.email.charAt(0).toUpperCase()}
-                </Avatar>
-              </IconButton>
-            </Box>
-          )}
-        </Toolbar>
+<Toolbar
+  sx={{
+    minHeight: { xs: 106, sm: 114 },
+    height: { xs: 106, sm: 114 },
+  }}
+>
+  {/* Left: hamburger (mobile only) */}
+  <IconButton
+    color="inherit"
+    aria-label="open drawer"
+    edge="start"
+    onClick={handleDrawerToggle}
+    sx={{ mr: 2, display: { sm: 'none' } }}
+  >
+    <MenuIcon />
+  </IconButton>
+  
+  {/* Right: group pushed to the far right with ml: 'auto' */}
+  {user && (
+    <Box
+      sx={{
+        ml: 'auto',                    // <-- pushes this box to the right
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        color: 'common.white',         // base color for descendants
+        // Make sure icons and typography inside are white as well
+        '& .MuiTypography-root': { color: 'common.white' },
+        '& .MuiSvgIcon-root': { color: 'common.white' },
+        // Apply white to any other descendants (BrandSwitcher internals)
+        '& *': { color: 'common.white' },
+      }}
+    >
+      {/* BrandSwitcher often renders its own elements — wrapping + descendant selector above forces white */}
+      <BrandSwitcher />
+      {/* Avatar: keep bg as secondary, but force the letter to be white */}
+      <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
+        <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>
+          {user.email.charAt(0).toUpperCase()}
+        </Avatar>
+      </IconButton>
+    </Box>
+  )}
+</Toolbar>
+        
       </AppBar>
 
       {/* User Menu */}
@@ -298,6 +309,7 @@ export default function Layout({ children }: LayoutProps) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              borderRight: 'none',
             },
           }}
         >
@@ -310,6 +322,7 @@ export default function Layout({ children }: LayoutProps) {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              borderRight: 'none',
             },
           }}
           open
