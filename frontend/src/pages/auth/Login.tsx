@@ -63,7 +63,8 @@ const Login: React.FC = () => {
         elevation={6}
         sx={{
           p: 4,
-          width: 400,
+          width: 500,
+          maxWidth: '90vw',
           textAlign: 'center',
           borderRadius: 4,
           backgroundColor: '#fff',
@@ -76,18 +77,18 @@ const Login: React.FC = () => {
             style={{ width: '120px', marginBottom: '16px' }}
           />
           <Typography
-            variant="h4"
+            variant="h5"
             component="h1"
             gutterBottom
-            sx={{ color: '#665775', fontWeight: 700 }}
+            sx={{ color: '#665775', fontWeight: 700, lineHeight: 1.4 }}
           >
-            TALES Login
+            Welcome to Tales: The best way to find out what AIs are saying about your brand and shape the story!
           </Typography>
           <Typography
             variant="body2"
-            sx={{ color: '#80a1d4', mb: 3 }}
+            sx={{ color: '#80a1d4', mt: 2, mb: 2, lineHeight: 1.6 }}
           >
-            AI Reputation Insights & Optimization
+            If you are a new user, an administrator will be alerted when you log in for the first time to consider your account for approval.
           </Typography>
         </Box>
 
