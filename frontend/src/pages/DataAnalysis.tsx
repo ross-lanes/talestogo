@@ -19,6 +19,7 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
+  TextField,
 } from '@mui/material';
 import {
   Analytics as AnalysisIcon,
@@ -56,6 +57,8 @@ export default function DataAnalysis() {
   });
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   // Fetch reports
   const { data: reports, isLoading } = useQuery<Report[]>({
@@ -84,6 +87,35 @@ export default function DataAnalysis() {
       setSnackbar({
         open: true,
         message: error.response?.data?.detail || 'Failed to start analysis',
+        severity: 'error',
+      });
+    },
+  });
+
+  // Rerun analysis mutation
+  const rerunAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      const response = await api.post(`/tasks/rerun-analysis/?${params.toString()}`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setShowProgress(true);
+      setSnackbar({
+        open: true,
+        message: data.message + ' ' + (data.note || ''),
+        severity: 'info',
+      });
+      // Clear date filters after successful submission
+      setStartDate('');
+      setEndDate('');
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to start re-analysis',
         severity: 'error',
       });
     },
@@ -267,20 +299,84 @@ export default function DataAnalysis() {
         <Typography variant="h2" component="h1">
           Data Analysis
         </Typography>
-        <Button
-          variant="contained"
-          color="secondary"
-          startIcon={<AnalysisIcon />}
-          onClick={() => analysisMutation.mutate()}
-          disabled={analysisMutation.isPending}
-        >
-          {analysisMutation.isPending ? 'Running...' : 'Run Analysis'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<AnalysisIcon />}
+            onClick={() => analysisMutation.mutate()}
+            disabled={analysisMutation.isPending || rerunAnalysisMutation.isPending}
+          >
+            {analysisMutation.isPending ? 'Running...' : 'Run Analysis'}
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            startIcon={<AnalysisIcon />}
+            onClick={() => rerunAnalysisMutation.mutate()}
+            disabled={analysisMutation.isPending || rerunAnalysisMutation.isPending}
+          >
+            {rerunAnalysisMutation.isPending ? 'Rerunning...' : 'Rerun Analysis'}
+          </Button>
+        </Box>
       </Box>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Run analysis to process collected responses and generate insights. View your report archive below.
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+        Run analysis to process new collected responses, or rerun analysis to re-analyze all existing responses with updated analysis logic. View your report archive below.
       </Typography>
+
+      {/* Date Range Filter for Rerun Analysis */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f5f5f5' }}>
+        <Typography variant="h6" gutterBottom>
+          Date Range Filter (Optional)
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Filter which responses to rerun analysis on by date. Leave blank to analyze all responses.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
+            label="Start Date"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            sx={{ width: 200 }}
+          />
+          <TextField
+            label="End Date"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            sx={{ width: 200 }}
+          />
+          {(startDate || endDate) && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+              }}
+            >
+              Clear Dates
+            </Button>
+          )}
+        </Box>
+        {(startDate || endDate) && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            {startDate && endDate
+              ? `Will analyze responses from ${startDate} to ${endDate}`
+              : startDate
+              ? `Will analyze responses from ${startDate} onwards`
+              : `Will analyze responses through ${endDate}`}
+          </Alert>
+        )}
+      </Paper>
 
       {/* Progress Indicator */}
       {showProgress && (

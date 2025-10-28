@@ -955,6 +955,112 @@ python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
         db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
 
+@app.post("/tasks/rerun-analysis/", status_code=202, tags=["Tasks"])
+async def rerun_analysis(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Reset analysis on responses for active brand (optionally filtered by date range) and regenerate report."""
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
+
+    # Build query for responses
+    query = db.query(models.Response).filter(
+        models.Response.user_id == current_user.id,
+        models.Response.brand_id == brand_id
+    )
+
+    # Apply date filters if provided
+    date_description = "all"
+    if start_date:
+        try:
+            start_dt = datetime.datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            query = query.filter(models.Response.timestamp >= start_dt)
+            date_description = f"from {start_date[:10]}"
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use ISO format (YYYY-MM-DD).")
+
+    if end_date:
+        try:
+            end_dt = datetime.datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            # Add one day to include the entire end date
+            end_dt = end_dt + datetime.timedelta(days=1)
+            query = query.filter(models.Response.timestamp < end_dt)
+            if start_date:
+                date_description = f"from {start_date[:10]} to {end_date[:10]}"
+            else:
+                date_description = f"through {end_date[:10]}"
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use ISO format (YYYY-MM-DD).")
+
+    all_responses = query.all()
+
+    if not all_responses:
+        raise HTTPException(status_code=404, detail=f"No responses found for active brand {date_description}.")
+
+    # Reset analyzed_at to NULL for filtered responses (marks them as unanalyzed)
+    for response in all_responses:
+        response.analyzed_at = None
+        # Clear existing analysis fields so they get fresh analysis
+        response.brand_mentioned = None
+        response.brand_position = None
+        response.sentiment = None
+        response.descriptors = None
+        response.competitors = None
+        response.sources = None
+
+    db.commit()
+
+    # Create task status for re-analysis
+    message = f"Re-analyzing {len(all_responses)} responses {date_description}..."
+    task_status = models.TaskStatus(
+        user_id=current_user.id,
+        brand_id=brand_id,
+        task_type="analysis_and_report",
+        status="running",
+        total_items=len(all_responses),
+        processed_items=0,
+        message=message,
+        started_at=datetime.datetime.utcnow()
+    )
+    db.add(task_status)
+    db.commit()
+    db.refresh(task_status)
+
+    analysis_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
+    report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
+
+    try:
+        # Run analysis and report generation in sequence in the background
+        cmd = f"""
+python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id} &&
+python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
+"""
+        process = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        return {
+            "message": f"Re-analysis started for {len(all_responses)} responses {date_description}.",
+            "status": "running",
+            "task_id": task_status.id,
+            "count": len(all_responses),
+            "date_range": date_description,
+            "note": "Re-analyzing responses with updated analysis process. A new report will be generated when complete."
+        }
+    except Exception as e:
+        task_status.status = "failed"
+        task_status.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Failed to start re-analysis: {str(e)}")
+
 @app.get("/tasks/status/", response_model=Optional[schemas.TaskStatus], tags=["Tasks"])
 def get_task_status(
     current_user: models.User = Depends(get_current_user),
