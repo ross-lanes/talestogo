@@ -305,3 +305,20 @@ class UserAdminUpdate(BaseModel):
     is_admin: Optional[bool] = None
     model_config = ConfigDict(extra='forbid')
 
+# --- Task Status Schemas ---
+class TaskStatus(BaseModel):
+    id: int
+    user_id: int
+    brand_id: Optional[int] = None
+    task_type: str
+    status: str
+    progress: int
+    total_items: int
+    processed_items: int
+    message: Optional[str] = None
+    error_message: Optional[str] = None
+    started_at: datetime.datetime
+    completed_at: Optional[datetime.datetime] = None
+    updated_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+

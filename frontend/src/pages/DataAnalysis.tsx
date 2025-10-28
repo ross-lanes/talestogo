@@ -30,6 +30,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
+import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -47,6 +48,7 @@ interface Report {
 
 export default function DataAnalysis() {
   const queryClient = useQueryClient();
+  const [showProgress, setShowProgress] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
@@ -71,16 +73,12 @@ export default function DataAnalysis() {
       return response.data;
     },
     onSuccess: (data) => {
+      setShowProgress(true);
       setSnackbar({
         open: true,
         message: data.message + ' ' + (data.note || ''),
         severity: 'info',
       });
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['reports'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
-        queryClient.invalidateQueries({ queryKey: ['responses'] });
-      }, 2000);
     },
     onError: (error: any) => {
       setSnackbar({
@@ -283,6 +281,18 @@ export default function DataAnalysis() {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Run analysis to process collected responses and generate insights. View your report archive below.
       </Typography>
+
+      {/* Progress Indicator */}
+      {showProgress && (
+        <TaskProgressIndicator
+          onComplete={() => {
+            setShowProgress(false);
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+            queryClient.invalidateQueries({ queryKey: ['responses'] });
+          }}
+        />
+      )}
 
       {/* Report Archive */}
       <Paper sx={{ p: 3 }}>

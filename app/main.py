@@ -840,10 +840,39 @@ async def run_collection(
     if not brand_id:
         raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
 
+    # Get count of active queries
+    query_count = db.query(models.Query).filter(
+        models.Query.user_id == current_user.id,
+        models.Query.brand_id == brand_id,
+        models.Query.active == True
+    ).count()
+
+    if query_count == 0:
+        raise HTTPException(status_code=400, detail="No active queries found for this brand.")
+
+    # Create task status for collection
+    task_status = models.TaskStatus(
+        user_id=current_user.id,
+        brand_id=brand_id,
+        task_type="collection",
+        status="running",
+        total_items=query_count * 4,  # queries × 4 platforms
+        processed_items=0,
+        message="Starting collection..."
+    )
+    db.add(task_status)
+    db.commit()
+    db.refresh(task_status)
+
     script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
     try:
-        # Run the collection script in the background with user_id and brand_id as arguments
-        cmd = ["python3", script_path, str(current_user.id), "--brand-id", str(brand_id)]
+        # Run the collection script in the background with task-id
+        cmd = [
+            "python3", script_path,
+            str(current_user.id),
+            "--brand-id", str(brand_id),
+            "--task-id", str(task_status.id)
+        ]
         process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -858,9 +887,13 @@ async def run_collection(
         return {
             "message": "Response collection started for active brand.",
             "status": "running",
+            "task_id": task_status.id,
             "note": "Collection is running in the background. Check the Responses page to see new data."
         }
     except Exception as e:
+        task_status.status = "failed"
+        task_status.error_message = str(e)
+        db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start collection: {str(e)}")
 
 @app.post("/tasks/run-analysis/", status_code=202, tags=["Tasks"])
@@ -896,9 +929,9 @@ async def run_analysis(
     report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
 
     try:
-        # Run analysis and report generation in sequence in the background
+        # Run analysis and report generation in sequence in the background with task-id
         cmd = f"""
-python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} &&
+python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id} &&
 python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
 """
         process = subprocess.Popen(
@@ -912,8 +945,8 @@ python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
         return {
             "message": f"Analysis and report generation started for {len(unanalyzed_responses)} responses.",
             "status": "running",
-            "count": len(unanalyzed_responses),
             "task_id": task_status.id,
+            "count": len(unanalyzed_responses),
             "note": "Analysis is running in the background. A report will be generated automatically when complete."
         }
     except Exception as e:
@@ -922,7 +955,7 @@ python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
         db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
 
-@app.get("/tasks/status/", tags=["Tasks"])
+@app.get("/tasks/status/", response_model=Optional[schemas.TaskStatus], tags=["Tasks"])
 def get_task_status(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -930,7 +963,7 @@ def get_task_status(
 ):
     """Get the status of the most recent task for the active brand."""
     if not brand_id:
-        return {"status": "no_brand", "message": "No active brand selected"}
+        return None
 
     # Get the most recent task for this user and brand
     task = db.query(models.TaskStatus).filter(
@@ -939,7 +972,7 @@ def get_task_status(
     ).order_by(models.TaskStatus.started_at.desc()).first()
 
     if not task:
-        return {"status": "no_tasks", "message": "No tasks found"}
+        return None
 
     # Check if the task is still running by checking unanalyzed responses
     if task.status == "running":

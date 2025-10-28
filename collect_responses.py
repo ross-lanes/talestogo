@@ -51,10 +51,11 @@ PERPLEXITY_AVAILABLE = OPENAI_AVAILABLE
 class ResponseCollector:
     """Collects responses from AI platforms."""
 
-    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None):
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, task_status_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
         self.brand_id = brand_id
+        self.task_status_id = task_status_id
 
         # Initialize API clients
         self.openai_client = None
@@ -106,6 +107,26 @@ class ResponseCollector:
                 print("✓ Perplexity configured (with extended timeout for web search)")
             else:
                 print("⚠️  PERPLEXITY_API_KEY not found in environment")
+
+    def update_task_progress(self, processed: int, total: int, message: str = ""):
+        """Update task status progress in database."""
+        if not self.task_status_id:
+            return
+
+        try:
+            task = self.db.query(models.TaskStatus).filter(
+                models.TaskStatus.id == self.task_status_id
+            ).first()
+
+            if task:
+                task.processed_items = processed
+                task.total_items = total
+                task.progress = int((processed / total) * 100) if total > 0 else 0
+                if message:
+                    task.message = message
+                self.db.commit()
+        except Exception as e:
+            print(f"  Warning: Could not update task progress: {e}")
 
     def query_chatgpt(self, query_text: str) -> Optional[str]:
         """Query OpenAI ChatGPT."""
@@ -258,7 +279,19 @@ class ResponseCollector:
             'Perplexity': 0
         }
 
-        for query in queries:
+        # Calculate total items (queries × platforms)
+        platforms_list = platforms or ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
+        total_items = len(queries) * len(platforms_list)
+        processed_count = 0
+
+        for idx, query in enumerate(queries, 1):
+            # Update progress before processing query
+            self.update_task_progress(
+                processed_count,
+                total_items,
+                f"Collecting responses for query {idx}/{len(queries)}"
+            )
+
             results = self.collect_for_query(query, platforms)
 
             if any(results.values()):
@@ -269,6 +302,10 @@ class ResponseCollector:
             for platform, success in results.items():
                 if success:
                     stats[platform] += 1
+                processed_count += 1
+
+        # Mark as complete
+        self.update_task_progress(total_items, total_items, "Collection completed")
 
         print(f"\n{'='*60}")
         print(f"Collection Summary")
@@ -292,6 +329,7 @@ def main():
     parser = argparse.ArgumentParser(description='TALES Response Collection Tool')
     parser.add_argument('user_id', type=int, nargs='?', help='User ID to collect responses for')
     parser.add_argument('--brand-id', type=int, help='Brand ID to collect responses for')
+    parser.add_argument('--task-id', type=int, help='Task Status ID for progress tracking')
     args = parser.parse_args()
 
     print("\n🚀 TALES Response Collection Tool\n")
@@ -353,8 +391,8 @@ def main():
 
         print(f"Collection for: {user.email} ({user.full_name or 'No name'})\n")
 
-        # Initialize collector with user_id and brand_id
-        collector = ResponseCollector(db, user_id, brand_id)
+        # Initialize collector with user_id, brand_id, and task_id
+        collector = ResponseCollector(db, user_id, brand_id, args.task_id)
 
         # Check if we have queries for this user/brand
         query_query = db.query(models.Query).filter(

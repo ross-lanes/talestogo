@@ -24,6 +24,7 @@ import { CloudDownload as CollectionIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
+import TaskProgressIndicator from '../components/TaskProgressIndicator';
 
 interface Response {
   id: number;
@@ -40,6 +41,7 @@ export default function Data() {
   const queryClient = useQueryClient();
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedResponse, setSelectedResponse] = useState<Response | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
@@ -63,16 +65,12 @@ export default function Data() {
       return response.data;
     },
     onSuccess: (data) => {
+      setShowProgress(true);
       setSnackbar({
         open: true,
         message: data.message + ' ' + (data.note || ''),
         severity: 'success',
       });
-      // Refresh data after collection
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['responses'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
-      }, 2000);
     },
     onError: (error: any) => {
       setSnackbar({
@@ -140,6 +138,17 @@ export default function Data() {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         View all responses collected from LLM platforms. Click "Collect Data" to gather new responses.
       </Typography>
+
+      {/* Progress Indicator */}
+      {showProgress && (
+        <TaskProgressIndicator
+          onComplete={() => {
+            setShowProgress(false);
+            queryClient.invalidateQueries({ queryKey: ['responses'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+          }}
+        />
+      )}
 
       {/* Responses Table */}
       <Paper sx={{ p: 3 }}>

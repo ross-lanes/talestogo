@@ -47,7 +47,8 @@
       "Bash(npx eslint:*)",
       "Bash(git checkout:*)",
       "Bash(git config --global user.name \"Rachel Kremen\")",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

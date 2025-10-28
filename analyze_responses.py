@@ -39,10 +39,11 @@ COMPETITORS = []
 class ResponseAnalyzer:
     """Analyzes responses using Gemini AI."""
 
-    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None):
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, task_status_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
         self.brand_id = brand_id
+        self.task_status_id = task_status_id
         self.google_model = None
         self.brand_name = "your brand"
         self.brand_info = None
@@ -113,6 +114,26 @@ class ResponseAnalyzer:
 
         print(f"✓ Loaded {len(TARGET_DESCRIPTORS)} target descriptors")
         print(f"✓ Loaded {len(COMPETITORS)} competitors")
+
+    def update_task_progress(self, processed: int, total: int, message: str = ""):
+        """Update task status progress in database."""
+        if not self.task_status_id:
+            return
+
+        try:
+            task = self.db.query(models.TaskStatus).filter(
+                models.TaskStatus.id == self.task_status_id
+            ).first()
+
+            if task:
+                task.processed_items = processed
+                task.total_items = total
+                task.progress = int((processed / total) * 100) if total > 0 else 0
+                if message:
+                    task.message = message
+                self.db.commit()
+        except Exception as e:
+            print(f"  Warning: Could not update task progress: {e}")
 
     def build_analysis_prompt(self, query_text: str, response_text: str) -> str:
         """Build a detailed prompt for Gemini to analyze the response."""
@@ -291,7 +312,16 @@ Example format:
             'brand_no': 0,
         }
 
+        total_responses = len(responses)
+
         for i, response in enumerate(responses, 1):
+            # Update progress
+            self.update_task_progress(
+                i - 1,
+                total_responses,
+                f"Analyzing response {i}/{total_responses}"
+            )
+
             print(f"\n[{i}/{len(responses)}] Response {response.id} ({response.platform})")
             print(f"  Query: {response.query_text[:70]}...")
 
@@ -323,6 +353,9 @@ Example format:
             # Rate limiting - be nice to the API (2 seconds to avoid quota errors)
             time.sleep(2)
 
+        # Mark as complete
+        self.update_task_progress(total_responses, total_responses, "Analysis completed")
+
         print(f"\n{'='*60}")
         print(f"Analysis Summary")
         print(f"{'='*60}")
@@ -349,6 +382,7 @@ def main():
     parser.add_argument('--limit', type=int, help='Limit number of responses to analyze')
     parser.add_argument('--user-id', type=int, help='User ID to analyze responses for')
     parser.add_argument('--brand-id', type=int, help='Brand ID to analyze responses for')
+    parser.add_argument('--task-id', type=int, help='Task Status ID for progress tracking')
     args = parser.parse_args()
 
     print("\n🔍 TALES Response Analysis Tool\n")
@@ -375,7 +409,7 @@ def main():
         else:
             print("📋 Using active brand\n")
 
-        analyzer = ResponseAnalyzer(db, user_id=user.id, brand_id=args.brand_id)
+        analyzer = ResponseAnalyzer(db, user_id=user.id, brand_id=args.brand_id, task_status_id=args.task_id)
 
         # Get count of unanalyzed responses for this user/brand
         unanalyzed_query = db.query(models.Response).filter(
