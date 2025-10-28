@@ -41,7 +41,13 @@
       "Bash(git commit:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(find:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(npm run build:check:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx eslint:*)",
+      "Bash(git checkout:*)",
+      "Bash(git config --global user.name \"Rachel Kremen\")",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []
