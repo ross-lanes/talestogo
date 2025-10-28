@@ -10,7 +10,7 @@ import {
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../../contexts/AuthContext';
-import talesLogo from '../../assets/tales_black.png';
+import talesLogo from './tales_black.png';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
