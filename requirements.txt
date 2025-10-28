@@ -14,3 +14,4 @@ authlib
 python-jose[cryptography]
 bcrypt
 google-auth
+email-validator
