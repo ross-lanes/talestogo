@@ -82,7 +82,7 @@ const Login: React.FC = () => {
             gutterBottom
             sx={{ color: '#665775', fontWeight: 700, lineHeight: 1.4 }}
           >
-            Welcome to Tales where you can shape your AI story.
+            Welcome to Tales!
           </Typography>
           <Typography
             variant="body2"
