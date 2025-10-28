@@ -1,0 +1,43 @@
+services:
+  # Backend API Service
+  - type: web
+    name: tales-backend
+    runtime: docker
+    repo: https://github.com/rtwodeetwo/tales_project
+    branch: main
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite:///./data/tales.db
+    disk:
+      name: tales-data
+      mountPath: /app/data
+      sizeGB: 1
+
+  # Frontend Static Site
+  - type: web
+    name: tales-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://tales-backend.onrender.com
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
