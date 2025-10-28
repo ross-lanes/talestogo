@@ -49,7 +49,9 @@
       "Bash(git config --global user.name \"Rachel Kremen\")",
       "Bash(git config:*)",
       "Bash(git reset:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(./run.sh)",
+      "Bash(source .venv/bin/activate)"
     ],
     "deny": [],
     "ask": []

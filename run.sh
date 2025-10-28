@@ -13,7 +13,7 @@
 # Ensure the virtual environment is sourced
 if [ -z "$VIRTUAL_ENV" ]; then
     echo "Activating virtual environment..."
-    source airo-env/bin/activate
+    source .venv/bin/activate
 fi
 
 # Function to start the FastAPI server
