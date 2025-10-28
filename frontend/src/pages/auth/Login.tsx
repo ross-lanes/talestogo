@@ -47,10 +47,16 @@ const Login: React.FC = () => {
       sx={{
         backgroundColor: '#665775',
         minHeight: '100vh',
+        width: '100vw',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         fontFamily: 'Roboto, sans-serif',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
       }}
     >
       <Paper
