@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Response Analysis Script for TALES Project
-Analyzes collected LLM responses for PPPL mentions, sentiment, descriptors, and competitors.
-Uses Gemini AI for analysis.
+Analyzes collected LLM responses for brand mentions, sentiment, descriptors, and competitors.
+Uses Claude AI (Anthropic) for analysis.
 """
 
 import os
@@ -23,13 +23,13 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
 from app import models
 
-# Import Gemini
+# Import Anthropic Claude
 try:
-    import google.generativeai as genai
-    GOOGLE_AVAILABLE = True
+    from anthropic import Anthropic
+    ANTHROPIC_AVAILABLE = True
 except ImportError:
-    GOOGLE_AVAILABLE = False
-    print("⚠️  Google AI not available. Install with: pip install google-generativeai")
+    ANTHROPIC_AVAILABLE = False
+    print("⚠️  Anthropic SDK not available. Install with: pip install anthropic")
     sys.exit(1)
 
 # Target descriptors and competitors (loaded from database)
@@ -37,26 +37,25 @@ TARGET_DESCRIPTORS = []
 COMPETITORS = []
 
 class ResponseAnalyzer:
-    """Analyzes responses using Gemini AI."""
+    """Analyzes responses using Claude AI (Anthropic)."""
 
     def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, task_status_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
         self.brand_id = brand_id
         self.task_status_id = task_status_id
-        self.google_model = None
+        self.claude_client = None
         self.brand_name = "your brand"
         self.brand_info = None
 
-        # Set up Google Gemini
-        if GOOGLE_AVAILABLE:
-            google_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-            if google_key:
-                genai.configure(api_key=google_key)
-                self.google_model = genai.GenerativeModel('gemini-2.5-flash')
-                print("✓ Google Gemini configured for analysis (gemini-2.5-flash)")
+        # Set up Claude (Anthropic)
+        if ANTHROPIC_AVAILABLE:
+            anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+            if anthropic_key:
+                self.claude_client = Anthropic(api_key=anthropic_key)
+                print("✓ Claude AI configured for analysis (claude-3-haiku-20240307)")
             else:
-                print("⚠️  GEMINI_API_KEY not found in environment")
+                print("⚠️  ANTHROPIC_API_KEY not found in environment")
                 sys.exit(1)
 
         # Load brand info
@@ -136,7 +135,7 @@ class ResponseAnalyzer:
             print(f"  Warning: Could not update task progress: {e}")
 
     def build_analysis_prompt(self, query_text: str, response_text: str) -> str:
-        """Build a detailed prompt for Gemini to analyze the response."""
+        """Build a detailed prompt for Claude to analyze the response."""
 
         descriptors_list = "\n".join([f"  - {d}" for d in TARGET_DESCRIPTORS])
         competitors_list = "\n".join([f"  - {c}" for c in COMPETITORS])
@@ -208,15 +207,21 @@ Example format:
         return prompt
 
     def analyze_response(self, response: models.Response) -> Optional[Dict]:
-        """Analyze a single response using Gemini."""
-        if not self.google_model:
+        """Analyze a single response using Claude AI."""
+        if not self.claude_client:
             return None
 
         try:
             prompt = self.build_analysis_prompt(response.query_text, response.response_text)
 
-            result = self.google_model.generate_content(prompt)
-            analysis_text = result.text.strip()
+            # Call Claude API
+            message = self.claude_client.messages.create(
+                model="claude-3-haiku-20240307",  # Fast and cost-effective for analysis
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            analysis_text = message.content[0].text.strip()
 
             # Try to extract JSON from the response
             # Sometimes the model wraps JSON in markdown code blocks

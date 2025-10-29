@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
+from anthropic import Anthropic
 
 from app.database import SessionLocal
 from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User, TaskStatus
@@ -19,23 +20,13 @@ from app import crud, schemas
 
 # Load environment variables
 load_dotenv()
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-# Import Gemini
-try:
-    import google.generativeai as genai
-    GOOGLE_AVAILABLE = True
-except ImportError:
-    GOOGLE_AVAILABLE = False
-    print("⚠️  Google AI not available. Install with: pip install google-generativeai")
-    sys.exit(1)
+if not ANTHROPIC_API_KEY:
+    raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
 
-# Configure Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in environment variables")
-
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+# Initialize Claude client
+claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 # ==================== DATA COLLECTION ====================
@@ -317,8 +308,13 @@ Be specific, strategic, and actionable in your analysis.
 Do NOT use emojis or icons.
 Focus on concrete business insights and tactical recommendations."""
 
-    response = gemini_model.generate_content(prompt)
-    return response.text
+    response = claude_client.messages.create(
+        model="claude-3-haiku-20240307",  # Fast and cost-effective
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.content[0].text
 
 
 def generate_strategic_priorities(metrics_summary: Dict[str, Any], brand_name: str, brand_info: Optional[BrandInfo]) -> str:
@@ -348,8 +344,13 @@ Focus on actionable strategies to improve {brand_name}'s reputation and visibili
 Do NOT use emojis or icons.
 Be thoughtful, strategic, and specific in your recommendations."""
 
-    response = gemini_model.generate_content(prompt)
-    return response.text
+    response = claude_client.messages.create(
+        model="claude-3-haiku-20240307",  # Fast and cost-effective
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.content[0].text
 
 
 def generate_executive_summary(
@@ -384,8 +385,13 @@ Write in a professional, analytical tone. Focus on strategic insights, not just 
 Do NOT use emojis or icons.
 Do NOT use phrases like "This report" or "This analysis" - write directly about the findings."""
 
-    response = gemini_model.generate_content(prompt)
-    return response.text
+    response = claude_client.messages.create(
+        model="claude-3-haiku-20240307",  # Fast and cost-effective
+        max_tokens=2000,
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.content[0].text
 
 
 # ==================== REPORT GENERATION ====================
