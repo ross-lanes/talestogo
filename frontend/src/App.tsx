@@ -17,6 +17,12 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Settings from './pages/Settings';
 import UserManagement from './pages/admin/UserManagement';
+import SentimentAnalysis from './pages/analytics/SentimentAnalysis';
+import PositioningAnalysis from './pages/analytics/PositioningAnalysis';
+import ShareOfVoice from './pages/analytics/ShareOfVoice';
+import DescriptorAnalysis from './pages/analytics/DescriptorAnalysis';
+import CompetitorThreats from './pages/analytics/CompetitorThreats';
+import StrategicPriorities from './pages/analytics/StrategicPriorities';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -32,14 +38,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-// Placeholder components for other pages
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div>
-    <h2>{title}</h2>
-    <p>This page will be built in the next phase.</p>
-  </div>
-);
 
 function App() {
   return (
@@ -72,7 +70,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <PlaceholderPage title="Positioning Analysis" />
+                          <PositioningAnalysis />
                         </Layout>
                       </ProtectedRoute>
                     }
@@ -82,7 +80,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <PlaceholderPage title="Share of Voice" />
+                          <ShareOfVoice />
                         </Layout>
                       </ProtectedRoute>
                     }
@@ -92,7 +90,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <PlaceholderPage title="Descriptor Analysis" />
+                          <DescriptorAnalysis />
                         </Layout>
                       </ProtectedRoute>
                     }
@@ -102,7 +100,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <PlaceholderPage title="Sentiment Analysis" />
+                          <SentimentAnalysis />
                         </Layout>
                       </ProtectedRoute>
                     }
@@ -112,7 +110,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <PlaceholderPage title="Competitor Threats" />
+                          <CompetitorThreats />
                         </Layout>
                       </ProtectedRoute>
                     }
@@ -122,7 +120,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <PlaceholderPage title="Strategic Priorities" />
+                          <StrategicPriorities />
                         </Layout>
                       </ProtectedRoute>
                     }
