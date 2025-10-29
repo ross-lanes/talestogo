@@ -86,7 +86,22 @@ export default function PositioningAnalysis() {
                 <LabelList
                   dataKey="count"
                   position="right"
-                  formatter={(value: number, entry: any) => `${value} (${entry.percentage}%)`}
+                  content={(props: any) => {
+                    const { x, y, width, value, index } = props;
+                    const entry = chartData[index];
+                    return (
+                      <text
+                        x={Number(x) + Number(width) + 5}
+                        y={y}
+                        dy={4}
+                        fill="#666"
+                        fontSize={12}
+                        textAnchor="start"
+                      >
+                        {value} ({entry?.percentage}%)
+                      </text>
+                    );
+                  }}
                 />
               </Bar>
             </BarChart>
