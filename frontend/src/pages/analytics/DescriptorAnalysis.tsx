@@ -124,8 +124,8 @@ export default function DescriptorAnalysis() {
 
                     return { desc, usage, usageRate, isUsed, status, statusColor };
                   })
-                  .sort((a, b) => Number(b.usageRate) - Number(a.usageRate))
-                  .map(({ desc, usage, usageRate, isUsed, status, statusColor }, index) => (
+                  .sort((a: any, b: any) => Number(b.usageRate) - Number(a.usageRate))
+                  .map(({ desc, usage, usageRate, isUsed, status, statusColor }: any, index: number) => (
                     <TableRow key={index}>
                       <TableCell>
                         {isUsed ? (

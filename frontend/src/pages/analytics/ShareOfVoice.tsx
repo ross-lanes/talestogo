@@ -109,7 +109,7 @@ export default function ShareOfVoice() {
                 cx="50%"
                 cy="50%"
                 labelLine={true}
-                label={({ name, share_of_voice }) => `${name}: ${share_of_voice?.toFixed(1)}%`}
+                label={({ name, share_of_voice }: any) => `${name}: ${share_of_voice?.toFixed(1)}%`}
                 outerRadius={150}
                 fill="#8884d8"
                 dataKey="mention_count"
