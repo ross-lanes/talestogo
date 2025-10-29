@@ -68,11 +68,11 @@ export default function PositioningAnalysis() {
         </Typography>
 
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={chartData} layout="horizontal" margin={{ top: 20, right: 30, left: 100, bottom: 20 }}>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="position" width={90} />
+              <XAxis dataKey="position" />
+              <YAxis />
               <Tooltip
                 formatter={(value: number, name: string, props: any) => [
                   `${value} mentions (${props.payload.percentage}%)`,
@@ -85,18 +85,18 @@ export default function PositioningAnalysis() {
                 ))}
                 <LabelList
                   dataKey="count"
-                  position="right"
+                  position="top"
                   content={(props: any) => {
                     const { x, y, width, value, index } = props;
                     const entry = chartData[index];
                     return (
                       <text
-                        x={Number(x) + Number(width) + 5}
-                        y={y}
-                        dy={4}
+                        x={Number(x) + Number(width) / 2}
+                        y={Number(y) - 5}
                         fill="#666"
-                        fontSize={12}
-                        textAnchor="start"
+                        fontSize={14}
+                        fontWeight="bold"
+                        textAnchor="middle"
                       >
                         {value} ({entry?.percentage}%)
                       </text>

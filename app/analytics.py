@@ -330,7 +330,8 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         "top3_count": pppl_top3,
         "featured_count": pppl_featured,
         "total_mentions": pppl_leader + pppl_top3 + pppl_featured,
-        "share_of_voice": round(((pppl_leader + pppl_top3) / total_responses * 100), 1)
+        "share_of_voice": round(((pppl_leader + pppl_top3) / total_responses * 100), 1),
+        "is_brand": True  # Mark this as the user's brand
     }]
 
     # Add competitor data (simplified - assumes competitors in text field)
@@ -348,7 +349,8 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
             "top3_count": 0,
             "featured_count": 0,
             "total_mentions": comp_mentions,
-            "share_of_voice": round((comp_mentions / total_responses * 100), 1)
+            "share_of_voice": round((comp_mentions / total_responses * 100), 1),
+            "is_brand": False  # Mark as competitor
         })
 
     return sov_data

@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { api } from '../../services/api';
 
 const BRAND_COLOR = '#665775';
@@ -31,7 +31,17 @@ export default function ShareOfVoice() {
     );
   }
 
-  const shareData = Array.isArray(data) ? data : [];
+  // Transform API data to match expected format
+  // API returns: { organization, total_mentions, share_of_voice, is_brand, ... }
+  const shareData = Array.isArray(data)
+    ? data.map((item: any) => ({
+        name: item.organization,
+        mention_count: item.total_mentions,
+        share_of_voice: item.share_of_voice,
+        is_brand: item.is_brand || false
+      }))
+    : [];
+
   const brandData = shareData.find(item => item.is_brand) || null;
   const competitorData = shareData.filter(item => !item.is_brand);
 
@@ -93,6 +103,11 @@ export default function ShareOfVoice() {
                 {shareData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.is_brand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]} />
                 ))}
+                <LabelList
+                  dataKey="mention_count"
+                  position="top"
+                  style={{ fill: '#666', fontWeight: 'bold', fontSize: 12 }}
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
