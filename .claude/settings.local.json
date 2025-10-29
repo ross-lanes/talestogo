@@ -56,7 +56,9 @@
       "Read(//Users/rachelkremen/Library/**)",
       "Bash(./run.sh:*)",
       "Bash(timeout 300 python3:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(export DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3\")",
+      "Bash(timeout 10 .venv/bin/uvicorn:*)"
     ],
     "deny": [],
     "ask": []

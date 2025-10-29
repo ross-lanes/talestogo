@@ -65,6 +65,9 @@ def import_data():
             )
             db.add(user)
 
+        # Flush to ensure users are inserted before brand_info
+        db.flush()
+
         # Import brand_info
         print(f"Importing {len(data['brand_info'])} brand info records...")
         for brand_data in data['brand_info']:
@@ -80,6 +83,9 @@ def import_data():
                 updated_at=parse_datetime(brand_data['updated_at']),
             )
             db.add(brand)
+
+        # Flush to ensure brand_info is inserted before queries
+        db.flush()
 
         # Import queries
         print(f"Importing {len(data['queries'])} queries...")
@@ -99,6 +105,9 @@ def import_data():
                 updated_at=parse_datetime(query_data['updated_at']),
             )
             db.add(query)
+
+        # Flush to ensure queries are inserted before responses
+        db.flush()
 
         # Import responses
         print(f"Importing {len(data['responses'])} responses...")
