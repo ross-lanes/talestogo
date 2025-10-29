@@ -309,8 +309,8 @@ Do NOT use emojis or icons.
 Focus on concrete business insights and tactical recommendations."""
 
     response = claude_client.messages.create(
-        model="claude-3-haiku-20240307",  # Fast and cost-effective
-        max_tokens=2000,
+        model="claude-3-5-haiku-20241022",  # Latest Haiku: better quality for strategic insights
+        max_tokens=2500,  # More tokens for detailed threat analysis
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -345,8 +345,8 @@ Do NOT use emojis or icons.
 Be thoughtful, strategic, and specific in your recommendations."""
 
     response = claude_client.messages.create(
-        model="claude-3-haiku-20240307",  # Fast and cost-effective
-        max_tokens=2000,
+        model="claude-3-5-haiku-20241022",  # Latest Haiku: better quality for strategic insights
+        max_tokens=3000,  # More tokens for comprehensive strategic recommendations
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -386,7 +386,7 @@ Do NOT use emojis or icons.
 Do NOT use phrases like "This report" or "This analysis" - write directly about the findings."""
 
     response = claude_client.messages.create(
-        model="claude-3-haiku-20240307",  # Fast and cost-effective
+        model="claude-3-5-haiku-20241022",  # Latest Haiku: better quality for strategic insights
         max_tokens=2000,
         messages=[{"role": "user", "content": prompt}]
     )
