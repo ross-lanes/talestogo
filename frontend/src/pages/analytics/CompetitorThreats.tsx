@@ -83,9 +83,85 @@ export default function CompetitorThreats() {
       <Typography variant="h2" component="h1" gutterBottom>
         Competitor Threats
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Identify which competitors pose the greatest threat to your brand's visibility in AI responses.
-      </Typography>
+
+      {/* Static Explanatory Text */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          A <strong>threat</strong> is defined as a competitor whose presence in AI responses correlates with reduced visibility or negative sentiment for your brand. TALES calculates threat risk by analyzing the frequency of competitor mentions, their positioning relative to your brand, and the sentiment patterns when they appear alongside your brand.
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          Our threat risk calculation considers three key factors: how often the competitor appears in AI responses (mention frequency), whether your brand receives negative sentiment when this competitor is mentioned (competitive pressure), and whether the competitor receives positive sentiment (competitive advantage).
+        </Typography>
+        <Typography variant="body1">
+          Competitors are rated as <strong>High</strong> threat (score &gt;50) requiring immediate strategic attention, <strong>Medium</strong> threat (score 20-50) requiring monitoring, or <strong>Low</strong> threat (score &lt;20) representing minimal competitive pressure.
+        </Typography>
+      </Paper>
+
+      {/* Threat Assessment List */}
+      <Paper sx={{ p: 4, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Threat Assessment
+        </Typography>
+        {competitorThreats.length > 0 ? (
+          <Box>
+            {competitorThreats.map((comp, index) => {
+              // Generate assessment reasoning
+              let reason = '';
+              if (comp.threatLevel === 'High') {
+                reason = `${comp.name} appears in ${comp.mention_count} AI responses with significant competitive overlap (${comp.competitive_responses} responses). `;
+                if (comp.negative_overlap > 0) {
+                  reason += `Your brand received negative sentiment in ${comp.negative_overlap} responses where ${comp.name} was mentioned. `;
+                }
+                if (comp.positive_competitor > 0) {
+                  reason += `${comp.name} received positive sentiment in ${comp.positive_competitor} of these responses. `;
+                }
+                reason += 'This competitor poses a significant threat to your brand positioning.';
+              } else if (comp.threatLevel === 'Medium') {
+                reason = `${comp.name} has a moderate presence with ${comp.mention_count} mentions and ${comp.share_of_voice.toFixed(1)}% share of voice. `;
+                if (comp.competitive_responses > 0) {
+                  reason += `They appear alongside your brand in ${comp.competitive_responses} responses. `;
+                }
+                reason += 'Monitor this competitor to prevent escalation.';
+              } else {
+                reason = `${comp.name} has limited visibility with ${comp.mention_count} mentions and ${comp.share_of_voice.toFixed(1)}% share of voice. This competitor currently poses minimal threat to your brand positioning.`;
+              }
+
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    mb: 3,
+                    pb: 3,
+                    borderBottom: index < competitorThreats.length - 1 ? '1px solid #e0e0e0' : 'none'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                    <Typography variant="h6" component="span">
+                      {comp.name}
+                    </Typography>
+                    <Chip
+                      label={`Threat Risk: ${comp.threatLevel}`}
+                      size="small"
+                      sx={{
+                        backgroundColor: getThreatColor(comp.threatLevel),
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {reason}
+                  </Typography>
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <Alert severity="info">
+            No competitor threat data available yet. Run analysis to identify competitive threats.
+          </Alert>
+        )}
+      </Paper>
 
       {/* Summary Metrics */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3, mb: 4 }}>
@@ -199,29 +275,6 @@ export default function CompetitorThreats() {
         )}
       </Paper>
 
-      {/* Threat Explanation */}
-      <Paper sx={{ p: 4, mt: 4, backgroundColor: '#f5f5f5' }}>
-        <Typography variant="h6" gutterBottom>
-          How Threat Scores Are Calculated
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Threat scores are calculated based on multiple factors:
-        </Typography>
-        <ul>
-          <li>
-            <Typography variant="body2"><strong>Mention Frequency (70%):</strong> How often the competitor appears in AI responses</Typography>
-          </li>
-          <li>
-            <Typography variant="body2"><strong>Negative Brand Sentiment (2x weight):</strong> When your brand receives negative sentiment in responses that mention this competitor</Typography>
-          </li>
-          <li>
-            <Typography variant="body2"><strong>Positive Competitor Sentiment (1.5x weight):</strong> When the competitor receives positive sentiment</Typography>
-          </li>
-        </ul>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          <strong>Threat Levels:</strong> High (&gt;50), Medium (20-50), Low (&lt;20)
-        </Typography>
-      </Paper>
     </Box>
   );
 }

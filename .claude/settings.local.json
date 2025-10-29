@@ -52,7 +52,9 @@
       "Bash(git restore:*)",
       "Bash(./run.sh)",
       "Bash(source .venv/bin/activate)",
-      "Bash(.venv/bin/pip:*)"
+      "Bash(.venv/bin/pip:*)",
+      "Read(//Users/rachelkremen/Library/**)",
+      "Bash(./run.sh:*)"
     ],
     "deny": [],
     "ask": []

@@ -221,6 +221,54 @@ def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict
     sentiment_map = {row.sentiment: row.count for row in results}
     total = sum(sentiment_map.values())
 
+    # Get actual negative statements
+    negative_query = db.query(
+        models.Response.response_text,
+        models.Response.query_text,
+        models.Response.platform
+    ).filter(
+        and_(
+            models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+            models.Response.sentiment == 'Negative'
+        )
+    )
+    if brand_id:
+        negative_query = negative_query.filter(models.Response.brand_id == brand_id)
+
+    negative_responses = negative_query.all()
+    negative_statements = [
+        {
+            "text": resp.response_text,
+            "query": resp.query_text,
+            "platform": resp.platform
+        }
+        for resp in negative_responses
+    ]
+
+    # Get actual mixed statements
+    mixed_query = db.query(
+        models.Response.response_text,
+        models.Response.query_text,
+        models.Response.platform
+    ).filter(
+        and_(
+            models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+            models.Response.sentiment == 'Mixed'
+        )
+    )
+    if brand_id:
+        mixed_query = mixed_query.filter(models.Response.brand_id == brand_id)
+
+    mixed_responses = mixed_query.all()
+    mixed_statements = [
+        {
+            "text": resp.response_text,
+            "query": resp.query_text,
+            "platform": resp.platform
+        }
+        for resp in mixed_responses
+    ]
+
     return {
         "very_positive": sentiment_map.get('Very Positive', 0),
         "positive": sentiment_map.get('Positive', 0),
@@ -233,6 +281,8 @@ def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict
         "neutral_pct": round((sentiment_map.get('Neutral', 0) / total * 100) if total > 0 else 0, 1),
         "negative_pct": round((sentiment_map.get('Negative', 0) / total * 100) if total > 0 else 0, 1),
         "mixed_pct": round((sentiment_map.get('Mixed', 0) / total * 100) if total > 0 else 0, 1),
+        "negative_statements": negative_statements,
+        "mixed_statements": mixed_statements
     }
 
 

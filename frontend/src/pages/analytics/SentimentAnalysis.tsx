@@ -109,7 +109,7 @@ export default function SentimentAnalysis() {
       </Paper>
 
       {/* Key Insights */}
-      <Paper sx={{ p: 4 }}>
+      <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom>
           Key Insights
         </Typography>
@@ -129,6 +129,62 @@ export default function SentimentAnalysis() {
         ) : (
           <Typography variant="body2" color="text.secondary">
             No insights available yet.
+          </Typography>
+        )}
+      </Paper>
+
+      {/* Negative Statements */}
+      <Paper sx={{ p: 4, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Negative Statements
+        </Typography>
+        {data?.negative_statements && data.negative_statements.length > 0 ? (
+          <Box>
+            {data.negative_statements.map((statement: any, index: number) => (
+              <Box key={index} sx={{ mb: 3, pb: 3, borderBottom: index < data.negative_statements.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <strong>Query:</strong> {statement.query}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <strong>Platform:</strong> {statement.platform}
+                </Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {statement.text}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            None
+          </Typography>
+        )}
+      </Paper>
+
+      {/* Mixed Statements */}
+      <Paper sx={{ p: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Mixed Statements
+        </Typography>
+        {data?.mixed_statements && data.mixed_statements.length > 0 ? (
+          <Box>
+            {data.mixed_statements.map((statement: any, index: number) => (
+              <Box key={index} sx={{ mb: 3, pb: 3, borderBottom: index < data.mixed_statements.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <strong>Query:</strong> {statement.query}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <strong>Platform:</strong> {statement.platform}
+                </Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {statement.text}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            None
           </Typography>
         )}
       </Paper>

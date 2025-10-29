@@ -5,15 +5,26 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Get the absolute path of the project's root directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Define the database URL for SQLite
-# This ensures the path is always absolute, pointing to 'tales.db' in the project root
-DATABASE_URL = f"sqlite:///{os.path.join(PROJECT_ROOT, 'tales.db')}"
+# Get database URL from environment variable, or default to SQLite for local development
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    # Default to SQLite for local development
+    DATABASE_URL = f"sqlite:///{os.path.join(PROJECT_ROOT, 'tales.db')}"
+
+# Handle Render's postgres:// URL format (needs to be postgresql://)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Create the SQLAlchemy engine
 # connect_args is needed only for SQLite to allow it to be used by multiple threads
-engine = create_engine(
-    DATABASE_URL, connect_args={"check_same_thread": False}
-)
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+else:
+    # PostgreSQL doesn't need check_same_thread
+    engine = create_engine(DATABASE_URL)
 
 # Create a SessionLocal class. Each instance of this class will be a database session.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
