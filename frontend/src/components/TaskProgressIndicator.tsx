@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, LinearProgress, Typography, Paper, Alert } from '@mui/material';
+import { Box, LinearProgress, Typography, Paper, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { api } from '../services/api';
 
 interface TaskStatus {
@@ -21,20 +22,28 @@ interface TaskProgressIndicatorProps {
 export default function TaskProgressIndicator({ onComplete, autoRefresh = true }: TaskProgressIndicatorProps) {
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const fetchTaskStatus = async () => {
     try {
       const response = await api.get<TaskStatus>('/tasks/status/');
       const data = response.data;
 
+      const previousStatus = taskStatus?.status;
       setTaskStatus(data);
 
-      // If task is completed or failed, stop polling and call onComplete
-      if (data && (data.status === 'completed' || data.status === 'failed')) {
+      // If task just completed (transition from running to completed), show success dialog
+      if (data && data.status === 'completed' && previousStatus === 'running') {
         setIsPolling(false);
+        setShowSuccessDialog(true);
         if (onComplete) {
           onComplete();
         }
+      }
+
+      // If task failed, stop polling
+      if (data && data.status === 'failed') {
+        setIsPolling(false);
       }
     } catch (error) {
       console.error('Error fetching task status:', error);
@@ -61,11 +70,6 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
     return () => clearInterval(interval);
   }, [isPolling]);
 
-  // Don't render anything if no task or task is completed
-  if (!taskStatus || taskStatus.status === 'completed') {
-    return null;
-  }
-
   const getTaskTypeLabel = (taskType: string) => {
     switch (taskType) {
       case 'collection':
@@ -77,68 +81,126 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running':
-        return 'info';
-      case 'completed':
-        return 'success';
-      case 'failed':
-        return 'error';
-      default:
-        return 'default';
-    }
+  const handleCloseSuccessDialog = () => {
+    setShowSuccessDialog(false);
   };
 
-  return (
-    <Paper
-      elevation={2}
-      sx={{
-        p: 3,
-        mb: 3,
-        borderLeft: `4px solid`,
-        borderColor: taskStatus.status === 'failed' ? 'error.main' : 'primary.main',
-      }}
-    >
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          {getTaskTypeLabel(taskStatus.task_type)} in Progress
-        </Typography>
-
-        {taskStatus.status === 'failed' && taskStatus.error_message && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {taskStatus.error_message}
-          </Alert>
-        )}
-
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {taskStatus.message || 'Processing...'}
+  // Don't render progress bar if no task or task is completed
+  if (!taskStatus || taskStatus.status === 'completed') {
+    return (
+      <>
+        {/* Success Dialog */}
+        <Dialog
+          open={showSuccessDialog}
+          onClose={handleCloseSuccessDialog}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ textAlign: 'center', pt: 4 }}>
+            <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+            <Typography variant="h5" component="div">
+              Success!
             </Typography>
-            <Typography variant="body2" color="text.secondary" fontWeight="bold">
-              {taskStatus.progress}%
+          </DialogTitle>
+          <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
+            <Typography variant="body1" color="text.secondary">
+              Your data has been analyzed and your report is ready!
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+            <Button
+              onClick={handleCloseSuccessDialog}
+              variant="contained"
+              sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
+            >
+              Got it!
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Paper
+        elevation={2}
+        sx={{
+          p: 3,
+          mb: 3,
+          borderLeft: `4px solid`,
+          borderColor: taskStatus.status === 'failed' ? 'error.main' : 'primary.main',
+        }}
+      >
+        <Box>
+          <Typography variant="h6" gutterBottom>
+            {getTaskTypeLabel(taskStatus.task_type)} in Progress
+          </Typography>
+
+          {taskStatus.status === 'failed' && taskStatus.error_message && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {taskStatus.error_message}
+            </Alert>
+          )}
+
+          <Box sx={{ mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                {taskStatus.message || 'Processing...'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" fontWeight="bold">
+                {taskStatus.progress}%
+              </Typography>
+            </Box>
+
+            <LinearProgress
+              variant="determinate"
+              value={taskStatus.progress}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 4,
+                },
+              }}
+            />
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {taskStatus.processed_items} of {taskStatus.total_items} items processed
             </Typography>
           </Box>
-
-          <LinearProgress
-            variant="determinate"
-            value={taskStatus.progress}
-            sx={{
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: 'rgba(0, 0, 0, 0.1)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 4,
-              },
-            }}
-          />
-
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            {taskStatus.processed_items} of {taskStatus.total_items} items processed
-          </Typography>
         </Box>
-      </Box>
-    </Paper>
+      </Paper>
+
+      {/* Success Dialog */}
+      <Dialog
+        open={showSuccessDialog}
+        onClose={handleCloseSuccessDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ textAlign: 'center', pt: 4 }}>
+          <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+          <Typography variant="h5" component="div">
+            Success!
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
+          <Typography variant="body1" color="text.secondary">
+            Your data has been analyzed and your report is ready!
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
+          <Button
+            onClick={handleCloseSuccessDialog}
+            variant="contained"
+            sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
+          >
+            Got it!
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }

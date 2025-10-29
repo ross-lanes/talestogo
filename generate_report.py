@@ -12,21 +12,30 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
-from anthropic import Anthropic
 
 from app.database import SessionLocal
-from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User
+from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User, TaskStatus
 from app import crud, schemas
 
 # Load environment variables
 load_dotenv()
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
-if not ANTHROPIC_API_KEY:
-    raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+# Import Gemini
+try:
+    import google.generativeai as genai
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    GOOGLE_AVAILABLE = False
+    print("⚠️  Google AI not available. Install with: pip install google-generativeai")
+    sys.exit(1)
 
-# Initialize Claude client
-claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+# Configure Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in environment variables")
+
+genai.configure(api_key=GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
 
 # ==================== DATA COLLECTION ====================
@@ -308,13 +317,8 @@ Be specific, strategic, and actionable in your analysis.
 Do NOT use emojis or icons.
 Focus on concrete business insights and tactical recommendations."""
 
-    response = claude_client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=2000,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    return response.content[0].text
+    response = gemini_model.generate_content(prompt)
+    return response.text
 
 
 def generate_strategic_priorities(metrics_summary: Dict[str, Any], brand_name: str, brand_info: Optional[BrandInfo]) -> str:
@@ -344,13 +348,8 @@ Focus on actionable strategies to improve {brand_name}'s reputation and visibili
 Do NOT use emojis or icons.
 Be thoughtful, strategic, and specific in your recommendations."""
 
-    response = claude_client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=3000,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    return response.content[0].text
+    response = gemini_model.generate_content(prompt)
+    return response.text
 
 
 def generate_executive_summary(
@@ -385,13 +384,8 @@ Write in a professional, analytical tone. Focus on strategic insights, not just 
 Do NOT use emojis or icons.
 Do NOT use phrases like "This report" or "This analysis" - write directly about the findings."""
 
-    response = claude_client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=500,
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    return response.content[0].text
+    response = gemini_model.generate_content(prompt)
+    return response.text
 
 
 # ==================== REPORT GENERATION ====================
@@ -603,16 +597,34 @@ def generate_report_main(user_id: int, brand_id: int):
     print(f"Starting TALES Report Generation for Brand ID {brand_id}...")
 
     db = SessionLocal()
+    task = None  # Initialize to avoid UnboundLocalError
 
     try:
+        # Get the most recent task for this user and brand
+        task = db.query(TaskStatus).filter(
+            TaskStatus.user_id == user_id,
+            TaskStatus.brand_id == brand_id,
+            TaskStatus.task_type == "analysis_and_report"
+        ).order_by(TaskStatus.started_at.desc()).first()
+
         # Get brand info
         brand_info = get_brand_info(db, brand_id)
         if not brand_info:
             print(f"Error: Brand ID {brand_id} not found")
+            if task:
+                task.status = "failed"
+                task.error_message = f"Brand ID {brand_id} not found"
+                db.commit()
             return
 
         brand_name = brand_info.brand_name
         print(f"Generating report for: {brand_name}")
+
+        # Update task status: starting report generation
+        if task:
+            task.message = "Generating report..."
+            task.processed_items = task.total_items  # Analysis is complete
+            db.commit()
 
         # Step 1: Collect data
         print("\nCollecting data from database...")
@@ -701,6 +713,12 @@ def generate_report_main(user_id: int, brand_id: int):
 
         # Step 5: Save to database
         print("\nSaving report to database...")
+
+        # Update task status: saving report
+        if task:
+            task.message = "Saving report to database..."
+            db.commit()
+
         report_title = f"{brand_name} AI Reputation Analysis - {datetime.now().strftime('%Y-%m-%d')}"
 
         report_obj = Report(
@@ -725,6 +743,14 @@ def generate_report_main(user_id: int, brand_id: int):
 
         print(f"Report saved to file: {filename}")
         print("\nReport generation complete!")
+
+        # Update task status: completed
+        if task:
+            task.status = "completed"
+            task.completed_at = datetime.now()
+            task.message = "Analysis and report generation completed"
+            db.commit()
+
         print(f"\nReport Preview (first 500 chars):")
         print("-" * 60)
         print(markdown_report[:500] + "...")
@@ -734,6 +760,13 @@ def generate_report_main(user_id: int, brand_id: int):
         print(f"\nError generating report: {e}")
         import traceback
         traceback.print_exc()
+
+        # Update task status: failed
+        if task:
+            task.status = "failed"
+            task.error_message = str(e)
+            task.completed_at = datetime.now()
+            db.commit()
     finally:
         db.close()
 
