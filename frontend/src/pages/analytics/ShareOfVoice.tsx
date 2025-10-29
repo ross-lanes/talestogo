@@ -1,12 +1,12 @@
 import { Box, Typography, Paper, CircularProgress, Alert } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { api } from '../../services/api';
 
 const BRAND_COLOR = '#665775';
 const COMPETITOR_COLORS = [
-  '#80a1d4', '#75c9c8', '#c0b9dd',  // Original TALES colors (removed #ded9e2 - too light)
-  '#A13C84', '#4A55EA', '#58A13B', '#44809C', '#EA4A4A'   // Extended palette
+  '#80a1d4', '#75c9c8', '#44809C',  // TALES colors (removed #c0b9dd and #ded9e2)
+  '#A13C84', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
 ];
 
 export default function ShareOfVoice() {
@@ -64,9 +64,13 @@ export default function ShareOfVoice() {
       <Typography variant="h2" component="h1" gutterBottom>
         Share of Voice
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Compare your brand's visibility against competitors in AI responses.
-      </Typography>
+
+      {/* Explanatory Text */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1">
+          <strong>Share of Voice</strong> measures your brand's visibility relative to competitors across all AI responses. TALES calculates this by analyzing how frequently your brand appears in leadership positions (Leader, Top 3) compared to the total number of responses, expressing it as a percentage. A higher share of voice indicates stronger competitive positioning and greater mindshare in AI-generated content.
+        </Typography>
+      </Paper>
 
       {/* Key Metrics */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3, mb: 4 }}>
@@ -89,57 +93,28 @@ export default function ShareOfVoice() {
         </Paper>
       </Box>
 
-      {/* Bar Chart - Comparison */}
-      <Paper sx={{ p: 4, mb: 4 }}>
+      {/* Pie Chart - Share of Voice Distribution */}
+      <Paper sx={{ p: 4 }}>
         <Typography variant="h6" gutterBottom>
-          Mention Comparison
+          Share of Voice Distribution
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          This chart shows what percentage of the total "conversation" each organization owns. A larger slice means greater visibility and mind share in AI-generated content.
         </Typography>
         {shareData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={shareData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip formatter={(value: number) => [`${value} mentions`, 'Count']} />
-              <Legend />
-              <Bar dataKey="mention_count" name="Mentions" fill={BRAND_COLOR}>
-                {shareData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.is_brand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]} />
-                ))}
-                <LabelList
-                  dataKey="mention_count"
-                  position="top"
-                  style={{ fill: '#666', fontWeight: 'bold', fontSize: 12 }}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <Alert severity="info">
-            No share of voice data available yet. Run analysis to generate insights.
-          </Alert>
-        )}
-      </Paper>
-
-      {/* Pie Chart - Market Share */}
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Market Share Distribution
-        </Typography>
-        {pieData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={500}>
             <PieChart>
               <Pie
-                data={pieData}
+                data={shareData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, percentage }) => `${name}: ${percentage}%`}
-                outerRadius={120}
+                labelLine={true}
+                label={({ name, share_of_voice }) => `${name}: ${share_of_voice?.toFixed(1)}%`}
+                outerRadius={150}
                 fill="#8884d8"
-                dataKey="value"
+                dataKey="mention_count"
               >
-                {pieData.map((entry, index) => (
+                {shareData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={entry.is_brand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
@@ -148,8 +123,8 @@ export default function ShareOfVoice() {
               </Pie>
               <Tooltip
                 formatter={(value: number, name: string, props: any) => [
-                  `${value} mentions (${props.payload.percentage}%)`,
-                  name
+                  `${value} mentions (${props.payload.share_of_voice?.toFixed(1)}%)`,
+                  props.payload.name
                 ]}
               />
               <Legend />
@@ -157,46 +132,9 @@ export default function ShareOfVoice() {
           </ResponsiveContainer>
         ) : (
           <Alert severity="info">
-            No data available for visualization.
+            No share of voice data available yet. Run analysis to generate insights.
           </Alert>
         )}
-      </Paper>
-
-      {/* Detailed Breakdown */}
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Detailed Breakdown
-        </Typography>
-        <Box sx={{ mt: 2 }}>
-          {shareData
-            .sort((a, b) => (b.mention_count || 0) - (a.mention_count || 0))
-            .map((item, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  p: 2,
-                  mb: 1,
-                  backgroundColor: item.is_brand ? `${BRAND_COLOR}10` : '#f5f5f5',
-                  borderLeft: `4px solid ${item.is_brand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}`
-                }}
-              >
-                <Box>
-                  <Typography variant="body1" fontWeight={item.is_brand ? 'bold' : 'normal'}>
-                    {item.name} {item.is_brand && '(Your Brand)'}
-                  </Typography>
-                </Box>
-                <Box sx={{ textAlign: 'right' }}>
-                  <Typography variant="h6">{item.share_of_voice?.toFixed(1)}%</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {item.mention_count} mentions
-                  </Typography>
-                </Box>
-              </Box>
-            ))}
-        </Box>
       </Paper>
     </Box>
   );

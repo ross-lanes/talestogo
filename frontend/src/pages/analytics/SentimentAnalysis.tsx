@@ -4,12 +4,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { api } from '../../services/api';
 
 const COLORS = {
-  'Very Positive': '#58A13B',  // Green from extended palette
-  'Positive': '#75c9c8',       // TALES teal
-  'Neutral': '#c0b9dd',        // TALES lavender
-  'Negative': '#A13C84',       // Purple from extended palette
-  'Very Negative': '#EA4A4A',  // Red from extended palette
-  'Mixed': '#4A55EA'           // Blue from extended palette
+  'Very Positive': '#58A13B',  // Extended green
+  'Positive': '#4A55EA',       // Extended bright blue
+  'Neutral': '#A13C84',        // Extended purple
+  'Negative': '#EA4A4A',       // Extended red
+  'Very Negative': '#EA4A4A',  // Extended red (same as Negative)
+  'Mixed': '#75c9c8'           // TALES teal
 };
 
 export default function SentimentAnalysis() {
@@ -63,9 +63,13 @@ export default function SentimentAnalysis() {
       <Typography variant="h2" component="h1" gutterBottom>
         Sentiment Analysis
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Analyze the sentiment distribution across all brand mentions in AI responses.
-      </Typography>
+
+      {/* Explanatory Text */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1">
+          <strong>Sentiment analysis</strong> assesses the tone and attitude expressed toward your brand in AI responses. TALES evaluates each mention on a five-point scale: Very Positive, Positive, Neutral, Negative, or Very Negative, with an additional Mixed category for responses containing both positive and negative elements. This analysis reveals how AI systems characterize your brand's reputation and helps identify opportunities to improve perception.
+        </Typography>
+      </Paper>
 
       <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom>

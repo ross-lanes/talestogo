@@ -20,7 +20,7 @@ import {
   Alert,
   Snackbar,
 } from '@mui/material';
-import { CloudDownload as CollectionIcon } from '@mui/icons-material';
+import { CloudDownload as CollectionIcon, Analytics as AnalysisIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
@@ -33,8 +33,8 @@ interface Response {
   response_text: string;
   timestamp: string;
   analyzed_at: string | null;
-  mentioned_pppl: boolean | null;
-  sentiment_score: number | null;
+  brand_mentioned: string | null;
+  sentiment: string | null;
 }
 
 export default function Data() {
@@ -81,6 +81,29 @@ export default function Data() {
     },
   });
 
+  // Analysis mutation
+  const analysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/tasks/run-analysis/');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setShowProgress(true);
+      setSnackbar({
+        open: true,
+        message: data.message + ' Analysis will populate Mentioned and Sentiment columns.',
+        severity: 'info',
+      });
+    },
+    onError: (error: any) => {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to start analysis',
+        severity: 'error',
+      });
+    },
+  });
+
   const handleOpenConfirmDialog = () => {
     setConfirmDialogOpen(true);
   };
@@ -106,11 +129,24 @@ export default function Data() {
     setSelectedResponse(null);
   };
 
-  const getSentimentColor = (score: number | null) => {
-    if (score === null) return 'default';
-    if (score >= 0.5) return 'success';
-    if (score >= 0) return 'warning';
-    return 'error';
+  const getSentimentColor = (sentiment: string | null): 'success' | 'primary' | 'default' | 'warning' | 'error' => {
+    if (!sentiment) return 'default';
+    switch (sentiment) {
+      case 'Very Positive':
+        return 'success';
+      case 'Positive':
+        return 'primary';
+      case 'Neutral':
+        return 'default';
+      case 'Negative':
+        return 'warning';
+      case 'Very Negative':
+        return 'error';
+      case 'Mixed':
+        return 'warning';
+      default:
+        return 'default';
+    }
   };
 
   return (
@@ -119,24 +155,40 @@ export default function Data() {
         <Typography variant="h2" component="h1">
           AI Responses
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<CollectionIcon />}
-          onClick={handleOpenConfirmDialog}
-          disabled={collectionMutation.isPending}
-          sx={{
-            backgroundColor: '#80A1D4',
-            '&:hover': {
-              backgroundColor: '#6B8BC0',
-            },
-          }}
-        >
-          {collectionMutation.isPending ? 'Collecting...' : 'Collect Data'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={<CollectionIcon />}
+            onClick={handleOpenConfirmDialog}
+            disabled={collectionMutation.isPending}
+            sx={{
+              backgroundColor: '#80A1D4',
+              '&:hover': {
+                backgroundColor: '#6B8BC0',
+              },
+            }}
+          >
+            {collectionMutation.isPending ? 'Collecting...' : 'Collect Data'}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AnalysisIcon />}
+            onClick={() => analysisMutation.mutate()}
+            disabled={analysisMutation.isPending || !responses || responses.length === 0}
+            sx={{
+              backgroundColor: '#665775',
+              '&:hover': {
+                backgroundColor: '#554866',
+              },
+            }}
+          >
+            {analysisMutation.isPending ? 'Analyzing...' : 'Analyze Data'}
+          </Button>
+        </Box>
       </Box>
 
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        View all responses collected from LLM platforms. Click "Collect Data" to gather new responses.
+        View all responses collected from LLM platforms. Click "Collect Data" to gather new responses, then "Analyze Data" to populate the Mentioned and Sentiment columns.
       </Typography>
 
       {/* Progress Indicator */}
@@ -208,10 +260,10 @@ export default function Data() {
                       {response.timestamp ? format(new Date(response.timestamp), 'MMM dd, yyyy h:mm a') : '-'}
                     </TableCell>
                     <TableCell>
-                      {response.mentioned_pppl !== null ? (
+                      {response.brand_mentioned ? (
                         <Chip
-                          label={response.mentioned_pppl ? 'Yes' : 'No'}
-                          color={response.mentioned_pppl ? 'success' : 'default'}
+                          label={response.brand_mentioned}
+                          color={response.brand_mentioned === 'Yes' ? 'success' : response.brand_mentioned === 'Indirect' ? 'primary' : 'default'}
                           size="small"
                         />
                       ) : (
@@ -219,10 +271,10 @@ export default function Data() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {response.sentiment_score !== null && response.sentiment_score !== undefined ? (
+                      {response.sentiment ? (
                         <Chip
-                          label={response.sentiment_score.toFixed(2)}
-                          color={getSentimentColor(response.sentiment_score)}
+                          label={response.sentiment}
+                          color={getSentimentColor(response.sentiment)}
                           size="small"
                         />
                       ) : (
@@ -335,20 +387,18 @@ export default function Data() {
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Mentioned
+                    Brand Mentioned
                   </Typography>
                   <Typography variant="body2">
-                    {selectedResponse.mentioned_pppl !== null ? (selectedResponse.mentioned_pppl ? 'Yes' : 'No') : '-'}
+                    {selectedResponse.brand_mentioned || '-'}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Sentiment Score
+                    Sentiment
                   </Typography>
                   <Typography variant="body2">
-                    {selectedResponse.sentiment_score !== null && selectedResponse.sentiment_score !== undefined
-                      ? selectedResponse.sentiment_score.toFixed(2)
-                      : '-'}
+                    {selectedResponse.sentiment || '-'}
                   </Typography>
                 </Box>
                 <Box>

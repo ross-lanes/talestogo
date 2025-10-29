@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar } from '@mui/material';
+import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
   SentimentSatisfied as SentimentIcon,
@@ -9,6 +9,7 @@ import {
   Analytics as AnalysisIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 
@@ -70,6 +71,33 @@ export default function Dashboard() {
       return response.data;
     },
     refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
+
+  // Fetch sentiment breakdown
+  const { data: sentimentData } = useQuery({
+    queryKey: ['sentiment-breakdown'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/sentiment/breakdown');
+      return response.data;
+    },
+  });
+
+  // Fetch share of voice
+  const { data: shareOfVoice } = useQuery({
+    queryKey: ['share-of-voice-dashboard'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/share-of-voice');
+      return response.data;
+    },
+  });
+
+  // Fetch positioning data
+  const { data: positioningData } = useQuery({
+    queryKey: ['positioning-dashboard'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/positioning/breakdown');
+      return response.data;
+    },
   });
 
   // Collection mutation
@@ -248,7 +276,7 @@ export default function Dashboard() {
                     {metrics.mention_count} of {metrics.total_responses} responses
                   </Typography>
                 </Box>
-                <TrendingUpIcon sx={{ fontSize: 48, color: 'primary.main', opacity: 0.3 }} />
+                <TrendingUpIcon sx={{ fontSize: 48, color: '#665775' }} />
               </Box>
             </CardContent>
           </Card>
@@ -270,7 +298,7 @@ export default function Dashboard() {
                     Of {brandName} mentions
                   </Typography>
                 </Box>
-                <SentimentIcon sx={{ fontSize: 48, color: 'success.main', opacity: 0.3 }} />
+                <SentimentIcon sx={{ fontSize: 48, color: '#75C9C8' }} />
               </Box>
             </CardContent>
           </Card>
@@ -292,7 +320,7 @@ export default function Dashboard() {
                     Target descriptors used
                   </Typography>
                 </Box>
-                <LabelIcon sx={{ fontSize: 48, color: 'info.main', opacity: 0.3 }} />
+                <LabelIcon sx={{ fontSize: 48, color: '#80A1D4' }} />
               </Box>
             </CardContent>
           </Card>
@@ -313,78 +341,46 @@ export default function Dashboard() {
                     {metrics.leading_position}
                   </Typography>
                 </Box>
-                <VisibilityIcon sx={{ fontSize: 48, color: 'secondary.main', opacity: 0.3 }} />
+                <VisibilityIcon sx={{ fontSize: 48, color: '#665775' }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Charts Section Placeholder */}
+      {/* Charts Section */}
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300 }}>
-            <Typography variant="h6" gutterBottom>
-              Mention Rate Trend
-            </Typography>
-            <Box
-              sx={{
-                height: 240,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'background.default',
-                borderRadius: 1,
-              }}
-            >
-              <Typography color="textSecondary">
-                Chart will be added in next phase
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
-
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: 300 }}>
             <Typography variant="h6" gutterBottom>
               Sentiment Breakdown
             </Typography>
-            <Box
-              sx={{
-                height: 240,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'background.default',
-                borderRadius: 1,
-              }}
-            >
-              <Typography color="textSecondary">
-                Chart will be added in next phase
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300 }}>
-            <Typography variant="h6" gutterBottom>
-              Share of Voice
-            </Typography>
-            <Box
-              sx={{
-                height: 240,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'background.default',
-                borderRadius: 1,
-              }}
-            >
-              <Typography color="textSecondary">
-                Chart will be added in next phase
-              </Typography>
-            </Box>
+            {sentimentData && sentimentData.total > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Very Positive', value: sentimentData.very_positive || 0, fill: '#58A13B' },
+                      { name: 'Positive', value: sentimentData.positive || 0, fill: '#4A55EA' },
+                      { name: 'Neutral', value: sentimentData.neutral || 0, fill: '#A13C84' },
+                      { name: 'Mixed', value: sentimentData.mixed || 0, fill: '#75C9C8' },
+                      { name: 'Negative', value: sentimentData.negative || 0, fill: '#EA4A4A' },
+                    ].filter(item => item.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="value"
+                    label={(entry) => `${entry.name}: ${entry.value}`}
+                  >
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography color="textSecondary">No sentiment data available</Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
@@ -393,20 +389,101 @@ export default function Dashboard() {
             <Typography variant="h6" gutterBottom>
               Positioning Distribution
             </Typography>
-            <Box
-              sx={{
-                height: 240,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: 'background.default',
-                borderRadius: 1,
-              }}
-            >
-              <Typography color="textSecondary">
-                Chart will be added in next phase
-              </Typography>
+            {positioningData && positioningData.total > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={[
+                  { position: 'Leader', count: positioningData.leader || 0, fill: '#58A13B' },
+                  { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#4A55EA' },
+                  { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
+                  { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
+                  { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
+                ].filter(item => item.count > 0)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="position" angle={-45} textAnchor="end" height={80} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count">
+                    {[
+                      { position: 'Leader', count: positioningData.leader || 0, fill: '#58A13B' },
+                      { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#4A55EA' },
+                      { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
+                      { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
+                      { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
+                    ].filter(item => item.count > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography color="textSecondary">No positioning data available</Typography>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: 300 }}>
+            <Typography variant="h6" gutterBottom>
+              Key Insights
+            </Typography>
+            <Box sx={{ height: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-around' }}>
+              <Box>
+                <Typography variant="body2" color="textSecondary">Leading Position</Typography>
+                <Typography variant="h6" color="primary">{metrics?.leading_position || 'N/A'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="textSecondary">{brandName} Mention Rate</Typography>
+                <Typography variant="h5">{metrics?.mention_rate || 0}%</Typography>
+                <Typography variant="caption" color="textSecondary">
+                  {metrics?.mention_count || 0} mentions across all responses
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="textSecondary">Total Responses Analyzed</Typography>
+                <Typography variant="h5">{metrics?.total_responses || 0}</Typography>
+              </Box>
             </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: 300 }}>
+            <Typography variant="h6" gutterBottom>
+              Top Competitors
+            </Typography>
+            {shareOfVoice && shareOfVoice.length > 0 ? (
+              <Box sx={{ height: 240, overflowY: 'auto' }}>
+                <Table size="small">
+                  <TableBody>
+                    {shareOfVoice
+                      .filter((item: any) => !item.is_brand)
+                      .slice(0, 5)
+                      .map((item: any, index: number) => (
+                        <TableRow key={index}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{item.organization}</TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="bold">
+                              {item.share_of_voice?.toFixed(1)}%
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="caption" color="textSecondary">
+                              {item.total_mentions} mentions
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </Box>
+            ) : (
+              <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography color="textSecondary">No competitor data available</Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
       </Grid>

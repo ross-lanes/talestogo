@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { api } from '../../services/api';
 
-// TALES brand colors + extended palette (removed #ded9e2 - too light)
+// TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
-  '#665775', '#80a1d4', '#75c9c8', '#c0b9dd',  // Original TALES colors (minus light gray)
-  '#A13C84', '#4A55EA', '#58A13B', '#44809C', '#EA4A4A'   // Extended palette
+  '#665775', '#80a1d4', '#75c9c8', '#44809C',  // TALES colors
+  '#A13C84', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
 ];
 
 export default function PositioningAnalysis() {
@@ -58,24 +58,47 @@ export default function PositioningAnalysis() {
       <Typography variant="h2" component="h1" gutterBottom>
         Positioning Analysis
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Analyze how your brand is positioned when mentioned in AI responses.
-      </Typography>
+
+      {/* Explanatory Text */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1">
+          <strong>Brand positioning</strong> evaluates where your brand appears within AI-generated responses. TALES categorizes each mention into five tiers: Leader (primary recommendation), Top 3 (among leading options), Featured (notable mention), Listed (included but not emphasized), or Not Mentioned. This hierarchy reveals how AI systems prioritize your brand relative to alternatives when answering user queries.
+        </Typography>
+      </Paper>
+
+      {/* Key Metrics Summary */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 3, mb: 4 }}>
+        <Paper sx={{ p: 3, backgroundColor: '#665775', color: 'white' }}>
+          <Typography variant="h4">{data?.leader || 0}</Typography>
+          <Typography variant="body1">Leader Position</Typography>
+          <Typography variant="caption">Top recommendation</Typography>
+        </Paper>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h4">{data?.top_3 || 0}</Typography>
+          <Typography variant="body1">Top 3 Position</Typography>
+          <Typography variant="caption" color="text.secondary">Strong contender</Typography>
+        </Paper>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h4">{((data?.leader || 0) + (data?.top_3 || 0))}</Typography>
+          <Typography variant="body1">Combined Leadership</Typography>
+          <Typography variant="caption" color="text.secondary">Leader + Top 3</Typography>
+        </Paper>
+      </Box>
 
       <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom>
           Brand Positioning Distribution
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Total responses analyzed: {data?.total || 0} | Average positioning score: {data?.average_score?.toFixed(2) || 'N/A'}
+          How your brand is positioned across all AI responses
         </Typography>
 
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <ResponsiveContainer width="100%" height={500}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 100, left: 120, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="position" />
-              <YAxis />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="position" width={100} />
               <Tooltip
                 formatter={(value: number, name: string, props: any) => [
                   `${value} mentions (${props.payload.percentage}%)`,
@@ -88,18 +111,18 @@ export default function PositioningAnalysis() {
                 ))}
                 <LabelList
                   dataKey="count"
-                  position="top"
+                  position="right"
                   content={(props: any) => {
-                    const { x, y, width, value, index } = props;
+                    const { x, y, width, height, value, index } = props;
                     const entry = chartData[index];
                     return (
                       <text
-                        x={Number(x) + Number(width) / 2}
-                        y={Number(y) - 5}
+                        x={Number(x) + Number(width) + 10}
+                        y={Number(y) + Number(height) / 2}
                         fill="#666"
                         fontSize={14}
                         fontWeight="bold"
-                        textAnchor="middle"
+                        dominantBaseline="middle"
                       >
                         {value} ({entry?.percentage}%)
                       </text>
@@ -121,34 +144,34 @@ export default function PositioningAnalysis() {
         <Typography variant="h6" gutterBottom>
           Position Definitions
         </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2, mt: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3, mt: 2 }}>
           <Box>
-            <Typography variant="subtitle2" sx={{ color: '#665775' }}>Not mentioned (Score: 1)</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h6" sx={{ color: '#EA4A4A', mb: 1 }}>Not mentioned (Score: 1)</Typography>
+            <Typography variant="body1" color="text.secondary">
               Your brand was not mentioned in the response
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ color: '#80a1d4' }}>Listed (Score: 2)</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h6" sx={{ color: '#A13C84', mb: 1 }}>Listed (Score: 2)</Typography>
+            <Typography variant="body1" color="text.secondary">
               Your brand is mentioned in a list with competitors
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ color: '#75c9c8' }}>Featured (Score: 3)</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h6" sx={{ color: '#4A55EA', mb: 1 }}>Featured (Score: 3)</Typography>
+            <Typography variant="body1" color="text.secondary">
               Your brand is featured prominently in the response
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ color: '#c0b9dd' }}>Top 3 (Score: 4)</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h6" sx={{ color: '#44809C', mb: 1 }}>Top 3 (Score: 4)</Typography>
+            <Typography variant="body1" color="text.secondary">
               Your brand is among the top 3 recommendations
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ color: '#44809C' }}>Leader (Score: 5)</Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="h6" sx={{ color: '#58A13B', mb: 1 }}>Leader (Score: 5)</Typography>
+            <Typography variant="body1" color="text.secondary">
               Your brand is presented as the top choice or industry leader
             </Typography>
           </Box>

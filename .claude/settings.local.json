@@ -54,7 +54,9 @@
       "Bash(source .venv/bin/activate)",
       "Bash(.venv/bin/pip:*)",
       "Read(//Users/rachelkremen/Library/**)",
-      "Bash(./run.sh:*)"
+      "Bash(./run.sh:*)",
+      "Bash(timeout 300 python3:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []

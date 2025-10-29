@@ -69,52 +69,116 @@ export default function DescriptorAnalysis() {
       <Typography variant="h2" component="h1" gutterBottom>
         Descriptor Analysis
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Analyze which descriptive terms are most commonly associated with your brand in AI responses.
-      </Typography>
 
-      {/* Key Metrics */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3, mb: 4 }}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4">{descriptors?.length || 0}</Typography>
-          <Typography variant="body1">Target Descriptors</Typography>
-          <Typography variant="caption" color="text.secondary">Defined in your profile</Typography>
-        </Paper>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4">{descriptorStats.length}</Typography>
-          <Typography variant="body1">Unique Descriptors Used</Typography>
-          <Typography variant="caption" color="text.secondary">Found in responses</Typography>
-        </Paper>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4">{responses?.length || 0}</Typography>
-          <Typography variant="body1">Total Responses</Typography>
-          <Typography variant="caption" color="text.secondary">Analyzed for descriptors</Typography>
-        </Paper>
-      </Box>
+      {/* Explanatory Text */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1">
+          <strong>Descriptors</strong> are the specific words and phrases AI systems use to characterize your brand. TALES identifies descriptors by analyzing the language patterns in AI responses where your brand is mentioned, tracking which adjectives and descriptive terms appear most frequently. Understanding your descriptor profile reveals how AI models perceive and present your brand identity, helping you align your messaging strategy with how you're actually being described in AI-generated content.
+        </Typography>
+      </Paper>
 
-      {/* Top 10 Bar Chart */}
-      {chartData.length > 0 && (
-        <Paper sx={{ p: 4, mb: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Top 10 Most Common Descriptors
-          </Typography>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={150} />
-              <Tooltip formatter={(value: number) => [`${value} mentions`, 'Count']} />
-              <Legend />
-              <Bar dataKey="count" name="Mentions" fill="#665775" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Paper>
-      )}
-
-      {/* All Descriptors Table */}
+      {/* Target Descriptors - Consolidated Table */}
       <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom>
+          Your Target Descriptors
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Track your ideal brand descriptors. Green checkmarks (✓) show descriptors found in AI responses. Usage Rate indicates what percentage
+          of all responses include each descriptor. Status reflects performance: Strong (≥20% usage), Moderate (10-20%), Weak (&lt;10%), or Not Used (0%).
+        </Typography>
+        {descriptors && descriptors.length > 0 ? (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Used</TableCell>
+                  <TableCell>Target Descriptor</TableCell>
+                  <TableCell>Category</TableCell>
+                  <TableCell align="right">Mentions</TableCell>
+                  <TableCell align="right">Usage Rate</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {descriptors
+                  .map((desc: any) => {
+                    const usage = descriptorCounts.get(desc.descriptor) || 0;
+                    const usageRate = responses ? ((usage / responses.length) * 100).toFixed(1) : 0;
+                    const isUsed = usage > 0;
+
+                    let status = 'Not Used';
+                    let statusColor = '#EA4A4A'; // Red for not used
+
+                    if (usage > 0) {
+                      if (Number(usageRate) >= 20) {
+                        status = 'Strong';
+                        statusColor = '#75C9C8'; // High - TALES teal
+                      } else if (Number(usageRate) >= 10) {
+                        status = 'Moderate';
+                        statusColor = '#80A1D4'; // Medium - TALES blue
+                      } else {
+                        status = 'Weak';
+                        statusColor = '#665775'; // Low - TALES purple
+                      }
+                    }
+
+                    return { desc, usage, usageRate, isUsed, status, statusColor };
+                  })
+                  .sort((a, b) => Number(b.usageRate) - Number(a.usageRate))
+                  .map(({ desc, usage, usageRate, isUsed, status, statusColor }, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        {isUsed ? (
+                          <Box sx={{ color: '#58A13B', fontSize: '24px', fontWeight: 'bold' }}>✓</Box>
+                        ) : (
+                          <Box sx={{ color: '#EA4A4A', fontSize: '24px' }}>✗</Box>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={isUsed ? 'bold' : 'normal'}>
+                          {desc.descriptor}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{desc.category || 'Uncategorized'}</TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight={isUsed ? 'bold' : 'normal'}>
+                          {usage}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" fontWeight={isUsed ? 'bold' : 'normal'}>
+                          {usageRate}%
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={status}
+                          size="small"
+                          sx={{
+                            backgroundColor: statusColor,
+                            color: 'white'
+                          }}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ) : (
+          <Alert severity="info">
+            No target descriptors defined yet. Add them in the Customize → Descriptors section.
+          </Alert>
+        )}
+      </Paper>
+
+      {/* All Descriptors Table */}
+      <Paper sx={{ p: 4 }}>
+        <Typography variant="h6" gutterBottom>
           All Descriptors Performance
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Complete ranking of every descriptor found in AI responses. Usage Rate shows what percentage of total responses include each descriptor.
         </Typography>
         {descriptorStats.length > 0 ? (
           <TableContainer>
@@ -146,35 +210,6 @@ export default function DescriptorAnalysis() {
             No descriptor usage data available yet. Run analysis to see which descriptors are being used.
           </Alert>
         )}
-      </Paper>
-
-      {/* Target Descriptors */}
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Your Target Descriptors
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          These are the descriptors you've defined as ideal for your brand. Track how often they appear in AI responses.
-        </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 2 }}>
-          {descriptors && descriptors.length > 0 ? (
-            descriptors.map((desc: any, index: number) => {
-              const usage = descriptorCounts.get(desc.descriptor_text) || 0;
-              return (
-                <Chip
-                  key={index}
-                  label={`${desc.descriptor_text} ${usage > 0 ? `(${usage})` : ''}`}
-                  color={usage > 0 ? 'success' : 'default'}
-                  variant={usage > 0 ? 'filled' : 'outlined'}
-                />
-              );
-            })
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No target descriptors defined yet. Add them in the Customize section.
-            </Typography>
-          )}
-        </Box>
       </Paper>
     </Box>
   );

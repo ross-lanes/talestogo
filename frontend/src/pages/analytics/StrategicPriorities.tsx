@@ -162,26 +162,9 @@ export default function StrategicPriorities() {
 
       {/* Summary */}
       <Paper sx={{ p: 4, mb: 4, backgroundColor: '#665775', color: 'white' }}>
-        <Typography variant="h5" gutterBottom>
-          Executive Summary
-        </Typography>
         <Typography variant="body1">
-          Based on analysis of {dashboard?.total_responses || 0} AI responses, we've identified {priorities.length} strategic priorities to improve your brand's AI visibility and sentiment.
+          TALES has identified {priorities.length} strategic priorities to improve your brand's AI visibility and sentiment.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-          <Box>
-            <Typography variant="h6">{priorities.filter(p => p.priority === 'High').length}</Typography>
-            <Typography variant="caption">High Priority</Typography>
-          </Box>
-          <Box>
-            <Typography variant="h6">{priorities.filter(p => p.priority === 'Medium').length}</Typography>
-            <Typography variant="caption">Medium Priority</Typography>
-          </Box>
-          <Box>
-            <Typography variant="h6">{dashboard?.mention_rate?.toFixed(1)}%</Typography>
-            <Typography variant="caption">Current Mention Rate</Typography>
-          </Box>
-        </Box>
       </Paper>
 
       {/* Priorities List */}
@@ -233,45 +216,6 @@ export default function StrategicPriorities() {
           </Box>
         </Paper>
       ))}
-
-      {/* Next Steps */}
-      <Paper sx={{ p: 4, backgroundColor: '#f5f5f5' }}>
-        <Typography variant="h6" gutterBottom>
-          Next Steps
-        </Typography>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          To implement these strategic priorities effectively:
-        </Typography>
-        <List>
-          <ListItem>
-            <ListItemIcon>
-              <CheckCircle color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary="Create an Action Plan"
-              secondary="Assign owners and timelines for each priority"
-            />
-          </ListItem>
-          <ListItem>
-            <ListItemIcon>
-              <CheckCircle color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary="Monitor Progress"
-              secondary="Run monthly analyses to track improvements"
-            />
-          </ListItem>
-          <ListItem>
-            <ListItemIcon>
-              <CheckCircle color="primary" />
-            </ListItemIcon>
-            <ListItemText
-              primary="Iterate and Improve"
-              secondary="Adjust strategies based on data and results"
-            />
-          </ListItem>
-        </List>
-      </Paper>
     </Box>
   );
 }

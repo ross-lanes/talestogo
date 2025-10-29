@@ -1,7 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 
 // Custom Brand Colors
-// Palette: #665775, #80a1d4, #75c9c8, #c0b9dd, #ded9e2
+// Palette: #665775, #80a1d4, #75c9c8 (removed #c0b9dd and #ded9e2 - too light for charts)
 export const theme = createTheme({
   palette: {
     primary: {
@@ -37,7 +37,7 @@ export const theme = createTheme({
       main: '#4caf50',
     },
     background: {
-      default: '#ded9e2', // Light lavender - background
+      default: '#f5f5f5', // Light gray background (replaced lavender)
       paper: '#ffffff',
     },
   },
