@@ -72,7 +72,7 @@ export default function CompetitorThreats() {
   const getThreatColor = (level: string) => {
     switch(level) {
       case 'High': return '#f44336';
-      case 'Medium': return '#ff9800';
+      case 'Medium': return '#e65100';  // Darker orange for better readability
       case 'Low': return '#4caf50';
       default: return '#9e9e9e';
     }
@@ -97,7 +97,7 @@ export default function CompetitorThreats() {
           <Typography variant="caption" color="text.secondary">Require immediate attention</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="warning.main">
+          <Typography variant="h4" sx={{ color: '#e65100' }}>
             {competitorThreats.filter(c => c.threatLevel === 'Medium').length}
           </Typography>
           <Typography variant="body1">Medium Threat</Typography>

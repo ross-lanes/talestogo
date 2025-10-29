@@ -7,7 +7,7 @@ const COLORS = {
   'Leader': '#4caf50',
   'Top 3': '#8bc34a',
   'Featured': '#2196f3',
-  'Listed': '#ff9800',
+  'Listed': '#9c27b0',  // Purple instead of orange/yellow for readability
   'Not Mentioned': '#f44336'
 };
 
@@ -37,11 +37,22 @@ export default function PositioningAnalysis() {
   }
 
   // Transform data for bar chart
-  const chartData = Object.entries(data?.breakdown || {}).map(([position, count]) => ({
-    position,
-    count: count as number,
-    percentage: data?.total > 0 ? ((count as number / data.total) * 100).toFixed(1) : 0
-  }));
+  // API returns: { leader: 3, top_3: 10, featured: 9, listed: 10, not_mentioned: 43, total: 88, ... }
+  const positionMap: { [key: string]: string } = {
+    'leader': 'Leader',
+    'top_3': 'Top 3',
+    'featured': 'Featured',
+    'listed': 'Listed',
+    'not_mentioned': 'Not Mentioned'
+  };
+
+  const chartData = data
+    ? Object.entries(positionMap).map(([key, label]) => ({
+        position: label,
+        count: (data[key] as number) || 0,
+        percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0'
+      })).filter(item => item.count > 0)  // Only show positions with data
+    : [];
 
   return (
     <Box>
@@ -112,7 +123,7 @@ export default function PositioningAnalysis() {
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle2" color="warning.main">Listed (Score: 2)</Typography>
+            <Typography variant="subtitle2" sx={{ color: '#9c27b0' }}>Listed (Score: 2)</Typography>
             <Typography variant="body2" color="text.secondary">
               Your brand is mentioned in a list with competitors
             </Typography>

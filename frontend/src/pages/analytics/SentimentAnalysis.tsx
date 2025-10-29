@@ -7,7 +7,7 @@ const COLORS = {
   'Very Positive': '#4caf50',
   'Positive': '#8bc34a',
   'Neutral': '#9e9e9e',
-  'Negative': '#ff9800',
+  'Negative': '#e65100',  // Darker orange for better readability
   'Very Negative': '#f44336',
   'Mixed': '#2196f3'
 };
