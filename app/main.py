@@ -1128,15 +1128,6 @@ def get_task_status(
             task.completed_at = datetime.datetime.utcnow()
             task.message = "Analysis and report generation completed"
             db.commit()
+            db.refresh(task)
 
-    return {
-        "status": task.status,
-        "task_type": task.task_type,
-        "progress": task.progress,
-        "total_items": task.total_items,
-        "processed_items": task.processed_items,
-        "message": task.message,
-        "error_message": task.error_message,
-        "started_at": task.started_at,
-        "completed_at": task.completed_at
-    }
+    return task
