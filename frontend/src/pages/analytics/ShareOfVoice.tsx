@@ -4,7 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { api } from '../../services/api';
 
 const BRAND_COLOR = '#665775';
-const COMPETITOR_COLORS = ['#80a1d4', '#75c9c8', '#c9ada7', '#9a8c98', '#4a4e69', '#22223b', '#f2e9e4'];
+const COMPETITOR_COLORS = [
+  '#80a1d4', '#75c9c8', '#c0b9dd', '#ded9e2',  // Original TALES colors
+  '#A13C84', '#4A55EA', '#58A13B', '#44809C', '#EA4A4A'   // Extended palette
+];
 
 export default function ShareOfVoice() {
   const { data, isLoading, error } = useQuery({

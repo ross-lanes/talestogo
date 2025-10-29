@@ -4,12 +4,12 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { api } from '../../services/api';
 
 const COLORS = {
-  'Very Positive': '#4caf50',
-  'Positive': '#8bc34a',
-  'Neutral': '#9e9e9e',
-  'Negative': '#e65100',  // Darker orange for better readability
-  'Very Negative': '#f44336',
-  'Mixed': '#2196f3'
+  'Very Positive': '#58A13B',  // Green from extended palette
+  'Positive': '#75c9c8',       // TALES teal
+  'Neutral': '#c0b9dd',        // TALES lavender
+  'Negative': '#A13C84',       // Purple from extended palette
+  'Very Negative': '#EA4A4A',  // Red from extended palette
+  'Mixed': '#4A55EA'           // Blue from extended palette
 };
 
 export default function SentimentAnalysis() {

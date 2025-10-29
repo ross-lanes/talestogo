@@ -3,8 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { api } from '../../services/api';
 
-// TALES brand colors
-const BRAND_COLORS = ['#665775', '#80a1d4', '#75c9c8', '#c0b9dd', '#ded9e2'];
+// TALES brand colors + extended palette
+const BRAND_COLORS = [
+  '#665775', '#80a1d4', '#75c9c8', '#c0b9dd', '#ded9e2',  // Original TALES colors
+  '#A13C84', '#4A55EA', '#58A13B', '#44809C', '#EA4A4A'   // Extended palette
+];
 
 export default function PositioningAnalysis() {
   const { data, isLoading, error } = useQuery({

@@ -71,10 +71,10 @@ export default function CompetitorThreats() {
 
   const getThreatColor = (level: string) => {
     switch(level) {
-      case 'High': return '#f44336';
-      case 'Medium': return '#e65100';  // Darker orange for better readability
-      case 'Low': return '#4caf50';
-      default: return '#9e9e9e';
+      case 'High': return '#EA4A4A';   // Red from extended palette
+      case 'Medium': return '#A13C84'; // Purple from extended palette
+      case 'Low': return '#58A13B';    // Green from extended palette
+      default: return '#c0b9dd';       // TALES lavender for unknown
     }
   };
 
@@ -97,14 +97,14 @@ export default function CompetitorThreats() {
           <Typography variant="caption" color="text.secondary">Require immediate attention</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" sx={{ color: '#e65100' }}>
+          <Typography variant="h4" sx={{ color: '#A13C84' }}>
             {competitorThreats.filter(c => c.threatLevel === 'Medium').length}
           </Typography>
           <Typography variant="body1">Medium Threat</Typography>
           <Typography variant="caption" color="text.secondary">Monitor closely</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="success.main">
+          <Typography variant="h4" sx={{ color: '#58A13B' }}>
             {competitorThreats.filter(c => c.threatLevel === 'Low').length}
           </Typography>
           <Typography variant="body1">Low Threat</Typography>
