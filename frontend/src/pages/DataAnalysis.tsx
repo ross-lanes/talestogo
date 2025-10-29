@@ -32,9 +32,6 @@ import { api } from '../services/api';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
-import jsPDF from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
-import { saveAs } from 'file-saver';
 
 interface Report {
   id: number;
@@ -130,72 +127,31 @@ export default function DataAnalysis() {
     setViewDialogOpen(true);
   };
 
-  const handleDownloadMarkdown = (report: Report) => {
-    const blob = new Blob([report.report_content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${report.title}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadPDF = async (report: Report) => {
+  const handleDownloadHTML = async (report: Report) => {
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 15;
-      const maxWidth = pageWidth - 2 * margin;
+      const response = await api.get(`/reports/${report.id}/export/html`, {
+        responseType: 'blob',
+      });
 
-      // Title
-      doc.setFontSize(16);
-      doc.text(report.title, margin, 20);
-
-      // Content - split markdown into lines and add to PDF
-      doc.setFontSize(10);
-      const lines = report.report_content.split('\n');
-      let yPosition = 35;
-
-      for (const line of lines) {
-        if (yPosition > 280) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        // Simple markdown rendering - you can enhance this
-        let text = line;
-        let fontSize = 10;
-
-        if (line.startsWith('# ')) {
-          text = line.substring(2);
-          fontSize = 14;
-        } else if (line.startsWith('## ')) {
-          text = line.substring(3);
-          fontSize = 12;
-        } else if (line.startsWith('### ')) {
-          text = line.substring(4);
-          fontSize = 11;
-        }
-
-        doc.setFontSize(fontSize);
-        const splitText = doc.splitTextToSize(text, maxWidth);
-        doc.text(splitText, margin, yPosition);
-        yPosition += splitText.length * (fontSize / 2 + 2);
-      }
-
-      doc.save(`${report.title}.pdf`);
+      const blob = new Blob([response.data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       setSnackbar({
         open: true,
-        message: 'PDF downloaded successfully',
+        message: 'HTML report with charts downloaded successfully',
         severity: 'success',
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: 'Failed to generate PDF',
+        message: 'Failed to download HTML report',
         severity: 'error',
       });
     }
@@ -203,91 +159,31 @@ export default function DataAnalysis() {
 
   const handleDownloadWord = async (report: Report) => {
     try {
-      const lines = report.report_content.split('\n');
-      const paragraphs: Paragraph[] = [];
-
-      for (const line of lines) {
-        if (line.trim() === '') {
-          paragraphs.push(new Paragraph({ text: '' }));
-          continue;
-        }
-
-        // Parse markdown headings
-        if (line.startsWith('# ')) {
-          paragraphs.push(
-            new Paragraph({
-              text: line.substring(2),
-              heading: HeadingLevel.HEADING_1,
-              spacing: { before: 240, after: 120 },
-            })
-          );
-        } else if (line.startsWith('## ')) {
-          paragraphs.push(
-            new Paragraph({
-              text: line.substring(3),
-              heading: HeadingLevel.HEADING_2,
-              spacing: { before: 200, after: 100 },
-            })
-          );
-        } else if (line.startsWith('### ')) {
-          paragraphs.push(
-            new Paragraph({
-              text: line.substring(4),
-              heading: HeadingLevel.HEADING_3,
-              spacing: { before: 160, after: 80 },
-            })
-          );
-        } else if (line.startsWith('**') && line.endsWith('**')) {
-          // Bold text
-          paragraphs.push(
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: line.replace(/\*\*/g, ''),
-                  bold: true,
-                }),
-              ],
-              spacing: { after: 120 },
-            })
-          );
-        } else {
-          // Regular paragraph - remove markdown formatting
-          const text = line
-            .replace(/\*\*(.+?)\*\*/g, '$1') // Remove bold markers
-            .replace(/\*(.+?)\*/g, '$1') // Remove italic markers
-            .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text
-            .replace(/`(.+?)`/g, '$1'); // Remove code markers
-
-          paragraphs.push(
-            new Paragraph({
-              text: text,
-              spacing: { after: 120 },
-            })
-          );
-        }
-      }
-
-      const doc = new Document({
-        sections: [
-          {
-            properties: {},
-            children: paragraphs,
-          },
-        ],
+      const response = await api.get(`/reports/${report.id}/export/word`, {
+        responseType: 'blob',
       });
 
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, `${report.title}.docx`);
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       setSnackbar({
         open: true,
-        message: 'Word document downloaded successfully',
+        message: 'Word document with charts downloaded successfully',
         severity: 'success',
       });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: 'Failed to generate Word document',
+        message: 'Failed to download Word document',
         severity: 'error',
       });
     }
@@ -424,28 +320,21 @@ export default function DataAnalysis() {
                           View
                         </Button>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           size="small"
                           startIcon={<DownloadIcon />}
                           onClick={() => handleDownloadWord(report)}
+                          sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
                         >
-                          Word
+                          Word + Charts
                         </Button>
                         <Button
                           variant="outlined"
                           size="small"
                           startIcon={<DownloadIcon />}
-                          onClick={() => handleDownloadPDF(report)}
+                          onClick={() => handleDownloadHTML(report)}
                         >
-                          PDF
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<DownloadIcon />}
-                          onClick={() => handleDownloadMarkdown(report)}
-                        >
-                          Markdown
+                          HTML
                         </Button>
                       </Box>
                     </TableCell>
@@ -522,14 +411,15 @@ export default function DataAnalysis() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => handleDownloadWord(selectedReport!)}>
-            Download Word
+          <Button
+            onClick={() => handleDownloadWord(selectedReport!)}
+            variant="contained"
+            sx={{ bgcolor: '#665775', color: 'white', '&:hover': { bgcolor: '#80a1d4' } }}
+          >
+            Word + Charts
           </Button>
-          <Button onClick={() => handleDownloadPDF(selectedReport!)}>
-            Download PDF
-          </Button>
-          <Button onClick={() => handleDownloadMarkdown(selectedReport!)}>
-            Download Markdown
+          <Button onClick={() => handleDownloadHTML(selectedReport!)}>
+            HTML
           </Button>
           <Button onClick={() => setViewDialogOpen(false)} variant="contained">
             Close

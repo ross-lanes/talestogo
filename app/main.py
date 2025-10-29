@@ -592,16 +592,21 @@ def export_report_to_word(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Export a report to Word document format."""
-    from app.services.report_export import export_to_word
+    """Export a report to Word document format with embedded charts."""
+    from app.services.report_export import export_to_word_with_charts
 
     # Get the report
     db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
     if db_report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Generate Word document
-    word_file = export_to_word(db_report.report_content, db_report.title)
+    # Generate Word document with charts
+    word_file = export_to_word_with_charts(
+        db_report.report_content,
+        db_report.title,
+        db,
+        brand_id=current_user.active_brand_id
+    )
 
     # Create safe filename
     safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -638,6 +643,38 @@ def export_report_to_pdf(
     return StreamingResponse(
         pdf_file,
         media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.get("/reports/{report_id}/export/html", tags=["Reports"])
+def export_report_to_html(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export a report to interactive HTML with embedded Chart.js visualizations."""
+    from app.services.report_html import generate_html_report_with_charts
+
+    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Generate HTML with charts
+    html_content = generate_html_report_with_charts(
+        db_report.report_content,
+        db_report.title,
+        db,
+        brand_id=current_user.active_brand_id
+    )
+
+    # Create safe filename
+    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{safe_filename}.html"
+
+    return StreamingResponse(
+        io.BytesIO(html_content.encode('utf-8')),
+        media_type="text/html",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 

@@ -16,6 +16,10 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 import markdown2
+import matplotlib
+matplotlib.use('Agg')  # Use non-GUI backend
+import matplotlib.pyplot as plt
+from sqlalchemy.orm import Session
 
 
 def export_to_word(markdown_content: str, title: str) -> io.BytesIO:
@@ -311,3 +315,277 @@ def export_to_pdf(markdown_content: str, title: str) -> io.BytesIO:
     output.seek(0)
 
     return output
+
+
+def export_to_word_with_charts(
+    markdown_content: str,
+    title: str,
+    db: Session,
+    brand_id: Optional[int] = None
+) -> io.BytesIO:
+    """
+    Convert markdown report to Word document with embedded chart images.
+
+    Args:
+        markdown_content: The markdown content to convert
+        title: The report title
+        db: Database session for fetching analytics data
+        brand_id: Optional brand ID for filtering data
+
+    Returns:
+        BytesIO object containing the Word document with charts
+    """
+    from app.services import analytics
+
+    doc = Document()
+
+    # Set document margins
+    sections = doc.sections
+    for section in sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1)
+        section.right_margin = Inches(1)
+
+    # Add title
+    title_para = doc.add_heading(title, level=0)
+    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()  # Spacer
+
+    # Generate charts as images
+    chart_images = _generate_chart_images(db, brand_id)
+
+    # Add Executive Summary section with charts
+    doc.add_heading('Executive Summary', level=1)
+
+    # Add sentiment chart
+    if 'sentiment' in chart_images:
+        doc.add_paragraph('Sentiment Distribution', style='Heading 2')
+        doc.add_picture(chart_images['sentiment'], width=Inches(5.5))
+        doc.add_paragraph()
+
+    # Add positioning chart
+    if 'positioning' in chart_images:
+        doc.add_paragraph('Brand Positioning Breakdown', style='Heading 2')
+        doc.add_picture(chart_images['positioning'], width=Inches(5.5))
+        doc.add_paragraph()
+
+    # Add share of voice chart
+    if 'share_of_voice' in chart_images:
+        doc.add_paragraph('Share of Voice Analysis', style='Heading 2')
+        doc.add_picture(chart_images['share_of_voice'], width=Inches(5.5))
+        doc.add_paragraph()
+
+    # Add page break before detailed content
+    doc.add_page_break()
+
+    # Parse markdown content
+    doc.add_heading('Detailed Analysis', level=1)
+    lines = markdown_content.split('\n')
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Skip empty lines
+        if not line:
+            i += 1
+            continue
+
+        # H1 Headers
+        if line.startswith('# '):
+            text = line[2:].strip()
+            heading = doc.add_heading(text, level=1)
+            heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        # H2 Headers
+        elif line.startswith('## '):
+            text = line[3:].strip()
+            heading = doc.add_heading(text, level=2)
+            heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        # H3 Headers
+        elif line.startswith('### '):
+            text = line[4:].strip()
+            heading = doc.add_heading(text, level=3)
+            heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        # Horizontal rules
+        elif line.startswith('---') or line.startswith('***'):
+            doc.add_paragraph('_' * 80)
+
+        # Tables
+        elif line.startswith('|'):
+            # Collect all table lines
+            table_lines = []
+            while i < len(lines) and lines[i].strip().startswith('|'):
+                table_lines.append(lines[i].strip())
+                i += 1
+            i -= 1
+
+            # Parse table
+            if len(table_lines) >= 2:
+                header = [cell.strip() for cell in table_lines[0].split('|')[1:-1]]
+                data_rows = []
+                for row_line in table_lines[2:]:
+                    cells = [cell.strip() for cell in row_line.split('|')[1:-1]]
+                    data_rows.append(cells)
+
+                if data_rows:
+                    table = doc.add_table(rows=1 + len(data_rows), cols=len(header))
+                    table.style = 'Light Grid Accent 1'
+
+                    # Add header
+                    header_cells = table.rows[0].cells
+                    for idx, header_text in enumerate(header):
+                        header_cells[idx].text = header_text
+                        for paragraph in header_cells[idx].paragraphs:
+                            for run in paragraph.runs:
+                                run.font.bold = True
+
+                    # Add data rows
+                    for row_idx, row_data in enumerate(data_rows, start=1):
+                        cells = table.rows[row_idx].cells
+                        for col_idx, cell_data in enumerate(row_data):
+                            clean_text = cell_data.replace('**', '')
+                            cells[col_idx].text = clean_text
+
+        # Bullet points
+        elif line.startswith('- ') or line.startswith('* '):
+            text = line[2:].strip().replace('**', '')
+            doc.add_paragraph(text, style='List Bullet')
+
+        # Numbered lists
+        elif re.match(r'^\d+\.\s', line):
+            text = re.sub(r'^\d+\.\s+', '', line).replace('**', '')
+            doc.add_paragraph(text, style='List Number')
+
+        # Regular paragraphs
+        else:
+            text = line.replace('**', '')
+            if text:
+                para = doc.add_paragraph(text)
+                para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        i += 1
+
+    # Clean up chart images
+    for img_buffer in chart_images.values():
+        img_buffer.close()
+
+    # Save to BytesIO
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+
+    return output
+
+
+def _generate_chart_images(db: Session, brand_id: Optional[int] = None) -> dict:
+    """Generate chart images for Word document embedding."""
+    from app.services import analytics
+
+    chart_images = {}
+
+    # TALES brand colors
+    COLORS = {
+        'primary': '#665775',
+        'secondary': '#80a1d4',
+        'accent': '#75c9c8',
+        'positive': '#4caf50',
+        'neutral': '#9e9e9e',
+        'negative': '#f44336',
+    }
+
+    try:
+        # 1. Sentiment Pie Chart
+        sentiment_data = analytics.get_sentiment_breakdown(db, brand_id=brand_id)
+        if sentiment_data:
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+            sentiments = list(sentiment_data.keys())
+            counts = list(sentiment_data.values())
+
+            # Color mapping for sentiments
+            sentiment_colors = {
+                'Very Positive': '#4caf50',
+                'Positive': '#8bc34a',
+                'Neutral': '#9e9e9e',
+                'Negative': '#ff9800',
+                'Very Negative': '#f44336',
+                'Mixed': '#2196f3'
+            }
+            colors_list = [sentiment_colors.get(s, '#999999') for s in sentiments]
+
+            ax.pie(counts, labels=sentiments, autopct='%1.1f%%', colors=colors_list, startangle=90)
+            ax.set_title('Sentiment Distribution', fontsize=16, fontweight='bold', pad=20)
+
+            # Save to BytesIO
+            img_buffer = io.BytesIO()
+            plt.tight_layout()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+            img_buffer.seek(0)
+            chart_images['sentiment'] = img_buffer
+            plt.close(fig)
+
+        # 2. Positioning Bar Chart
+        positioning_data = analytics.get_positioning_breakdown(db, brand_id=brand_id)
+        if positioning_data:
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+            positions = list(positioning_data.keys())
+            counts = list(positioning_data.values())
+
+            bars = ax.barh(positions, counts, color=COLORS['primary'])
+            ax.set_xlabel('Number of Responses', fontsize=12)
+            ax.set_title('Brand Positioning Breakdown', fontsize=16, fontweight='bold', pad=20)
+            ax.invert_yaxis()
+
+            # Add value labels
+            for i, (bar, count) in enumerate(zip(bars, counts)):
+                ax.text(count, i, f' {count}', va='center', fontsize=10)
+
+            # Save to BytesIO
+            img_buffer = io.BytesIO()
+            plt.tight_layout()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+            img_buffer.seek(0)
+            chart_images['positioning'] = img_buffer
+            plt.close(fig)
+
+        # 3. Share of Voice Chart
+        sov_data = analytics.get_share_of_voice(db, brand_id=brand_id)
+        if sov_data:
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+            # Sort by mention count
+            sorted_data = sorted(sov_data.items(), key=lambda x: x[1], reverse=True)
+            entities = [item[0] for item in sorted_data]
+            counts = [item[1] for item in sorted_data]
+
+            # Highlight brand in different color
+            colors_list = [COLORS['primary'] if i == 0 else COLORS['secondary'] for i in range(len(entities))]
+
+            bars = ax.barh(entities, counts, color=colors_list)
+            ax.set_xlabel('Mention Count', fontsize=12)
+            ax.set_title('Share of Voice - Brand vs Competitors', fontsize=16, fontweight='bold', pad=20)
+            ax.invert_yaxis()
+
+            # Add value labels
+            for i, (bar, count) in enumerate(zip(bars, counts)):
+                ax.text(count, i, f' {count}', va='center', fontsize=10)
+
+            # Save to BytesIO
+            img_buffer = io.BytesIO()
+            plt.tight_layout()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+            img_buffer.seek(0)
+            chart_images['share_of_voice'] = img_buffer
+            plt.close(fig)
+
+    except Exception as e:
+        print(f"Error generating charts: {e}")
+        # Return empty dict if chart generation fails
+        pass
+
+    return chart_images
