@@ -5,7 +5,7 @@ import { api } from '../../services/api';
 
 const BRAND_COLOR = '#665775';
 const COMPETITOR_COLORS = [
-  '#80a1d4', '#75c9c8', '#c0b9dd', '#ded9e2',  // Original TALES colors
+  '#80a1d4', '#75c9c8', '#c0b9dd',  // Original TALES colors (removed #ded9e2 - too light)
   '#A13C84', '#4A55EA', '#58A13B', '#44809C', '#EA4A4A'   // Extended palette
 ];
 

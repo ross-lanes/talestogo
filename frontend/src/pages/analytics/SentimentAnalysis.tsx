@@ -38,11 +38,25 @@ export default function SentimentAnalysis() {
   }
 
   // Transform data for pie chart
-  const chartData = Object.entries(data?.breakdown || {}).map(([sentiment, count]) => ({
-    name: sentiment,
-    value: count as number,
-    percentage: data?.total > 0 ? ((count as number / data.total) * 100).toFixed(1) : 0
-  }));
+  // API returns: { very_positive, positive, neutral, negative, mixed, total, ... }
+  const sentimentMap: { [key: string]: string } = {
+    'very_positive': 'Very Positive',
+    'positive': 'Positive',
+    'neutral': 'Neutral',
+    'negative': 'Negative',
+    'very_negative': 'Very Negative',
+    'mixed': 'Mixed'
+  };
+
+  const chartData = data
+    ? Object.entries(sentimentMap)
+        .map(([key, label]) => ({
+          name: label,
+          value: (data[key] as number) || 0,
+          percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0'
+        }))
+        .filter(item => item.value > 0)  // Only show sentiments with data
+    : [];
 
   return (
     <Box>

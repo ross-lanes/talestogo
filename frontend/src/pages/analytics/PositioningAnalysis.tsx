@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { api } from '../../services/api';
 
-// TALES brand colors + extended palette
+// TALES brand colors + extended palette (removed #ded9e2 - too light)
 const BRAND_COLORS = [
-  '#665775', '#80a1d4', '#75c9c8', '#c0b9dd', '#ded9e2',  // Original TALES colors
+  '#665775', '#80a1d4', '#75c9c8', '#c0b9dd',  // Original TALES colors (minus light gray)
   '#A13C84', '#4A55EA', '#58A13B', '#44809C', '#EA4A4A'   // Extended palette
 ];
 
@@ -147,7 +147,7 @@ export default function PositioningAnalysis() {
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ color: '#ded9e2' }}>Leader (Score: 5)</Typography>
+            <Typography variant="subtitle2" sx={{ color: '#44809C' }}>Leader (Score: 5)</Typography>
             <Typography variant="body2" color="text.secondary">
               Your brand is presented as the top choice or industry leader
             </Typography>
