@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
   SentimentSatisfied as SentimentIcon,
@@ -7,7 +7,10 @@ import {
   Label as LabelIcon,
   CloudDownload as CollectionIcon,
   Analytics as AnalysisIcon,
+  Warning as WarningIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
+import html2canvas from 'html2canvas';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -43,6 +46,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { activeBrand } = useBrand();
+  const dashboardRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
@@ -52,6 +56,47 @@ export default function Dashboard() {
   const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(false);
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
+
+  // Function to download dashboard as PNG
+  const handleDownloadDashboard = async () => {
+    if (dashboardRef.current) {
+      try {
+        // Add a small delay to ensure all content is rendered
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const canvas = await html2canvas(dashboardRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2, // Higher quality
+          allowTaint: true,
+          useCORS: true,
+          scrollY: -window.scrollY,
+          scrollX: -window.scrollX,
+        });
+
+        // Format date as MM_DD_YYYY
+        const now = new Date();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const year = now.getFullYear();
+        const dateStr = `${month}_${day}_${year}`;
+
+        // Format brand name (replace spaces with underscores, remove special chars)
+        const brandNameFormatted = brandName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+
+        const link = document.createElement('a');
+        link.download = `${brandNameFormatted}_TalesDashboard_${dateStr}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (error) {
+        console.error('Error generating dashboard screenshot:', error);
+        setSnackbar({
+          open: true,
+          message: 'Failed to download dashboard',
+          severity: 'error',
+        });
+      }
+    }
+  };
 
   // Show welcome dialog for new users without a brand (once per session)
   useEffect(() => {
@@ -117,6 +162,15 @@ export default function Dashboard() {
     queryKey: ['positioning-dashboard'],
     queryFn: async () => {
       const response = await api.get('/analytics/positioning/breakdown');
+      return response.data;
+    },
+  });
+
+  // Fetch responses for threat calculation
+  const { data: responses } = useQuery({
+    queryKey: ['responses-dashboard'],
+    queryFn: async () => {
+      const response = await api.get('/responses/');
       return response.data;
     },
   });
@@ -229,6 +283,35 @@ export default function Dashboard() {
     );
   };
 
+  // Calculate competitor threats
+  const competitors = Array.isArray(shareOfVoice) ? shareOfVoice.filter((item: any) => !item.is_brand) : [];
+  const competitorThreats = competitors.map((comp: any) => {
+    const competitiveResponses = Array.isArray(responses) ? responses.filter((r: any) =>
+      r.competitors && r.competitors.includes(comp.organization)
+    ) : [];
+
+    const negativeWhenCompetitorPresent = competitiveResponses.filter((r: any) =>
+      r.sentiment === 'Negative' || r.sentiment === 'Very Negative'
+    ).length;
+
+    const positiveCompetitor = competitiveResponses.filter((r: any) =>
+      r.sentiment === 'Positive' || r.sentiment === 'Very Positive'
+    ).length;
+
+    const threatScore = (comp.total_mentions || 0) * 0.7 +
+                        negativeWhenCompetitorPresent * 2 +
+                        positiveCompetitor * 1.5;
+
+    return {
+      name: comp.organization,
+      threatScore: Math.round(threatScore),
+      threatLevel: threatScore > 50 ? 'High' : threatScore > 20 ? 'Medium' : 'Low'
+    };
+  });
+
+  const highThreatCount = competitorThreats.filter(c => c.threatLevel === 'High').length;
+  const mediumThreatCount = competitorThreats.filter(c => c.threatLevel === 'Medium').length;
+
   return (
     <Box>
       {/* Task Progress Indicator */}
@@ -248,10 +331,23 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h2" component="h1">
           Key Metrics Dashboard
         </Typography>
+        <IconButton
+          onClick={handleDownloadDashboard}
+          color="primary"
+          sx={{
+            backgroundColor: 'rgba(102, 87, 117, 0.1)',
+            '&:hover': {
+              backgroundColor: 'rgba(102, 87, 117, 0.2)',
+            },
+          }}
+          title="Download Dashboard as PNG"
+        >
+          <DownloadIcon />
+        </IconButton>
       </Box>
 
       {/* Collection Status Banner */}
@@ -267,67 +363,68 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      {/* Show message if no data */}
-      {metrics.total_responses === 0 && (
-        <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
-          <Typography variant="h6" gutterBottom>
-            New to TALES?
-          </Typography>
-          <Typography>
-            Click on <strong>Customize → Brand Info</strong> to begin!
-          </Typography>
-        </Paper>
-      )}
+      {/* Dashboard Content Wrapper for Screenshot */}
+      <Box ref={dashboardRef} sx={{ p: 2 }}>
+        {/* Show message if no data */}
+        {metrics.total_responses === 0 && (
+          <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
+            <Typography variant="h6" gutterBottom>
+              New to TALES?
+            </Typography>
+            <Typography>
+              Click on <strong>Customize → Brand Info</strong> to begin!
+            </Typography>
+          </Paper>
+        )}
 
-      {/* KPI Cards */}
+        {/* KPI Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ height: '100%', border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <CardContent sx={{ height: '100%' }}>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
-                    {brandName} Mentions
+                    Brand Mentions
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
                     {metrics.mention_rate}%
                   </Typography>
                   {formatChange(metrics.change_mention_rate)}
-                  <Typography variant="caption" color="textSecondary">
-                    {metrics.mention_count} of {metrics.total_responses} responses
-                  </Typography>
                 </Box>
-                <TrendingUpIcon sx={{ fontSize: 48, color: '#665775' }} />
+                <TrendingUpIcon sx={{
+                  fontSize: 48,
+                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#665775'
+                }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ height: '100%', border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <CardContent sx={{ height: '100%' }}>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
-                    Positive Sentiment
+                    Threats Summary
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
-                    {metrics.positive_sentiment}%
+                    {highThreatCount}
                   </Typography>
-                  {formatChange(metrics.change_sentiment)}
-                  <Typography variant="caption" color="textSecondary">
-                    Of {brandName} mentions
+                  <Typography variant="body2" color="textSecondary">
+                    High threat competitors
                   </Typography>
                 </Box>
-                <SentimentIcon sx={{ fontSize: 48, color: '#75C9C8' }} />
+                <WarningIcon sx={{ fontSize: 48, color: '#EA4A4A' }} />
               </Box>
             </CardContent>
           </Card>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ height: '100%', border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <CardContent sx={{ height: '100%' }}>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
@@ -348,8 +445,8 @@ export default function Dashboard() {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ height: '100%', border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <CardContent sx={{ height: '100%' }}>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
@@ -360,6 +457,9 @@ export default function Dashboard() {
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     {metrics.leading_position}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
+                    {metrics.leadership_visibility}% Leadership Visibility
                   </Typography>
                 </Box>
                 <VisibilityIcon sx={{ fontSize: 48, color: '#665775' }} />
@@ -372,7 +472,7 @@ export default function Dashboard() {
       {/* Charts Section */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300 }}>
+          <Paper sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Sentiment Breakdown
             </Typography>
@@ -406,7 +506,7 @@ export default function Dashboard() {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300 }}>
+          <Paper sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Positioning Distribution
             </Typography>
@@ -444,70 +544,8 @@ export default function Dashboard() {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300 }}>
-            <Typography variant="h6" gutterBottom>
-              Key Insights
-            </Typography>
-            <Box sx={{ height: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-around' }}>
-              <Box>
-                <Typography variant="body2" color="textSecondary">Leading Position</Typography>
-                <Typography variant="h6" color="primary">{metrics?.leading_position || 'N/A'}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary">{brandName} Mention Rate</Typography>
-                <Typography variant="h5">{metrics?.mention_rate || 0}%</Typography>
-                <Typography variant="caption" color="textSecondary">
-                  {metrics?.mention_count || 0} mentions across all responses
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary">Total Responses Analyzed</Typography>
-                <Typography variant="h5">{metrics?.total_responses || 0}</Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300 }}>
-            <Typography variant="h6" gutterBottom>
-              Top Competitors
-            </Typography>
-            {shareOfVoice && shareOfVoice.length > 0 ? (
-              <Box sx={{ height: 240, overflowY: 'auto' }}>
-                <Table size="small">
-                  <TableBody>
-                    {shareOfVoice
-                      .filter((item: any) => !item.is_brand)
-                      .slice(0, 5)
-                      .map((item: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{item.organization}</TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="bold">
-                              {item.share_of_voice?.toFixed(1)}%
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="caption" color="textSecondary">
-                              {item.total_mentions} mentions
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </Box>
-            ) : (
-              <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="textSecondary">No competitor data available</Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
       </Grid>
+      </Box>
 
       {/* Snackbar for notifications */}
       <Snackbar

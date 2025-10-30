@@ -73,13 +73,19 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     ).scalar() or 0
     descriptor_match = (descriptor_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
 
-    # Calculate share of voice (brand vs competitors)
+    # Calculate leadership visibility (Leader + Top 3 positions)
     pppl_leader_count = apply_brand_filter(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position.in_(['Leader', 'Top 3'])
         )
     ).scalar() or 0
-    share_of_voice = (pppl_leader_count / total_responses * 100) if total_responses > 0 else 0.0
+    leadership_visibility = (pppl_leader_count / total_responses * 100) if total_responses > 0 else 0.0
+
+    # Calculate true share of voice - need to get from share_of_voice function
+    # For dashboard, we'll use a simplified version based on all brand mentions
+    sov_data = get_share_of_voice(db, brand_id=brand_id)
+    brand_sov = next((item for item in sov_data if item.get('is_brand')), None)
+    share_of_voice = brand_sov.get('share_of_voice', 0.0) if brand_sov else 0.0
 
     # Determine leading position
     leader_count = apply_brand_filter(
@@ -141,6 +147,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
         "positive_sentiment": round(positive_sentiment, 1),
         "descriptor_match": round(descriptor_match, 1),
         "share_of_voice": round(share_of_voice, 1),
+        "leadership_visibility": round(leadership_visibility, 1),
         "change_mention_rate": round(change_mention_rate, 1),
         "change_sentiment": 0.0,  # TODO: Calculate sentiment change
         "change_descriptor": 0.0,  # TODO: Calculate descriptor change
@@ -332,17 +339,16 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         db: Database session
         brand_id: Optional brand ID to filter by
     """
-    # Get all competitors for this brand
-    competitors_query = db.query(models.Competitor).filter(models.Competitor.track == True)
-    if brand_id:
-        competitors_query = competitors_query.filter(models.Competitor.brand_id == brand_id)
-    competitors = competitors_query.all()
-
     # Helper function to apply brand filter
     def apply_brand_filter(query):
         if brand_id:
             return query.filter(models.Response.brand_id == brand_id)
         return query
+
+    # Get total responses
+    total_responses = apply_brand_filter(
+        db.query(func.count(models.Response.id))
+    ).scalar() or 1
 
     # Get brand mentions by position
     pppl_leader = apply_brand_filter(
@@ -363,9 +369,14 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         )
     ).scalar() or 0
 
-    total_responses = apply_brand_filter(
-        db.query(func.count(models.Response.id))
-    ).scalar() or 1
+    pppl_listed = apply_brand_filter(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_position == 'Listed'
+        )
+    ).scalar() or 0
+
+    # Total mentions includes all positions (Leader, Top 3, Featured, Listed)
+    pppl_total_mentions = pppl_leader + pppl_top3 + pppl_featured + pppl_listed
 
     # Get brand name for this brand_id
     brand_name = "Your Brand"
@@ -379,28 +390,138 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         "leader_count": pppl_leader,
         "top3_count": pppl_top3,
         "featured_count": pppl_featured,
-        "total_mentions": pppl_leader + pppl_top3 + pppl_featured,
-        "share_of_voice": round(((pppl_leader + pppl_top3) / total_responses * 100), 1),
+        "listed_count": pppl_listed,
+        "total_mentions": pppl_total_mentions,
+        "share_of_voice": 0,  # Will calculate after getting all mentions
+        "leadership_visibility": round(((pppl_leader + pppl_top3) / total_responses * 100), 1),  # Quality-weighted
         "is_brand": True  # Mark this as the user's brand
     }]
 
-    # Add competitor data (simplified - assumes competitors in text field)
-    for comp in competitors[:5]:  # Top 5 competitors
-        # Count mentions in competitors field (comma-separated text)
-        comp_mentions = apply_brand_filter(
-            db.query(func.count(models.Response.id)).filter(
-                models.Response.competitors.like(f'%{comp.organization}%')
-            )
-        ).scalar() or 0
+    # Get ALL unique competitors mentioned in responses (not just tracked competitors)
+    responses_query = apply_brand_filter(
+        db.query(models.Response.competitors).filter(
+            models.Response.competitors.isnot(None),
+            models.Response.competitors != ''
+        )
+    )
+    responses = responses_query.all()
 
+    # Parse all competitors from comma-separated strings
+    competitor_mention_counts = {}
+    for response in responses:
+        if response.competitors:
+            # Split by comma and clean up names
+            competitors_list = [comp.strip() for comp in response.competitors.split(',')]
+            for comp in competitors_list:
+                if comp:  # Skip empty strings
+                    competitor_mention_counts[comp] = competitor_mention_counts.get(comp, 0) + 1
+
+    # Add all competitors to sov_data
+    for comp_name, mention_count in competitor_mention_counts.items():
         sov_data.append({
-            "organization": comp.organization,
+            "organization": comp_name,
             "leader_count": 0,  # Would need more sophisticated parsing
             "top3_count": 0,
             "featured_count": 0,
-            "total_mentions": comp_mentions,
-            "share_of_voice": round((comp_mentions / total_responses * 100), 1),
+            "listed_count": 0,
+            "total_mentions": mention_count,
+            "share_of_voice": 0,  # Will calculate after getting total
+            "leadership_visibility": 0,  # Not tracked for competitors
             "is_brand": False  # Mark as competitor
         })
+
+    # Calculate share_of_voice as percentage of total mentions (not total responses)
+    total_all_mentions = sum(item['total_mentions'] for item in sov_data)
+    for item in sov_data:
+        if total_all_mentions > 0:
+            item['share_of_voice'] = round((item['total_mentions'] / total_all_mentions * 100), 1)
+        else:
+            item['share_of_voice'] = 0
+
+    # Calculate trends by comparing with previous collection period
+    # Get the two most recent unique collection dates
+    dates_query = apply_brand_filter(
+        db.query(func.date(models.Response.timestamp)).distinct()
+    ).order_by(func.date(models.Response.timestamp).desc()).limit(2)
+
+    dates = [row[0] for row in dates_query.all()]
+
+    # Initialize trend data
+    for item in sov_data:
+        item['trend'] = 'neutral'  # Default to neutral
+        item['trend_change'] = 0.0
+
+    # Only calculate trends if we have at least 2 collection dates
+    if len(dates) >= 2:
+        latest_date = dates[0]
+        previous_date = dates[1]
+
+        # Get total responses for each period
+        latest_total = apply_brand_filter(
+            db.query(func.count(models.Response.id)).filter(
+                func.date(models.Response.timestamp) == latest_date
+            )
+        ).scalar() or 1
+
+        previous_total = apply_brand_filter(
+            db.query(func.count(models.Response.id)).filter(
+                func.date(models.Response.timestamp) == previous_date
+            )
+        ).scalar() or 1
+
+        # Calculate previous period share of voice for brand
+        brand_item = next((item for item in sov_data if item['is_brand']), None)
+        if brand_item:
+            prev_brand_mentions = apply_brand_filter(
+                db.query(func.count(models.Response.id)).filter(
+                    func.date(models.Response.timestamp) == previous_date,
+                    models.Response.brand_position.in_(['Leader', 'Top 3', 'Featured'])
+                )
+            ).scalar() or 0
+
+            prev_brand_sov = (prev_brand_mentions / previous_total * 100) if previous_total > 0 else 0
+            current_brand_sov = brand_item['share_of_voice']
+            change = current_brand_sov - prev_brand_sov
+
+            brand_item['trend_change'] = round(change, 1)
+            if change > 0.5:
+                brand_item['trend'] = 'up'
+            elif change < -0.5:
+                brand_item['trend'] = 'down'
+
+        # Calculate previous period share of voice for competitors
+        prev_responses = apply_brand_filter(
+            db.query(models.Response.competitors).filter(
+                func.date(models.Response.timestamp) == previous_date,
+                models.Response.competitors.isnot(None),
+                models.Response.competitors != ''
+            )
+        ).all()
+
+        prev_competitor_counts = {}
+        for response in prev_responses:
+            if response.competitors:
+                competitors_list = [comp.strip() for comp in response.competitors.split(',')]
+                for comp in competitors_list:
+                    if comp:
+                        prev_competitor_counts[comp] = prev_competitor_counts.get(comp, 0) + 1
+
+        # Update trends for competitors
+        for item in sov_data:
+            if not item['is_brand']:
+                comp_name = item['organization']
+                prev_mentions = prev_competitor_counts.get(comp_name, 0)
+                prev_sov = (prev_mentions / previous_total * 100) if previous_total > 0 else 0
+                current_sov = item['share_of_voice']
+                change = current_sov - prev_sov
+
+                item['trend_change'] = round(change, 1)
+                if change > 0.5:
+                    item['trend'] = 'up'
+                elif change < -0.5:
+                    item['trend'] = 'down'
+
+    # Sort by total mentions descending
+    sov_data.sort(key=lambda x: x['total_mentions'], reverse=True)
 
     return sov_data

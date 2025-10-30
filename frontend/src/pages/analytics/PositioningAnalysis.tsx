@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, LineChart, Line, Legend } from 'recharts';
 import { api } from '../../services/api';
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
@@ -14,6 +14,14 @@ export default function PositioningAnalysis() {
     queryKey: ['positioning-analysis'],
     queryFn: async () => {
       const response = await api.get('/analytics/positioning/breakdown');
+      return response.data;
+    },
+  });
+
+  const { data: mentionTrends, isLoading: loadingTrends } = useQuery({
+    queryKey: ['mention-trends'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/trends/mentions?days=30');
       return response.data;
     },
   });
@@ -37,19 +45,19 @@ export default function PositioningAnalysis() {
   // Transform data for horizontal bar chart
   // API returns: { leader: 3, top_3: 10, featured: 9, listed: 10, not_mentioned: 43, total: 88, ... }
   const positionOrder = [
-    { key: 'not_mentioned', label: 'Not mentioned' },
-    { key: 'listed', label: 'Listed' },
-    { key: 'featured', label: 'Featured' },
-    { key: 'top_3', label: 'Top 3' },
-    { key: 'leader', label: 'Leader' }
+    { key: 'not_mentioned', label: 'Not mentioned', color: '#665775' },
+    { key: 'listed', label: 'Listed', color: '#80a1d4' },
+    { key: 'featured', label: 'Featured', color: '#75c9c8' },
+    { key: 'top_3', label: 'Top 3', color: '#44809C' },
+    { key: 'leader', label: 'Leader', color: '#A13C84' }
   ];
 
   const chartData = data
-    ? positionOrder.map(({ key, label }, index) => ({
+    ? positionOrder.map(({ key, label, color }) => ({
         position: label,
         count: (data[key] as number) || 0,
         percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0',
-        fill: BRAND_COLORS[index % BRAND_COLORS.length]
+        fill: color
       })).filter(item => item.count > 0)  // Only show positions with data
     : [];
 
@@ -68,20 +76,20 @@ export default function PositioningAnalysis() {
 
       {/* Key Metrics Summary */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 3, mb: 4 }}>
-        <Paper sx={{ p: 3, backgroundColor: '#665775', color: 'white' }}>
+        <Paper sx={{ p: 3, backgroundColor: '#A13C84', color: 'white' }}>
           <Typography variant="h4">{data?.leader || 0}</Typography>
           <Typography variant="body1">Leader Position</Typography>
           <Typography variant="caption">Top recommendation</Typography>
         </Paper>
-        <Paper sx={{ p: 3 }}>
+        <Paper sx={{ p: 3, backgroundColor: '#44809C', color: 'white' }}>
           <Typography variant="h4">{data?.top_3 || 0}</Typography>
           <Typography variant="body1">Top 3 Position</Typography>
-          <Typography variant="caption" color="text.secondary">Strong contender</Typography>
+          <Typography variant="caption">Strong contender</Typography>
         </Paper>
-        <Paper sx={{ p: 3 }}>
+        <Paper sx={{ p: 3, backgroundColor: '#58A13B', color: 'white' }}>
           <Typography variant="h4">{((data?.leader || 0) + (data?.top_3 || 0))}</Typography>
           <Typography variant="body1">Combined Leadership</Typography>
-          <Typography variant="caption" color="text.secondary">Leader + Top 3</Typography>
+          <Typography variant="caption">Leader + Top 3</Typography>
         </Paper>
       </Box>
 
@@ -140,25 +148,25 @@ export default function PositioningAnalysis() {
       </Paper>
 
       {/* Position Definitions */}
-      <Paper sx={{ p: 4 }}>
+      <Paper sx={{ p: 4, mb: 4 }}>
         <Typography variant="h6" gutterBottom>
           Position Definitions
         </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3, mt: 2 }}>
           <Box>
-            <Typography variant="h6" sx={{ color: '#EA4A4A', mb: 1 }}>Not mentioned (Score: 1)</Typography>
+            <Typography variant="h6" sx={{ color: '#665775', mb: 1 }}>Not mentioned (Score: 1)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand was not mentioned in the response
             </Typography>
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ color: '#A13C84', mb: 1 }}>Listed (Score: 2)</Typography>
+            <Typography variant="h6" sx={{ color: '#80a1d4', mb: 1 }}>Listed (Score: 2)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand is mentioned in a list with competitors
             </Typography>
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ color: '#4A55EA', mb: 1 }}>Featured (Score: 3)</Typography>
+            <Typography variant="h6" sx={{ color: '#75c9c8', mb: 1 }}>Featured (Score: 3)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand is featured prominently in the response
             </Typography>
@@ -170,12 +178,75 @@ export default function PositioningAnalysis() {
             </Typography>
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ color: '#58A13B', mb: 1 }}>Leader (Score: 5)</Typography>
+            <Typography variant="h6" sx={{ color: '#A13C84', mb: 1 }}>Leader (Score: 5)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand is presented as the top choice or industry leader
             </Typography>
           </Box>
         </Box>
+      </Paper>
+
+      {/* Mentions Over Time */}
+      <Paper sx={{ p: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Brand Mentions Over Time
+        </Typography>
+
+        {loadingTrends ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 100 }}>
+            <CircularProgress />
+          </Box>
+        ) : mentionTrends && mentionTrends.length > 0 ? (
+          <>
+            {/* Show latest mention count */}
+            {(() => {
+              const latestData = mentionTrends[mentionTrends.length - 1];
+              return (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    Latest collection: <strong>{latestData.mentions}</strong> brand mentions out of <strong>{latestData.total_responses}</strong> total responses ({latestData.mention_rate}%)
+                  </Typography>
+                </Box>
+              );
+            })()}
+
+            {/* Only show graph if there are multiple data points */}
+            {mentionTrends.length > 1 && (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={mentionTrends} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis
+                    label={{ value: 'Mention Rate (%)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [`${value}%`, 'Mention Rate']}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="mention_rate"
+                    stroke="#665775"
+                    strokeWidth={2}
+                    name="Mention Rate"
+                    dot={{ fill: '#665775', r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </>
+        ) : (
+          <Alert severity="info">
+            No mention trend data available yet. Data will appear after running data collection.
+          </Alert>
+        )}
       </Paper>
     </Box>
   );

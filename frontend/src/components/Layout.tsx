@@ -310,6 +310,7 @@ export default function Layout({ children }: LayoutProps) {
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
+              backgroundColor: '#DED9E2',
             },
           }}
         >
@@ -323,6 +324,7 @@ export default function Layout({ children }: LayoutProps) {
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
+              backgroundColor: '#DED9E2',
             },
           }}
           open
@@ -337,7 +339,7 @@ export default function Layout({ children }: LayoutProps) {
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
-          backgroundColor: 'background.default',
+          backgroundColor: 'white',
         }}
       >
         <Toolbar
