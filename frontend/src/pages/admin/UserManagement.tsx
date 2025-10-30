@@ -234,12 +234,6 @@ const UserManagement: React.FC = () => {
         params.value ? <Chip label="Invited" color="info" size="small" /> : null,
     },
     {
-      field: 'created_at',
-      headerName: 'Created',
-      width: 180,
-      valueFormatter: (params: any) => new Date(params.value).toLocaleString(),
-    },
-    {
       field: 'actions',
       headerName: 'Actions',
       width: 120,
@@ -259,14 +253,14 @@ const UserManagement: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth={false} sx={{ py: 4, px: 3 }}>
         <Alert severity="error">You do not have permission to access this page.</Alert>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth={false} sx={{ py: 4, px: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">User Management</Typography>
         <Button

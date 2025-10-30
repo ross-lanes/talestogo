@@ -5,22 +5,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional
 from .. import analytics, crud, models
+from ..auth import get_current_user
+from ..database import get_db
 
-
-# Dependency
-def get_db():
-    """Database session dependency."""
-    from ..database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def get_current_user(db: Session = Depends(get_db)):
-    """Get current user dependency."""
-    from ..auth import get_current_user as auth_get_current_user
-    return auth_get_current_user(db=db)
 
 def get_active_brand_id(
     current_user: models.User = Depends(get_current_user),
