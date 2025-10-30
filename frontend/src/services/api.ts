@@ -156,6 +156,11 @@ export const adminAPI = {
     const response = await api.put(`/admin/users/${userId}`, data);
     return response.data;
   },
+
+  deleteUser: async (userId: number) => {
+    const response = await api.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
 };
 
 export default api;

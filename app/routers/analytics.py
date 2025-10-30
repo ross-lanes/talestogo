@@ -18,24 +18,20 @@ def get_db():
         db.close()
 
 def get_current_user(db: Session = Depends(get_db)):
-    """Get current user dependency - simplified for analytics."""
+    """Get current user dependency."""
     from ..auth import get_current_user as auth_get_current_user
-    from fastapi import Request
-    # Import from auth module
-    return auth_get_current_user
+    return auth_get_current_user(db=db)
 
 def get_active_brand_id(
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Optional[int]:
     """
     Helper function to get the active brand_id for the current user.
     Returns None if no active brand exists (allows multi-brand view).
     """
-    # For now, get the first active brand for the authenticated user
-    # This should be replaced with actual user authentication
-    active_brand = db.query(models.BrandInfo).filter(
-        models.BrandInfo.is_active == True
-    ).first()
+    # Get the active brand for the CURRENT USER ONLY
+    active_brand = crud.get_active_brand(db, user_id=current_user.id)
     return active_brand.id if active_brand else None
 
 router = APIRouter(

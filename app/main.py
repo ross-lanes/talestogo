@@ -261,6 +261,32 @@ def admin_update_user_status(
     return updated_user
 
 
+@app.delete("/admin/users/{user_id}", response_model=schemas.User, tags=["Admin"])
+def admin_delete_user(
+    user_id: int,
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a user (admin only). Cannot delete yourself."""
+    # Prevent admin from deleting themselves
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account"
+        )
+
+    # Get the user
+    user_to_delete = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Delete the user (will cascade delete all related data)
+    db.delete(user_to_delete)
+    db.commit()
+
+    return user_to_delete
+
+
 # --- Invitation Endpoints ---
 @app.post("/admin/users/create-invite", response_model=schemas.InvitationResponse, status_code=201, tags=["Admin", "Invitations"])
 def create_invitation(

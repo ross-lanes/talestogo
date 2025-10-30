@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
-import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { adminAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -60,6 +60,10 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editIsAdmin, setEditIsAdmin] = useState(false);
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   useEffect(() => {
     if (isAdmin) {
@@ -154,6 +158,30 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setError('');
+    setSuccess('');
+
+    try {
+      await adminAPI.deleteUser(userToDelete.id);
+      setSuccess(`User ${userToDelete.email} deleted successfully`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      loadUsers();
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      setError(err.response?.data?.detail || 'Failed to delete user');
+      setDeleteDialogOpen(false);
+    }
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'email',
@@ -214,12 +242,17 @@ const UserManagement: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 100,
+      width: 120,
       sortable: false,
       renderCell: (params) => (
-        <IconButton onClick={() => handleEditUser(params.row as User)} size="small">
-          <EditIcon />
-        </IconButton>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <IconButton onClick={() => handleEditUser(params.row as User)} size="small" color="primary">
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={() => handleDeleteClick(params.row as User)} size="small" color="error">
+            <DeleteIcon />
+          </IconButton>
+        </Box>
       ),
     },
   ];
@@ -410,6 +443,39 @@ Best,
         <DialogActions>
           <Button onClick={handleCloseLinkDialog} variant="contained">
             Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" fontWeight="bold" gutterBottom>
+              Warning: This action cannot be undone!
+            </Typography>
+            <Typography variant="body2">
+              Deleting this user will permanently remove:
+            </Typography>
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+              <li>User account</li>
+              <li>All brand information</li>
+              <li>All queries and responses</li>
+              <li>All competitors and descriptors</li>
+              <li>All reports and analytics data</li>
+            </ul>
+          </Alert>
+
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            Are you sure you want to delete user <strong>{userToDelete?.email}</strong>
+            {userToDelete?.full_name && ` (${userToDelete.full_name})`}?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} variant="contained" color="error">
+            Delete User
           </Button>
         </DialogActions>
       </Dialog>
