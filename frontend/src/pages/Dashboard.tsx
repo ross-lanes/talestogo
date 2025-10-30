@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -10,6 +10,7 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 
@@ -40,7 +41,8 @@ interface TaskStatus {
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
-  const { activeBrand } = useBrand();
+  const navigate = useNavigate();
+  const { activeBrand, loading: brandLoading } = useBrand();
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
     message: '',
@@ -49,6 +51,13 @@ export default function Dashboard() {
   const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
+
+  // Redirect new users without a brand to Customize page
+  useEffect(() => {
+    if (!brandLoading && !activeBrand) {
+      navigate('/manage');
+    }
+  }, [activeBrand, brandLoading, navigate]);
 
   // Fetch task status
   const { data: taskStatus } = useQuery<TaskStatus>({
