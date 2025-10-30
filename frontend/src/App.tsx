@@ -15,6 +15,7 @@ import DataAnalysis from './pages/DataAnalysis';
 import Data from './pages/Data';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import InviteAccept from './pages/auth/InviteAccept';
 import Settings from './pages/Settings';
 import UserManagement from './pages/admin/UserManagement';
 import SentimentAnalysis from './pages/analytics/SentimentAnalysis';
@@ -51,6 +52,7 @@ function App() {
                   {/* Public Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/invite/accept" element={<InviteAccept />} />
 
                   {/* Protected Routes */}
                   <Route

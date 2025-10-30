@@ -18,6 +18,9 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=False)  # Must be approved by admin to use system
     is_invited = Column(Boolean, default=False)  # Has received invite email
+    # Invitation fields
+    invitation_token = Column(String(500), nullable=True, unique=True, index=True)  # JWT token for invite link
+    invitation_expires_at = Column(DateTime, nullable=True)  # When the invitation expires
     # OAuth fields
     google_id = Column(String(255), unique=True, index=True, nullable=True)  # Google OAuth ID
     oauth_provider = Column(String(50), nullable=True)  # 'google', 'github', etc.

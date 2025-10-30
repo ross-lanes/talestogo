@@ -261,6 +261,161 @@ def admin_update_user_status(
     return updated_user
 
 
+# --- Invitation Endpoints ---
+@app.post("/admin/users/create-invite", response_model=schemas.InvitationResponse, status_code=201, tags=["Admin", "Invitations"])
+def create_invitation(
+    invitation: schemas.InvitationCreate,
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create an invitation for a new user (admin only).
+    Returns invitation token and URL that admin can copy and send via email.
+    """
+    from app.auth import create_invitation_token, get_password_hash
+
+    # Check if user already exists
+    existing_user = crud.get_user_by_email(db, email=invitation.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email already exists"
+        )
+
+    # Generate invitation token
+    token, expires_at = create_invitation_token(
+        email=invitation.email,
+        full_name=invitation.full_name,
+        expires_days=7
+    )
+
+    # Create user with invited status
+    new_user = models.User(
+        email=invitation.email,
+        full_name=invitation.full_name,
+        is_invited=True,
+        is_active=False,
+        invitation_token=token,
+        invitation_expires_at=expires_at
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Generate frontend URL
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    invitation_url = f"{frontend_url}/invite/accept?token={token}"
+
+    return schemas.InvitationResponse(
+        email=invitation.email,
+        full_name=invitation.full_name,
+        invitation_token=token,
+        expires_at=expires_at,
+        invitation_url=invitation_url
+    )
+
+
+@app.get("/invite/validate", response_model=schemas.InvitationValidate, tags=["Invitations"])
+def validate_invitation(token: str, db: Session = Depends(get_db)):
+    """
+    Validate an invitation token.
+    Returns user info if token is valid, otherwise raises error.
+    """
+    from app.auth import verify_invitation_token
+
+    # Verify token
+    payload = verify_invitation_token(token)
+
+    # Check if user exists and invitation is still valid
+    user = crud.get_user_by_email(db, email=payload["email"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation not found"
+        )
+
+    if user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This invitation has already been used"
+        )
+
+    if user.invitation_token != token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid invitation token"
+        )
+
+    if user.invitation_expires_at and user.invitation_expires_at < datetime.datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This invitation has expired"
+        )
+
+    return schemas.InvitationValidate(
+        email=payload["email"],
+        full_name=payload["full_name"],
+        expires_at=user.invitation_expires_at
+    )
+
+
+@app.post("/invite/accept", response_model=schemas.Token, tags=["Invitations"])
+def accept_invitation(
+    invitation_accept: schemas.InvitationAccept,
+    db: Session = Depends(get_db)
+):
+    """
+    Accept an invitation by setting password and activating account.
+    Returns access token for immediate login.
+    """
+    from app.auth import verify_invitation_token, get_password_hash, create_access_token
+
+    # Verify token
+    payload = verify_invitation_token(invitation_accept.token)
+
+    # Get user
+    user = crud.get_user_by_email(db, email=payload["email"])
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation not found"
+        )
+
+    if user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This invitation has already been used"
+        )
+
+    if user.invitation_token != invitation_accept.token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid invitation token"
+        )
+
+    if user.invitation_expires_at and user.invitation_expires_at < datetime.datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This invitation has expired"
+        )
+
+    # Set password and activate user
+    user.hashed_password = get_password_hash(invitation_accept.password)
+    user.is_active = True
+    user.invitation_token = None  # Clear token after use
+    db.commit()
+    db.refresh(user)
+
+    # Create access token for immediate login
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 # --- Query Endpoints ---
 @app.post("/queries/", response_model=schemas.Query, status_code=201, tags=["Queries"])
 def create_query(

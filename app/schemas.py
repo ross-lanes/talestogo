@@ -283,6 +283,7 @@ class User(UserBase):
     google_id: Optional[str] = None
     oauth_provider: Optional[str] = None
     picture_url: Optional[str] = None
+    invitation_expires_at: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
@@ -304,6 +305,31 @@ class UserAdminUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
     model_config = ConfigDict(extra='forbid')
+
+# --- Invitation Schemas ---
+class InvitationCreate(BaseModel):
+    """Schema for creating an invitation"""
+    email: EmailStr
+    full_name: str
+
+class InvitationResponse(BaseModel):
+    """Schema for invitation response with token"""
+    email: EmailStr
+    full_name: str
+    invitation_token: str
+    expires_at: datetime.datetime
+    invitation_url: str
+
+class InvitationValidate(BaseModel):
+    """Schema for validating invitation token"""
+    email: EmailStr
+    full_name: str
+    expires_at: datetime.datetime
+
+class InvitationAccept(BaseModel):
+    """Schema for accepting invitation and setting password"""
+    token: str
+    password: str
 
 # --- Task Status Schemas ---
 class TaskStatus(BaseModel):

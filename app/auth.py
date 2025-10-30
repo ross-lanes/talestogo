@@ -82,6 +82,36 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
+def create_invitation_token(email: str, full_name: str, expires_days: int = 7) -> tuple[str, datetime]:
+    """Create a JWT invitation token that expires in N days."""
+    expire = datetime.utcnow() + timedelta(days=expires_days)
+    to_encode = {
+        "email": email,
+        "full_name": full_name,
+        "exp": expire,
+        "type": "invitation"
+    }
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt, expire
+
+
+def verify_invitation_token(token: str) -> dict:
+    """Verify and decode an invitation token."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "invitation":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid invitation token"
+            )
+        return payload
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired invitation token"
+        )
+
+
 def verify_token(token: str) -> dict:
     """Verify and decode a JWT token."""
     try:

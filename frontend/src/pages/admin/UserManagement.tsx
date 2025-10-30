@@ -30,6 +30,7 @@ interface User {
   is_admin: boolean;
   is_active: boolean;
   is_invited: boolean;
+  invitation_expires_at?: string;
   created_at: string;
 }
 
@@ -46,6 +47,13 @@ const UserManagement: React.FC = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteOrganization, setInviteOrganization] = useState('');
+
+  // Invitation link dialog
+  const [inviteLinkDialogOpen, setInviteLinkDialogOpen] = useState(false);
+  const [invitationLink, setInvitationLink] = useState('');
+  const [invitedUserEmail, setInvitedUserEmail] = useState('');
+  const [invitedUserName, setInvitedUserName] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -78,18 +86,43 @@ const UserManagement: React.FC = () => {
     setError('');
     setSuccess('');
 
+    if (!inviteEmail || !inviteFullName) {
+      setError('Email and full name are required');
+      return;
+    }
+
     try {
-      await adminAPI.inviteUser(inviteEmail, inviteFullName, inviteOrganization);
-      setSuccess(`Invitation sent to ${inviteEmail}`);
+      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName);
+
+      // Show the invitation link dialog
+      setInvitationLink(response.invitation_url);
+      setInvitedUserEmail(inviteEmail);
+      setInvitedUserName(inviteFullName);
       setInviteDialogOpen(false);
+      setInviteLinkDialogOpen(true);
+
+      // Reset form
       setInviteEmail('');
       setInviteFullName('');
       setInviteOrganization('');
+
       loadUsers();
     } catch (err: any) {
-      console.error('Failed to invite user:', err);
-      setError(err.response?.data?.detail || 'Failed to send invitation');
+      console.error('Failed to create invitation:', err);
+      setError(err.response?.data?.detail || 'Failed to create invitation');
     }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(invitationLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 3000);
+  };
+
+  const handleCloseLinkDialog = () => {
+    setInviteLinkDialogOpen(false);
+    setInvitationLink('');
+    setLinkCopied(false);
   };
 
   const handleEditUser = (user: User) => {
@@ -144,13 +177,19 @@ const UserManagement: React.FC = () => {
       field: 'is_active',
       headerName: 'Status',
       width: 120,
-      renderCell: (params) => (
-        <Chip
-          label={params.value ? 'Active' : 'Inactive'}
-          color={params.value ? 'success' : 'default'}
-          size="small"
-        />
-      ),
+      renderCell: (params) => {
+        const user = params.row as User;
+        if (!user.is_active && user.is_invited) {
+          return <Chip label="Pending" color="warning" size="small" />;
+        }
+        return (
+          <Chip
+            label={user.is_active ? 'Active' : 'Inactive'}
+            color={user.is_active ? 'success' : 'default'}
+            size="small"
+          />
+        );
+      },
     },
     {
       field: 'is_admin',
@@ -310,6 +349,67 @@ const UserManagement: React.FC = () => {
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleSaveUserChanges} variant="contained">
             Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invitation Link Dialog */}
+      <Dialog open={inviteLinkDialogOpen} onClose={handleCloseLinkDialog} maxWidth="md" fullWidth>
+        <DialogTitle>Invitation Created!</DialogTitle>
+        <DialogContent>
+          <Alert severity="success" sx={{ mb: 3 }}>
+            Invitation created for <strong>{invitedUserName}</strong> ({invitedUserEmail})
+          </Alert>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Copy the link below and send it to the user via email:
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
+            <TextField
+              fullWidth
+              value={invitationLink}
+              InputProps={{
+                readOnly: true,
+              }}
+              size="small"
+            />
+            <Button
+              variant="contained"
+              onClick={handleCopyLink}
+              sx={{ minWidth: '120px' }}
+            >
+              {linkCopied ? 'Copied!' : 'Copy Link'}
+            </Button>
+          </Box>
+
+          <Alert severity="info">
+            <Typography variant="body2" fontWeight="bold" gutterBottom>
+              Email Template:
+            </Typography>
+            <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.875rem' }}>
+{`Hi ${invitedUserName},
+
+You've been invited to join TALES! Click the link below to set up your account:
+
+${invitationLink}
+
+This link expires in 7 days.
+
+Best,
+[Your name]`}
+            </Typography>
+          </Alert>
+
+          {linkCopied && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Link copied to clipboard! You can now paste it into your email.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseLinkDialog} variant="contained">
+            Done
           </Button>
         </DialogActions>
       </Dialog>

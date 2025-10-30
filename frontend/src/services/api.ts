@@ -144,6 +144,14 @@ export const adminAPI = {
     return response.data;
   },
 
+  createInvitation: async (email: string, full_name: string) => {
+    const response = await api.post('/admin/users/create-invite', {
+      email,
+      full_name,
+    });
+    return response.data;
+  },
+
   updateUserStatus: async (userId: number, data: { is_active?: boolean; is_admin?: boolean }) => {
     const response = await api.put(`/admin/users/${userId}`, data);
     return response.data;
