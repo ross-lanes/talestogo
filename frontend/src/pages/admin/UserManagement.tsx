@@ -390,7 +390,7 @@ const UserManagement: React.FC = () => {
             <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.875rem' }}>
 {`Hi ${invitedUserName},
 
-You've been invited to join TALES! Click the link below to set up your account:
+You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand. Click the link below to set up your account:
 
 ${invitationLink}
 
