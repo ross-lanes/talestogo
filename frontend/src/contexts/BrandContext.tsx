@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface BrandInfo {
   id: number;
@@ -41,15 +42,20 @@ interface BrandProviderProps {
 }
 
 export const BrandProvider: React.FC<BrandProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const [activeBrand, setActiveBrand] = useState<BrandInfo | null>(null);
   const [brands, setBrands] = useState<BrandInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all brands and active brand on mount
+  // Fetch all brands and active brand when user is authenticated
   useEffect(() => {
-    refreshBrands();
-  }, []);
+    if (isAuthenticated) {
+      refreshBrands();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const refreshBrands = async () => {
     setLoading(true);
@@ -64,8 +70,8 @@ export const BrandProvider: React.FC<BrandProviderProps> = ({ children }) => {
       setActiveBrand(active || null);
     } catch (err: any) {
       console.error('Error fetching brands:', err);
-      // If 401, user is not authenticated - don't set error
-      if (err.response?.status !== 401) {
+      // If 401 or 403, user is not authenticated - don't set error
+      if (err.response?.status !== 401 && err.response?.status !== 403) {
         setError(err.response?.data?.detail || 'Failed to load brands');
       }
       setBrands([]);
