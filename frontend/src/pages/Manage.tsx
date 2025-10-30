@@ -1,7 +1,5 @@
-import { Box, Typography, Button, Paper, Alert } from '@mui/material';
+import { Box, Typography, Button, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../services/api';
 import {
   TextFields as QueryIcon,
   Label as DescriptorIcon,
@@ -12,42 +10,14 @@ import {
 export default function Manage() {
   const navigate = useNavigate();
 
-  // Check if brand info exists
-  const { data: brandInfo } = useQuery({
-    queryKey: ['brand-info'],
-    queryFn: async () => {
-      const response = await api.get('/brand-info/');
-      return response.data;
-    },
-    retry: false,
-  });
-
-  const showFirstTimeMessage = !brandInfo;
-
   return (
     <Box>
       <Typography variant="h2" component="h1" gutterBottom>
         Customize
       </Typography>
 
-      {showFirstTimeMessage && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body1" fontWeight={600} gutterBottom>
-            Step 1: Start with Brand Info
-          </Typography>
-          <Typography variant="body2">
-            Click the <strong>Brand Info</strong> button below to enter your brand information. This is the foundation for everything else in TALES!
-          </Typography>
-        </Alert>
-      )}
-
       <Paper sx={{ p: 4, mb: 4 }}>
-        <Typography variant="body1" paragraph>
-          The first step to using TALES successfully involves configuring your brand information, adding the questions you want to ask the AIs (queries),
-          the words you want people to use when describing your brand (descriptors), and information about your competitors.
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 3, mt: 4, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           <Button
             variant="contained"
             size="large"
