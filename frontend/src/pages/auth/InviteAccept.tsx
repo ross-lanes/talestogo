@@ -103,134 +103,177 @@ export default function InviteAccept() {
 
   if (loading) {
     return (
-      <Container maxWidth="sm">
-        <Box
-          sx={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <CircularProgress />
-        </Box>
-      </Container>
+      <Box
+        sx={{
+          backgroundColor: '#665775',
+          minHeight: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        <CircularProgress sx={{ color: '#75c9c8' }} />
+      </Box>
     );
   }
 
   if (error && !invitationInfo) {
     return (
-      <Container maxWidth="sm">
-        <Box
+      <Box
+        sx={{
+          backgroundColor: '#665775',
+          minHeight: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
+      >
+        <Paper
+          elevation={6}
           sx={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            p: 4,
+            width: 500,
+            maxWidth: '90vw',
+            textAlign: 'center',
+            borderRadius: 4,
+            backgroundColor: '#fff',
           }}
         >
-          <Paper sx={{ p: 4, width: '100%' }}>
-            <Typography variant="h4" gutterBottom color="error">
-              Invalid Invitation
-            </Typography>
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-            <Button
-              variant="outlined"
-              fullWidth
-              sx={{ mt: 3 }}
-              onClick={() => navigate('/login')}
-            >
-              Go to Login
-            </Button>
-          </Paper>
-        </Box>
-      </Container>
+          <Typography variant="h4" gutterBottom sx={{ color: '#665775', fontWeight: 700 }}>
+            Invalid Invitation
+          </Typography>
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+          <Button
+            variant="contained"
+            fullWidth
+            sx={{ mt: 3, backgroundColor: '#665775', '&:hover': { backgroundColor: '#54475f' } }}
+            onClick={() => navigate('/login')}
+          >
+            Go to Login
+          </Button>
+        </Paper>
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="sm">
-      <Box
+    <Box
+      sx={{
+        backgroundColor: '#665775',
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontFamily: 'Roboto, sans-serif',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+    >
+      <Paper
+        elevation={6}
         sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          py: 4,
+          p: 4,
+          width: 500,
+          maxWidth: '90vw',
+          textAlign: 'center',
+          borderRadius: 4,
+          backgroundColor: '#fff',
         }}
       >
-        <Paper sx={{ p: 4, width: '100%' }}>
-          <Typography variant="h4" gutterBottom align="center">
-            Welcome to TALES!
-          </Typography>
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{ color: '#665775', fontWeight: 700, lineHeight: 1.4 }}
+        >
+          Welcome to TALES!
+        </Typography>
 
-          {invitationInfo && (
-            <>
-              <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 3 }}>
-                Hi <strong>{invitationInfo.full_name}</strong>! You've been invited to join TALES.
-              </Typography>
+        {invitationInfo && (
+          <>
+            <Typography variant="body1" sx={{ color: '#80a1d4', mb: 3, lineHeight: 1.6 }}>
+              Hi <strong>{invitationInfo.full_name}</strong>! You've been invited to join TALES.
+            </Typography>
 
-              <Alert severity="info" sx={{ mb: 3 }}>
-                Email: <strong>{invitationInfo.email}</strong>
-              </Alert>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              Email: <strong>{invitationInfo.email}</strong>
+            </Alert>
 
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Set your password to create your account and get started.
-              </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Set your password to create your account and get started.
+            </Typography>
 
-              <form onSubmit={handleAcceptInvitation}>
-                <TextField
-                  label="Password"
-                  type="password"
-                  fullWidth
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  margin="normal"
-                  helperText="At least 8 characters"
-                  error={!!passwordError && passwordError.includes('8 characters')}
-                />
+            <form onSubmit={handleAcceptInvitation}>
+              <TextField
+                label="Password"
+                type="password"
+                fullWidth
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                margin="normal"
+                helperText="At least 8 characters"
+                error={!!passwordError && passwordError.includes('8 characters')}
+              />
 
-                <TextField
-                  label="Confirm Password"
-                  type="password"
-                  fullWidth
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  margin="normal"
-                  error={!!passwordError && passwordError.includes('do not match')}
-                />
+              <TextField
+                label="Confirm Password"
+                type="password"
+                fullWidth
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                margin="normal"
+                error={!!passwordError && passwordError.includes('do not match')}
+              />
 
-                {passwordError && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    {passwordError}
-                  </Alert>
-                )}
+              {passwordError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {passwordError}
+                </Alert>
+              )}
 
-                {error && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    {error}
-                  </Alert>
-                )}
+              {error && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {error}
+                </Alert>
+              )}
 
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  disabled={validating}
-                  sx={{ mt: 3 }}
-                >
-                  {validating ? <CircularProgress size={24} /> : 'Create Account & Get Started'}
-                </Button>
-              </form>
-            </>
-          )}
-        </Paper>
-      </Box>
-    </Container>
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                size="large"
+                disabled={validating}
+                sx={{
+                  mt: 3,
+                  backgroundColor: '#665775',
+                  '&:hover': { backgroundColor: '#54475f' },
+                }}
+              >
+                {validating ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Create Account & Get Started'}
+              </Button>
+            </form>
+          </>
+        )}
+      </Paper>
+    </Box>
   );
 }

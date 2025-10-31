@@ -203,7 +203,7 @@ export default function Reports() {
         />,
         <GridActionsCellItem
           icon={<WordIcon />}
-          label="Download Word"
+          label="Word"
           onClick={() => handleDownloadWord(params.row)}
           showInMenu
         />,

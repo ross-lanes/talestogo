@@ -15,7 +15,19 @@
       "Bash(done)",
       "Bash(chmod:*)",
       "Bash(python run_migrations.py:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(pip3 install:*)",
+      "Bash(echo:*)",
+      "Bash(unset:*)",
+      "Bash(brew install:*)",
+      "Bash(brew services start:*)",
+      "Bash(export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\")",
+      "Bash(createdb:*)",
+      "Bash(export DATABASE_URL=\"postgresql://localhost/tales_db\")",
+      "Bash(xargs:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

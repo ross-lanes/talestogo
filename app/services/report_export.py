@@ -321,6 +321,7 @@ def export_to_word_with_charts(
     markdown_content: str,
     title: str,
     db: Session,
+    user_id: int,
     brand_id: Optional[int] = None
 ) -> io.BytesIO:
     """
@@ -330,12 +331,43 @@ def export_to_word_with_charts(
         markdown_content: The markdown content to convert
         title: The report title
         db: Database session for fetching analytics data
+        user_id: User ID for fetching analytics data
         brand_id: Optional brand ID for filtering data
 
     Returns:
         BytesIO object containing the Word document with charts
     """
-    from app.services import analytics
+    from app import analytics
+    from app import models
+
+    # Fetch analytics data for placeholder replacement
+    sentiment_data = analytics.get_sentiment_breakdown(db, user_id=user_id, brand_id=brand_id) or {}
+    sov_data = analytics.get_share_of_voice(db, user_id=user_id, brand_id=brand_id)
+
+    # Handle share_of_voice being either dict or list
+    if isinstance(sov_data, list):
+        # If it's a list, we can't use it for placeholders
+        brand_sov = 0
+    elif isinstance(sov_data, dict):
+        brand_sov = sov_data.get('brand_sov', 0)
+    else:
+        brand_sov = 0
+
+    # Get brand name
+    brand_name = "Your Brand"  # Default
+    if brand_id:
+        brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+        if brand:
+            brand_name = brand.brand_name
+
+    # Calculate positive sentiment rate (very_positive + positive)
+    positive_sentiment_rate = sentiment_data.get('very_positive_pct', 0) + sentiment_data.get('positive_pct', 0)
+
+    # Replace placeholders in markdown content
+    markdown_content = markdown_content.replace('{brand_name}', brand_name)
+    markdown_content = markdown_content.replace('{positive_sentiment_rate}', str(positive_sentiment_rate))
+    markdown_content = markdown_content.replace('{descriptor_match_rate}', str(sentiment_data.get('descriptor_match_rate', 0)))
+    markdown_content = markdown_content.replace('{share_of_voice[\'brand_sov\']}', str(brand_sov))
 
     doc = Document()
 
@@ -353,34 +385,9 @@ def export_to_word_with_charts(
     doc.add_paragraph()  # Spacer
 
     # Generate charts as images
-    chart_images = _generate_chart_images(db, brand_id)
+    chart_images = _generate_chart_images(db, user_id, brand_id)
 
-    # Add Executive Summary section with charts
-    doc.add_heading('Executive Summary', level=1)
-
-    # Add sentiment chart
-    if 'sentiment' in chart_images:
-        doc.add_paragraph('Sentiment Distribution', style='Heading 2')
-        doc.add_picture(chart_images['sentiment'], width=Inches(5.5))
-        doc.add_paragraph()
-
-    # Add positioning chart
-    if 'positioning' in chart_images:
-        doc.add_paragraph('Brand Positioning Breakdown', style='Heading 2')
-        doc.add_picture(chart_images['positioning'], width=Inches(5.5))
-        doc.add_paragraph()
-
-    # Add share of voice chart
-    if 'share_of_voice' in chart_images:
-        doc.add_paragraph('Share of Voice Analysis', style='Heading 2')
-        doc.add_picture(chart_images['share_of_voice'], width=Inches(5.5))
-        doc.add_paragraph()
-
-    # Add page break before detailed content
-    doc.add_page_break()
-
-    # Parse markdown content
-    doc.add_heading('Detailed Analysis', level=1)
+    # Parse markdown content directly (no extra sections)
     lines = markdown_content.split('\n')
     i = 0
 
@@ -409,6 +416,49 @@ def export_to_word_with_charts(
             text = line[4:].strip()
             heading = doc.add_heading(text, level=3)
             heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+        # Images (markdown format: ![alt text](path))
+        elif line.startswith('![') and '](' in line:
+            # Extract image key from markdown
+            # Format: ![Description](chart_paths['key']) or ![Description](report_charts/filename.png)
+            try:
+                # Try to find the chart key between single quotes
+                if "chart_paths['" in line or 'chart_paths["' in line:
+                    key_start = line.find("['") + 2 if "['"]" in line else line.find('["') + 2
+                    key_end = line.find("']") if "']" in line else line.find('"]')
+                    if key_start > 1 and key_end > key_start:
+                        chart_key = line[key_start:key_end]
+                        if chart_key in chart_images:
+                            doc.add_picture(chart_images[chart_key], width=Inches(5.5))
+                            doc.add_paragraph()  # Add spacing after image
+                else:
+                    # Try to extract chart name from filename (e.g., "sentiment" from "..._sentiment_...png")
+                    import re
+                    # Look for common chart types in the filename
+                    chart_types = ['dashboard', 'mention_rate', 'share_of_voice', 'sentiment',
+                                   'platform_comparison', 'positioning', 'descriptor_performance']
+                    for chart_type in chart_types:
+                        if chart_type in line.lower().replace('_', ' ') or chart_type.replace('_', ' ') in line.lower():
+                            # Map filename patterns to chart keys
+                            chart_key_map = {
+                                'dashboard': 'dashboard',
+                                'mention rate': 'mention_rate',
+                                'share of voice': 'share_of_voice',
+                                'sentiment': 'sentiment',
+                                'platform': 'platform_comparison',
+                                'positioning': 'positioning',
+                                'descriptor': 'descriptor_performance'
+                            }
+                            for pattern, key in chart_key_map.items():
+                                if pattern in line.lower():
+                                    if key in chart_images:
+                                        doc.add_picture(chart_images[key], width=Inches(5.5))
+                                        doc.add_paragraph()  # Add spacing after image
+                                    break
+                            break
+            except Exception as e:
+                print(f"Error embedding image: {e}")
+                # Skip the image if there's an error
 
         # Horizontal rules
         elif line.startswith('---') or line.startswith('***'):
@@ -481,9 +531,9 @@ def export_to_word_with_charts(
     return output
 
 
-def _generate_chart_images(db: Session, brand_id: Optional[int] = None) -> dict:
+def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = None) -> dict:
     """Generate chart images for Word document embedding."""
-    from app.services import analytics
+    from app import analytics
 
     chart_images = {}
 
@@ -499,89 +549,245 @@ def _generate_chart_images(db: Session, brand_id: Optional[int] = None) -> dict:
 
     try:
         # 1. Sentiment Pie Chart
-        sentiment_data = analytics.get_sentiment_breakdown(db, brand_id=brand_id)
+        sentiment_data = analytics.get_sentiment_breakdown(db, user_id=user_id, brand_id=brand_id)
         if sentiment_data:
             fig, ax = plt.subplots(figsize=(8, 6))
 
-            sentiments = list(sentiment_data.keys())
-            counts = list(sentiment_data.values())
+            # Build sentiment breakdown from flat structure
+            sentiment_breakdown = {}
+            if sentiment_data.get('very_positive', 0) > 0:
+                sentiment_breakdown['Very Positive'] = sentiment_data['very_positive']
+            if sentiment_data.get('positive', 0) > 0:
+                sentiment_breakdown['Positive'] = sentiment_data['positive']
+            if sentiment_data.get('neutral', 0) > 0:
+                sentiment_breakdown['Neutral'] = sentiment_data['neutral']
+            if sentiment_data.get('negative', 0) > 0:
+                sentiment_breakdown['Negative'] = sentiment_data['negative']
+            if sentiment_data.get('very_negative', 0) > 0:
+                sentiment_breakdown['Very Negative'] = sentiment_data['very_negative']
+            if sentiment_data.get('mixed', 0) > 0:
+                sentiment_breakdown['Mixed'] = sentiment_data['mixed']
 
-            # Color mapping for sentiments
-            sentiment_colors = {
-                'Very Positive': '#58A13B',  # Extended green
-                'Positive': '#B2C9AB',       # Sage
-                'Neutral': '#9FA8DA',        # Periwinkle
-                'Negative': '#E04320',       # Burnt orange/red
-                'Very Negative': '#EA4A4A',  # Extended red
-                'Mixed': '#75C9C8'           # Teal
-            }
-            colors_list = [sentiment_colors.get(s, '#999999') for s in sentiments]
+            if sentiment_breakdown:
+                sentiments = list(sentiment_breakdown.keys())
+                counts = list(sentiment_breakdown.values())
 
-            ax.pie(counts, labels=sentiments, autopct='%1.1f%%', colors=colors_list, startangle=90)
-            ax.set_title('Sentiment Distribution', fontsize=16, fontweight='bold', pad=20)
+                # Color mapping for sentiments
+                sentiment_colors = {
+                    'Very Positive': '#58A13B',  # Extended green
+                    'Positive': '#B2C9AB',       # Sage
+                    'Neutral': '#9FA8DA',        # Periwinkle
+                    'Negative': '#E04320',       # Burnt orange/red
+                    'Very Negative': '#EA4A4A',  # Extended red
+                    'Mixed': '#75C9C8'           # Teal
+                }
+                colors_list = [sentiment_colors.get(s, '#999999') for s in sentiments]
 
-            # Save to BytesIO
-            img_buffer = io.BytesIO()
-            plt.tight_layout()
-            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
-            img_buffer.seek(0)
-            chart_images['sentiment'] = img_buffer
-            plt.close(fig)
+                ax.pie(counts, labels=sentiments, autopct='%1.1f%%', colors=colors_list, startangle=90)
+                ax.set_title('Sentiment Distribution', fontsize=16, fontweight='bold', pad=20)
+
+                # Save to BytesIO
+                img_buffer = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                chart_images['sentiment'] = img_buffer
+                plt.close(fig)
 
         # 2. Positioning Bar Chart
-        positioning_data = analytics.get_positioning_breakdown(db, brand_id=brand_id)
+        positioning_data = analytics.get_positioning_breakdown(db, user_id=user_id, brand_id=brand_id)
         if positioning_data:
             fig, ax = plt.subplots(figsize=(8, 6))
 
-            positions = list(positioning_data.keys())
-            counts = list(positioning_data.values())
+            # Build positioning breakdown from flat structure
+            positioning_breakdown = {}
+            if positioning_data.get('leader', 0) > 0:
+                positioning_breakdown['Leader'] = positioning_data['leader']
+            if positioning_data.get('top_3', 0) > 0:
+                positioning_breakdown['Top 3'] = positioning_data['top_3']
+            if positioning_data.get('featured', 0) > 0:
+                positioning_breakdown['Featured'] = positioning_data['featured']
+            if positioning_data.get('listed', 0) > 0:
+                positioning_breakdown['Listed'] = positioning_data['listed']
+            if positioning_data.get('not_mentioned', 0) > 0:
+                positioning_breakdown['Not Mentioned'] = positioning_data['not_mentioned']
 
-            bars = ax.barh(positions, counts, color=COLORS['primary'])
-            ax.set_xlabel('Number of Responses', fontsize=12)
-            ax.set_title('Brand Positioning Breakdown', fontsize=16, fontweight='bold', pad=20)
-            ax.invert_yaxis()
+            if positioning_breakdown:
+                positions = list(positioning_breakdown.keys())
+                counts = list(positioning_breakdown.values())
 
-            # Add value labels
-            for i, (bar, count) in enumerate(zip(bars, counts)):
-                ax.text(count, i, f' {count}', va='center', fontsize=10)
+                bars = ax.barh(positions, counts, color=COLORS['primary'])
+                ax.set_xlabel('Number of Responses', fontsize=12)
+                ax.set_title('Brand Positioning Breakdown', fontsize=16, fontweight='bold', pad=20)
+                ax.invert_yaxis()
 
-            # Save to BytesIO
-            img_buffer = io.BytesIO()
-            plt.tight_layout()
-            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
-            img_buffer.seek(0)
-            chart_images['positioning'] = img_buffer
-            plt.close(fig)
+                # Add value labels
+                for i, (bar, count) in enumerate(zip(bars, counts)):
+                    ax.text(count, i, f' {count}', va='center', fontsize=10)
+
+                # Save to BytesIO
+                img_buffer = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                chart_images['positioning'] = img_buffer
+                plt.close(fig)
 
         # 3. Share of Voice Chart
-        sov_data = analytics.get_share_of_voice(db, brand_id=brand_id)
-        if sov_data:
+        sov_data = analytics.get_share_of_voice(db, user_id=user_id, brand_id=brand_id)
+        if sov_data and isinstance(sov_data, list) and len(sov_data) > 0:
             fig, ax = plt.subplots(figsize=(8, 6))
 
-            # Sort by mention count
-            sorted_data = sorted(sov_data.items(), key=lambda x: x[1], reverse=True)
-            entities = [item[0] for item in sorted_data]
-            counts = [item[1] for item in sorted_data]
+            # Sort by total_mentions (descending)
+            sorted_data = sorted(sov_data, key=lambda x: x.get('total_mentions', 0), reverse=True)
 
-            # Highlight brand in different color
-            colors_list = [COLORS['primary'] if i == 0 else COLORS['secondary'] for i in range(len(entities))]
+            # Extract organization names and mention counts
+            entities = [item.get('organization', 'Unknown') for item in sorted_data]
+            counts = [item.get('total_mentions', 0) for item in sorted_data]
 
-            bars = ax.barh(entities, counts, color=colors_list)
-            ax.set_xlabel('Mention Count', fontsize=12)
-            ax.set_title('Share of Voice - Brand vs Competitors', fontsize=16, fontweight='bold', pad=20)
-            ax.invert_yaxis()
+            # Only include if there are counts > 0
+            if any(c > 0 for c in counts):
+                # Highlight brand in different color
+                colors_list = [COLORS['primary'] if item.get('is_brand', False) else COLORS['secondary'] for item in sorted_data]
 
-            # Add value labels
-            for i, (bar, count) in enumerate(zip(bars, counts)):
-                ax.text(count, i, f' {count}', va='center', fontsize=10)
+                bars = ax.barh(entities, counts, color=colors_list)
+                ax.set_xlabel('Mention Count', fontsize=12)
+                ax.set_title('Share of Voice - Brand vs Competitors', fontsize=16, fontweight='bold', pad=20)
+                ax.invert_yaxis()
 
-            # Save to BytesIO
-            img_buffer = io.BytesIO()
-            plt.tight_layout()
-            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
-            img_buffer.seek(0)
-            chart_images['share_of_voice'] = img_buffer
-            plt.close(fig)
+                # Add value labels
+                for i, (bar, count) in enumerate(zip(bars, counts)):
+                    ax.text(count, i, f' {count}', va='center', fontsize=10)
+
+                # Save to BytesIO
+                img_buffer = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                chart_images['share_of_voice'] = img_buffer
+                plt.close(fig)
+
+        # 4. Mention Rate Pie Chart
+        mention_data = analytics.get_mention_breakdown(db, user_id=user_id, brand_id=brand_id)
+        if mention_data:
+            labels = ['Explicit Mention', 'Indirect Mention', 'Not Mentioned']
+            sizes = [mention_data.get('yes', 0), mention_data.get('indirect', 0), mention_data.get('no', 0)]
+            colors_list = ['#58A13B', '#ffa726', '#E04320']  # success, warning, danger
+
+            if any(s > 0 for s in sizes):
+                fig, ax = plt.subplots(figsize=(8, 6))
+                wedges, texts, autotexts = ax.pie(
+                    sizes,
+                    explode=(0.05, 0, 0),
+                    labels=labels,
+                    colors=colors_list,
+                    autopct='%1.1f%%',
+                    startangle=90
+                )
+
+                # Make percentage text white and bold
+                for autotext in autotexts:
+                    autotext.set_color('white')
+                    autotext.set_fontsize(12)
+                    autotext.set_weight('bold')
+
+                ax.set_title('Brand Mention Rate in AI Responses', fontsize=16, fontweight='bold', pad=20)
+
+                # Save to BytesIO
+                img_buffer = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                chart_images['mention_rate'] = img_buffer
+                plt.close(fig)
+
+        # 5. Platform Comparison Chart
+        platform_data = analytics.get_platform_breakdown(db, user_id=user_id, brand_id=brand_id)
+        if platform_data and isinstance(platform_data, dict):
+            platforms = [p for p, m in platform_data.items() if m.get('total', 0) > 0]
+
+            if platforms:
+                mention_rates = [platform_data[p]['mention'].get('yes_pct', 0) for p in platforms]
+                positive_sentiment = [
+                    platform_data[p]['sentiment'].get('positive_pct', 0) +
+                    platform_data[p]['sentiment'].get('very_positive_pct', 0)
+                    for p in platforms
+                ]
+                leader_positioning = [
+                    platform_data[p]['positioning'].get('leader_pct', 0) +
+                    platform_data[p]['positioning'].get('top_3_pct', 0)
+                    for p in platforms
+                ]
+
+                x = range(len(platforms))
+                width = 0.25
+
+                fig, ax = plt.subplots(figsize=(10, 6))
+
+                bars1 = ax.bar([i - width for i in x], mention_rates, width, label='Mention Rate (%)',
+                              color=COLORS['primary'])
+                bars2 = ax.bar(x, positive_sentiment, width, label='Positive Sentiment (%)',
+                              color='#58A13B')
+                bars3 = ax.bar([i + width for i in x], leader_positioning, width, label='Leader/Top 3 (%)',
+                              color=COLORS['secondary'])
+
+                # Add value labels on bars
+                for bars in [bars1, bars2, bars3]:
+                    for bar in bars:
+                        height = bar.get_height()
+                        if height > 0:
+                            ax.text(bar.get_x() + bar.get_width()/2., height,
+                                  f'{height:.1f}%',
+                                  ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+                ax.set_ylabel('Percentage (%)', fontsize=11, fontweight='bold')
+                ax.set_xlabel('Platform', fontsize=11, fontweight='bold')
+                ax.set_title('Performance by Platform', fontsize=16, fontweight='bold', pad=20)
+                ax.set_xticks(x)
+                ax.set_xticklabels(platforms, fontsize=10)
+                ax.legend(fontsize=9, loc='upper right')
+                ax.grid(axis='y', alpha=0.3, linestyle='--')
+
+                # Save to BytesIO
+                img_buffer = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                chart_images['platform_comparison'] = img_buffer
+                plt.close(fig)
+
+        # 6. Descriptor Performance Chart
+        descriptor_data = analytics.get_descriptor_analysis(db, user_id=user_id, brand_id=brand_id)
+        if descriptor_data and isinstance(descriptor_data, dict):
+            sorted_descriptors = sorted(descriptor_data.items(), key=lambda x: x[1], reverse=True)[:10]
+
+            if sorted_descriptors:
+                descriptors, counts = zip(*sorted_descriptors)
+
+                fig, ax = plt.subplots(figsize=(10, 6))
+                bars = ax.barh(range(len(descriptors)), counts, color=COLORS['primary'])
+
+                # Add value labels
+                for bar, count in zip(bars, counts):
+                    width = bar.get_width()
+                    ax.text(width + 0.3, bar.get_y() + bar.get_height()/2.,
+                          f'{int(count)}',
+                          ha='left', va='center', fontsize=10, fontweight='bold')
+
+                ax.set_yticks(range(len(descriptors)))
+                ax.set_yticklabels(descriptors, fontsize=10)
+                ax.set_xlabel('Number of Mentions', fontsize=11, fontweight='bold')
+                ax.set_title('Top Descriptors Associated with Brand', fontsize=16, fontweight='bold', pad=20)
+                ax.grid(axis='x', alpha=0.3, linestyle='--')
+                ax.invert_yaxis()  # Highest at top
+
+                # Save to BytesIO
+                img_buffer = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                chart_images['descriptor_performance'] = img_buffer
+                plt.close(fig)
 
     except Exception as e:
         print(f"Error generating charts: {e}")

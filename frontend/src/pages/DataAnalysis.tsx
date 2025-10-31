@@ -372,7 +372,7 @@ export default function DataAnalysis() {
                           onClick={() => handleDownloadWord(report)}
                           sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
                         >
-                          Word + Charts
+                          Word
                         </Button>
                         <Button
                           variant="outlined"
@@ -462,7 +462,7 @@ export default function DataAnalysis() {
             variant="contained"
             sx={{ bgcolor: '#665775', color: 'white', '&:hover': { bgcolor: '#80a1d4' } }}
           >
-            Word + Charts
+            Word
           </Button>
           <Button onClick={() => handleDownloadHTML(selectedReport!)}>
             HTML

@@ -520,7 +520,8 @@ For each threat, provide:
 
 Format your response as clean markdown with ### headings for each threat.
 Be ruthlessly specific. Use actual data and examples. No generic advice like "improve visibility" - every recommendation must be tailored to the specific competitive threat shown in the data.
-Do NOT use emojis or icons."""
+Do NOT use emojis or icons.
+Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
 
     completion = perplexity_client.chat.completions.create(
         model="sonar-pro",  # Using Perplexity Sonar Pro for competitive analysis
@@ -605,7 +606,8 @@ For each priority:
 
 Format as numbered markdown sections (1., 2., 3., etc.).
 Be data-driven and specific. No generic advice like "improve SEO" or "create more content" - every recommendation must be tailored to {brand_name}'s specific situation shown in the data above.
-Do NOT use emojis or icons."""
+Do NOT use emojis or icons.
+Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
 
     completion = perplexity_client.chat.completions.create(
         model="sonar-pro",  # Using Perplexity Sonar Pro for strategic depth
@@ -663,11 +665,186 @@ Based on this comprehensive analysis, write a 4-6 sentence executive summary tha
 Be specific, cite examples from the data above, and focus on actionable insights NOT generic observations.
 Write in a professional, analytical tone.
 Do NOT use emojis or icons.
-Do NOT use phrases like "This report" or "This analysis" - write directly about the findings."""
+Do NOT use phrases like "This report" or "This analysis" - write directly about the findings.
+Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
 
     completion = perplexity_client.chat.completions.create(
         model="sonar-pro",  # Using Perplexity Sonar Pro for strategic analysis
         max_tokens=3000,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
+    )
+
+    return completion.choices[0].message.content
+
+
+def generate_positioning_insights(
+    positioning_metrics: Dict[str, Any],
+    positioning_average: float,
+    platform_metrics: Dict[str, Dict[str, Any]],
+    brand_name: str
+) -> str:
+    """Generate AI-powered insights about brand positioning."""
+
+    prompt = f"""You are analyzing brand positioning performance for {brand_name} in AI platform responses.
+
+POSITIONING DATA:
+- Leader: {positioning_metrics['leader']} responses ({positioning_metrics['leader_pct']}%)
+- Top 3: {positioning_metrics['top_3']} responses ({positioning_metrics['top_3_pct']}%)
+- Featured: {positioning_metrics['featured']} responses ({positioning_metrics['featured_pct']}%)
+- Listed: {positioning_metrics['listed']} responses ({positioning_metrics['listed_pct']}%)
+- Not Mentioned: {positioning_metrics['not_mentioned']} responses ({positioning_metrics['not_mentioned_pct']}%)
+- Average Positioning Score: {positioning_average} out of 5.0
+
+PLATFORM BREAKDOWN:
+{chr(10).join([f"- {platform}: Leader/Top 3 = {metrics['positioning']['leader_pct'] + metrics['positioning']['top_3_pct']}%" for platform, metrics in platform_metrics.items() if metrics['total'] > 0])}
+
+Write 3-10 sentences analyzing {brand_name}'s positioning performance. Focus on:
+1. Overall positioning strength (is the brand typically leading, featured, or just listed?)
+2. Which positioning tiers are most common and what that means
+3. Platform-specific patterns (which platforms position the brand better/worse)
+4. The significance of the positioning average score
+5. Key opportunities or concerns based on this data
+
+Be specific and data-driven. Write in a professional, analytical tone.
+Do NOT use emojis or icons.
+Do NOT use multiple pound signs or asterisks as decorative elements."""
+
+    completion = perplexity_client.chat.completions.create(
+        model="sonar-pro",
+        max_tokens=1000,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
+    )
+
+    return completion.choices[0].message.content
+
+
+def generate_share_of_voice_insights(
+    share_of_voice: Dict[str, Any],
+    brand_name: str,
+    competitor_analysis: Dict[str, int]
+) -> str:
+    """Generate AI-powered insights about share of voice."""
+
+    top_competitors = sorted(competitor_analysis.items(), key=lambda x: x[1], reverse=True)[:5]
+    competitor_summary = "\n".join([f"- {comp}: {count} mentions" for comp, count in top_competitors])
+
+    prompt = f"""You are analyzing share of voice performance for {brand_name} in AI platform responses.
+
+SHARE OF VOICE DATA:
+- {brand_name} Share of Voice: {share_of_voice['brand_sov']}%
+- {brand_name} Mentions: {share_of_voice['brand_mentions']}
+- Total Organization Mentions: {share_of_voice['total_mentions']}
+
+TOP COMPETITORS MENTIONED:
+{competitor_summary}
+
+Write 3-10 sentences analyzing {brand_name}'s share of voice. Focus on:
+1. Is the brand's SOV strong, moderate, or weak compared to the competitive landscape?
+2. How does the brand compare to its top competitors?
+3. What does this SOV tell us about brand awareness and visibility?
+4. Are there concerning gaps where competitors dominate?
+5. The strategic implications of this SOV positioning
+
+Be specific and data-driven. Write in a professional, analytical tone.
+Do NOT use emojis or icons.
+Do NOT use multiple pound signs or asterisks as decorative elements."""
+
+    completion = perplexity_client.chat.completions.create(
+        model="sonar-pro",
+        max_tokens=1000,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
+    )
+
+    return completion.choices[0].message.content
+
+
+def generate_descriptor_insights(
+    descriptor_analysis: Dict[str, int],
+    descriptor_match_rate: float,
+    brand_name: str,
+    target_descriptors: List[TargetDescriptor]
+) -> str:
+    """Generate AI-powered insights about descriptor performance."""
+
+    top_descriptors = sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True)[:10]
+    descriptor_summary = "\n".join([f"- '{desc}': {count} mentions" for desc, count in top_descriptors])
+
+    target_desc_list = [d.descriptor for d in target_descriptors] if target_descriptors else []
+    target_summary = ", ".join([f"'{d}'" for d in target_desc_list[:10]]) if target_desc_list else "None configured"
+
+    prompt = f"""You are analyzing descriptor association performance for {brand_name} in AI platform responses.
+
+DESCRIPTOR PERFORMANCE:
+- Overall Match Rate: {descriptor_match_rate}% of brand mentions included at least one target descriptor
+
+TOP DESCRIPTORS ASSOCIATED WITH {brand_name}:
+{descriptor_summary}
+
+TARGET DESCRIPTORS (what we want to be associated with):
+{target_summary}
+
+Write 3-10 sentences analyzing {brand_name}'s descriptor performance. Focus on:
+1. Is the descriptor match rate strong? Are we successfully associated with key terms?
+2. Which descriptors are performing well (mentioned frequently)?
+3. Are there gaps between target descriptors and actual associations?
+4. What does this tell us about how AI platforms characterize the brand?
+5. Strategic opportunities to strengthen descriptor associations
+
+Be specific and data-driven. Write in a professional, analytical tone.
+Do NOT use emojis or icons.
+Do NOT use multiple pound signs or asterisks as decorative elements."""
+
+    completion = perplexity_client.chat.completions.create(
+        model="sonar-pro",
+        max_tokens=1000,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2
+    )
+
+    return completion.choices[0].message.content
+
+
+def generate_sentiment_insights(
+    sentiment_metrics: Dict[str, Any],
+    positive_sentiment_rate: float,
+    negative_statements: List[Dict[str, str]],
+    brand_name: str,
+    platform_metrics: Dict[str, Dict[str, Any]]
+) -> str:
+    """Generate AI-powered insights about sentiment distribution."""
+
+    prompt = f"""You are analyzing sentiment performance for {brand_name} in AI platform responses.
+
+SENTIMENT DATA:
+- Very Positive: {sentiment_metrics['very_positive']} ({sentiment_metrics['very_positive_pct']}%)
+- Positive: {sentiment_metrics['positive']} ({sentiment_metrics['positive_pct']}%)
+- Neutral: {sentiment_metrics['neutral']} ({sentiment_metrics['neutral_pct']}%)
+- Negative: {sentiment_metrics['negative']} ({sentiment_metrics['negative_pct']}%)
+- Mixed: {sentiment_metrics['mixed']} ({sentiment_metrics['mixed_pct']}%)
+- Combined Positive Rate: {positive_sentiment_rate}%
+
+PLATFORM SENTIMENT BREAKDOWN:
+{chr(10).join([f"- {platform}: {metrics['sentiment']['positive_pct'] + metrics['sentiment']['very_positive_pct']}% positive" for platform, metrics in platform_metrics.items() if metrics['total'] > 0])}
+
+NUMBER OF NEGATIVE/MIXED EXAMPLES: {len(negative_statements)}
+
+Write 3-10 sentences analyzing {brand_name}'s sentiment performance. Focus on:
+1. Overall sentiment health - is it predominantly positive, neutral, or concerning?
+2. The balance between very positive, positive, and neutral responses
+3. Any negative or mixed sentiment patterns that need attention
+4. Platform-specific sentiment differences
+5. What this sentiment profile reveals about brand perception
+
+Be specific and data-driven. Write in a professional, analytical tone.
+Do NOT use emojis or icons.
+Do NOT use multiple pound signs or asterisks as decorative elements."""
+
+    completion = perplexity_client.chat.completions.create(
+        model="sonar-pro",
+        max_tokens=1000,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2
     )
@@ -697,8 +874,12 @@ def generate_markdown_report(
     report_date: str,
     period: str,
     chart_paths: Dict[str, str] = None,
+    positioning_insights: str = "",
+    sov_insights: str = "",
+    descriptor_insights: str = "",
+    sentiment_insights: str = "",
 ) -> str:
-    """Generate a complete markdown report with embedded charts."""
+    """Generate a complete markdown report with embedded charts and insights."""
 
     # Build brand header with context
     brand_header = f"## {brand_name}"
@@ -707,66 +888,102 @@ def generate_markdown_report(
     else:
         brand_header += " - AI Reputation Analysis Report"
 
-    report = f"""# AI Reputation Analysis Report
-
-{brand_header}
-
-**Report Generated:** {report_date}
-**Analysis Period:** {period}
-**Total Responses Analyzed:** {mention_metrics['total']}
-
----
-
-## Executive Summary
+    report = f"""## Executive Summary
 
 {executive_summary}
 
+"""
+
+    # Add Dashboard chart after Executive Summary
+    if chart_paths and 'dashboard' in chart_paths:
+        report += f"\n![Key Metrics Dashboard]({chart_paths['dashboard']})\n\n"
+
+    report += f"""
 ---
 
-## 1. Key Performance Indicators (KPIs)
+## Detailed Analysis with Insights
 
-### a. {brand_name} Mentions as Percentage of AI Responses
-**{mention_metrics['yes_pct']}%** of AI responses explicitly mentioned {brand_name}
+### 1. Positioning Analysis
 
-| Mention Type | Count | Percentage |
-|-------------|-------|------------|
-| Yes (explicit mention) | {mention_metrics['yes']} | {mention_metrics['yes_pct']}% |
-| Indirect (work mentioned, not name) | {mention_metrics['indirect']} | {mention_metrics['indirect_pct']}% |
-| Not mentioned | {mention_metrics['no']} | {mention_metrics['no_pct']}% |
+| Position | Count | Percentage |
+|----------|-------|------------|
+| Leader | {positioning_metrics['leader']} | {positioning_metrics['leader_pct']}% |
+| Top 3 | {positioning_metrics['top_3']} | {positioning_metrics['top_3_pct']}% |
+| Featured | {positioning_metrics['featured']} | {positioning_metrics['featured_pct']}% |
+| Listed | {positioning_metrics['listed']} | {positioning_metrics['listed_pct']}% |
+| Not Mentioned | {positioning_metrics['not_mentioned']} | {positioning_metrics['not_mentioned_pct']}% |
+
+**Average Positioning Score:** {positioning_average} out of 5.0
 """
 
-    # Add mention rate chart
-    if chart_paths and 'mention_rate' in chart_paths:
-        report += f"\n![Mention Rate Distribution]({chart_paths['mention_rate']})\n"
+    # Add positioning chart
+    if chart_paths and 'positioning' in chart_paths:
+        report += f"\n![Positioning Distribution]({chart_paths['positioning']})\n"
 
-    report += """
-### b. Positive Sentiment Rate
-**{positive_sentiment_rate}%** of AI responses had positive or very positive sentiment about {brand_name}
+    # Add positioning insights
+    report += f"\n**Insights:**\n\n{positioning_insights}\n"
 
-### c. Target Descriptor Match Rate
-**{descriptor_match_rate}%** of AI responses associated {brand_name} with at least one target descriptor
+    report += f"""
+---
 
-### d. Share of Voice for {brand_name}
-**{share_of_voice['brand_sov']}%** - {brand_name} captured {share_of_voice['brand_sov']}% of all mentions ({share_of_voice['brand_mentions']} out of {share_of_voice['total_mentions']} total organization mentions)
-"""
+### 2. Share of Voice Analysis
+
+**{brand_name} Share of Voice:** {share_of_voice['brand_sov']}%
+**{brand_name} Mentions:** {share_of_voice['brand_mentions']} out of {share_of_voice['total_mentions']} total organization mentions
+
+**Share of Voice Distribution:**
+
+| Organization | Mentions | Share of Voice % |
+|-------------|----------|------------------|"""
+
+    # Add competitor breakdown in table format
+    if competitor_analysis:
+        sorted_competitors = sorted(competitor_analysis.items(), key=lambda x: x[1], reverse=True)
+        for competitor, count in sorted_competitors[:10]:  # Top 10
+            sov_data = share_of_voice['competitor_sov'].get(competitor, {})
+            sov = sov_data.get('sov', 0)
+            report += f"\n| {competitor} | {count} | {sov}% |"
+    else:
+        report += "\n| No data | - | - |"
 
     # Add share of voice chart
     if chart_paths and 'share_of_voice' in chart_paths:
-        report += f"\n![Share of Voice]({chart_paths['share_of_voice']})\n"
+        report += f"\n\n![Share of Voice]({chart_paths['share_of_voice']})\n"
+
+    # Add SOV insights
+    report += f"\n**Insights:**\n\n{sov_insights}\n"
 
     report += f"""
-### e. {brand_name} Response Positioning Average
-**{positioning_average}** out of 5.0 (Leader=5, Top 3=4, Featured=3, Listed=2, Not Mentioned=1)
-
 ---
 
-## 2. Detailed Analysis
+### 3. Descriptor Analysis
 
-### a. Mention Analysis
+**Descriptor Match Rate:** {descriptor_match_rate}% of brand mentions included at least one target descriptor
 
-**Overall Mention Rate:** {mention_metrics['yes_pct']}% explicit, {mention_metrics['indirect_pct']}% indirect
+**Top Descriptors Associated with {brand_name}:**
 
-### b. Sentiment Breakdown
+| Descriptor | Mentions |
+|-----------|----------|"""
+
+    # Add descriptor breakdown in table format
+    if descriptor_analysis:
+        sorted_descriptors = sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True)
+        for descriptor, count in sorted_descriptors[:10]:  # Top 10
+            report += f"\n| {descriptor} | {count} |"
+    else:
+        report += "\n| No data | - |"
+
+    # Add descriptor performance chart
+    if chart_paths and 'descriptor_performance' in chart_paths:
+        report += f"\n\n![Descriptor Performance]({chart_paths['descriptor_performance']})\n"
+
+    # Add descriptor insights
+    report += f"\n**Insights:**\n\n{descriptor_insights}\n"
+
+    report += f"""
+---
+
+### 4. Sentiment Analysis
 
 | Sentiment | Count | Percentage |
 |-----------|-------|------------|
@@ -775,14 +992,45 @@ def generate_markdown_report(
 | Neutral | {sentiment_metrics['neutral']} | {sentiment_metrics['neutral_pct']}% |
 | Negative | {sentiment_metrics['negative']} | {sentiment_metrics['negative_pct']}% |
 | Mixed | {sentiment_metrics['mixed']} | {sentiment_metrics['mixed_pct']}% |
+
+**Combined Positive Rate:** {positive_sentiment_rate}%
 """
 
     # Add sentiment chart
     if chart_paths and 'sentiment' in chart_paths:
         report += f"\n![Sentiment Distribution]({chart_paths['sentiment']})\n"
 
+    # Add sentiment insights
+    report += f"\n**Insights:**\n\n{sentiment_insights}\n"
+
+    # Add negative/mixed sentiment examples if they exist
+    if negative_statements:
+        report += "\n**Negative/Mixed Sentiment Examples:**\n"
+        for i, statement in enumerate(negative_statements, 1):
+            report += f"\n**Example {i}** ({statement['platform']} - {statement['sentiment']})\n"
+            report += f"- Query: {statement['query']}\n"
+            report += f"- Excerpt: \"{statement['excerpt']}\"\n"
+
     report += """
-### c. Platform-by-Platform Breakdown
+---
+
+### 5. Threat Analysis
+"""
+    report += competitor_threats
+
+    report += """
+
+---
+
+### 6. Recommendations
+"""
+    report += strategic_priorities
+
+    report += """
+
+---
+
+## Platform Performance Breakdown
 
 """
 
@@ -790,7 +1038,7 @@ def generate_markdown_report(
     for platform, metrics in platform_metrics.items():
         if metrics['total'] > 0:
             report += f"""
-#### {platform} (n={metrics['total']})
+**{platform}** (n={metrics['total']})
 - **Mention Rate:** {metrics['mention']['yes_pct']}% (Yes), {metrics['mention']['indirect_pct']}% (Indirect)
 - **Positive Sentiment:** {metrics['sentiment']['positive_pct'] + metrics['sentiment']['very_positive_pct']}%
 - **Leader/Top 3 Positioning:** {metrics['positioning']['leader_pct'] + metrics['positioning']['top_3_pct']}%
@@ -800,98 +1048,11 @@ def generate_markdown_report(
     if chart_paths and 'platform_comparison' in chart_paths:
         report += f"\n![Platform Performance Comparison]({chart_paths['platform_comparison']})\n"
 
-    report += f"""
-### d. {brand_name} Response Positioning Breakdown
-
-| Position | Count | Percentage |
-|----------|-------|------------|
-| Leader | {positioning_metrics['leader']} | {positioning_metrics['leader_pct']}% |
-| Featured | {positioning_metrics['featured']} | {positioning_metrics['featured_pct']}% |
-| Top 3 | {positioning_metrics['top_3']} | {positioning_metrics['top_3_pct']}% |
-| Listed | {positioning_metrics['listed']} | {positioning_metrics['listed_pct']}% |
-| Not Mentioned | {positioning_metrics['not_mentioned']} | {positioning_metrics['not_mentioned_pct']}% |
-"""
-
-    # Add positioning chart
-    if chart_paths and 'positioning' in chart_paths:
-        report += f"\n![Positioning Distribution]({chart_paths['positioning']})\n"
-
     report += """
 
-### e. Descriptor Analysis
-
-How often each descriptor was associated with {brand_name} in AI responses:
-
-"""
-
-    # Add descriptor breakdown
-    if descriptor_analysis:
-        sorted_descriptors = sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True)
-        for descriptor, count in sorted_descriptors[:10]:  # Top 10
-            report += f"- **{descriptor}:** {count} times\n"
-    else:
-        report += "*No descriptors tracked in responses*\n"
-
-    # Add descriptor performance chart
-    if chart_paths and 'descriptor_performance' in chart_paths:
-        report += f"\n![Descriptor Performance]({chart_paths['descriptor_performance']})\n"
-
-    report += """
-### f. Competitor Mentions
-
-Top competitors mentioned alongside or instead of the brand:
-
-"""
-
-    # Add competitor breakdown
-    if competitor_analysis:
-        sorted_competitors = sorted(competitor_analysis.items(), key=lambda x: x[1], reverse=True)
-        for competitor, count in sorted_competitors[:10]:  # Top 10
-            sov_data = share_of_voice['competitor_sov'].get(competitor, {})
-            sov = sov_data.get('sov', 0)
-            report += f"- **{competitor}:** {count} mentions ({sov}% SOV)\n"
-    else:
-        report += "*No competitors tracked in responses*\n"
-
-    report += """
 ---
 
-## 3. Competitive Analysis
-
-### Competitor Threat Assessment
-
-"""
-    report += competitor_threats
-
-    report += """
-
-### Negative/Mixed Sentiment Examples
-
-"""
-
-    if negative_statements:
-        for i, statement in enumerate(negative_statements, 1):
-            report += f"""
-**Example {i}** ({statement['platform']} - {statement['sentiment']})
-- Query: {statement['query']}
-- Excerpt: "{statement['excerpt']}"
-
-"""
-    else:
-        report += "*No negative or mixed sentiment responses found*\n"
-
-    report += """
----
-
-## 4. Strategic Recommendations
-
-"""
-    report += strategic_priorities
-
-    report += """
----
-
-## 5. Methodology
+## Methodology
 
 This report analyzes AI platform responses (ChatGPT, Claude, Gemini, Perplexity) to strategic queries.
 Each response was analyzed for:
@@ -1051,6 +1212,42 @@ def generate_report_main(user_id: int, brand_id: int):
 
         print("AI insights generated")
 
+        # Step 4b: Generate section-specific insights
+        print("\nGenerating section insights...")
+        print("  - Positioning insights...")
+        positioning_insights = generate_positioning_insights(
+            positioning_metrics=positioning_metrics,
+            positioning_average=positioning_average,
+            platform_metrics=platform_metrics,
+            brand_name=brand_name
+        )
+
+        print("  - Share of voice insights...")
+        sov_insights = generate_share_of_voice_insights(
+            share_of_voice=share_of_voice,
+            brand_name=brand_name,
+            competitor_analysis=competitor_analysis
+        )
+
+        print("  - Descriptor insights...")
+        descriptor_insights = generate_descriptor_insights(
+            descriptor_analysis=descriptor_analysis,
+            descriptor_match_rate=descriptor_match_rate,
+            brand_name=brand_name,
+            target_descriptors=descriptors
+        )
+
+        print("  - Sentiment insights...")
+        sentiment_insights = generate_sentiment_insights(
+            sentiment_metrics=sentiment_metrics,
+            positive_sentiment_rate=positive_sentiment_rate,
+            negative_statements=negative_statements,
+            brand_name=brand_name,
+            platform_metrics=platform_metrics
+        )
+
+        print("Section insights generated")
+
         # Step 5: Generate charts
         print("\nGenerating visualization charts...")
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -1066,7 +1263,7 @@ def generate_report_main(user_id: int, brand_id: int):
         )
         print(f"Generated {len(chart_paths)} charts")
 
-        # Step 4: Generate report
+        # Step 6: Generate report
         print("\nGenerating markdown report...")
         report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
         period = "Last analysis run"  # Could be made dynamic
@@ -1091,6 +1288,10 @@ def generate_report_main(user_id: int, brand_id: int):
             report_date=report_date,
             period=period,
             chart_paths=chart_paths,
+            positioning_insights=positioning_insights,
+            sov_insights=sov_insights,
+            descriptor_insights=descriptor_insights,
+            sentiment_insights=sentiment_insights,
         )
 
         # Step 5: Save to database

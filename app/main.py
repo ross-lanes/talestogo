@@ -11,6 +11,7 @@ import datetime
 from datetime import timedelta
 import os
 import subprocess
+import io
 
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
@@ -774,7 +775,8 @@ def delete_report(
 def export_report_to_word(
     report_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
     """Export a report to Word document format with embedded charts."""
     from app.services.report_export import export_to_word_with_charts
@@ -789,7 +791,8 @@ def export_report_to_word(
         db_report.report_content,
         db_report.title,
         db,
-        brand_id=current_user.active_brand_id
+        user_id=current_user.id,
+        brand_id=brand_id
     )
 
     # Create safe filename
@@ -835,7 +838,8 @@ def export_report_to_pdf(
 def export_report_to_html(
     report_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
     """Export a report to interactive HTML with embedded Chart.js visualizations."""
     from app.services.report_html import generate_html_report_with_charts
@@ -849,7 +853,8 @@ def export_report_to_html(
         db_report.report_content,
         db_report.title,
         db,
-        brand_id=current_user.active_brand_id
+        user_id=current_user.id,
+        brand_id=brand_id
     )
 
     # Create safe filename
