@@ -206,8 +206,10 @@ export default function Queries() {
       field: 'query_id',
       headerName: 'Query ID',
       width: 75,
+      align: 'left',
+      headerAlign: 'left',
       renderCell: (params) => (
-        <Typography variant="body2" sx={{ color: '#80A1D4', fontWeight: 'bold' }}>
+        <Typography variant="body2" sx={{ color: '#80A1D4', fontWeight: 'bold', display: 'flex', alignItems: 'center', height: '100%' }}>
           {params.value}
         </Typography>
       ),
@@ -217,16 +219,22 @@ export default function Queries() {
       headerName: 'Query Text',
       flex: 1,
       minWidth: 300,
+      align: 'left',
+      headerAlign: 'left',
     },
     {
       field: 'category',
       headerName: 'Category',
       width: 150,
+      align: 'left',
+      headerAlign: 'left',
     },
     {
       field: 'priority',
       headerName: 'Priority',
       width: 90,
+      align: 'left',
+      headerAlign: 'left',
       renderCell: (params) => {
         const color =
           params.value === 'High'
@@ -235,7 +243,7 @@ export default function Queries() {
             ? '#ed6c02'
             : '#2e7d32';
         return (
-          <Typography variant="body2" sx={{ color, fontWeight: 'bold' }}>
+          <Typography variant="body2" sx={{ color, fontWeight: 'bold', display: 'flex', alignItems: 'center', height: '100%' }}>
             {params.value}
           </Typography>
         );
@@ -245,17 +253,24 @@ export default function Queries() {
       field: 'target_outcome',
       headerName: 'Target Outcome',
       width: 150,
+      align: 'left',
+      headerAlign: 'left',
     },
     {
       field: 'active',
       headerName: 'Active',
       width: 75,
+      align: 'left',
+      headerAlign: 'left',
       renderCell: (params) => (
         <Typography
           variant="body2"
           sx={{
             color: params.value ? '#2e7d32' : '#757575',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            height: '100%'
           }}
         >
           {params.value ? 'Active' : 'Inactive'}

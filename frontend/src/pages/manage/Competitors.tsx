@@ -208,13 +208,17 @@ export default function Competitors() {
       headerName: 'Organization',
       flex: 1,
       minWidth: 200,
+      align: 'left',
+      headerAlign: 'left',
     },
     {
       field: 'type',
       headerName: 'Type',
       width: 150,
+      align: 'left',
+      headerAlign: 'left',
       renderCell: (params) => (
-        <Typography variant="body2" sx={{ color: '#80A1D4', fontWeight: 'bold' }}>
+        <Typography variant="body2" sx={{ color: '#80A1D4', fontWeight: 'bold', display: 'flex', alignItems: 'center', height: '100%' }}>
           {params.value}
         </Typography>
       ),
@@ -223,17 +227,24 @@ export default function Competitors() {
       field: 'focus_area',
       headerName: 'Focus Area',
       width: 180,
+      align: 'left',
+      headerAlign: 'left',
     },
     {
       field: 'track',
       headerName: 'Tracking',
       width: 120,
+      align: 'left',
+      headerAlign: 'left',
       renderCell: (params) => (
         <Typography
           variant="body2"
           sx={{
             color: params.value ? '#2e7d32' : '#757575',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            height: '100%'
           }}
         >
           {params.value ? 'Active' : 'Inactive'}
@@ -244,12 +255,20 @@ export default function Competitors() {
       field: 'website',
       headerName: 'Website',
       width: 100,
-      renderCell: (params) =>
-        params.value ? (
-          <a href={params.value} target="_blank" rel="noopener noreferrer">
+      align: 'left',
+      headerAlign: 'left',
+      renderCell: (params) => {
+        if (!params.value) return null;
+        // Ensure URL has protocol
+        const url = params.value.startsWith('http://') || params.value.startsWith('https://')
+          ? params.value
+          : `https://${params.value}`;
+        return (
+          <a href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
             Link
           </a>
-        ) : null,
+        );
+      },
     },
     {
       field: 'actions',

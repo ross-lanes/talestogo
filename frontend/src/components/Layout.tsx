@@ -155,7 +155,7 @@ export default function Layout({ children }: LayoutProps) {
 </Toolbar>
 
       <Divider />
-      <List>
+      <List sx={{ backgroundColor: '#ECE8ED' }}>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
@@ -163,11 +163,12 @@ export default function Layout({ children }: LayoutProps) {
               onClick={() => handleMenuItemClick(item)}
               sx={{
                 pl: item.indent ? 5.75 : 2,
+                backgroundColor: '#ECE8ED',
                 '&:hover': {
-                  backgroundColor: 'rgba(128, 161, 212, 0.08)',
+                  backgroundColor: 'rgba(128, 161, 212, 0.2)',
                 },
                 '&.Mui-selected': {
-                  backgroundColor: 'rgba(128, 161, 212, 0.12)',
+                  backgroundColor: 'rgba(128, 161, 212, 0.3)',
                   borderLeft: '4px solid',
                   borderLeftColor: 'secondary.main',
                 },
@@ -191,7 +192,7 @@ export default function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh' }}>
       <CssBaseline />
       <AppBar
         position="fixed"
@@ -310,7 +311,7 @@ export default function Layout({ children }: LayoutProps) {
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              backgroundColor: '#DED9E2',
+              backgroundColor: 'white',
             },
           }}
         >
@@ -324,7 +325,7 @@ export default function Layout({ children }: LayoutProps) {
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              backgroundColor: '#DED9E2',
+              backgroundColor: 'white',
             },
           }}
           open
@@ -336,8 +337,8 @@ export default function Layout({ children }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          p: 0,
+          width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
           maxWidth: '100vw',
           minHeight: '100vh',
           backgroundColor: 'white',
@@ -351,7 +352,9 @@ export default function Layout({ children }: LayoutProps) {
             height: { xs: 106, sm: 114 },
           }}
         />
-        {children}
+        <Box sx={{ p: 3, minHeight: 'calc(100vh - 114px)', backgroundColor: 'white' }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );

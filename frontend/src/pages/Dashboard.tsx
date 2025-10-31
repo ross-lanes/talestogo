@@ -98,14 +98,29 @@ export default function Dashboard() {
     }
   };
 
-  // Show welcome dialog for new users without a brand (once per session)
+  // Query to check if user has any brand info at all
+  const { data: brandList } = useQuery({
+    queryKey: ['brand-list'],
+    queryFn: async () => {
+      const response = await api.get('/brand-info/');
+      return response.data;
+    },
+  });
+
+  // Show welcome dialog for new users without ANY brand (once ever)
   useEffect(() => {
-    const hasSeenWelcome = sessionStorage.getItem('tales_welcome_seen');
-    if (!activeBrand && !hasSeenWelcome) {
-      setWelcomeDialogOpen(true);
-      sessionStorage.setItem('tales_welcome_seen', 'true');
+    // Only check after brandList has loaded
+    if (brandList !== undefined) {
+      const hasSeenWelcome = localStorage.getItem('tales_welcome_seen');
+      const hasBrands = brandList && brandList.length > 0;
+
+      // Show welcome only if: no brands exist AND haven't seen welcome before
+      if (!hasBrands && !hasSeenWelcome) {
+        setWelcomeDialogOpen(true);
+        localStorage.setItem('tales_welcome_seen', 'true');
+      }
     }
-  }, [activeBrand]);
+  }, [brandList]);
 
   const handleWelcomeClose = () => {
     setWelcomeDialogOpen(false);
