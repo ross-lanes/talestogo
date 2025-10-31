@@ -222,7 +222,7 @@ export default function ShareOfVoice() {
                   <LabelList
                     dataKey="shareOfVoice"
                     position="top"
-                    formatter={(value: number) => `${value.toFixed(1)}%`}
+                    formatter={(value: any) => typeof value === 'number' ? `${value.toFixed(1)}%` : ''}
                     style={{ fontSize: '12px', fontWeight: 'bold' }}
                   />
                 </Bar>
@@ -265,10 +265,11 @@ export default function ShareOfVoice() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, name: string, props: { payload: { percentage: string; name: string } }) => [
-                      `${value} mentions (${props.payload.percentage}%)`,
-                      props.payload.name
-                    ] as [string, string]}
+                    formatter={(value: any, name: any, props: any) => {
+                      const percentage = props?.payload?.percentage || '0';
+                      const displayName = props?.payload?.name || name;
+                      return [`${value} mentions (${percentage}%)`, displayName];
+                    }}
                   />
                   <Legend />
                 </PieChart>
