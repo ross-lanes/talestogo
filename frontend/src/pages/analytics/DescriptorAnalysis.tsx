@@ -121,7 +121,7 @@ export default function DescriptorAnalysis() {
 
     const csvContent = [
       csvHeaders.join(','),
-      ...csvRows.map(row => row.join(','))
+      ...csvRows.map((row: (string | number)[]) => row.join(','))
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

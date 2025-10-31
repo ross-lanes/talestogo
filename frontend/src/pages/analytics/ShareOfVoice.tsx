@@ -69,13 +69,9 @@ export default function ShareOfVoice() {
     name: item.name,
     value: item.mention_count || 0,
     percentage: totalMentions > 0 ? ((item.mention_count || 0) / totalMentions * 100).toFixed(1) : '0',
-    is_brand: item.is_brand,
-    trend: item.trend || 'neutral',
-    trend_change: item.trend_change || 0
+    is_brand: item.is_brand
   }));
 
-  // Check if we have trend data (more than one collection)
-  const hasTrendData = shareData.some(item => item.trend && item.trend !== 'neutral');
 
   // Prepare data for bar chart - top 10 + brand if not in top 10
   const sortedForChart = [...shareData].sort((a, b) => b.share_of_voice - a.share_of_voice);
@@ -125,31 +121,6 @@ export default function ShareOfVoice() {
     }
   };
 
-  // Function to render trend indicator
-  const renderTrendIndicator = (trend: string, trendChange: number) => {
-    if (trend === 'up') {
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'success.main' }}>
-          <TrendingUp fontSize="small" />
-          <Typography variant="body2" color="success.main">+{trendChange}%</Typography>
-        </Box>
-      );
-    } else if (trend === 'down') {
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'error.main' }}>
-          <TrendingDown fontSize="small" />
-          <Typography variant="body2" color="error.main">{trendChange}%</Typography>
-        </Box>
-      );
-    } else {
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-          <TrendingFlat fontSize="small" />
-          <Typography variant="body2" color="text.secondary">—</Typography>
-        </Box>
-      );
-    }
-  };
 
   return (
     <Box>
@@ -294,10 +265,10 @@ export default function ShareOfVoice() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, name: string, props: any) => [
+                    formatter={(value: number, name: string, props: { payload: { percentage: string; name: string } }) => [
                       `${value} mentions (${props.payload.percentage}%)`,
                       props.payload.name
-                    ]}
+                    ] as [string, string]}
                   />
                   <Legend />
                 </PieChart>
@@ -312,9 +283,6 @@ export default function ShareOfVoice() {
                       <TableCell><strong>Organization</strong></TableCell>
                       <TableCell align="right"><strong>Mentions</strong></TableCell>
                       <TableCell align="right"><strong>Share of Voice (%)</strong></TableCell>
-                      {hasTrendData && (
-                        <TableCell align="center"><strong>Trend</strong></TableCell>
-                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -344,11 +312,6 @@ export default function ShareOfVoice() {
                             {item.percentage}%
                           </Typography>
                         </TableCell>
-                        {hasTrendData && (
-                          <TableCell align="center">
-                            {renderTrendIndicator(item.trend, item.trend_change)}
-                          </TableCell>
-                        )}
                       </TableRow>
                     ))}
                   </TableBody>

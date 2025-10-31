@@ -28,6 +28,7 @@ interface DashboardMetrics {
   change_sentiment: number;
   change_descriptor: number;
   leading_position: string;
+  leadership_visibility?: number;
 }
 
 interface TaskStatus {
