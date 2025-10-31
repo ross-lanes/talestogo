@@ -335,19 +335,14 @@ export default function Dashboard() {
         <Typography variant="h2" component="h1">
           Key Metrics Dashboard
         </Typography>
-        <IconButton
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
           onClick={handleDownloadDashboard}
-          color="primary"
-          sx={{
-            backgroundColor: 'rgba(102, 87, 117, 0.1)',
-            '&:hover': {
-              backgroundColor: 'rgba(102, 87, 117, 0.2)',
-            },
-          }}
-          title="Download Dashboard as PNG"
+          size="small"
         >
-          <DownloadIcon />
-        </IconButton>
+          Download Dashboard as Image
+        </Button>
       </Box>
 
       {/* Collection Status Banner */}

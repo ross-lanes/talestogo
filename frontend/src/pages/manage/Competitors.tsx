@@ -156,27 +156,37 @@ export default function Competitors() {
     }
   };
 
-  const handleDownloadSpreadsheet = () => {
-    // Prepare data for export
-    const exportData = competitors.map((competitor) => ({
-      'Organization': competitor.organization,
-      'Type': competitor.type,
-      'Focus Area': competitor.focus_area || '',
-      'Track': competitor.track ? 'Yes' : 'No',
-      'Key Descriptors': competitor.key_descriptors || '',
-      'Website': competitor.website || '',
-      'Notes': competitor.notes || '',
-    }));
+  const handleDownloadCSV = () => {
+    if (competitors.length === 0) return;
 
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const csvHeaders = ['Organization', 'Type', 'Focus Area', 'Track', 'Key Descriptors', 'Website', 'Notes'];
+    const csvRows = competitors.map((competitor) => [
+      `"${competitor.organization.replace(/"/g, '""')}"`,
+      `"${competitor.type}"`,
+      `"${(competitor.focus_area || '').replace(/"/g, '""')}"`,
+      competitor.track ? 'Yes' : 'No',
+      `"${(competitor.key_descriptors || '').replace(/"/g, '""')}"`,
+      `"${(competitor.website || '').replace(/"/g, '""')}"`,
+      `"${(competitor.notes || '').replace(/"/g, '""')}"`
+    ]);
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Competitors');
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
 
-    // Generate file and trigger download
-    XLSX.writeFile(wb, 'TALES_Competitors.xlsx');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `Competitors_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -204,7 +214,9 @@ export default function Competitors() {
       headerName: 'Type',
       width: 150,
       renderCell: (params) => (
-        <Chip label={params.value} size="small" color="primary" variant="outlined" />
+        <Typography variant="body2" sx={{ color: '#80A1D4', fontWeight: 'bold' }}>
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -217,17 +229,21 @@ export default function Competitors() {
       headerName: 'Tracking',
       width: 120,
       renderCell: (params) => (
-        <Chip
-          label={params.value ? 'Active' : 'Inactive'}
-          size="small"
-          color={params.value ? 'success' : 'default'}
-        />
+        <Typography
+          variant="body2"
+          sx={{
+            color: params.value ? '#2e7d32' : '#757575',
+            fontWeight: 'bold'
+          }}
+        >
+          {params.value ? 'Active' : 'Inactive'}
+        </Typography>
       ),
     },
     {
       field: 'website',
       headerName: 'Website',
-      width: 200,
+      width: 100,
       renderCell: (params) =>
         params.value ? (
           <a href={params.value} target="_blank" rel="noopener noreferrer">
@@ -256,25 +272,59 @@ export default function Competitors() {
   ];
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+      <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1} mb={2}>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#80A1D4',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/brand-info')}
+        >
+          Brand Info
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#75C9C8',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/queries')}
+        >
+          Queries
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#44809C',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/descriptors')}
+        >
+          Descriptors
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#A13C84',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+        >
+          Competitors
+        </Typography>
+      </Box>
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center">
-          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
-          <Box
-            onClick={handleMenuClick}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { opacity: 0.8 },
-            }}
-          >
-            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
-              Competitors
-            </Typography>
-            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
-          </Box>
-        </Box>
+        <Typography variant="h2">Customize Competitors</Typography>
         <Box>
           <IconButton
             onClick={() => queryClient.invalidateQueries({ queryKey: ['competitors', activeBrand?.id] })}
@@ -284,11 +334,11 @@ export default function Competitors() {
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
-            onClick={handleDownloadSpreadsheet}
+            onClick={handleDownloadCSV}
             sx={{ ml: 1 }}
             disabled={competitors.length === 0 || !activeBrand}
           >
-            Download
+            Download as CSV
           </Button>
           <Button
             variant="contained"
@@ -308,7 +358,7 @@ export default function Competitors() {
         </Alert>
       )}
 
-      <Paper sx={{ height: 600, width: '100%' }}>
+      <Paper sx={{ height: 600, width: '100%', maxWidth: '100%', overflow: 'auto' }}>
         <DataGrid
           rows={competitors}
           columns={columns}
@@ -318,6 +368,7 @@ export default function Competitors() {
             pagination: { paginationModel: { pageSize: 25 } },
           }}
           disableRowSelectionOnClick
+          sx={{ width: '100%' }}
         />
       </Paper>
 

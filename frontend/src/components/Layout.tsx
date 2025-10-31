@@ -338,8 +338,11 @@ export default function Layout({ children }: LayoutProps) {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          maxWidth: '100vw',
           minHeight: '100vh',
           backgroundColor: 'white',
+          boxSizing: 'border-box',
+          overflowX: 'hidden',
         }}
       >
         <Toolbar

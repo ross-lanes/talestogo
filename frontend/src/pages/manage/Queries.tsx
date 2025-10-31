@@ -155,27 +155,37 @@ export default function Queries() {
     }
   };
 
-  const handleDownloadSpreadsheet = () => {
-    // Prepare data for export
-    const exportData = queries.map((query) => ({
-      'Query ID': query.query_id,
-      'Query Text': query.query_text,
-      'Category': query.category,
-      'Priority': query.priority,
-      'Target Outcome': query.target_outcome,
-      'Active': query.active ? 'Yes' : 'No',
-      'Notes': query.notes || '',
-    }));
+  const handleDownloadCSV = () => {
+    if (queries.length === 0) return;
 
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const csvHeaders = ['Query ID', 'Query Text', 'Category', 'Priority', 'Target Outcome', 'Active', 'Notes'];
+    const csvRows = queries.map((query) => [
+      `"${query.query_id}"`,
+      `"${query.query_text.replace(/"/g, '""')}"`,
+      `"${query.category}"`,
+      `"${query.priority}"`,
+      `"${query.target_outcome}"`,
+      query.active ? 'Yes' : 'No',
+      `"${(query.notes || '').replace(/"/g, '""')}"`
+    ]);
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Queries');
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
 
-    // Generate file and trigger download
-    XLSX.writeFile(wb, 'TALES_Queries.xlsx');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `Queries_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -195,9 +205,11 @@ export default function Queries() {
     {
       field: 'query_id',
       headerName: 'Query ID',
-      width: 100,
+      width: 75,
       renderCell: (params) => (
-        <Chip label={params.value} size="small" color="primary" variant="outlined" />
+        <Typography variant="body2" sx={{ color: '#80A1D4', fontWeight: 'bold' }}>
+          {params.value}
+        </Typography>
       ),
     },
     {
@@ -214,15 +226,19 @@ export default function Queries() {
     {
       field: 'priority',
       headerName: 'Priority',
-      width: 120,
+      width: 90,
       renderCell: (params) => {
         const color =
           params.value === 'High'
-            ? 'error'
+            ? '#d32f2f'
             : params.value === 'Medium'
-            ? 'warning'
-            : 'success';
-        return <Chip label={params.value} size="small" color={color} />;
+            ? '#ed6c02'
+            : '#2e7d32';
+        return (
+          <Typography variant="body2" sx={{ color, fontWeight: 'bold' }}>
+            {params.value}
+          </Typography>
+        );
       },
     },
     {
@@ -233,13 +249,17 @@ export default function Queries() {
     {
       field: 'active',
       headerName: 'Active',
-      width: 100,
+      width: 75,
       renderCell: (params) => (
-        <Chip
-          label={params.value ? 'Active' : 'Inactive'}
-          size="small"
-          color={params.value ? 'success' : 'default'}
-        />
+        <Typography
+          variant="body2"
+          sx={{
+            color: params.value ? '#2e7d32' : '#757575',
+            fontWeight: 'bold'
+          }}
+        >
+          {params.value ? 'Active' : 'Inactive'}
+        </Typography>
       ),
     },
     {
@@ -263,25 +283,59 @@ export default function Queries() {
   ];
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+      <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1} mb={2}>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#80A1D4',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/brand-info')}
+        >
+          Brand Info
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#75C9C8',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+        >
+          Queries
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#44809C',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/descriptors')}
+        >
+          Descriptors
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#A13C84',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/competitors')}
+        >
+          Competitors
+        </Typography>
+      </Box>
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center">
-          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
-          <Box
-            onClick={handleMenuClick}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { opacity: 0.8 },
-            }}
-          >
-            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
-              Queries
-            </Typography>
-            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
-          </Box>
-        </Box>
+        <Typography variant="h2">Customize Queries</Typography>
         <Box>
           <IconButton onClick={() => queryClient.invalidateQueries({ queryKey: ['queries', activeBrand?.id] })}>
             <RefreshIcon />
@@ -289,11 +343,11 @@ export default function Queries() {
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
-            onClick={handleDownloadSpreadsheet}
+            onClick={handleDownloadCSV}
             sx={{ ml: 1 }}
             disabled={queries.length === 0 || !activeBrand}
           >
-            Download
+            Download as CSV
           </Button>
           <Button
             variant="contained"
@@ -313,7 +367,7 @@ export default function Queries() {
         </Alert>
       )}
 
-      <Paper sx={{ height: 600, width: '100%' }}>
+      <Paper sx={{ height: 600, width: '100%', maxWidth: '100%', overflow: 'auto' }}>
         <DataGrid
           rows={queries}
           columns={columns}
@@ -323,6 +377,7 @@ export default function Queries() {
             pagination: { paginationModel: { pageSize: 25 } },
           }}
           disableRowSelectionOnClick
+          sx={{ width: '100%' }}
         />
       </Paper>
 

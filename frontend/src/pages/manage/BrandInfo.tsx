@@ -15,10 +15,8 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Menu,
-  MenuItem,
 } from '@mui/material';
-import { ArrowDropDown as ArrowDropDownIcon } from '@mui/icons-material';
+import { Download } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
@@ -54,7 +52,6 @@ const BrandInfo: React.FC = () => {
   const [brandExists, setBrandExists] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
   // Fetch existing brand info on mount
   useEffect(() => {
@@ -84,6 +81,37 @@ const BrandInfo: React.FC = () => {
     } finally {
       setFetching(false);
     }
+  };
+
+  const handleDownloadCSV = () => {
+    if (!brandExists) return;
+
+    const csvHeaders = ['Field', 'Value'];
+    const csvRows = [
+      ['Brand Name', `"${brandName.replace(/"/g, '""')}"`],
+      ['Website URL', `"${websiteUrl.replace(/"/g, '""')}"`],
+      ['Industry', `"${industry.replace(/"/g, '""')}"`],
+      ['Description', `"${description.replace(/"/g, '""')}"`],
+      ['Strategic Messages', `"${strategicMessages.replace(/"/g, '""')}"`]
+    ];
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `BrandInfo_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   const handleSave = async () => {
@@ -150,18 +178,6 @@ const BrandInfo: React.FC = () => {
     navigate('/manage/queries');
   };
 
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
-    setMenuAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-  };
-
-  const handleNavigate = (path: string) => {
-    handleMenuClose();
-    navigate(path);
-  };
 
   if (fetching || aiGenerating) {
     return (
@@ -185,24 +201,68 @@ const BrandInfo: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1} mb={2}>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#80A1D4',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+        >
+          Brand Info
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#75C9C8',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/queries')}
+        >
+          Queries
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#44809C',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/descriptors')}
+        >
+          Descriptors
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#A13C84',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/competitors')}
+        >
+          Competitors
+        </Typography>
+      </Box>
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center">
-          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
-          <Box
-            onClick={handleMenuClick}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { opacity: 0.8 },
-            }}
+        <Typography variant="h2">Customize Branding</Typography>
+        {brandExists && (
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={handleDownloadCSV}
+            size="small"
           >
-            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
-              Brand Info
-            </Typography>
-            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
-          </Box>
-        </Box>
+            Download as CSV
+          </Button>
+        )}
       </Box>
 
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
@@ -314,23 +374,6 @@ const BrandInfo: React.FC = () => {
           </ul>
         </Alert>
       </Box>
-
-      {/* Navigation Menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={() => handleNavigate('/manage/queries')}>
-          Queries
-        </MenuItem>
-        <MenuItem onClick={() => handleNavigate('/manage/descriptors')}>
-          Descriptors
-        </MenuItem>
-        <MenuItem onClick={() => handleNavigate('/manage/competitors')}>
-          Competitors
-        </MenuItem>
-      </Menu>
 
       <Dialog open={showDialog} onClose={() => setShowDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Next Steps</DialogTitle>

@@ -210,6 +210,8 @@ def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict
         db: Database session
         brand_id: Optional brand ID to filter by
     """
+    from app.services.llm_service import _call_gemini_api
+
     # Get all brand mentions grouped by sentiment
     query = db.query(
         models.Response.sentiment,
@@ -276,20 +278,80 @@ def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict
         for resp in mixed_responses
     ]
 
+    # Generate AI insights for each sentiment category
+    sentiment_insights = {}
+    sentiment_categories = ['Very Positive', 'Positive', 'Neutral', 'Negative', 'Very Negative']
+
+    for sentiment in sentiment_categories:
+        # Get sample responses for this sentiment
+        sample_query = db.query(
+            models.Response.response_text,
+            models.Response.descriptors,
+            models.Response.competitors
+        ).filter(
+            and_(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.sentiment == sentiment
+            )
+        )
+
+        if brand_id:
+            sample_query = sample_query.filter(models.Response.brand_id == brand_id)
+
+        sample_responses = sample_query.limit(10).all()
+
+        if sample_responses:
+            # Aggregate descriptors and competitors
+            all_descriptors = []
+            all_competitors = []
+
+            for resp in sample_responses:
+                if resp.descriptors:
+                    all_descriptors.extend([d.strip() for d in resp.descriptors.split(',') if d.strip()])
+                if resp.competitors:
+                    all_competitors.extend([c.strip() for c in resp.competitors.split(',') if c.strip()])
+
+            # Create context for LLM
+            context = f"""
+Sentiment Category: {sentiment}
+Number of mentions: {sentiment_map.get(sentiment, 0)}
+Common descriptors mentioned: {', '.join(list(set(all_descriptors))[:10]) if all_descriptors else 'None'}
+Competitors mentioned: {', '.join(list(set(all_competitors))[:5]) if all_competitors else 'None'}
+Sample responses (first 3):
+"""
+            for i, resp in enumerate(sample_responses[:3], 1):
+                context += f"\n{i}. {resp.response_text[:200]}..."
+
+            # Generate insight using LLM
+            try:
+                prompt = f"""Analyze the following sentiment data for a brand and provide 2-5 sentences about what stands out or is notable. Focus on patterns, frequently associated terms, competitive context, or any surprising findings. Be specific and insightful.
+
+{context}
+
+Provide your analysis:"""
+
+                insight = _call_gemini_api(prompt)
+                sentiment_insights[sentiment.lower().replace(' ', '_')] = insight
+            except Exception as e:
+                print(f"Error generating insight for {sentiment}: {e}")
+                sentiment_insights[sentiment.lower().replace(' ', '_')] = "No insight available."
+        else:
+            sentiment_insights[sentiment.lower().replace(' ', '_')] = "No data available for this sentiment category."
+
     return {
         "very_positive": sentiment_map.get('Very Positive', 0),
         "positive": sentiment_map.get('Positive', 0),
         "neutral": sentiment_map.get('Neutral', 0),
         "negative": sentiment_map.get('Negative', 0),
-        "mixed": sentiment_map.get('Mixed', 0),
+        "very_negative": sentiment_map.get('Very Negative', 0),
         "total": total,
         "very_positive_pct": round((sentiment_map.get('Very Positive', 0) / total * 100) if total > 0 else 0, 1),
         "positive_pct": round((sentiment_map.get('Positive', 0) / total * 100) if total > 0 else 0, 1),
         "neutral_pct": round((sentiment_map.get('Neutral', 0) / total * 100) if total > 0 else 0, 1),
         "negative_pct": round((sentiment_map.get('Negative', 0) / total * 100) if total > 0 else 0, 1),
-        "mixed_pct": round((sentiment_map.get('Mixed', 0) / total * 100) if total > 0 else 0, 1),
+        "very_negative_pct": round((sentiment_map.get('Very Negative', 0) / total * 100) if total > 0 else 0, 1),
         "negative_statements": negative_statements,
-        "mixed_statements": mixed_statements
+        "sentiment_insights": sentiment_insights
     }
 
 
@@ -525,3 +587,202 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
     sov_data.sort(key=lambda x: x['total_mentions'], reverse=True)
 
     return sov_data
+
+
+def get_descriptor_insights(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Generate comprehensive AI-powered insights about descriptor usage patterns.
+
+    Args:
+        db: Database session
+        brand_id: Optional brand ID to filter by
+
+    Returns:
+        Dictionary containing LLM-generated analysis of descriptor patterns
+    """
+    from app.services.llm_service import _call_gemini_api
+
+    # Get the brand name
+    brand_query = db.query(models.Brand)
+    if brand_id:
+        brand_query = brand_query.filter(models.Brand.id == brand_id)
+    brand = brand_query.first()
+    brand_name = brand.name if brand else "the brand"
+
+    # Get all target descriptors
+    target_descriptors_query = db.query(models.TargetDescriptor)
+    if brand_id:
+        target_descriptors_query = target_descriptors_query.filter(models.TargetDescriptor.brand_id == brand_id)
+    target_descriptors = target_descriptors_query.all()
+    target_descriptor_names = [td.descriptor for td in target_descriptors]
+
+    # Get all responses where brand is mentioned
+    responses_query = db.query(
+        models.Response.response_text,
+        models.Response.descriptors,
+        models.Response.competitors,
+        models.Response.pppl_position,
+        models.Response.sentiment
+    ).filter(
+        models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+    )
+
+    if brand_id:
+        responses_query = responses_query.filter(models.Response.brand_id == brand_id)
+
+    responses = responses_query.all()
+
+    # Count descriptor occurrences and analyze contexts
+    descriptor_counts = {}
+    descriptor_contexts = {}
+    descriptor_with_competitors = {}
+    descriptor_by_position = {}
+
+    for resp in responses:
+        if resp.descriptors:
+            desc_list = [d.strip() for d in resp.descriptors.split(',') if d.strip()]
+
+            for desc in desc_list:
+                # Count occurrences
+                descriptor_counts[desc] = descriptor_counts.get(desc, 0) + 1
+
+                # Store context samples
+                if desc not in descriptor_contexts:
+                    descriptor_contexts[desc] = []
+                if len(descriptor_contexts[desc]) < 3:  # Keep up to 3 samples
+                    descriptor_contexts[desc].append(resp.response_text[:200])
+
+                # Track competitor co-mentions
+                if resp.competitors:
+                    if desc not in descriptor_with_competitors:
+                        descriptor_with_competitors[desc] = []
+                    comp_list = [c.strip() for c in resp.competitors.split(',') if c.strip()]
+                    descriptor_with_competitors[desc].extend(comp_list)
+
+                # Track by positioning
+                if resp.pppl_position:
+                    if desc not in descriptor_by_position:
+                        descriptor_by_position[desc] = []
+                    descriptor_by_position[desc].append(resp.pppl_position)
+
+    # Get all unique descriptors mentioned
+    all_descriptors = list(descriptor_counts.keys())
+
+    # Identify descriptors used vs not used from target list
+    used_target_descriptors = [td for td in target_descriptor_names if td in descriptor_counts]
+    unused_target_descriptors = [td for td in target_descriptor_names if td not in descriptor_counts]
+
+    # Get descriptors not in target list
+    non_target_descriptors = [d for d in all_descriptors if d not in target_descriptor_names]
+
+    # Build comprehensive context for LLM
+    context = f"""
+Brand: {brand_name}
+Total brand mentions analyzed: {len(responses)}
+Total unique descriptors found: {len(all_descriptors)}
+
+TARGET DESCRIPTORS ANALYSIS:
+Target descriptors being tracked: {len(target_descriptor_names)}
+Target descriptors actually used: {len(used_target_descriptors)}
+Target descriptors NOT appearing: {len(unused_target_descriptors)}
+
+STRONG ASSOCIATIONS (Most Frequently Used):
+"""
+
+    # Add top 10 most frequent descriptors with details
+    sorted_descriptors = sorted(descriptor_counts.items(), key=lambda x: x[1], reverse=True)
+    for i, (desc, count) in enumerate(sorted_descriptors[:10], 1):
+        percentage = round((count / len(responses)) * 100, 1)
+        context += f"\n{i}. '{desc}' - {count} mentions ({percentage}%)"
+
+        # Add competitor context if available
+        if desc in descriptor_with_competitors:
+            unique_comps = list(set(descriptor_with_competitors[desc]))[:3]
+            if unique_comps:
+                context += f" | Often with competitors: {', '.join(unique_comps)}"
+
+        # Add positioning context
+        if desc in descriptor_by_position:
+            positions = descriptor_by_position[desc]
+            leader_count = positions.count('Leader')
+            if leader_count > 0:
+                context += f" | Appears in 'Leader' positioning {leader_count} times"
+
+    context += "\n\nWEAK ASSOCIATIONS (Target Descriptors with Low/No Usage):\n"
+    for desc in unused_target_descriptors[:10]:
+        context += f"- '{desc}' - NOT mentioned at all\n"
+
+    # Add some used but infrequent target descriptors
+    weak_used = [(d, descriptor_counts[d]) for d in used_target_descriptors if descriptor_counts[d] < 3]
+    if weak_used:
+        context += "\nInfrequently used target descriptors:\n"
+        for desc, count in weak_used[:5]:
+            context += f"- '{desc}' - only {count} mention(s)\n"
+
+    context += "\n\nNON-TARGET DESCRIPTORS (High frequency but not tracked):\n"
+    non_target_freq = [(d, descriptor_counts[d]) for d in non_target_descriptors if descriptor_counts[d] >= 3]
+    for desc, count in sorted(non_target_freq, key=lambda x: x[1], reverse=True)[:10]:
+        context += f"- '{desc}' - {count} mentions\n"
+
+    # Add competitor analysis
+    all_competitors_mentioned = set()
+    for comp_list in descriptor_with_competitors.values():
+        all_competitors_mentioned.update(comp_list)
+
+    if all_competitors_mentioned:
+        context += f"\n\nCOMPETITORS FREQUENTLY MENTIONED ALONGSIDE DESCRIPTORS:\n"
+        for comp in list(all_competitors_mentioned)[:10]:
+            context += f"- {comp}\n"
+
+    # Generate LLM analysis
+    try:
+        prompt = f"""You are an expert brand positioning analyst. Analyze the following descriptor usage data for {brand_name} and provide comprehensive insights in the following structure:
+
+{context}
+
+Please provide your analysis in the following sections:
+
+1. STRONG ASSOCIATIONS (Technical Excellence):
+   - Identify descriptors most strongly associated with {brand_name}
+   - Note any exclusive associations (descriptors only used with this brand)
+   - Compare positioning with competitors where relevant
+   - Highlight technical terms or domain expertise descriptors
+
+2. WEAK ASSOCIATIONS (Gaps & Opportunities):
+   - Identify target descriptors that are underutilized or absent
+   - Note descriptors used for competitors but not for {brand_name}
+   - Highlight missed positioning opportunities
+
+3. GENERAL INSIGHTS:
+   - Overall patterns in how {brand_name} is described
+   - Comparison with industry/sector language
+   - Notable absences (important terms not appearing)
+   - Unexpected or surprising patterns
+   - Recommendations for descriptor strategy
+
+Be specific, cite numbers where relevant, and provide actionable insights. Write in a professional but accessible tone. Each section should be 2-5 sentences."""
+
+        analysis = _call_gemini_api(prompt)
+
+        return {
+            "analysis": analysis,
+            "summary_stats": {
+                "total_unique_descriptors": len(all_descriptors),
+                "target_descriptors_tracked": len(target_descriptor_names),
+                "target_descriptors_used": len(used_target_descriptors),
+                "target_descriptors_unused": len(unused_target_descriptors),
+                "most_frequent_descriptor": sorted_descriptors[0][0] if sorted_descriptors else None,
+                "most_frequent_count": sorted_descriptors[0][1] if sorted_descriptors else 0
+            }
+        }
+    except Exception as e:
+        print(f"Error generating descriptor insights: {e}")
+        return {
+            "analysis": "Analysis temporarily unavailable. Please try again later.",
+            "summary_stats": {
+                "total_unique_descriptors": len(all_descriptors),
+                "target_descriptors_tracked": len(target_descriptor_names),
+                "target_descriptors_used": len(used_target_descriptors),
+                "target_descriptors_unused": len(unused_target_descriptors)
+            }
+        }

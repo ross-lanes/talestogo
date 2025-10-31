@@ -1,7 +1,10 @@
-import { Box, Typography, Paper, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, LineChart, Line, Legend } from 'recharts';
+import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
+import html2canvas from 'html2canvas';
+import { useRef } from 'react';
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
@@ -10,6 +13,8 @@ const BRAND_COLORS = [
 ];
 
 export default function PositioningAnalysis() {
+  const positioningChartRef = useRef<HTMLDivElement>(null);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['positioning-analysis'],
     queryFn: async () => {
@@ -25,6 +30,31 @@ export default function PositioningAnalysis() {
       return response.data;
     },
   });
+
+  // Download positioning chart as PNG
+  const handleDownloadPositioningChart = async () => {
+    if (!positioningChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(positioningChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateStr = `${month}_${day}_${year}`;
+
+      link.download = `BrandPositioning_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -94,15 +124,28 @@ export default function PositioningAnalysis() {
       </Box>
 
       <Paper sx={{ p: 4, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Brand Positioning Distribution
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          How your brand is positioned across all AI responses
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">
+              Brand Positioning Distribution
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              How your brand is positioned across all AI responses
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={handleDownloadPositioningChart}
+            size="small"
+          >
+            Download Chart As Image
+          </Button>
+        </Box>
 
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={500}>
+          <Box ref={positioningChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+            <ResponsiveContainer width="100%" height={500}>
             <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 100, left: 120, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
@@ -140,6 +183,7 @@ export default function PositioningAnalysis() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          </Box>
         ) : (
           <Alert severity="info">
             No positioning data available yet. Run analysis to generate positioning insights.

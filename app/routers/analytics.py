@@ -62,6 +62,17 @@ def get_sentiment_analysis(
     return analytics.get_sentiment_breakdown(db, brand_id=brand_id)
 
 
+@router.get("/descriptors/insights", response_model=Dict[str, Any])
+def get_descriptor_insights_endpoint(
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get AI-generated insights about descriptor usage patterns.
+    """
+    return analytics.get_descriptor_insights(db, brand_id=brand_id)
+
+
 @router.get("/positioning/breakdown", response_model=Dict[str, Any])
 def get_positioning_analysis(
     db: Session = Depends(get_db),

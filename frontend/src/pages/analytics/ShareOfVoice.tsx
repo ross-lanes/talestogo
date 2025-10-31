@@ -1,8 +1,10 @@
-import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { TrendingUp, TrendingDown, TrendingFlat } from '@mui/icons-material';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
+import { TrendingUp, TrendingDown, TrendingFlat, Download } from '@mui/icons-material';
 import { api } from '../../services/api';
+import html2canvas from 'html2canvas';
+import { useRef } from 'react';
 
 const BRAND_COLOR = '#665775';
 const COMPETITOR_COLORS = [
@@ -11,6 +13,8 @@ const COMPETITOR_COLORS = [
 ];
 
 export default function ShareOfVoice() {
+  const chartRef = useRef<HTMLDivElement>(null);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['share-of-voice'],
     queryFn: async () => {
@@ -72,6 +76,54 @@ export default function ShareOfVoice() {
 
   // Check if we have trend data (more than one collection)
   const hasTrendData = shareData.some(item => item.trend && item.trend !== 'neutral');
+
+  // Prepare data for bar chart - top 10 + brand if not in top 10
+  const sortedForChart = [...shareData].sort((a, b) => b.share_of_voice - a.share_of_voice);
+  const top10 = sortedForChart.slice(0, 10);
+  const brandInTop10 = top10.some(item => item.is_brand);
+
+  let barChartData = top10.map(item => ({
+    name: item.name,
+    shareOfVoice: item.share_of_voice,
+    is_brand: item.is_brand
+  }));
+
+  // Add brand as 11th column if not in top 10
+  if (!brandInTop10 && brandData) {
+    barChartData.push({
+      name: brandData.name,
+      shareOfVoice: brandData.share_of_voice,
+      is_brand: true
+    });
+  }
+
+  // Download bar chart as PNG
+  const handleDownloadChart = async () => {
+    if (!chartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateStr = `${month}_${day}_${year}`;
+
+      const brandName = brandData?.name || 'Brand';
+      const brandNameFormatted = brandName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+
+      link.download = `${brandNameFormatted}_ShareOfVoice_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
 
   // Function to render trend indicator
   const renderTrendIndicator = (trend: string, trendChange: number) => {
@@ -148,6 +200,65 @@ export default function ShareOfVoice() {
             </Typography>
           </Paper>
         </Box>
+      )}
+
+      {/* Bar Chart - Top 10 Organizations */}
+      {barChartData.length > 0 && (
+        <Paper sx={{ p: 4, mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Share of Voice - Top Organizations
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadChart}
+              size="small"
+            >
+              Download Chart As Image
+            </Button>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Comparison of share of voice for the top 10 organizations{!brandInTop10 && brandData ? ' (including your brand)' : ''}.
+          </Typography>
+          <Box ref={chartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0' }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  label={{ value: 'Share of Voice (%)', angle: -90, position: 'insideLeft' }}
+                  domain={[0, 'auto']}
+                />
+                <Tooltip
+                  formatter={(value: number) => [`${value.toFixed(1)}%`, 'Share of Voice']}
+                  labelStyle={{ fontWeight: 'bold' }}
+                />
+                <Bar dataKey="shareOfVoice" radius={[8, 8, 0, 0]}>
+                  {barChartData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={entry.is_brand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
+                    />
+                  ))}
+                  <LabelList
+                    dataKey="shareOfVoice"
+                    position="top"
+                    formatter={(value: number) => `${value.toFixed(1)}%`}
+                    style={{ fontSize: '12px', fontWeight: 'bold' }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </Paper>
       )}
 
       {/* Share of Voice Distribution - Table or Pie Chart */}

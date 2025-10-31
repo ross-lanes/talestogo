@@ -1,10 +1,14 @@
-import { Box, Typography, Paper, CircularProgress, Alert, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp as ThreatIcon } from '@mui/icons-material';
+import { TrendingUp as ThreatIcon, Download as DownloadIcon, Image as ImageIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
+import html2canvas from 'html2canvas';
+import { useRef } from 'react';
 
 export default function CompetitorThreats() {
+  const tableRef = useRef<HTMLDivElement>(null);
+
   const { data: shareOfVoice, isLoading: loadingSov } = useQuery({
     queryKey: ['share-of-voice-threats'],
     queryFn: async () => {
@@ -78,6 +82,85 @@ export default function CompetitorThreats() {
     }
   };
 
+  const handleDownloadCSV = () => {
+    if (!competitorThreats || competitorThreats.length === 0) return;
+
+    const csvHeaders = ['Rank', 'Competitor', 'Threat Level', 'Threat Score', 'Mentions', 'Share of Voice'];
+    const csvRows = competitorThreats.map((comp: any, index: number) => [
+      index + 1,
+      `"${comp.name.replace(/"/g, '""')}"`,
+      comp.threatLevel,
+      comp.threatScore,
+      comp.mention_count,
+      `${comp.share_of_voice.toFixed(1)}%`
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `ThreatAnalysis_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const handleDownloadTop5Image = async () => {
+    if (!tableRef.current) return;
+
+    // Temporarily hide all rows except top 5
+    const allRows = tableRef.current.querySelectorAll('tbody tr');
+    const rowsToHide: HTMLElement[] = [];
+
+    allRows.forEach((row, index) => {
+      if (index >= 5) {
+        rowsToHide.push(row as HTMLElement);
+        (row as HTMLElement).style.display = 'none';
+      }
+    });
+
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+      });
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          const today = new Date();
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const day = String(today.getDate()).padStart(2, '0');
+          const year = today.getFullYear();
+          const dateStr = `${month}_${day}_${year}`;
+
+          link.download = `Top5_ThreatAnalysis_${dateStr}.png`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+    } finally {
+      // Restore hidden rows
+      rowsToHide.forEach(row => {
+        row.style.display = '';
+      });
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h2" component="h1" gutterBottom>
@@ -121,11 +204,33 @@ export default function CompetitorThreats() {
 
       {/* Detailed Threat Analysis Table */}
       <Paper sx={{ p: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Detailed Threat Analysis
-        </Typography>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6">
+            Detailed Threat Analysis
+          </Typography>
+          <Box display="flex" gap={1}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadCSV}
+              size="small"
+              disabled={competitorThreats.length === 0}
+            >
+              Download as CSV
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<ImageIcon />}
+              onClick={handleDownloadTop5Image}
+              size="small"
+              disabled={competitorThreats.length === 0}
+            >
+              Download Top 5 as Image
+            </Button>
+          </Box>
+        </Box>
         {competitorThreats.length > 0 ? (
-          <TableContainer>
+          <TableContainer ref={tableRef}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -172,14 +277,15 @@ export default function CompetitorThreats() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={comp.threatLevel}
-                          size="small"
+                        <Typography
+                          variant="body2"
                           sx={{
-                            backgroundColor: getThreatColor(comp.threatLevel),
-                            color: 'white'
+                            color: getThreatColor(comp.threatLevel),
+                            fontWeight: 'bold'
                           }}
-                        />
+                        >
+                          {comp.threatLevel}
+                        </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" fontWeight="bold">

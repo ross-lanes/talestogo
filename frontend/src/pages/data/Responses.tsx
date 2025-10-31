@@ -118,10 +118,14 @@ export default function Responses() {
       width: 120,
       renderCell: (params) => {
         const color =
-          params.value === 'ChatGPT' ? 'success' :
-          params.value === 'Claude' ? 'primary' :
-          params.value === 'Gemini' ? 'secondary' : 'default';
-        return <Chip label={params.value} color={color} size="small" />;
+          params.value === 'ChatGPT' ? '#2e7d32' :
+          params.value === 'Claude' ? '#80A1D4' :
+          params.value === 'Gemini' ? '#9c27b0' : '#757575';
+        return (
+          <Typography variant="body2" sx={{ color, fontWeight: 'bold' }}>
+            {params.value}
+          </Typography>
+        );
       },
     },
     {
@@ -134,11 +138,19 @@ export default function Responses() {
       headerName: 'PPPL',
       width: 100,
       renderCell: (params) => {
-        if (!params.value) return <Chip label="Not Analyzed" size="small" variant="outlined" />;
+        if (!params.value) return (
+          <Typography variant="body2" sx={{ color: '#757575' }}>
+            Not Analyzed
+          </Typography>
+        );
         const color =
-          params.value === 'Yes' ? 'success' :
-          params.value === 'Indirect' ? 'warning' : 'error';
-        return <Chip label={params.value} color={color} size="small" />;
+          params.value === 'Yes' ? '#2e7d32' :
+          params.value === 'Indirect' ? '#ed6c02' : '#d32f2f';
+        return (
+          <Typography variant="body2" sx={{ color, fontWeight: 'bold' }}>
+            {params.value}
+          </Typography>
+        );
       },
     },
     {
@@ -148,10 +160,14 @@ export default function Responses() {
       renderCell: (params) => {
         if (!params.value) return null;
         const color =
-          params.value === 'Very Positive' || params.value === 'Positive' ? 'success' :
-          params.value === 'Neutral' ? 'default' :
-          params.value === 'Negative' ? 'error' : 'warning';
-        return <Chip label={params.value} color={color} size="small" />;
+          params.value === 'Very Positive' || params.value === 'Positive' ? '#2e7d32' :
+          params.value === 'Neutral' ? '#757575' :
+          params.value === 'Negative' ? '#d32f2f' : '#ed6c02';
+        return (
+          <Typography variant="body2" sx={{ color, fontWeight: 'bold' }}>
+            {params.value}
+          </Typography>
+        );
       },
     },
     {

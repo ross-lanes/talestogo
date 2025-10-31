@@ -128,16 +128,10 @@ function App() {
                     }
                   />
 
-                  {/* Manage Route */}
+                  {/* Manage Route - redirect to brand-info */}
                   <Route
                     path="/manage"
-                    element={
-                      <ProtectedRoute>
-                        <Layout>
-                          <Manage />
-                        </Layout>
-                      </ProtectedRoute>
-                    }
+                    element={<Navigate to="/manage/brand-info" replace />}
                   />
 
                   {/* Data Management Routes */}

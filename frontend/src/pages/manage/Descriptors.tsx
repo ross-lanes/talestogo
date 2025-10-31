@@ -42,10 +42,11 @@ export default function Descriptors() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedDescriptor, setSelectedDescriptor] = useState<TargetDescriptor | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [error, setError] = useState<string>('');
   const [formData, setFormData] = useState<TargetDescriptorCreate>({
     descriptor: '',
     category: '',
-    target_for_pppl: true,
+    is_target: true,
     current_ownership: '',
     priority: 'Medium',
     notes: '',
@@ -83,12 +84,21 @@ export default function Descriptors() {
   // Update descriptor mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: TargetDescriptorUpdate }) => {
+      console.log('Updating descriptor:', id, data);
       const response = await api.put<TargetDescriptor>(`/descriptors/${id}`, data);
+      console.log('Update response:', response.data);
       return response.data;
     },
     onSuccess: () => {
+      console.log('Update successful, invalidating queries and closing dialog');
       queryClient.invalidateQueries({ queryKey: ['descriptors'] });
       handleCloseDialog();
+      setError('');
+    },
+    onError: (error: any) => {
+      console.error('Update failed:', error);
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to update descriptor';
+      setError(errorMessage);
     },
   });
 
@@ -105,12 +115,14 @@ export default function Descriptors() {
   });
 
   const handleOpenDialog = (descriptor?: TargetDescriptor) => {
+    setError(''); // Clear any previous errors
     if (descriptor) {
       setSelectedDescriptor(descriptor);
+      console.log('Opening dialog with descriptor:', descriptor);
       setFormData({
         descriptor: descriptor.descriptor,
         category: descriptor.category,
-        target_for_pppl: descriptor.target_for_pppl,
+        is_target: descriptor.is_target,
         current_ownership: descriptor.current_ownership || '',
         priority: descriptor.priority,
         notes: descriptor.notes || '',
@@ -120,7 +132,7 @@ export default function Descriptors() {
       setFormData({
         descriptor: '',
         category: '',
-        target_for_pppl: true,
+        is_target: true,
         current_ownership: '',
         priority: 'Medium',
         notes: '',
@@ -153,26 +165,36 @@ export default function Descriptors() {
     }
   };
 
-  const handleDownloadSpreadsheet = () => {
-    // Prepare data for export
-    const exportData = descriptors.map((descriptor) => ({
-      'Descriptor': descriptor.descriptor,
-      'Category': descriptor.category,
-      'Target for PPPL': descriptor.target_for_pppl ? 'Yes' : 'No',
-      'Current Ownership': descriptor.current_ownership || '',
-      'Priority': descriptor.priority,
-      'Notes': descriptor.notes || '',
-    }));
+  const handleDownloadCSV = () => {
+    if (descriptors.length === 0) return;
 
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const csvHeaders = ['Descriptor', 'Category', 'Target for Brand', 'Current Ownership', 'Priority', 'Notes'];
+    const csvRows = descriptors.map((descriptor) => [
+      `"${descriptor.descriptor.replace(/"/g, '""')}"`,
+      `"${descriptor.category}"`,
+      descriptor.is_target ? 'Yes' : 'No',
+      `"${(descriptor.current_ownership || '').replace(/"/g, '""')}"`,
+      `"${descriptor.priority}"`,
+      `"${(descriptor.notes || '').replace(/"/g, '""')}"`
+    ]);
 
-    // Create workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Descriptors');
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
 
-    // Generate file and trigger download
-    XLSX.writeFile(wb, 'TALES_Descriptors.xlsx');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `Descriptors_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -204,7 +226,7 @@ export default function Descriptors() {
       ),
     },
     {
-      field: 'target_for_pppl',
+      field: 'is_target',
       headerName: 'Target',
       width: 100,
       renderCell: (params) => (
@@ -255,39 +277,67 @@ export default function Descriptors() {
   ];
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', maxWidth: '100%', px: 3, py: 2, boxSizing: 'border-box' }}>
+      <Box display="flex" alignItems="center" justifyContent="flex-end" gap={1} mb={2}>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#80A1D4',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/brand-info')}
+        >
+          Brand Info
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#75C9C8',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/queries')}
+        >
+          Queries
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#44809C',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+        >
+          Descriptors
+        </Typography>
+        <Typography variant="body1" sx={{ color: 'black' }}>|</Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: '#A13C84',
+            cursor: 'pointer',
+            '&:hover': { opacity: 0.8 }
+          }}
+          onClick={() => navigate('/manage/competitors')}
+        >
+          Competitors
+        </Typography>
+      </Box>
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center">
-          <Typography variant="h2" sx={{ mr: 1 }}>Customize</Typography>
-          <Box
-            onClick={handleMenuClick}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              '&:hover': { opacity: 0.8 },
-            }}
-          >
-            <Typography variant="h2" sx={{ color: '#665775', fontWeight: 'bold' }}>
-              Descriptors
-            </Typography>
-            <ArrowDropDownIcon sx={{ fontSize: 40, color: '#665775' }} />
-          </Box>
-        </Box>
+        <Typography variant="h2">Customize Descriptors</Typography>
         <Box>
-          <IconButton
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['descriptors', activeBrand?.id] })}
-          >
-            <RefreshIcon />
-          </IconButton>
           <Button
             variant="outlined"
             startIcon={<DownloadIcon />}
-            onClick={handleDownloadSpreadsheet}
-            sx={{ ml: 1 }}
+            onClick={handleDownloadCSV}
             disabled={descriptors.length === 0 || !activeBrand}
           >
-            Download
+            Download as CSV
           </Button>
           <Button
             variant="contained"
@@ -304,6 +354,12 @@ export default function Descriptors() {
       {!activeBrand && (
         <Alert severity="info" sx={{ mb: 3 }}>
           Please select or create a brand using the Brand Switcher in the top navigation to manage descriptors.
+        </Alert>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
         </Alert>
       )}
 
@@ -390,9 +446,9 @@ export default function Descriptors() {
             <FormControlLabel
               control={
                 <Switch
-                  checked={formData.target_for_pppl}
+                  checked={formData.is_target}
                   onChange={(e) =>
-                    setFormData({ ...formData, target_for_pppl: e.target.checked })
+                    setFormData({ ...formData, is_target: e.target.checked })
                   }
                 />
               }
