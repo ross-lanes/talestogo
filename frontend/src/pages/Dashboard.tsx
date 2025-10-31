@@ -415,15 +415,12 @@ export default function Dashboard() {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
-                    Descriptor Match
+                    Target Descriptor Adoption
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
                     {metrics.descriptor_match}%
                   </Typography>
                   {formatChange(metrics.change_descriptor)}
-                  <Typography variant="caption" color="textSecondary">
-                    Target descriptors used
-                  </Typography>
                 </Box>
                 <LabelIcon sx={{ fontSize: 48, color: '#80A1D4' }} />
               </Box>
@@ -468,20 +465,20 @@ export default function Dashboard() {
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Very Positive', value: sentimentData.very_positive || 0, fill: '#58A13B' },
-                      { name: 'Positive', value: sentimentData.positive || 0, fill: '#4A55EA' },
-                      { name: 'Neutral', value: sentimentData.neutral || 0, fill: '#A13C84' },
-                      { name: 'Mixed', value: sentimentData.mixed || 0, fill: '#75C9C8' },
-                      { name: 'Negative', value: sentimentData.negative || 0, fill: '#EA4A4A' },
+                      { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#58A13B' },
+                      { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#4A55EA' },
+                      { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#A13C84' },
+                      { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
+                      { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#EA4A4A' },
                     ].filter(item => item.value > 0)}
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
                     dataKey="value"
-                    label={(entry) => `${entry.name}: ${entry.value}`}
+                    label={(entry) => `${entry.name}: ${entry.value}%`}
                   >
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value) => `${value}%`} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (

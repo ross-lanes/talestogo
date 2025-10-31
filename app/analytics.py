@@ -63,17 +63,48 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     ).scalar() or 0
     positive_sentiment = (positive_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
 
-    # Calculate descriptor match rate (responses with descriptors)
-    descriptor_responses = apply_filters(
-        db.query(func.count(models.Response.id)).filter(
-            and_(
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
-                models.Response.descriptors.isnot(None),
-                models.Response.descriptors != ''
-            )
+    # Calculate descriptor match rate (% of target descriptors found in AI responses about brand)
+    # Get target descriptors for this brand
+    target_descriptors_query = db.query(models.TargetDescriptor).filter(
+        models.TargetDescriptor.user_id == user_id
+    )
+    if brand_id:
+        target_descriptors_query = target_descriptors_query.filter(
+            models.TargetDescriptor.brand_id == brand_id
         )
-    ).scalar() or 0
-    descriptor_match = (descriptor_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
+    target_descriptors_list = target_descriptors_query.all()
+    total_target_descriptors = len(target_descriptors_list)
+
+    if total_target_descriptors == 0:
+        descriptor_match = 0.0
+    else:
+        # Get all responses with descriptors for this brand
+        responses_with_descriptors = apply_filters(
+            db.query(models.Response).filter(
+                and_(
+                    models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                    models.Response.descriptors.isnot(None),
+                    models.Response.descriptors != ''
+                )
+            )
+        ).all()
+
+        # Find which target descriptors were actually used
+        target_descriptors_set = {td.descriptor.lower().strip() for td in target_descriptors_list}
+        found_target_descriptors = set()
+
+        for response in responses_with_descriptors:
+            if response.descriptors:
+                # Split comma-separated descriptors
+                descriptors_list = [d.lower().strip() for d in response.descriptors.split(',') if d.strip()]
+
+                # Check which target descriptors appear in this response
+                for desc in descriptors_list:
+                    if desc in target_descriptors_set:
+                        found_target_descriptors.add(desc)
+
+        # Calculate percentage of target descriptors that were found
+        descriptor_match = (len(found_target_descriptors) / total_target_descriptors * 100)
 
     # Calculate leadership visibility (Leader + Top 3 positions)
     pppl_leader_count = apply_filters(
@@ -297,12 +328,14 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
         "neutral": sentiment_map.get('Neutral', 0),
         "negative": sentiment_map.get('Negative', 0),
         "very_negative": sentiment_map.get('Very Negative', 0),
+        "mixed": sentiment_map.get('Mixed', 0),
         "total": total,
         "very_positive_pct": round((sentiment_map.get('Very Positive', 0) / total * 100) if total > 0 else 0, 1),
         "positive_pct": round((sentiment_map.get('Positive', 0) / total * 100) if total > 0 else 0, 1),
         "neutral_pct": round((sentiment_map.get('Neutral', 0) / total * 100) if total > 0 else 0, 1),
         "negative_pct": round((sentiment_map.get('Negative', 0) / total * 100) if total > 0 else 0, 1),
         "very_negative_pct": round((sentiment_map.get('Very Negative', 0) / total * 100) if total > 0 else 0, 1),
+        "mixed_pct": round((sentiment_map.get('Mixed', 0) / total * 100) if total > 0 else 0, 1),
         "negative_statements": negative_statements,
         "sentiment_insights": sentiment_insights
     }

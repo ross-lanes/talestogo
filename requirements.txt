@@ -16,3 +16,4 @@ python-jose[cryptography]
 bcrypt
 google-auth
 email-validator
+matplotlib

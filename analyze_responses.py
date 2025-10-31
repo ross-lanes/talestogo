@@ -2,7 +2,7 @@
 """
 Response Analysis Script for TALES Project
 Analyzes collected LLM responses for brand mentions, sentiment, descriptors, and competitors.
-Uses Claude AI (Anthropic) for analysis.
+Uses Perplexity API for analysis.
 """
 
 import os
@@ -23,13 +23,13 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
 from app import models
 
-# Import Anthropic Claude
+# Import OpenAI for Perplexity API
 try:
-    from anthropic import Anthropic
-    ANTHROPIC_AVAILABLE = True
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
 except ImportError:
-    ANTHROPIC_AVAILABLE = False
-    print("⚠️  Anthropic SDK not available. Install with: pip install anthropic")
+    OPENAI_AVAILABLE = False
+    print("⚠️  OpenAI SDK not available. Install with: pip install openai")
     sys.exit(1)
 
 # Target descriptors and competitors (loaded from database)
@@ -37,25 +37,28 @@ TARGET_DESCRIPTORS = []
 COMPETITORS = []
 
 class ResponseAnalyzer:
-    """Analyzes responses using Claude AI (Anthropic)."""
+    """Analyzes responses using Perplexity API."""
 
     def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, task_status_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
         self.brand_id = brand_id
         self.task_status_id = task_status_id
-        self.claude_client = None
+        self.ai_client = None
         self.brand_name = "your brand"
         self.brand_info = None
 
-        # Set up Claude (Anthropic)
-        if ANTHROPIC_AVAILABLE:
-            anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-            if anthropic_key:
-                self.claude_client = Anthropic(api_key=anthropic_key)
-                print("✓ Claude AI configured for analysis (claude-3-haiku-20240307)")
+        # Set up Perplexity AI
+        if OPENAI_AVAILABLE:
+            perplexity_key = os.getenv('PERPLEXITY_API_KEY')
+            if perplexity_key:
+                self.ai_client = OpenAI(
+                    api_key=perplexity_key,
+                    base_url="https://api.perplexity.ai"
+                )
+                print("✓ Perplexity AI configured for analysis (sonar model)")
             else:
-                print("⚠️  ANTHROPIC_API_KEY not found in environment")
+                print("⚠️  PERPLEXITY_API_KEY not found in environment")
                 sys.exit(1)
 
         # Load brand info
@@ -207,21 +210,22 @@ Example format:
         return prompt
 
     def analyze_response(self, response: models.Response) -> Optional[Dict]:
-        """Analyze a single response using Claude AI."""
-        if not self.claude_client:
+        """Analyze a single response using Perplexity AI."""
+        if not self.ai_client:
             return None
 
         try:
             prompt = self.build_analysis_prompt(response.query_text, response.response_text)
 
-            # Call Claude API
-            message = self.claude_client.messages.create(
-                model="claude-3-haiku-20240307",  # Fast and cost-effective for analysis
+            # Call Perplexity API (OpenAI-compatible format)
+            completion = self.ai_client.chat.completions.create(
+                model="sonar",  # Perplexity's Sonar model
+                messages=[{"role": "user", "content": prompt}],
                 max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
+                temperature=0.2
             )
 
-            analysis_text = message.content[0].text.strip()
+            analysis_text = completion.choices[0].message.content.strip()
 
             # Try to extract JSON from the response
             # Sometimes the model wraps JSON in markdown code blocks

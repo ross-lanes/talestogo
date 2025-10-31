@@ -89,8 +89,8 @@ export default function Layout({ children }: LayoutProps) {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/', indent: false },
     { text: 'Customize', icon: <CustomizeIcon />, path: '/manage', indent: false },
-    { text: 'Data', icon: <CollectionIcon />, path: '/data', indent: false },
-    { text: 'Full Analysis', icon: <AnalyticsIcon />, path: '/data-analysis', indent: false },
+    { text: 'Data Collection', icon: <CollectionIcon />, path: '/data', indent: false },
+    { text: 'Data Analysis', icon: <AnalyticsIcon />, path: '/data-analysis', indent: false },
     { text: 'Positioning', icon: <TrendingUpIcon />, path: '/analytics/positioning', indent: true },
     { text: 'Share of Voice', icon: <VisibilityIcon />, path: '/analytics/share-of-voice', indent: true },
     { text: 'Descriptors', icon: <DescriptorIcon />, path: '/analytics/descriptors', indent: true },

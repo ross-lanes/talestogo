@@ -153,7 +153,7 @@ export default function Data() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h2" component="h1">
-          AI Responses
+          Data Collection
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button

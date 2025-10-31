@@ -1124,14 +1124,47 @@ async def run_analysis(
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Trigger analysis on unanalyzed responses and auto-generate report for active brand."""
+    """Analyze responses from most recent collection date and auto-generate report for active brand."""
     if not brand_id:
         raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
 
-    # Check for unanalyzed responses for this brand
-    unanalyzed_responses = crud.get_unanalyzed_responses(db, user_id=current_user.id, brand_id=brand_id, limit=1000)
-    if not unanalyzed_responses:
-        raise HTTPException(status_code=404, detail="No unanalyzed responses found for active brand.")
+    # Find the most recent collection date for this brand
+    most_recent_response = db.query(models.Response).filter(
+        models.Response.user_id == current_user.id,
+        models.Response.brand_id == brand_id
+    ).order_by(models.Response.timestamp.desc()).first()
+
+    if not most_recent_response:
+        raise HTTPException(status_code=404, detail="No responses found for active brand.")
+
+    # Get the date of the most recent collection (just the date part)
+    latest_date = most_recent_response.timestamp.date()
+
+    # Find all responses from that date
+    latest_date_start = datetime.datetime.combine(latest_date, datetime.time.min)
+    latest_date_end = latest_date_start + datetime.timedelta(days=1)
+
+    responses_to_analyze = db.query(models.Response).filter(
+        models.Response.user_id == current_user.id,
+        models.Response.brand_id == brand_id,
+        models.Response.timestamp >= latest_date_start,
+        models.Response.timestamp < latest_date_end
+    ).all()
+
+    if not responses_to_analyze:
+        raise HTTPException(status_code=404, detail="No responses found for the most recent collection date.")
+
+    # Reset analysis fields for these responses
+    for response in responses_to_analyze:
+        response.analyzed_at = None
+        response.brand_mentioned = None
+        response.brand_position = None
+        response.sentiment = None
+        response.descriptors = None
+        response.competitors = None
+        response.sources = None
+
+    db.commit()
 
     # Create task status for analysis
     task_status = models.TaskStatus(
@@ -1139,9 +1172,9 @@ async def run_analysis(
         brand_id=brand_id,
         task_type="analysis_and_report",
         status="running",
-        total_items=len(unanalyzed_responses),
+        total_items=len(responses_to_analyze),
         processed_items=0,
-        message="Starting analysis..."
+        message=f"Analyzing {len(responses_to_analyze)} responses from {latest_date.strftime('%Y-%m-%d')}..."
     )
     db.add(task_status)
     db.commit()
@@ -1151,6 +1184,9 @@ async def run_analysis(
     report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
 
     try:
+        # Get the project root directory (where tales.db is located)
+        project_root = os.path.dirname(os.path.dirname(__file__))
+
         # Run analysis and report generation in sequence in the background with task-id
         cmd = f"""
 python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id} &&
@@ -1161,15 +1197,16 @@ python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            cwd=project_root
         )
 
         return {
-            "message": f"Analysis and report generation started for {len(unanalyzed_responses)} responses.",
+            "message": f"Analysis and report generation started for {len(responses_to_analyze)} responses from {latest_date.strftime('%Y-%m-%d')}.",
             "status": "running",
             "task_id": task_status.id,
-            "count": len(unanalyzed_responses),
-            "note": "Analysis is running in the background. A report will be generated automatically when complete."
+            "count": len(responses_to_analyze),
+            "note": "Analyzing latest data and generating report. This will update all analytics pages."
         }
     except Exception as e:
         task_status.status = "failed"
@@ -1256,6 +1293,9 @@ async def rerun_analysis(
     report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
 
     try:
+        # Get the project root directory (where tales.db is located)
+        project_root = os.path.dirname(os.path.dirname(__file__))
+
         # Run analysis and report generation in sequence in the background
         cmd = f"""
 python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id} &&
@@ -1266,7 +1306,8 @@ python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            cwd=project_root
         )
 
         return {

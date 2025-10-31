@@ -20,6 +20,10 @@ import {
   DialogActions,
   IconButton,
   TextField,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
 } from '@mui/material';
 import {
   Analytics as AnalysisIcon,
@@ -56,6 +60,7 @@ export default function DataAnalysis() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [analysisMode, setAnalysisMode] = useState<'latest' | 'date-range'>('latest');
 
   // Fetch reports
   const { data: reports, isLoading } = useQuery<Report[]>({
@@ -66,7 +71,7 @@ export default function DataAnalysis() {
     },
   });
 
-  // Analysis mutation
+  // Analysis mutation (for latest data only)
   const analysisMutation = useMutation({
     mutationFn: async () => {
       const response = await api.post('/tasks/run-analysis/');
@@ -195,76 +200,96 @@ export default function DataAnalysis() {
         <Typography variant="h2" component="h1">
           Data Analysis
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AnalysisIcon />}
-            onClick={() => analysisMutation.mutate()}
-            disabled={analysisMutation.isPending || rerunAnalysisMutation.isPending}
-          >
-            {analysisMutation.isPending ? 'Running...' : 'Run Analysis'}
-          </Button>
-          <Button
-            variant="outlined"
-            color="secondary"
-            startIcon={<AnalysisIcon />}
-            onClick={() => rerunAnalysisMutation.mutate()}
-            disabled={analysisMutation.isPending || rerunAnalysisMutation.isPending}
-          >
-            {rerunAnalysisMutation.isPending ? 'Rerunning...' : 'Rerun Analysis'}
-          </Button>
-        </Box>
       </Box>
 
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Run analysis to process new collected responses, or rerun analysis to re-analyze all existing responses with updated analysis logic. View your report archive below.
-      </Typography>
-
-      {/* Date Range Filter for Rerun Analysis */}
+      {/* Run Analysis Section */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f5f5f5' }}>
-        <Typography variant="h6" gutterBottom>
-          Date Range Filter (Optional)
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3, fontWeight: 600 }}>
+          Analyze collected responses and generate a comprehensive report with AI-powered insights.
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Filter which responses to rerun analysis on by date. Leave blank to analyze all responses.
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <TextField
-            label="Start Date"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{ width: 200 }}
-          />
-          <TextField
-            label="End Date"
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
-            sx={{ width: 200 }}
-          />
-          {(startDate || endDate) && (
-            <Button
-              variant="text"
-              size="small"
-              onClick={() => {
+
+        <FormControl component="fieldset" fullWidth>
+          <RadioGroup
+            value={analysisMode}
+            onChange={(e) => {
+              setAnalysisMode(e.target.value as 'latest' | 'date-range');
+              if (e.target.value === 'latest') {
                 setStartDate('');
                 setEndDate('');
+              }
+            }}
+          >
+            <FormControlLabel
+              value="latest"
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body1" fontWeight={500}>
+                    Analyze Latest Data
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Analyze all responses collected on the most recent collection date
+                  </Typography>
+                </Box>
+              }
+            />
+            <FormControlLabel
+              value="date-range"
+              control={<Radio />}
+              label={
+                <Box>
+                  <Typography variant="body1" fontWeight={500}>
+                    Analyze Custom Date Range
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Select a specific date range to analyze
+                  </Typography>
+                </Box>
+              }
+              sx={{ mt: 2 }}
+            />
+          </RadioGroup>
+        </FormControl>
+
+        {analysisMode === 'date-range' && (
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 3, mb: 2, ml: 4 }}>
+            <TextField
+              label="Start Date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
               }}
-            >
-              Clear Dates
-            </Button>
-          )}
-        </Box>
-        {(startDate || endDate) && (
-          <Alert severity="info" sx={{ mt: 2 }}>
+              sx={{ width: 200 }}
+            />
+            <TextField
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              sx={{ width: 200 }}
+            />
+            {(startDate || endDate) && (
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+              >
+                Clear Dates
+              </Button>
+            )}
+          </Box>
+        )}
+
+        {analysisMode === 'date-range' && (startDate || endDate) && (
+          <Alert severity="info" sx={{ mb: 2, ml: 4 }}>
             {startDate && endDate
               ? `Will analyze responses from ${startDate} to ${endDate}`
               : startDate
@@ -272,6 +297,27 @@ export default function DataAnalysis() {
               : `Will analyze responses through ${endDate}`}
           </Alert>
         )}
+
+        <Box sx={{ mt: 3, display: 'flex' }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="large"
+            startIcon={<AnalysisIcon />}
+            onClick={() => {
+              if (analysisMode === 'latest') {
+                analysisMutation.mutate();
+              } else {
+                rerunAnalysisMutation.mutate();
+              }
+            }}
+            disabled={analysisMutation.isPending || rerunAnalysisMutation.isPending}
+          >
+            {analysisMutation.isPending || rerunAnalysisMutation.isPending
+              ? 'Running Analysis...'
+              : 'Run Analysis & Generate Report'}
+          </Button>
+        </Box>
       </Paper>
 
       {/* Progress Indicator */}
