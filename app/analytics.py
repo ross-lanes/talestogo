@@ -8,23 +8,25 @@ from typing import Dict, List, Any, Optional
 import datetime
 
 
-def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
+def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Calculate key metrics for the dashboard for a specific brand.
     Returns mention rate, sentiment, descriptor match, and share of voice.
 
     Args:
         db: Database session
-        brand_id: Optional brand ID to filter by. If None, returns metrics for all brands.
+        user_id: User ID to filter by (required for data isolation)
+        brand_id: Optional brand ID to filter by. If None, returns metrics for all user's brands.
     """
-    # Base query for responses - filter by brand_id if provided
-    def apply_brand_filter(query):
+    # Base query for responses - filter by user_id and optionally brand_id
+    def apply_filters(query):
+        query = query.filter(models.Response.user_id == user_id)
         if brand_id:
-            return query.filter(models.Response.brand_id == brand_id)
+            query = query.filter(models.Response.brand_id == brand_id)
         return query
 
     # Get total responses
-    total_responses = apply_brand_filter(
+    total_responses = apply_filters(
         db.query(func.count(models.Response.id))
     ).scalar() or 0
 
@@ -43,7 +45,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
         }
 
     # Calculate mention rate (Yes or Indirect mentions)
-    pppl_mentions = apply_brand_filter(
+    pppl_mentions = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
         )
@@ -51,7 +53,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     mention_rate = (pppl_mentions / total_responses) * 100
 
     # Calculate positive sentiment rate (Very Positive, Positive)
-    positive_responses = apply_brand_filter(
+    positive_responses = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
@@ -62,7 +64,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     positive_sentiment = (positive_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
 
     # Calculate descriptor match rate (responses with descriptors)
-    descriptor_responses = apply_brand_filter(
+    descriptor_responses = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
@@ -74,7 +76,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     descriptor_match = (descriptor_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
 
     # Calculate leadership visibility (Leader + Top 3 positions)
-    pppl_leader_count = apply_brand_filter(
+    pppl_leader_count = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position.in_(['Leader', 'Top 3'])
         )
@@ -83,12 +85,12 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
 
     # Calculate true share of voice - need to get from share_of_voice function
     # For dashboard, we'll use a simplified version based on all brand mentions
-    sov_data = get_share_of_voice(db, brand_id=brand_id)
+    sov_data = get_share_of_voice(db, user_id=user_id, brand_id=brand_id)
     brand_sov = next((item for item in sov_data if item.get('is_brand')), None)
     share_of_voice = brand_sov.get('share_of_voice', 0.0) if brand_sov else 0.0
 
     # Determine leading position
-    leader_count = apply_brand_filter(
+    leader_count = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position == 'Leader'
         )
@@ -100,13 +102,13 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     fourteen_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=14)
 
     # Current period (last 7 days)
-    recent_total = apply_brand_filter(
+    recent_total = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.timestamp >= seven_days_ago
         )
     ).scalar() or 0
 
-    recent_mentions = apply_brand_filter(
+    recent_mentions = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.timestamp >= seven_days_ago,
@@ -116,7 +118,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     ).scalar() or 0
 
     # Previous period (7-14 days ago)
-    prev_total = apply_brand_filter(
+    prev_total = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.timestamp >= fourteen_days_ago,
@@ -125,7 +127,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
         )
     ).scalar() or 0
 
-    prev_mentions = apply_brand_filter(
+    prev_mentions = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.timestamp >= fourteen_days_ago,
@@ -155,7 +157,7 @@ def get_dashboard_metrics(db: Session, brand_id: Optional[int] = None) -> Dict[s
     }
 
 
-def get_mention_trend(db: Session, days: int = 30, brand_id: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     Get mention rate trend over time for a specific brand.
 
@@ -177,6 +179,7 @@ def get_mention_trend(db: Session, days: int = 30, brand_id: Optional[int] = Non
             )
         ).label('mentions')
     ).filter(
+        models.Response.user_id == user_id,
         models.Response.timestamp >= start_date
     )
 
@@ -202,7 +205,7 @@ def get_mention_trend(db: Session, days: int = 30, brand_id: Optional[int] = Non
     return trend_data
 
 
-def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
+def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Get sentiment distribution for brand mentions.
 
@@ -305,7 +308,7 @@ def get_sentiment_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict
     }
 
 
-def get_positioning_breakdown(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
+def get_positioning_breakdown(db: Session, user_id: int, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Get brand positioning distribution across responses.
 
@@ -343,7 +346,7 @@ def get_positioning_breakdown(db: Session, brand_id: Optional[int] = None) -> Di
     }
 
 
-def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """
     Calculate share of voice for brand vs competitors.
 
@@ -351,37 +354,38 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         db: Database session
         brand_id: Optional brand ID to filter by
     """
-    # Helper function to apply brand filter
-    def apply_brand_filter(query):
+    # Helper function to apply user and brand filters
+    def apply_filters(query):
+        query = query.filter(models.Response.user_id == user_id)
         if brand_id:
-            return query.filter(models.Response.brand_id == brand_id)
+            query = query.filter(models.Response.brand_id == brand_id)
         return query
 
     # Get total responses
-    total_responses = apply_brand_filter(
+    total_responses = apply_filters(
         db.query(func.count(models.Response.id))
     ).scalar() or 1
 
     # Get brand mentions by position
-    pppl_leader = apply_brand_filter(
+    pppl_leader = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position == 'Leader'
         )
     ).scalar() or 0
 
-    pppl_top3 = apply_brand_filter(
+    pppl_top3 = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position == 'Top 3'
         )
     ).scalar() or 0
 
-    pppl_featured = apply_brand_filter(
+    pppl_featured = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position == 'Featured'
         )
     ).scalar() or 0
 
-    pppl_listed = apply_brand_filter(
+    pppl_listed = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position == 'Listed'
         )
@@ -410,7 +414,7 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
     }]
 
     # Get ALL unique competitors mentioned in responses (not just tracked competitors)
-    responses_query = apply_brand_filter(
+    responses_query = apply_filters(
         db.query(models.Response.competitors).filter(
             models.Response.competitors.isnot(None),
             models.Response.competitors != ''
@@ -452,7 +456,7 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
 
     # Calculate trends by comparing with previous collection period
     # Get the two most recent unique collection dates
-    dates_query = apply_brand_filter(
+    dates_query = apply_filters(
         db.query(func.date(models.Response.timestamp)).distinct()
     ).order_by(func.date(models.Response.timestamp).desc()).limit(2)
 
@@ -469,13 +473,13 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         previous_date = dates[1]
 
         # Get total responses for each period
-        latest_total = apply_brand_filter(
+        latest_total = apply_filters(
             db.query(func.count(models.Response.id)).filter(
                 func.date(models.Response.timestamp) == latest_date
             )
         ).scalar() or 1
 
-        previous_total = apply_brand_filter(
+        previous_total = apply_filters(
             db.query(func.count(models.Response.id)).filter(
                 func.date(models.Response.timestamp) == previous_date
             )
@@ -484,7 +488,7 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
         # Calculate previous period share of voice for brand
         brand_item = next((item for item in sov_data if item['is_brand']), None)
         if brand_item:
-            prev_brand_mentions = apply_brand_filter(
+            prev_brand_mentions = apply_filters(
                 db.query(func.count(models.Response.id)).filter(
                     func.date(models.Response.timestamp) == previous_date,
                     models.Response.brand_position.in_(['Leader', 'Top 3', 'Featured'])
@@ -502,7 +506,7 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
                 brand_item['trend'] = 'down'
 
         # Calculate previous period share of voice for competitors
-        prev_responses = apply_brand_filter(
+        prev_responses = apply_filters(
             db.query(models.Response.competitors).filter(
                 func.date(models.Response.timestamp) == previous_date,
                 models.Response.competitors.isnot(None),
@@ -539,7 +543,7 @@ def get_share_of_voice(db: Session, brand_id: Optional[int] = None) -> List[Dict
     return sov_data
 
 
-def get_descriptor_insights(db: Session, brand_id: Optional[int] = None) -> Dict[str, Any]:
+def get_descriptor_insights(db: Session, user_id: int, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Generate comprehensive AI-powered insights about descriptor usage patterns.
 

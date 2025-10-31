@@ -39,15 +39,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = authAPI.getStoredToken();
 
       if (storedUser && token) {
+        // Use stored user immediately to avoid delay
         setUser(storedUser);
 
-        // Optionally refresh user data from server
+        // Refresh user data from server in background to catch any server-side changes
+        // (e.g., admin changing user status, profile updates from another session)
         try {
           const freshUser = await authAPI.getCurrentUser();
           setUser(freshUser);
         } catch (error) {
           console.error('Failed to refresh user:', error);
-          // If refresh fails, clear auth
+          // If refresh fails, clear auth (token likely expired)
           authAPI.logout();
           setUser(null);
         }

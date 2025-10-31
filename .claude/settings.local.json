@@ -12,7 +12,10 @@
       "Bash(python3:*)",
       "Bash(for file in Descriptors.tsx Competitors.tsx)",
       "Bash(do)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(chmod:*)",
+      "Bash(python run_migrations.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

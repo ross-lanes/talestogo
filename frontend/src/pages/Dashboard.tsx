@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow, IconButton } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
   SentimentSatisfied as SentimentIcon,
@@ -54,7 +54,6 @@ export default function Dashboard() {
     severity: 'info',
   });
   const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
-  const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(false);
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
 
@@ -108,29 +107,6 @@ export default function Dashboard() {
     },
   });
 
-  // Show welcome dialog for new users without ANY brand (once ever)
-  useEffect(() => {
-    // Only check after brandList has loaded
-    if (brandList !== undefined) {
-      const hasSeenWelcome = localStorage.getItem('tales_welcome_seen');
-      const hasBrands = brandList && brandList.length > 0;
-
-      // Show welcome only if: no brands exist AND haven't seen welcome before
-      if (!hasBrands && !hasSeenWelcome) {
-        setWelcomeDialogOpen(true);
-        localStorage.setItem('tales_welcome_seen', 'true');
-      }
-    }
-  }, [brandList]);
-
-  const handleWelcomeClose = () => {
-    setWelcomeDialogOpen(false);
-  };
-
-  const handleGoToCustomize = () => {
-    setWelcomeDialogOpen(false);
-    navigate('/manage/brand-info');
-  };
 
   // Fetch task status
   const { data: taskStatus } = useQuery<TaskStatus>({
@@ -383,7 +359,7 @@ export default function Dashboard() {
               New to TALES?
             </Typography>
             <Typography>
-              Click on <strong>Customize → Brand Info</strong> to begin!
+              Click on the <strong>Add Brand</strong> button to begin!
             </Typography>
           </Paper>
         )}
@@ -569,22 +545,6 @@ export default function Dashboard() {
           {snackbar.message}
         </Alert>
       </Snackbar>
-
-      {/* Welcome Dialog for New Users */}
-      <Dialog open={welcomeDialogOpen} onClose={handleWelcomeClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Welcome to TALES!</DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Your first step? Click on <strong>Customize → Brand Info</strong> to tell us a bit about your brand.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleWelcomeClose}>Close</Button>
-          <Button onClick={handleGoToCustomize} variant="contained" color="primary">
-            Go to Brand Info
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
