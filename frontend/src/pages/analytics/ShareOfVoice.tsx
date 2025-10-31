@@ -9,7 +9,7 @@ import { useRef } from 'react';
 const BRAND_COLOR = '#665775';
 const COMPETITOR_COLORS = [
   '#80a1d4', '#75c9c8', '#44809C',  // TALES colors (removed #c0b9dd and #ded9e2)
-  '#A13C84', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
+  '#9FA8DA', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
 ];
 
 export default function ShareOfVoice() {

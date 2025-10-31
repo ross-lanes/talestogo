@@ -15,13 +15,14 @@ plt.style.use('seaborn-v0_8-darkgrid')
 
 # Color palette - professional blues and grays
 COLORS = {
-    'primary': '#1976d2',
+    'primary': '#B2C9AB',     # Sage (Positive sentiment)
     'secondary': '#42a5f5',
-    'success': '#66bb6a',
+    'success': '#58A13B',     # Extended green (Very Positive sentiment)
     'warning': '#ffa726',
-    'danger': '#ef5350',
-    'neutral': '#78909c',
-    'palette': ['#1976d2', '#42a5f5', '#66bb6a', '#ffa726', '#ef5350', '#78909c', '#9575cd', '#4db6ac']
+    'danger': '#E04320',      # Burnt orange/red (Negative sentiment)
+    'neutral': '#9FA8DA',     # Periwinkle (Neutral sentiment)
+    'very_negative': '#EA4A4A',  # Extended red (Very Negative sentiment)
+    'palette': ['#B2C9AB', '#42a5f5', '#58A13B', '#ffa726', '#E04320', '#9FA8DA', '#9575cd', '#4db6ac']
 }
 
 

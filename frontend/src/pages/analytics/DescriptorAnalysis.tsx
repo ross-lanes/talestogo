@@ -138,15 +138,24 @@ export default function DescriptorAnalysis() {
     URL.revokeObjectURL(link.href);
   };
 
-  const handleDownloadTop5Image = async () => {
+  const handleDownloadTop10Image = async () => {
     if (!tableRef.current) return;
 
-    // Temporarily hide all rows except top 5
+    // Temporarily hide all rows except top 10
     const allRows = tableRef.current.querySelectorAll('tbody tr');
     const rowsToHide: HTMLElement[] = [];
+    const originalPadding: string[] = [];
+
+    // Store original padding and reduce it for all cells
+    const allCells = tableRef.current.querySelectorAll('td, th');
+    allCells.forEach((cell) => {
+      const htmlCell = cell as HTMLElement;
+      originalPadding.push(htmlCell.style.padding);
+      htmlCell.style.padding = '4px 8px'; // Reduced padding for slides
+    });
 
     allRows.forEach((row, index) => {
-      if (index >= 5) {
+      if (index >= 10) {
         rowsToHide.push(row as HTMLElement);
         (row as HTMLElement).style.display = 'none';
       }
@@ -171,7 +180,7 @@ export default function DescriptorAnalysis() {
           const year = today.getFullYear();
           const dateStr = `${month}_${day}_${year}`;
 
-          link.download = `Top5_TargetDescriptors_${dateStr}.png`;
+          link.download = `Top10_TargetDescriptors_${dateStr}.png`;
           link.href = url;
           link.click();
           URL.revokeObjectURL(url);
@@ -181,6 +190,13 @@ export default function DescriptorAnalysis() {
       // Restore hidden rows
       rowsToHide.forEach(row => {
         row.style.display = '';
+      });
+
+      // Restore original padding
+      const allCells = tableRef.current.querySelectorAll('td, th');
+      allCells.forEach((cell, index) => {
+        const htmlCell = cell as HTMLElement;
+        htmlCell.style.padding = originalPadding[index] || '';
       });
     }
   };
@@ -217,11 +233,11 @@ export default function DescriptorAnalysis() {
             <Button
               variant="outlined"
               startIcon={<ImageIcon />}
-              onClick={handleDownloadTop5Image}
+              onClick={handleDownloadTop10Image}
               size="small"
               disabled={!descriptors || descriptors.length === 0}
             >
-              Download Top 5 as Image
+              Download Top 10 as Image
             </Button>
           </Box>
         </Box>

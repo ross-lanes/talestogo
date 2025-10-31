@@ -79,7 +79,7 @@ export default function StrategicPriorities() {
       title: 'Address Negative Sentiment',
       description: `${negativeSentiment} responses contain negative sentiment. Address pain points and improve customer perception.`,
       icon: Psychology,
-      color: '#A13C84',  // Purple from extended palette
+      color: '#9FA8DA',  // Purple from extended palette
       priority: 'High',
       actions: [
         'Identify common negative themes',
@@ -190,7 +190,7 @@ export default function StrategicPriorities() {
                   label={priority.priority}
                   size="small"
                   sx={{
-                    backgroundColor: priority.priority === 'High' ? '#EA4A4A' : '#A13C84',
+                    backgroundColor: priority.priority === 'High' ? '#EA4A4A' : '#9FA8DA',
                     color: 'white'
                   }}
                 />

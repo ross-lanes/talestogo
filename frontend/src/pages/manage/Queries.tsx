@@ -339,7 +339,7 @@ export default function Queries() {
         <Typography
           variant="body1"
           sx={{
-            color: '#A13C84',
+            color: '#9FA8DA',
             cursor: 'pointer',
             '&:hover': { opacity: 0.8 }
           }}

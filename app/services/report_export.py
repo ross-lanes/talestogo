@@ -508,12 +508,12 @@ def _generate_chart_images(db: Session, brand_id: Optional[int] = None) -> dict:
 
             # Color mapping for sentiments
             sentiment_colors = {
-                'Very Positive': '#4caf50',
-                'Positive': '#8bc34a',
-                'Neutral': '#9e9e9e',
-                'Negative': '#ff9800',
-                'Very Negative': '#f44336',
-                'Mixed': '#2196f3'
+                'Very Positive': '#58A13B',  # Extended green
+                'Positive': '#B2C9AB',       # Sage
+                'Neutral': '#9FA8DA',        # Periwinkle
+                'Negative': '#E04320',       # Burnt orange/red
+                'Very Negative': '#EA4A4A',  # Extended red
+                'Mixed': '#75C9C8'           # Teal
             }
             colors_list = [sentiment_colors.get(s, '#999999') for s in sentiments]
 

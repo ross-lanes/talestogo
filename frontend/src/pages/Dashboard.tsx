@@ -461,26 +461,45 @@ export default function Dashboard() {
               Sentiment Breakdown
             </Typography>
             {sentimentData && sentimentData.total > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#58A13B' },
-                      { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#4A55EA' },
-                      { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#A13C84' },
-                      { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
-                      { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#EA4A4A' },
-                    ].filter(item => item.value > 0)}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    label={(entry) => `${entry.name}: ${entry.value}%`}
-                  >
-                  </Pie>
-                  <Tooltip formatter={(value) => `${value}%`} />
-                </PieChart>
-              </ResponsiveContainer>
+              <Box sx={{ display: 'flex', alignItems: 'center', height: 240 }}>
+                {/* Legend on the left */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mr: 2 }}>
+                  {[
+                    { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, color: '#58A13B' },
+                    { name: 'Positive', value: sentimentData.positive_pct || 0, color: '#B2C9AB' },
+                    { name: 'Neutral', value: sentimentData.neutral_pct || 0, color: '#9FA8DA' },
+                    { name: 'Mixed', value: sentimentData.mixed_pct || 0, color: '#75C9C8' },
+                    { name: 'Negative', value: sentimentData.negative_pct || 0, color: '#E04320' },
+                  ].filter(item => item.value > 0).map((item) => (
+                    <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 16, height: 16, backgroundColor: item.color, borderRadius: '2px' }} />
+                      <Typography variant="body2" sx={{ fontSize: '13px' }}>
+                        {item.name}: {item.value}%
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+                {/* Pie chart on the right */}
+                <ResponsiveContainer width="100%" height={240}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#58A13B' },
+                        { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#B2C9AB' },
+                        { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#9FA8DA' },
+                        { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
+                        { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#E04320' },
+                      ].filter(item => item.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value}%`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Box>
             ) : (
               <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography color="textSecondary">No sentiment data available</Typography>
@@ -497,8 +516,8 @@ export default function Dashboard() {
             {positioningData && positioningData.total > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={[
-                  { position: 'Leader', count: positioningData.leader || 0, fill: '#58A13B' },
-                  { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#4A55EA' },
+                  { position: 'Leader', count: positioningData.leader || 0, fill: '#B2C9AB' },
+                  { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
                   { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                   { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                   { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
@@ -509,8 +528,8 @@ export default function Dashboard() {
                   <Tooltip />
                   <Bar dataKey="count">
                     {[
-                      { position: 'Leader', count: positioningData.leader || 0, fill: '#58A13B' },
-                      { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#4A55EA' },
+                      { position: 'Leader', count: positioningData.leader || 0, fill: '#B2C9AB' },
+                      { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
                       { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                       { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                       { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },

@@ -332,7 +332,7 @@ export default function Competitors() {
         <Typography
           variant="body1"
           sx={{
-            color: '#A13C84',
+            color: '#9FA8DA',
             fontWeight: 'bold',
             cursor: 'pointer',
             '&:hover': { opacity: 0.8 }

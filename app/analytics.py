@@ -174,14 +174,14 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     change_mention_rate = current_mention_rate - prev_mention_rate
 
     return {
-        "mention_rate": round(mention_rate, 1),
+        "mention_rate": round(mention_rate),
         "mention_count": pppl_mentions,
         "total_responses": total_responses,
-        "positive_sentiment": round(positive_sentiment, 1),
-        "descriptor_match": round(descriptor_match, 1),
-        "share_of_voice": round(share_of_voice, 1),
-        "leadership_visibility": round(leadership_visibility, 1),
-        "change_mention_rate": round(change_mention_rate, 1),
+        "positive_sentiment": round(positive_sentiment),
+        "descriptor_match": round(descriptor_match),
+        "share_of_voice": round(share_of_voice),
+        "leadership_visibility": round(leadership_visibility),
+        "change_mention_rate": round(change_mention_rate),
         "change_sentiment": 0.0,  # TODO: Calculate sentiment change
         "change_descriptor": 0.0,  # TODO: Calculate descriptor change
         "leading_position": leading_position
@@ -228,7 +228,7 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
         mention_rate = (row.mentions / row.total * 100) if row.total > 0 else 0
         trend_data.append({
             "date": row.date.isoformat() if row.date else None,
-            "mention_rate": round(mention_rate, 1),
+            "mention_rate": round(mention_rate),
             "total_responses": row.total,
             "mentions": row.mentions
         })
@@ -330,12 +330,12 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
         "very_negative": sentiment_map.get('Very Negative', 0),
         "mixed": sentiment_map.get('Mixed', 0),
         "total": total,
-        "very_positive_pct": round((sentiment_map.get('Very Positive', 0) / total * 100) if total > 0 else 0, 1),
-        "positive_pct": round((sentiment_map.get('Positive', 0) / total * 100) if total > 0 else 0, 1),
-        "neutral_pct": round((sentiment_map.get('Neutral', 0) / total * 100) if total > 0 else 0, 1),
-        "negative_pct": round((sentiment_map.get('Negative', 0) / total * 100) if total > 0 else 0, 1),
-        "very_negative_pct": round((sentiment_map.get('Very Negative', 0) / total * 100) if total > 0 else 0, 1),
-        "mixed_pct": round((sentiment_map.get('Mixed', 0) / total * 100) if total > 0 else 0, 1),
+        "very_positive_pct": round((sentiment_map.get('Very Positive', 0) / total * 100) if total > 0 else 0),
+        "positive_pct": round((sentiment_map.get('Positive', 0) / total * 100) if total > 0 else 0),
+        "neutral_pct": round((sentiment_map.get('Neutral', 0) / total * 100) if total > 0 else 0),
+        "negative_pct": round((sentiment_map.get('Negative', 0) / total * 100) if total > 0 else 0),
+        "very_negative_pct": round((sentiment_map.get('Very Negative', 0) / total * 100) if total > 0 else 0),
+        "mixed_pct": round((sentiment_map.get('Mixed', 0) / total * 100) if total > 0 else 0),
         "negative_statements": negative_statements,
         "sentiment_insights": sentiment_insights
     }
@@ -371,11 +371,11 @@ def get_positioning_breakdown(db: Session, user_id: int, brand_id: Optional[int]
         "listed": position_map.get('Listed', 0),
         "not_mentioned": position_map.get('Not Mentioned', 0),
         "total": total,
-        "leader_pct": round((position_map.get('Leader', 0) / total * 100) if total > 0 else 0, 1),
-        "top_3_pct": round((position_map.get('Top 3', 0) / total * 100) if total > 0 else 0, 1),
-        "featured_pct": round((position_map.get('Featured', 0) / total * 100) if total > 0 else 0, 1),
-        "listed_pct": round((position_map.get('Listed', 0) / total * 100) if total > 0 else 0, 1),
-        "not_mentioned_pct": round((position_map.get('Not Mentioned', 0) / total * 100) if total > 0 else 0, 1),
+        "leader_pct": round((position_map.get('Leader', 0) / total * 100) if total > 0 else 0),
+        "top_3_pct": round((position_map.get('Top 3', 0) / total * 100) if total > 0 else 0),
+        "featured_pct": round((position_map.get('Featured', 0) / total * 100) if total > 0 else 0),
+        "listed_pct": round((position_map.get('Listed', 0) / total * 100) if total > 0 else 0),
+        "not_mentioned_pct": round((position_map.get('Not Mentioned', 0) / total * 100) if total > 0 else 0),
     }
 
 
@@ -442,7 +442,7 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
         "listed_count": pppl_listed,
         "total_mentions": pppl_total_mentions,
         "share_of_voice": 0,  # Will calculate after getting all mentions
-        "leadership_visibility": round(((pppl_leader + pppl_top3) / total_responses * 100), 1),  # Quality-weighted
+        "leadership_visibility": round(((pppl_leader + pppl_top3) / total_responses * 100)),  # Quality-weighted
         "is_brand": True  # Mark this as the user's brand
     }]
 
@@ -483,7 +483,7 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
     total_all_mentions = sum(item['total_mentions'] for item in sov_data)
     for item in sov_data:
         if total_all_mentions > 0:
-            item['share_of_voice'] = round((item['total_mentions'] / total_all_mentions * 100), 1)
+            item['share_of_voice'] = round((item['total_mentions'] / total_all_mentions * 100))
         else:
             item['share_of_voice'] = 0
 
@@ -532,7 +532,7 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
             current_brand_sov = brand_item['share_of_voice']
             change = current_brand_sov - prev_brand_sov
 
-            brand_item['trend_change'] = round(change, 1)
+            brand_item['trend_change'] = round(change)
             if change > 0.5:
                 brand_item['trend'] = 'up'
             elif change < -0.5:
@@ -564,7 +564,7 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
                 current_sov = item['share_of_voice']
                 change = current_sov - prev_sov
 
-                item['trend_change'] = round(change, 1)
+                item['trend_change'] = round(change)
                 if change > 0.5:
                     item['trend'] = 'up'
                 elif change < -0.5:
@@ -679,7 +679,7 @@ STRONG ASSOCIATIONS (Most Frequently Used):
     # Add top 10 most frequent descriptors with details
     sorted_descriptors = sorted(descriptor_counts.items(), key=lambda x: x[1], reverse=True)
     for i, (desc, count) in enumerate(sorted_descriptors[:10], 1):
-        percentage = round((count / len(responses)) * 100, 1)
+        percentage = round((count / len(responses)) * 100)
         context += f"\n{i}. '{desc}' - {count} mentions ({percentage}%)"
 
         # Add competitor context if available

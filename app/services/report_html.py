@@ -411,12 +411,12 @@ def prepare_sentiment_chart_data(sentiment_data: Dict[str, Any]) -> str:
     breakdown = sentiment_data.get('breakdown', {})
 
     colors = {
-        'Very Positive': '#4caf50',
-        'Positive': '#8bc34a',
-        'Neutral': '#9e9e9e',
-        'Negative': '#ff9800',
-        'Very Negative': '#f44336',
-        'Mixed': '#2196f3'
+        'Very Positive': '#58A13B',  # Extended green
+        'Positive': '#B2C9AB',       # Sage
+        'Neutral': '#9FA8DA',        # Periwinkle
+        'Negative': '#E04320',       # Burnt orange/red
+        'Very Negative': '#EA4A4A',  # Extended red
+        'Mixed': '#75C9C8'           # Teal
     }
 
     data = {

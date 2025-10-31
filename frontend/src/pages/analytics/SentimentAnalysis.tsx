@@ -8,10 +8,10 @@ import { useRef } from 'react';
 
 const COLORS = {
   'Very Positive': '#58A13B',  // Extended green
-  'Positive': '#4A55EA',       // Extended bright blue
-  'Neutral': '#A13C84',        // Extended purple
-  'Negative': '#EA4A4A',       // Extended red
-  'Very Negative': '#EA4A4A'   // Extended red (same as Negative)
+  'Positive': '#B2C9AB',       // Sage
+  'Neutral': '#9FA8DA',        // Periwinkle
+  'Negative': '#E04320',       // Burnt orange/red
+  'Very Negative': '#EA4A4A'   // Extended red
 };
 
 export default function SentimentAnalysis() {

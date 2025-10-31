@@ -9,7 +9,7 @@ import { useRef } from 'react';
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
   '#665775', '#80a1d4', '#75c9c8', '#44809C',  // TALES colors
-  '#A13C84', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
+  '#9FA8DA', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
 ];
 
 export default function PositioningAnalysis() {
@@ -79,7 +79,7 @@ export default function PositioningAnalysis() {
     { key: 'listed', label: 'Listed', color: '#80a1d4' },
     { key: 'featured', label: 'Featured', color: '#75c9c8' },
     { key: 'top_3', label: 'Top 3', color: '#44809C' },
-    { key: 'leader', label: 'Leader', color: '#A13C84' }
+    { key: 'leader', label: 'Leader', color: '#B2C9AB' }
   ];
 
   const chartData = data
@@ -106,7 +106,7 @@ export default function PositioningAnalysis() {
 
       {/* Key Metrics Summary */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 3, mb: 4 }}>
-        <Paper sx={{ p: 3, backgroundColor: '#A13C84', color: 'white' }}>
+        <Paper sx={{ p: 3, backgroundColor: '#B2C9AB', color: 'white' }}>
           <Typography variant="h4">{data?.leader || 0}</Typography>
           <Typography variant="body1">Leader Position</Typography>
           <Typography variant="caption">Top recommendation</Typography>
@@ -222,7 +222,7 @@ export default function PositioningAnalysis() {
             </Typography>
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ color: '#A13C84', mb: 1 }}>Leader (Score: 5)</Typography>
+            <Typography variant="h6" sx={{ color: '#9FA8DA', mb: 1 }}>Leader (Score: 5)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand is presented as the top choice or industry leader
             </Typography>

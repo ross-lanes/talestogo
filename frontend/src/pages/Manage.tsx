@@ -73,7 +73,7 @@ export default function Manage() {
             startIcon={<CompetitorIcon />}
             onClick={() => navigate('/manage/competitors')}
             sx={{
-              backgroundColor: '#A13C84',
+              backgroundColor: '#9FA8DA',
               color: '#ffffff',
               '&:hover': {
                 backgroundColor: '#8A3370',
