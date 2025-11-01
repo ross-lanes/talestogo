@@ -19,17 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create directory for database if it doesn't exist
-RUN mkdir -p /app/data
-
 # Expose port
 EXPOSE 8000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV DATABASE_URL=sqlite:///./data/tales.db
 
-# Run database migrations on startup and then start the server
-CMD python app/migrations/run_migrations.py --db-path ./data/tales.db --no-backup && \
-    python -c "from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)" && \
+# Run database setup and start the server
+CMD python -c "from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)" && \
     uvicorn app.main:app --host 0.0.0.0 --port 8000

@@ -20,13 +20,11 @@ services:
       - key: PERPLEXITY_API_KEY
         sync: false
       - key: DATABASE_URL
-        value: sqlite:///./data/tales.db
+        fromDatabase:
+          name: tales-database
+          property: connectionString
       - key: FRONTEND_URL
         value: https://tales.robotrachel.com
-    disk:
-      name: tales-data
-      mountPath: /app/data
-      sizeGB: 1
 
   # Frontend Static Site
   - type: web
@@ -43,3 +41,8 @@ services:
       - type: rewrite
         source: /(.*)
         destination: /index.html
+
+databases:
+  - name: tales-database
+    databaseName: tales_3bh3
+    user: tales_3bh3_user
