@@ -398,7 +398,7 @@ def markdown_to_html(markdown_content: str) -> str:
 def prepare_sentiment_chart_data(sentiment_data: Dict[str, Any]) -> str:
     """Prepare sentiment data for Chart.js"""
     colors = {
-        'Very Positive': '#76FF03',  # Bright highlighter green
+        'Very Positive': '#116C29',  # Bright highlighter green
         'Positive': '#58A13B',       # Extended green (formerly Very Positive)
         'Neutral': '#9FA8DA',
         'Negative': '#E04320',
@@ -438,7 +438,7 @@ def prepare_sentiment_chart_data(sentiment_data: Dict[str, Any]) -> str:
 def prepare_positioning_chart_data(positioning_data: Dict[str, Any]) -> str:
     """Prepare positioning data for Chart.js"""
     colors = {
-        'Leader': '#76FF03',  # Bright highlighter green
+        'Leader': '#116C29',  # Bright highlighter green
         'Top 3': '#44809C',
         'Featured': '#75C9C8',
         'Listed': '#80A1D4',

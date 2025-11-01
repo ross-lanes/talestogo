@@ -79,7 +79,7 @@ export default function PositioningAnalysis() {
     { key: 'listed', label: 'Listed', color: '#80a1d4' },
     { key: 'featured', label: 'Featured', color: '#75c9c8' },
     { key: 'top_3', label: 'Top 3', color: '#44809C' },
-    { key: 'leader', label: 'Leader', color: '#76FF03' }  // Bright highlighter green
+    { key: 'leader', label: 'Leader', color: '#116C29' }  // Bright highlighter green
   ];
 
   const chartData = data
@@ -106,7 +106,7 @@ export default function PositioningAnalysis() {
 
       {/* Key Metrics Summary */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 3, mb: 4 }}>
-        <Paper sx={{ p: 3, backgroundColor: '#76FF03', color: 'black' }}>
+        <Paper sx={{ p: 3, backgroundColor: '#116C29', color: 'white' }}>
           <Typography variant="h4">{data?.leader || 0}</Typography>
           <Typography variant="body1">Leader Position</Typography>
           <Typography variant="caption">Top recommendation</Typography>
@@ -222,7 +222,7 @@ export default function PositioningAnalysis() {
             </Typography>
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ color: '#76FF03', mb: 1 }}>Leader (Score: 5)</Typography>
+            <Typography variant="h6" sx={{ color: '#116C29', mb: 1 }}>Leader (Score: 5)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand is presented as the top choice or industry leader
             </Typography>

@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import { useRef } from 'react';
 
 const COLORS = {
-  'Very Positive': '#76FF03',  // Bright highlighter green
+  'Very Positive': '#116C29',  // Bright highlighter green
   'Positive': '#58A13B',       // Extended green (formerly Very Positive)
   'Neutral': '#9FA8DA',        // Periwinkle
   'Negative': '#E04320',       // Burnt orange/red

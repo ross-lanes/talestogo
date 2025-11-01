@@ -18,12 +18,12 @@ plt.style.use('seaborn-v0_8-darkgrid')
 COLORS = {
     'primary': '#58A13B',     # Extended green (Positive sentiment)
     'secondary': '#42a5f5',
-    'success': '#76FF03',     # Bright highlighter green (Very Positive sentiment)
+    'success': '#116C29',     # Bright highlighter green (Very Positive sentiment)
     'warning': '#ffa726',
     'danger': '#E04320',      # Burnt orange/red (Negative sentiment)
     'neutral': '#9FA8DA',     # Periwinkle (Neutral sentiment)
     'very_negative': '#EA4A4A',  # Extended red (Very Negative sentiment)
-    'palette': ['#58A13B', '#42a5f5', '#76FF03', '#ffa726', '#E04320', '#9FA8DA', '#9575cd', '#4db6ac']
+    'palette': ['#58A13B', '#42a5f5', '#116C29', '#ffa726', '#E04320', '#9FA8DA', '#9575cd', '#4db6ac']
 }
 
 
