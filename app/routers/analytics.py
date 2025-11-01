@@ -99,3 +99,54 @@ def get_share_of_voice_analysis(
     Get share of voice comparison between brand and competitors.
     """
     return analytics.get_share_of_voice(db, user_id=current_user.id, brand_id=brand_id)
+
+
+@router.get("/recommendations", response_model=Dict[str, Any])
+def get_recommendations(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get the latest AI-generated recommendations from the most recent report.
+    """
+    # Query for the most recent report for the user/brand
+    query = db.query(models.Report).filter(models.Report.user_id == current_user.id)
+    if brand_id:
+        query = query.filter(models.Report.brand_id == brand_id)
+
+    latest_report = query.order_by(models.Report.created_at.desc()).first()
+
+    if not latest_report:
+        return {
+            "has_recommendations": False,
+            "message": "No analysis reports found. Run a Full Analysis to generate recommendations.",
+            "recommendations": None,
+            "report_date": None
+        }
+
+    # Extract recommendations section from the report content
+    report_content = latest_report.report_content
+    recommendations_text = ""
+
+    # Find the "Strategic Recommendations" section
+    if "## 4. Strategic Recommendations" in report_content:
+        # Split by ## sections to find the right one
+        sections = report_content.split("\n## ")
+        for section in sections:
+            if section.startswith("4. Strategic Recommendations"):
+                # Get everything until the next ## section or end
+                recommendations_text = "## " + section
+                # If there's another section after, cut it off
+                next_section_pos = recommendations_text.find("\n## ", 3)
+                if next_section_pos > 0:
+                    recommendations_text = recommendations_text[:next_section_pos]
+                break
+
+    return {
+        "has_recommendations": bool(recommendations_text),
+        "recommendations": recommendations_text if recommendations_text else "No recommendations section found in the report.",
+        "report_date": latest_report.created_at.isoformat() if latest_report.created_at else None,
+        "report_id": latest_report.id,
+        "total_responses": latest_report.total_responses
+    }

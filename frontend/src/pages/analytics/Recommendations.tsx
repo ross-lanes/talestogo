@@ -1,0 +1,156 @@
+import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
+import { Lightbulb as LightbulbIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../services/api';
+import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
+
+export default function Recommendations() {
+  const navigate = useNavigate();
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['recommendations'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/recommendations');
+      return response.data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error">
+          Failed to load recommendations. Please try again.
+        </Alert>
+      </Box>
+    );
+  }
+
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <Box sx={{ p: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <LightbulbIcon sx={{ fontSize: 40, color: '#1976d2' }} />
+          <Typography variant="h4" component="h1">
+            Strategic Recommendations
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={() => refetch()}
+        >
+          Refresh
+        </Button>
+      </Box>
+
+      {!data?.has_recommendations ? (
+        <Paper sx={{ p: 4 }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {data?.message || 'No recommendations available yet.'}
+          </Alert>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Recommendations are generated when you run a Full Analysis. This includes:
+          </Typography>
+          <Typography component="ul" sx={{ pl: 3 }}>
+            <li>Strategic priorities based on your brand's AI presence</li>
+            <li>Competitive threats and opportunities</li>
+            <li>Tactical actions you can take immediately</li>
+            <li>Long-term strategy recommendations</li>
+          </Typography>
+          <Button
+            variant="contained"
+            sx={{ mt: 3 }}
+            onClick={() => navigate('/full-analysis')}
+          >
+            Run Full Analysis
+          </Button>
+        </Paper>
+      ) : (
+        <Paper sx={{ p: 4 }}>
+          {data.report_date && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
+              Generated from analysis on {formatDate(data.report_date)}
+              {data.total_responses && ` • ${data.total_responses} responses analyzed`}
+            </Typography>
+          )}
+
+          <Box
+            sx={{
+              '& h3': {
+                mt: 3,
+                mb: 2,
+                fontSize: '1.5rem',
+                fontWeight: 600,
+              },
+              '& h4': {
+                mt: 2,
+                mb: 1,
+                fontSize: '1.25rem',
+                fontWeight: 500,
+              },
+              '& p': {
+                mb: 2,
+                lineHeight: 1.7,
+              },
+              '& ul, & ol': {
+                mb: 2,
+                pl: 3,
+              },
+              '& li': {
+                mb: 1,
+                lineHeight: 1.7,
+              },
+              '& strong': {
+                fontWeight: 600,
+              },
+              '& em': {
+                fontStyle: 'italic',
+              },
+              '& code': {
+                backgroundColor: '#f5f5f5',
+                padding: '2px 6px',
+                borderRadius: 1,
+                fontFamily: 'monospace',
+              },
+            }}
+          >
+            <ReactMarkdown>{data.recommendations}</ReactMarkdown>
+          </Box>
+
+          <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="body2" color="text.secondary">
+              Want updated recommendations? Run a new Full Analysis to generate fresh insights based on your latest data.
+            </Typography>
+            <Button
+              variant="outlined"
+              sx={{ mt: 2 }}
+              onClick={() => navigate('/full-analysis')}
+            >
+              Run New Analysis
+            </Button>
+          </Box>
+        </Paper>
+      )}
+    </Box>
+  );
+}

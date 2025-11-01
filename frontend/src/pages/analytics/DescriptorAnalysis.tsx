@@ -25,14 +25,6 @@ export default function DescriptorAnalysis() {
     },
   });
 
-  const { data: insights, isLoading: insightsLoading } = useQuery({
-    queryKey: ['descriptor-insights'],
-    queryFn: async () => {
-      const response = await api.get('/analytics/descriptors/insights');
-      return response.data;
-    },
-  });
-
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -316,58 +308,6 @@ export default function DescriptorAnalysis() {
         ) : (
           <Alert severity="info">
             No target descriptors defined yet. Add them in the Customize → Descriptors section.
-          </Alert>
-        )}
-      </Paper>
-
-      {/* AI-Generated Descriptor Insights */}
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Descriptor Analysis & Insights
-        </Typography>
-        {insightsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <CircularProgress size={40} />
-          </Box>
-        ) : insights?.analysis ? (
-          <Box>
-            {insights.summary_stats && (
-              <Box sx={{ mb: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  <strong>Quick Stats:</strong>
-                </Typography>
-                <Typography variant="body2">
-                  • Total unique descriptors found: {insights.summary_stats.total_unique_descriptors}
-                </Typography>
-                <Typography variant="body2">
-                  • Target descriptors tracked: {insights.summary_stats.target_descriptors_tracked}
-                </Typography>
-                <Typography variant="body2">
-                  • Target descriptors used: {insights.summary_stats.target_descriptors_used}
-                </Typography>
-                <Typography variant="body2">
-                  • Target descriptors unused: {insights.summary_stats.target_descriptors_unused}
-                </Typography>
-                {insights.summary_stats.most_frequent_descriptor && (
-                  <Typography variant="body2">
-                    • Most frequent descriptor: "{insights.summary_stats.most_frequent_descriptor}" ({insights.summary_stats.most_frequent_count} mentions)
-                  </Typography>
-                )}
-              </Box>
-            )}
-            <Typography
-              variant="body1"
-              sx={{
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.8
-              }}
-            >
-              {insights.analysis}
-            </Typography>
-          </Box>
-        ) : (
-          <Alert severity="info">
-            Descriptor insights are being generated. This may take a moment...
           </Alert>
         )}
       </Paper>

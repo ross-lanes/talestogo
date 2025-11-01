@@ -590,11 +590,11 @@ def get_descriptor_insights(db: Session, user_id: int, brand_id: Optional[int] =
     from app.services.llm_service import _call_gemini_api
 
     # Get the brand name
-    brand_query = db.query(models.Brand)
+    brand_query = db.query(models.BrandInfo)
     if brand_id:
-        brand_query = brand_query.filter(models.Brand.id == brand_id)
+        brand_query = brand_query.filter(models.BrandInfo.id == brand_id)
     brand = brand_query.first()
-    brand_name = brand.name if brand else "the brand"
+    brand_name = brand.brand_name if brand else "the brand"
 
     # Get all target descriptors
     target_descriptors_query = db.query(models.TargetDescriptor)
@@ -725,8 +725,21 @@ STRONG ASSOCIATIONS (Most Frequently Used):
     # Return summary stats and placeholder text
     sorted_descriptors = sorted(descriptor_counts.items(), key=lambda x: x[1], reverse=True) if descriptor_counts else []
 
+    # Build a simple summary text from the stats
+    if not all_descriptors:
+        analysis_text = "No descriptor data available yet. Run some queries to start tracking descriptor usage."
+    else:
+        analysis_text = "Descriptor usage summary based on analyzed responses. "
+        if used_target_descriptors:
+            analysis_text += f"Your target descriptors are appearing in responses, with {len(used_target_descriptors)} out of {len(target_descriptor_names)} tracked descriptors being used. "
+        if sorted_descriptors:
+            top_desc = sorted_descriptors[0]
+            analysis_text += f"The most frequently mentioned descriptor is '{top_desc[0]}' with {top_desc[1]} mentions. "
+        if unused_target_descriptors:
+            analysis_text += f"Note: {len(unused_target_descriptors)} target descriptors have not yet appeared in any responses."
+
     return {
-        "analysis": "No insight available. Go to Full Analysis → Run Analysis to generate comprehensive descriptor insights with most recent data.",
+        "analysis": analysis_text,
         "summary_stats": {
             "total_unique_descriptors": len(all_descriptors),
             "target_descriptors_tracked": len(target_descriptor_names),

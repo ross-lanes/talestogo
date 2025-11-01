@@ -96,7 +96,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Descriptors', icon: <DescriptorIcon />, path: '/analytics/descriptors', indent: true },
     { text: 'Sentiment', icon: <SentimentIcon />, path: '/analytics/sentiment', indent: true },
     { text: 'Threats', icon: <WarningIcon />, path: '/analytics/threats', indent: true },
-    { text: 'Priorities', icon: <FlagIcon />, path: '/analytics/priorities', indent: true },
+    { text: 'Recommendations', icon: <FlagIcon />, path: '/analytics/recommendations', indent: true },
   ];
 
   const handleMenuItemClick = (item: any) => {

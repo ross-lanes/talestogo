@@ -23,7 +23,7 @@ import PositioningAnalysis from './pages/analytics/PositioningAnalysis';
 import ShareOfVoice from './pages/analytics/ShareOfVoice';
 import DescriptorAnalysis from './pages/analytics/DescriptorAnalysis';
 import CompetitorThreats from './pages/analytics/CompetitorThreats';
-import StrategicPriorities from './pages/analytics/StrategicPriorities';
+import Recommendations from './pages/analytics/Recommendations';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -118,11 +118,11 @@ function App() {
                     }
                   />
                   <Route
-                    path="/analytics/priorities"
+                    path="/analytics/recommendations"
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <StrategicPriorities />
+                          <Recommendations />
                         </Layout>
                       </ProtectedRoute>
                     }
