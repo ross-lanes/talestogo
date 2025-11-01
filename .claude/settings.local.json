@@ -30,7 +30,8 @@
       "Bash(pkill:*)",
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(psql $DATABASE_URL -c \"SELECT setval(pg_get_serial_sequence(''users'', ''id''), (SELECT MAX(id) FROM users));\")"
     ],
     "deny": [],
     "ask": []
