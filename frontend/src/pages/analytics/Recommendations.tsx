@@ -136,19 +136,6 @@ export default function Recommendations() {
           >
             <ReactMarkdown>{data.recommendations}</ReactMarkdown>
           </Box>
-
-          <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="body2" color="text.secondary">
-              Want updated recommendations? Run a new Full Analysis to generate fresh insights based on your latest data.
-            </Typography>
-            <Button
-              variant="outlined"
-              sx={{ mt: 2 }}
-              onClick={() => navigate('/full-analysis')}
-            >
-              Run New Analysis
-            </Button>
-          </Box>
         </Paper>
       )}
     </Box>
