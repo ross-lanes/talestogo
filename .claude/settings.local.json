@@ -35,7 +35,9 @@
       "Bash(grep:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix CORS issue: Add withCredentials to axios config\n\nThe axios instance was missing withCredentials: true, which is required\nwhen the backend has allow_credentials=True in CORS configuration.\nWithout this, browsers block requests even when the server sends correct\nCORS headers.\n\nThis fixes the \"No 'Access-Control-Allow-Origin' header\" error when\nattempting Google OAuth login on production domain.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix database schema: Run migrations on startup\n\nThe production database was missing invitation_token and \ninvitation_expires_at columns, causing a 500 error on Google OAuth login.\n\nUpdated Dockerfile to run migration scripts automatically on startup,\nwhich will add the missing columns to the users table.\n\nThis fixes: sqlalchemy.exc.OperationalError: no such column: users.invitation_token\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
