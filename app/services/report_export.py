@@ -424,7 +424,7 @@ def export_to_word_with_charts(
             try:
                 # Try to find the chart key between single quotes
                 if "chart_paths['" in line or 'chart_paths["' in line:
-                    key_start = line.find("['") + 2 if "['"]" in line else line.find('["') + 2
+                    key_start = line.find("['") + 2 if "['" in line else line.find('["') + 2
                     key_end = line.find("']") if "']" in line else line.find('"]')
                     if key_start > 1 and key_end > key_start:
                         chart_key = line[key_start:key_end]
@@ -433,7 +433,6 @@ def export_to_word_with_charts(
                             doc.add_paragraph()  # Add spacing after image
                 else:
                     # Try to extract chart name from filename (e.g., "sentiment" from "..._sentiment_...png")
-                    import re
                     # Look for common chart types in the filename
                     chart_types = ['dashboard', 'mention_rate', 'share_of_voice', 'sentiment',
                                    'platform_comparison', 'positioning', 'descriptor_performance']
@@ -668,17 +667,22 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 plt.close(fig)
 
         # 4. Mention Rate Pie Chart
-        mention_data = analytics.get_mention_breakdown(db, user_id=user_id, brand_id=brand_id)
-        if mention_data:
-            labels = ['Explicit Mention', 'Indirect Mention', 'Not Mentioned']
-            sizes = [mention_data.get('yes', 0), mention_data.get('indirect', 0), mention_data.get('no', 0)]
-            colors_list = ['#58A13B', '#ffa726', '#E04320']  # success, warning, danger
+        # Use dashboard_metrics to get mention data
+        dashboard_data = analytics.get_dashboard_metrics(db, user_id=user_id, brand_id=brand_id)
+        if dashboard_data and dashboard_data.get('total_responses', 0) > 0:
+            # Calculate mentions breakdown
+            yes_count = dashboard_data.get('mention_count', 0)
+            total = dashboard_data.get('total_responses', 0)
+            no_count = total - yes_count
+            labels = ['Mentioned', 'Not Mentioned']
+            sizes = [yes_count, no_count]
+            colors_list = ['#58A13B', '#E04320']  # success, danger
 
             if any(s > 0 for s in sizes):
                 fig, ax = plt.subplots(figsize=(8, 6))
                 wedges, texts, autotexts = ax.pie(
                     sizes,
-                    explode=(0.05, 0, 0),
+                    explode=(0.05, 0),
                     labels=labels,
                     colors=colors_list,
                     autopct='%1.1f%%',

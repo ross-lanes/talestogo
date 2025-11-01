@@ -873,6 +873,7 @@ def generate_markdown_report(
     brand_info: Optional[BrandInfo],
     report_date: str,
     period: str,
+    responses: List[Any] = None,
     chart_paths: Dict[str, str] = None,
     positioning_insights: str = "",
     sov_insights: str = "",
@@ -1003,13 +1004,37 @@ def generate_markdown_report(
     # Add sentiment insights
     report += f"\n**Insights:**\n\n{sentiment_insights}\n"
 
-    # Add negative/mixed sentiment examples if they exist
-    if negative_statements:
-        report += "\n**Negative/Mixed Sentiment Examples:**\n"
-        for i, statement in enumerate(negative_statements, 1):
-            report += f"\n**Example {i}** ({statement['platform']} - {statement['sentiment']})\n"
-            report += f"- Query: {statement['query']}\n"
-            report += f"- Excerpt: \"{statement['excerpt']}\"\n"
+    # Add all AI statements sorted by sentiment
+    if responses:
+        report += "\n\n**AI Statements About the Brand (Sorted by Sentiment)**\n\n"
+
+        # Group responses by sentiment
+        sentiment_order = ['Very Positive', 'Positive', 'Neutral', 'Mixed', 'Negative', 'Very Negative']
+        statements_by_sentiment = {s: [] for s in sentiment_order}
+
+        for response in responses:
+            # Only include responses where brand was mentioned
+            if response.brand_mentioned in ['Yes', 'Indirect'] and response.response_text:
+                sentiment = response.sentiment if response.sentiment else 'Neutral'
+                if sentiment in statements_by_sentiment:
+                    statements_by_sentiment[sentiment].append({
+                        'platform': response.platform,
+                        'query': response.query_text,
+                        'text': response.response_text,
+                        'positioning': response.positioning if response.positioning else 'Not specified'
+                    })
+
+        # Display statements grouped by sentiment
+        for sentiment in sentiment_order:
+            statements = statements_by_sentiment[sentiment]
+            if statements:
+                report += f"\n#### {sentiment} ({len(statements)} statements)\n\n"
+                for i, statement in enumerate(statements, 1):
+                    # Truncate long responses to first 500 characters
+                    text_excerpt = statement['text'][:500] + "..." if len(statement['text']) > 500 else statement['text']
+                    report += f"**Statement {i}** - {statement['platform']} - Positioning: {statement['positioning']}\n"
+                    report += f"- **Query:** {statement['query']}\n"
+                    report += f"- **Response:** {text_excerpt}\n\n"
 
     report += """
 ---
@@ -1025,28 +1050,6 @@ def generate_markdown_report(
 ### 6. Recommendations
 """
     report += strategic_priorities
-
-    report += """
-
----
-
-## Platform Performance Breakdown
-
-"""
-
-    # Add platform analysis
-    for platform, metrics in platform_metrics.items():
-        if metrics['total'] > 0:
-            report += f"""
-**{platform}** (n={metrics['total']})
-- **Mention Rate:** {metrics['mention']['yes_pct']}% (Yes), {metrics['mention']['indirect_pct']}% (Indirect)
-- **Positive Sentiment:** {metrics['sentiment']['positive_pct'] + metrics['sentiment']['very_positive_pct']}%
-- **Leader/Top 3 Positioning:** {metrics['positioning']['leader_pct'] + metrics['positioning']['top_3_pct']}%
-"""
-
-    # Add platform comparison chart
-    if chart_paths and 'platform_comparison' in chart_paths:
-        report += f"\n![Platform Performance Comparison]({chart_paths['platform_comparison']})\n"
 
     report += """
 
@@ -1287,6 +1290,7 @@ def generate_report_main(user_id: int, brand_id: int):
             brand_info=brand_info,
             report_date=report_date,
             period=period,
+            responses=responses,
             chart_paths=chart_paths,
             positioning_insights=positioning_insights,
             sov_insights=sov_insights,
