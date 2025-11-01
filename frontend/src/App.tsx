@@ -18,6 +18,7 @@ import Register from './pages/auth/Register';
 import InviteAccept from './pages/auth/InviteAccept';
 import Settings from './pages/Settings';
 import UserManagement from './pages/admin/UserManagement';
+import UserBrandData from './pages/admin/UserBrandData';
 import SentimentAnalysis from './pages/analytics/SentimentAnalysis';
 import PositioningAnalysis from './pages/analytics/PositioningAnalysis';
 import ShareOfVoice from './pages/analytics/ShareOfVoice';
@@ -219,6 +220,16 @@ function App() {
                       <ProtectedRoute requireAdmin>
                         <Layout>
                           <UserManagement />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/users/:userId/brands/:brandId"
+                    element={
+                      <ProtectedRoute requireAdmin>
+                        <Layout>
+                          <UserBrandData />
                         </Layout>
                       </ProtectedRoute>
                     }

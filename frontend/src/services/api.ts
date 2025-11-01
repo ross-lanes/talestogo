@@ -145,8 +145,14 @@ export const authAPI = {
 
 // Admin API functions
 export const adminAPI = {
+  // User management
   listUsers: async () => {
     const response = await api.get('/admin/users');
+    return response.data;
+  },
+
+  getUser: async (userId: number) => {
+    const response = await api.get(`/admin/users/${userId}`);
     return response.data;
   },
 
@@ -174,6 +180,90 @@ export const adminAPI = {
 
   deleteUser: async (userId: number) => {
     const response = await api.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  // Brand management
+  listAllBrands: async () => {
+    const response = await api.get('/admin/brands');
+    return response.data;
+  },
+
+  getUserBrands: async (userId: number) => {
+    const response = await api.get(`/admin/users/${userId}/brands`);
+    return response.data;
+  },
+
+  getBrand: async (brandId: number) => {
+    const response = await api.get(`/admin/brands/${brandId}`);
+    return response.data;
+  },
+
+  updateBrand: async (brandId: number, data: any) => {
+    const response = await api.put(`/admin/brands/${brandId}`, data);
+    return response.data;
+  },
+
+  // Query management
+  getUserBrandQueries: async (userId: number, brandId: number) => {
+    const response = await api.get(`/admin/users/${userId}/brands/${brandId}/queries`);
+    return response.data;
+  },
+
+  createQuery: async (userId: number, brandId: number, data: any) => {
+    const response = await api.post(`/admin/users/${userId}/brands/${brandId}/queries`, data);
+    return response.data;
+  },
+
+  updateQuery: async (userId: number, brandId: number, queryId: string, data: any) => {
+    const response = await api.put(`/admin/users/${userId}/brands/${brandId}/queries/${queryId}`, data);
+    return response.data;
+  },
+
+  deleteQuery: async (userId: number, brandId: number, queryId: string) => {
+    const response = await api.delete(`/admin/users/${userId}/brands/${brandId}/queries/${queryId}`);
+    return response.data;
+  },
+
+  // Descriptor management
+  getUserBrandDescriptors: async (userId: number, brandId: number) => {
+    const response = await api.get(`/admin/users/${userId}/brands/${brandId}/descriptors`);
+    return response.data;
+  },
+
+  createDescriptor: async (userId: number, brandId: number, data: any) => {
+    const response = await api.post(`/admin/users/${userId}/brands/${brandId}/descriptors`, data);
+    return response.data;
+  },
+
+  updateDescriptor: async (userId: number, brandId: number, descriptorId: number, data: any) => {
+    const response = await api.put(`/admin/users/${userId}/brands/${brandId}/descriptors/${descriptorId}`, data);
+    return response.data;
+  },
+
+  deleteDescriptor: async (userId: number, brandId: number, descriptorId: number) => {
+    const response = await api.delete(`/admin/users/${userId}/brands/${brandId}/descriptors/${descriptorId}`);
+    return response.data;
+  },
+
+  // Competitor management
+  getUserBrandCompetitors: async (userId: number, brandId: number) => {
+    const response = await api.get(`/admin/users/${userId}/brands/${brandId}/competitors`);
+    return response.data;
+  },
+
+  createCompetitor: async (userId: number, brandId: number, data: any) => {
+    const response = await api.post(`/admin/users/${userId}/brands/${brandId}/competitors`, data);
+    return response.data;
+  },
+
+  updateCompetitor: async (userId: number, brandId: number, competitorId: number, data: any) => {
+    const response = await api.put(`/admin/users/${userId}/brands/${brandId}/competitors/${competitorId}`, data);
+    return response.data;
+  },
+
+  deleteCompetitor: async (userId: number, brandId: number, competitorId: number) => {
+    const response = await api.delete(`/admin/users/${userId}/brands/${brandId}/competitors/${competitorId}`);
     return response.data;
   },
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -15,10 +16,19 @@ import {
   IconButton,
   Switch,
   FormControlLabel,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
-import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  MoreVert as MoreVertIcon,
+  Folder as FolderIcon,
+} from '@mui/icons-material';
 import { adminAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -36,6 +46,7 @@ interface User {
 
 const UserManagement: React.FC = () => {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,6 +71,10 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editIsAdmin, setEditIsAdmin] = useState(false);
+
+  // Menu state
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuUser, setMenuUser] = useState<User | null>(null);
 
 
   useEffect(() => {
@@ -167,6 +182,39 @@ The RobotRachel Team`;
     }
   };
 
+  const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>, user: User) => {
+    setMenuAnchorEl(event.currentTarget);
+    setMenuUser(user);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchorEl(null);
+    setMenuUser(null);
+  };
+
+  const handleViewBrands = async () => {
+    if (!menuUser) return;
+
+    try {
+      // Get user's brands
+      const brands = await adminAPI.getUserBrands(menuUser.id);
+
+      if (brands.length === 0) {
+        setError(`User ${menuUser.email} has no brands yet`);
+        handleCloseMenu();
+        return;
+      }
+
+      // Navigate to the first brand (or could show a selection dialog if multiple)
+      navigate(`/admin/users/${menuUser.id}/brands/${brands[0].id}`);
+      handleCloseMenu();
+    } catch (err: any) {
+      console.error('Failed to load user brands:', err);
+      setError('Failed to load user brands');
+      handleCloseMenu();
+    }
+  };
+
 
   const columns: GridColDef[] = [
     {
@@ -222,12 +270,17 @@ The RobotRachel Team`;
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 80,
+      width: 100,
       sortable: false,
       renderCell: (params) => (
-        <IconButton onClick={() => handleEditUser(params.row as User)} size="small" color="primary">
-          <EditIcon />
-        </IconButton>
+        <Box>
+          <IconButton onClick={() => handleEditUser(params.row as User)} size="small" color="primary">
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={(e) => handleOpenMenu(e, params.row as User)} size="small">
+            <MoreVertIcon />
+          </IconButton>
+        </Box>
       ),
     },
   ];
@@ -411,6 +464,20 @@ The RobotRachel Team`}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Actions Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleCloseMenu}
+      >
+        <MenuItem onClick={handleViewBrands}>
+          <ListItemIcon>
+            <FolderIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Brands</ListItemText>
+        </MenuItem>
+      </Menu>
     </Container>
   );
 };
