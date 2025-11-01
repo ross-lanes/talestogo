@@ -125,7 +125,7 @@ ${invitationLink}
 And sign in with your Google account (${invitedUserEmail}).
 
 Best,
-[Your name]`;
+The RobotRachel Team`;
 
     navigator.clipboard.writeText(emailMessage);
     setLinkCopied(true);
@@ -395,7 +395,7 @@ ${invitationLink}
 And sign in with your Google account (${invitedUserEmail}).
 
 Best,
-[Your name]`}
+The RobotRachel Team`}
             </Typography>
           </Alert>
 
