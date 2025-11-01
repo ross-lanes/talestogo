@@ -88,8 +88,8 @@ export default function InviteAccept() {
       const userResponse = await api.get('/auth/me');
       localStorage.setItem('tales_user', JSON.stringify(userResponse.data));
 
-      // Redirect to Customize page
-      navigate('/customize');
+      // Redirect to Brand Info page to set up their brand
+      navigate('/manage/brand-info');
     } catch (err: any) {
       console.error('Accept invitation error:', err);
       setError(

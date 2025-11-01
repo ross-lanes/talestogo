@@ -251,6 +251,7 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
         models.Response.sentiment,
         func.count(models.Response.id).label('count')
     ).filter(
+        models.Response.user_id == user_id,
         models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
     )
 
@@ -271,6 +272,7 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
         models.Response.platform
     ).filter(
         and_(
+            models.Response.user_id == user_id,
             models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
             models.Response.sentiment == 'Negative'
         )
@@ -352,6 +354,8 @@ def get_positioning_breakdown(db: Session, user_id: int, brand_id: Optional[int]
     query = db.query(
         models.Response.brand_position,
         func.count(models.Response.id).label('count')
+    ).filter(
+        models.Response.user_id == user_id
     )
 
     if brand_id:
