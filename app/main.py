@@ -1047,6 +1047,123 @@ def delete_brand_endpoint(
         raise HTTPException(status_code=404, detail="Brand not found")
     return deleted_brand
 
+@app.post("/brands/{brand_id}/share", response_model=schemas.BrandShare, status_code=201, tags=["Brands"])
+def share_brand_endpoint(
+    brand_id: int,
+    share_data: schemas.BrandShareCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Share a brand with another user by email."""
+    # Verify the current user has access to this brand (owns it or has it shared)
+    if not crud.user_has_brand_access(db, brand_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Brand not found or you don't have permission to share it")
+
+    brand = db.query(models.BrandInfo).filter(
+        models.BrandInfo.id == brand_id
+    ).first()
+
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+
+    # Find the user to share with by email
+    user_to_share_with = db.query(models.User).filter(models.User.email == share_data.email).first()
+
+    if not user_to_share_with:
+        raise HTTPException(status_code=404, detail=f"No user found with email {share_data.email}. User must have a TALES account.")
+
+    if user_to_share_with.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot share a brand with yourself")
+
+    # Check if already shared with this user
+    existing_share = db.query(models.BrandShare).filter(
+        models.BrandShare.brand_id == brand_id,
+        models.BrandShare.user_id == user_to_share_with.id
+    ).first()
+
+    if existing_share:
+        raise HTTPException(status_code=400, detail=f"Brand is already shared with {share_data.email}")
+
+    # Create the share
+    new_share = models.BrandShare(
+        brand_id=brand_id,
+        user_id=user_to_share_with.id,
+        shared_by_user_id=current_user.id,
+        permission_level='edit'
+    )
+    db.add(new_share)
+    db.commit()
+    db.refresh(new_share)
+
+    return new_share
+
+@app.get("/brands/{brand_id}/shares", response_model=List[schemas.BrandShareWithUser], tags=["Brands"])
+def get_brand_shares_endpoint(
+    brand_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all users this brand is shared with."""
+    # Verify user has access to this brand
+    if not crud.user_has_brand_access(db, brand_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Brand not found or you don't have permission to view shares")
+
+    # Get all shares with user details
+    shares = db.query(models.BrandShare).filter(
+        models.BrandShare.brand_id == brand_id
+    ).all()
+
+    # Build response with user details
+    result = []
+    for share in shares:
+        user = db.query(models.User).filter(models.User.id == share.user_id).first()
+        shared_by = db.query(models.User).filter(models.User.id == share.shared_by_user_id).first()
+
+        result.append(schemas.BrandShareWithUser(
+            id=share.id,
+            brand_id=share.brand_id,
+            user_id=share.user_id,
+            user_email=user.email if user else "Unknown",
+            user_full_name=user.full_name if user else None,
+            shared_by_user_id=share.shared_by_user_id,
+            shared_by_email=shared_by.email if shared_by else "Unknown",
+            permission_level=share.permission_level,
+            created_at=share.created_at
+        ))
+
+    return result
+
+@app.delete("/brands/{brand_id}/shares/{share_id}", tags=["Brands"])
+def remove_brand_share_endpoint(
+    brand_id: int,
+    share_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove a brand share (unshare with a user). Only the brand owner can remove shares."""
+    # Verify user OWNS this brand (not just has access)
+    brand = db.query(models.BrandInfo).filter(
+        models.BrandInfo.id == brand_id,
+        models.BrandInfo.user_id == current_user.id
+    ).first()
+
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found or only the brand owner can remove shares")
+
+    # Find and delete the share
+    share = db.query(models.BrandShare).filter(
+        models.BrandShare.id == share_id,
+        models.BrandShare.brand_id == brand_id
+    ).first()
+
+    if not share:
+        raise HTTPException(status_code=404, detail="Share not found")
+
+    db.delete(share)
+    db.commit()
+
+    return {"message": "Share removed successfully"}
+
 # --- Legacy Endpoints for Backward Compatibility ---
 
 @app.get("/brand-info/", response_model=schemas.BrandInfo, tags=["Brand Info"])

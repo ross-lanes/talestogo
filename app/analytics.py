@@ -13,6 +13,9 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     Calculate key metrics for the dashboard for a specific brand.
     Returns mention rate, sentiment, descriptor match, and share of voice.
 
+    IMPORTANT: For mentions/positioning/SOV, excludes responses from queries where brand_in_query=True.
+    For sentiment/descriptors, includes ALL responses (brand_in_query doesn't matter).
+
     Args:
         db: Database session
         user_id: User ID to filter by (required for data isolation)
@@ -25,8 +28,23 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
             query = query.filter(models.Response.brand_id == brand_id)
         return query
 
-    # Get total responses
-    total_responses = apply_filters(
+    # Filters that ALSO exclude brand_in_query (for mentions/positioning)
+    def apply_filters_exclude_brand_in_query(query):
+        query = query.join(
+            models.Query,
+            (models.Response.query_id == models.Query.query_id) &
+            (models.Response.user_id == models.Query.user_id) &
+            (models.Response.brand_id == models.Query.brand_id)
+        ).filter(
+            models.Response.user_id == user_id,
+            models.Query.brand_in_query == False  # Exclude queries with brand name
+        )
+        if brand_id:
+            query = query.filter(models.Response.brand_id == brand_id)
+        return query
+
+    # Get total responses (excluding brand_in_query for mention metrics)
+    total_responses = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id))
     ).scalar() or 0
 
@@ -44,15 +62,16 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
             "leading_position": "N/A"
         }
 
-    # Calculate mention rate (Yes or Indirect mentions)
-    pppl_mentions = apply_filters(
+    # Calculate mention rate (Yes or Indirect mentions) - EXCLUDE brand_in_query
+    pppl_mentions = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
         )
     ).scalar() or 0
-    mention_rate = (pppl_mentions / total_responses) * 100
+    mention_rate = (pppl_mentions / total_responses) * 100 if total_responses > 0 else 0.0
 
-    # Calculate positive sentiment rate (Very Positive, Positive)
+    # Calculate positive sentiment rate (Very Positive, Positive) - INCLUDE ALL responses
+    # Sentiment analysis applies to ALL queries, even ones with brand name in them
     positive_responses = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
@@ -61,7 +80,15 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
             )
         )
     ).scalar() or 0
-    positive_sentiment = (positive_responses / pppl_mentions * 100) if pppl_mentions > 0 else 0.0
+
+    # Total mentions for sentiment calculation (ALL responses, not just brand_in_query=False)
+    total_mentions_for_sentiment = apply_filters(
+        db.query(func.count(models.Response.id)).filter(
+            models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+        )
+    ).scalar() or 0
+
+    positive_sentiment = (positive_responses / total_mentions_for_sentiment * 100) if total_mentions_for_sentiment > 0 else 0.0
 
     # Calculate descriptor match rate (% of target descriptors found in AI responses about brand)
     # Get target descriptors for this brand
@@ -106,8 +133,8 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         # Calculate percentage of target descriptors that were found
         descriptor_match = (len(found_target_descriptors) / total_target_descriptors * 100)
 
-    # Calculate leadership visibility (Leader + Top 3 positions)
-    pppl_leader_count = apply_filters(
+    # Calculate leadership visibility (Leader + Top 3 positions) - EXCLUDE brand_in_query
+    pppl_leader_count = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position.in_(['Leader', 'Top 3'])
         )
@@ -120,8 +147,8 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     brand_sov = next((item for item in sov_data if item.get('is_brand')), None)
     share_of_voice = brand_sov.get('share_of_voice', 0.0) if brand_sov else 0.0
 
-    # Determine leading position
-    leader_count = apply_filters(
+    # Determine leading position - EXCLUDE brand_in_query
+    leader_count = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             models.Response.brand_position == 'Leader'
         )
@@ -129,17 +156,18 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     leading_position = "Leading" if leader_count > (total_responses * 0.3) else "Competitive"
 
     # Get previous period metrics for comparison (last 7 days vs previous 7 days)
+    # EXCLUDE brand_in_query for mention rate comparisons
     seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
     fourteen_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=14)
 
-    # Current period (last 7 days)
-    recent_total = apply_filters(
+    # Current period (last 7 days) - EXCLUDE brand_in_query
+    recent_total = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             models.Response.timestamp >= seven_days_ago
         )
     ).scalar() or 0
 
-    recent_mentions = apply_filters(
+    recent_mentions = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.timestamp >= seven_days_ago,
@@ -148,8 +176,8 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         )
     ).scalar() or 0
 
-    # Previous period (7-14 days ago)
-    prev_total = apply_filters(
+    # Previous period (7-14 days ago) - EXCLUDE brand_in_query
+    prev_total = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.timestamp >= fourteen_days_ago,
@@ -158,7 +186,7 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         )
     ).scalar() or 0
 
-    prev_mentions = apply_filters(
+    prev_mentions = apply_filters_exclude_brand_in_query(
         db.query(func.count(models.Response.id)).filter(
             and_(
                 models.Response.timestamp >= fourteen_days_ago,
@@ -192,6 +220,9 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
     """
     Get mention rate trend over time for a specific brand.
 
+    IMPORTANT: Excludes responses from queries where brand_in_query=True,
+    as those shouldn't count toward mention metrics.
+
     Args:
         db: Database session
         days: Number of days to include in the trend
@@ -199,7 +230,7 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
     """
     start_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
 
-    # Get responses grouped by date
+    # Get responses grouped by date, excluding brand_in_query queries
     query = db.query(
         func.date(models.Response.timestamp).label('date'),
         func.count(models.Response.id).label('total'),
@@ -209,9 +240,15 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
                 else_=0
             )
         ).label('mentions')
+    ).join(
+        models.Query,
+        (models.Response.query_id == models.Query.query_id) &
+        (models.Response.user_id == models.Query.user_id) &
+        (models.Response.brand_id == models.Query.brand_id)
     ).filter(
         models.Response.user_id == user_id,
-        models.Response.timestamp >= start_date
+        models.Response.timestamp >= start_date,
+        models.Query.brand_in_query == False  # Exclude queries with brand name in them
     )
 
     if brand_id:
@@ -347,6 +384,9 @@ def get_positioning_breakdown(db: Session, user_id: int, brand_id: Optional[int]
     """
     Get brand positioning distribution across responses.
 
+    IMPORTANT: Excludes responses from queries where brand_in_query=True,
+    as those shouldn't count toward positioning metrics.
+
     Args:
         db: Database session
         brand_id: Optional brand ID to filter by
@@ -354,8 +394,14 @@ def get_positioning_breakdown(db: Session, user_id: int, brand_id: Optional[int]
     query = db.query(
         models.Response.brand_position,
         func.count(models.Response.id).label('count')
+    ).join(
+        models.Query,
+        (models.Response.query_id == models.Query.query_id) &
+        (models.Response.user_id == models.Query.user_id) &
+        (models.Response.brand_id == models.Query.brand_id)
     ).filter(
-        models.Response.user_id == user_id
+        models.Response.user_id == user_id,
+        models.Query.brand_in_query == False  # Exclude queries with brand name in them
     )
 
     if brand_id:
@@ -387,18 +433,29 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
     """
     Calculate share of voice for brand vs competitors.
 
+    IMPORTANT: Excludes responses from queries where brand_in_query=True,
+    as those shouldn't count toward share of voice metrics.
+
     Args:
         db: Database session
         brand_id: Optional brand ID to filter by
     """
-    # Helper function to apply user and brand filters
+    # Helper function to apply user and brand filters AND exclude brand_in_query
     def apply_filters(query):
-        query = query.filter(models.Response.user_id == user_id)
+        query = query.join(
+            models.Query,
+            (models.Response.query_id == models.Query.query_id) &
+            (models.Response.user_id == models.Query.user_id) &
+            (models.Response.brand_id == models.Query.brand_id)
+        ).filter(
+            models.Response.user_id == user_id,
+            models.Query.brand_in_query == False  # Exclude queries with brand name
+        )
         if brand_id:
             query = query.filter(models.Response.brand_id == brand_id)
         return query
 
-    # Get total responses
+    # Get total responses (excluding brand_in_query)
     total_responses = apply_filters(
         db.query(func.count(models.Response.id))
     ).scalar() or 1

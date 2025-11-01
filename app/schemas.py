@@ -8,6 +8,7 @@ class QueryBase(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     target_outcome: Optional[str] = None
+    brand_in_query: bool = False
     active: bool = True
     notes: Optional[str] = None
 
@@ -19,6 +20,7 @@ class QueryUpdate(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     target_outcome: Optional[str] = None
+    brand_in_query: Optional[bool] = None
     active: Optional[bool] = None
     notes: Optional[str] = None
     model_config = ConfigDict(extra='forbid')
@@ -247,6 +249,31 @@ class BrandInfoList(BaseModel):
     industry: Optional[str] = None
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
+
+# --- BrandShare Schemas ---
+class BrandShareCreate(BaseModel):
+    email: EmailStr  # Email of user to share with
+
+class BrandShare(BaseModel):
+    id: int
+    brand_id: int
+    user_id: int
+    shared_by_user_id: int
+    permission_level: str
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class BrandShareWithUser(BaseModel):
+    """BrandShare with user details for display"""
+    id: int
+    brand_id: int
+    user_id: int
+    user_email: str
+    user_full_name: Optional[str] = None
+    shared_by_user_id: int
+    shared_by_email: str
+    permission_level: str
+    created_at: datetime.datetime
 
 # --- User/Auth Schemas ---
 class UserBase(BaseModel):

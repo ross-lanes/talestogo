@@ -1,5 +1,8 @@
 """
 Analytics API endpoints.
+
+All analytics calculations are centralized through AnalyticsCache service
+to avoid redundant calculations across different endpoints.
 """
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -7,6 +10,7 @@ from typing import Dict, List, Any, Optional
 from .. import analytics, crud, models
 from ..auth import get_current_user
 from ..database import get_db
+from ..services.analytics_cache import AnalyticsCache
 
 
 def get_active_brand_id(
@@ -35,8 +39,10 @@ def get_dashboard_analytics(
 ):
     """
     Get key metrics for the dashboard for the active brand.
+    Uses centralized AnalyticsCache to avoid redundant calculations.
     """
-    return analytics.get_dashboard_metrics(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    return cache.get_dashboard_data()
 
 
 @router.get("/trends/mentions", response_model=List[Dict[str, Any]])
@@ -61,8 +67,10 @@ def get_sentiment_analysis(
 ):
     """
     Get sentiment distribution for brand mentions.
+    Uses centralized AnalyticsCache to avoid redundant calculations.
     """
-    return analytics.get_sentiment_breakdown(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    return cache.get_sentiment_data()
 
 
 @router.get("/descriptors/insights", response_model=Dict[str, Any])
@@ -85,8 +93,10 @@ def get_positioning_analysis(
 ):
     """
     Get brand positioning distribution across responses.
+    Uses centralized AnalyticsCache to avoid redundant calculations.
     """
-    return analytics.get_positioning_breakdown(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    return cache.get_positioning_data()
 
 
 @router.get("/share-of-voice", response_model=List[Dict[str, Any]])
@@ -97,8 +107,10 @@ def get_share_of_voice_analysis(
 ):
     """
     Get share of voice comparison between brand and competitors.
+    Uses centralized AnalyticsCache to avoid redundant calculations.
     """
-    return analytics.get_share_of_voice(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    return cache.get_share_of_voice_data()
 
 
 @router.get("/recommendations", response_model=Dict[str, Any])

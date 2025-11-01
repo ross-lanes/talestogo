@@ -16,10 +16,11 @@ import {
   DialogContentText,
   DialogActions,
 } from '@mui/material';
-import { Download } from '@mui/icons-material';
+import { Download, Share } from '@mui/icons-material';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import ShareBrandDialog from '../../components/ShareBrandDialog';
 
 interface BrandInfo {
   id: number;
@@ -57,6 +58,7 @@ const BrandInfo: React.FC = () => {
   const [brandExists, setBrandExists] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   // Fetch existing brand info on mount (unless creating new brand)
   // Re-run when location changes (including query params)
@@ -295,14 +297,24 @@ const BrandInfo: React.FC = () => {
           {isNewBrand ? 'Add New Brand' : 'Customize Branding'}
         </Typography>
         {brandExists && !isNewBrand && (
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={handleDownloadCSV}
-            size="small"
-          >
-            Download as CSV
-          </Button>
+          <Box display="flex" gap={1}>
+            <Button
+              variant="outlined"
+              startIcon={<Share />}
+              onClick={() => setShareDialogOpen(true)}
+              size="small"
+            >
+              Share Brand
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadCSV}
+              size="small"
+            >
+              Download as CSV
+            </Button>
+          </Box>
         )}
       </Box>
 
@@ -450,6 +462,15 @@ const BrandInfo: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {brandId && brandName && (
+        <ShareBrandDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          brandId={brandId}
+          brandName={brandName}
+        />
+      )}
     </Container>
   );
 };

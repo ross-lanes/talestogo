@@ -68,6 +68,8 @@ def generate_next_query_id(db: Session, user_id: int, brand_id: Optional[int] = 
 
 def create_query(db: Session, query: schemas.QueryCreate, user_id: int, brand_id: Optional[int] = None) -> models.Query:
     """Creates a new query in the database for a specific user and brand."""
+    from app.utils.query_utils import auto_set_brand_in_query_flag
+
     query_data = query.model_dump()
 
     # Auto-generate query_id if not provided
@@ -78,6 +80,16 @@ def create_query(db: Session, query: schemas.QueryCreate, user_id: int, brand_id
     if brand_id is not None:
         query_data['brand_id'] = brand_id
 
+    # Automatically detect if brand name is in the query text
+    # This overrides any manually set value to ensure accuracy
+    if query_data.get('query_text'):
+        query_data['brand_in_query'] = auto_set_brand_in_query_flag(
+            query_data['query_text'],
+            db,
+            user_id,
+            brand_id
+        )
+
     db_query = models.Query(**query_data)
     db.add(db_query)
     db.commit()
@@ -86,11 +98,32 @@ def create_query(db: Session, query: schemas.QueryCreate, user_id: int, brand_id
 
 def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Query]:
     """Updates an existing query by its user-facing Query ID for a specific user and brand."""
+    from app.utils.query_utils import auto_set_brand_in_query_flag
+
     db_query = get_query_by_query_id(db, query_id=query_id, user_id=user_id, brand_id=brand_id)
     if not db_query:
         return None
 
     update_data = query_update.model_dump(exclude_unset=True)
+
+    # If query_text is being updated, automatically detect brand_in_query flag
+    if 'query_text' in update_data and update_data['query_text']:
+        update_data['brand_in_query'] = auto_set_brand_in_query_flag(
+            update_data['query_text'],
+            db,
+            user_id,
+            brand_id
+        )
+    # If only other fields are updated but brand_in_query is not explicitly set,
+    # re-check the existing query_text against current brand name
+    elif 'brand_in_query' not in update_data and db_query.query_text:
+        update_data['brand_in_query'] = auto_set_brand_in_query_flag(
+            db_query.query_text,
+            db,
+            user_id,
+            brand_id
+        )
+
     for key, value in update_data.items():
         setattr(db_query, key, value)
 
@@ -395,17 +428,59 @@ def get_analysis_histories(db: Session, user_id: int, skip: int = 0, limit: int 
 
 # === BrandInfo CRUD Functions (Multi-Brand Support) ===
 
-def get_all_brands(db: Session, user_id: int) -> List[models.BrandInfo]:
-    """Gets all brands for a specific user (up to 20)."""
-    return db.query(models.BrandInfo).filter(
-        models.BrandInfo.user_id == user_id
-    ).order_by(models.BrandInfo.created_at.desc()).all()
-
-def get_brand_by_id(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
-    """Gets a specific brand by ID, ensuring it belongs to the user."""
-    return db.query(models.BrandInfo).filter(
+def user_has_brand_access(db: Session, brand_id: int, user_id: int) -> bool:
+    """Checks if a user has access to a brand (owns it or has it shared with them)."""
+    # Check if user owns the brand
+    owns_brand = db.query(models.BrandInfo).filter(
         models.BrandInfo.id == brand_id,
         models.BrandInfo.user_id == user_id
+    ).first() is not None
+
+    if owns_brand:
+        return True
+
+    # Check if brand is shared with user
+    has_shared_access = db.query(models.BrandShare).filter(
+        models.BrandShare.brand_id == brand_id,
+        models.BrandShare.user_id == user_id
+    ).first() is not None
+
+    return has_shared_access
+
+def get_all_brands(db: Session, user_id: int) -> List[models.BrandInfo]:
+    """Gets all brands for a specific user - both owned and shared (up to 20 owned)."""
+    # Get brands owned by user
+    owned_brands = db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == user_id
+    ).all()
+
+    # Get brand IDs that are shared with this user
+    shared_brand_ids = db.query(models.BrandShare.brand_id).filter(
+        models.BrandShare.user_id == user_id
+    ).all()
+
+    shared_brand_ids = [bid[0] for bid in shared_brand_ids]
+
+    # Get the actual shared brands
+    shared_brands = []
+    if shared_brand_ids:
+        shared_brands = db.query(models.BrandInfo).filter(
+            models.BrandInfo.id.in_(shared_brand_ids)
+        ).all()
+
+    # Combine and sort by created_at
+    all_brands = owned_brands + shared_brands
+    all_brands.sort(key=lambda x: x.created_at, reverse=True)
+
+    return all_brands
+
+def get_brand_by_id(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
+    """Gets a specific brand by ID, ensuring user has access (owns it or it's shared)."""
+    if not user_has_brand_access(db, brand_id, user_id):
+        return None
+
+    return db.query(models.BrandInfo).filter(
+        models.BrandInfo.id == brand_id
     ).first()
 
 def get_active_brand(db: Session, user_id: int) -> Optional[models.BrandInfo]:

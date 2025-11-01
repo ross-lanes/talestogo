@@ -45,6 +45,7 @@ class Query(Base):
     category = Column(String(100))
     priority = Column(String(20)) # High, Medium, Low
     target_outcome = Column(Text)
+    brand_in_query = Column(Boolean, default=False)  # True if brand name is IN the query text
     active = Column(Boolean, default=True)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -194,6 +195,15 @@ class BrandInfo(Base):
     is_active = Column(Boolean, default=True)  # Which brand is currently active for the user
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class BrandShare(Base):
+    __tablename__ = "brand_shares"
+    id = Column(Integer, primary_key=True, index=True)
+    brand_id = Column(Integer, ForeignKey("brand_info.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)  # User being granted access
+    shared_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)  # User who shared
+    permission_level = Column(String(20), default='edit')  # 'edit' or 'view' (currently only 'edit' supported)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class TaskStatus(Base):
     __tablename__ = "task_status"

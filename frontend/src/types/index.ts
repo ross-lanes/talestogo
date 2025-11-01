@@ -6,6 +6,7 @@ export interface Query {
   category: string;
   priority: string;
   target_outcome: string;
+  brand_in_query: boolean;
   active: boolean;
   notes?: string;
   created_at: string;
@@ -18,6 +19,7 @@ export interface QueryCreate {
   category: string;
   priority: string;
   target_outcome: string;
+  brand_in_query: boolean;
   active: boolean;
   notes?: string;
 }
@@ -27,6 +29,7 @@ export interface QueryUpdate {
   category?: string;
   priority?: string;
   target_outcome?: string;
+  brand_in_query?: boolean;
   active?: boolean;
   notes?: string;
 }

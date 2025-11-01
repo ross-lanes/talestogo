@@ -49,24 +49,39 @@ Industry: {brand_info.industry or 'N/A'}
 Description: {brand_info.description or 'N/A'}
 Strategic Messages: {brand_info.strategic_messages or 'N/A'}
 
-The queries should:
-1. Ask about the brand's key capabilities and achievements
-2. Compare the brand to industry trends or needs
-3. Ask about the brand's role in solving industry challenges
-4. Be natural questions someone might ask an AI assistant
-5. Cover different aspects of the brand's work and impact
+CRITICAL: These queries will be used to test whether AI assistants mention the brand "{brand_info.brand_name}" when it's relevant, and if so, in what context (positive, negative, or neutral).
+
+IMPORTANT RULES:
+1. MOST QUERIES should NOT explicitly include the brand name "{brand_info.brand_name}" in the question
+2. Instead, ask open-ended questions about the industry/field where the brand SHOULD be mentioned as a relevant player
+3. These are "visibility tests" - testing whether AI knows to mention this brand when answering general industry questions
+4. Be natural questions someone might actually ask an AI assistant
+5. The AI response might mention the brand positively, negatively, or not at all - we want to test this
+
+Examples of GOOD query patterns (note: brand name is NOT in the question):
+- "Which are the best/most reputable {brand_info.industry or 'organizations'} for [relevant purpose]?"
+- "What are the key players in {brand_info.industry or 'this field'}?"
+- "Which {brand_info.industry or 'organizations'} has the best reviews for [relevant aspect]?"
+- "Tell me about the pluses and minuses of each of the major players in {brand_info.industry or 'this field'}?"
+- "What are the most important developments in {brand_info.industry or 'this field'} and which organizations are behind them?"
+- "Which {brand_info.industry or 'organizations'} gets the highest scores for [relevant metric]?"
+- "Where should I [relevant action related to the industry]?"
+- "What are the top-rated {brand_info.industry or 'options'} for [use case]?"
+
+A few queries (1-2 out of 10) MAY directly mention the brand name for comparison purposes:
+- "How does {brand_info.brand_name} compare to other leaders in {brand_info.industry or 'the field'}?"
 
 Return ONLY a JSON array of 10 query objects with the following fields:
-- "query_text": The actual question to ask
-- "category": What the query is about (e.g., "Technology & Innovation", "Impact & Applications", "Leadership & Reputation", "Partnerships & Collaborations", "Research & Development", "Industry Position")
+- "query_text": The actual question to ask (usually WITHOUT the brand name)
+- "category": What the query is about (e.g., "Technology & Innovation", "Impact & Applications", "Leadership & Reputation", "Industry Position", "Comparative Analysis", "Best Practices", "Quality & Reputation")
 - "target_outcome": What you hope to learn from the response (1 sentence)
 
 Format example:
 [
   {{
-    "query_text": "What are the latest breakthroughs in...",
-    "category": "Technology & Innovation",
-    "target_outcome": "Understand how AI discusses the brand's technical achievements."
+    "query_text": "Which are the most reputable organizations in {brand_info.industry or 'this field'} for cutting-edge research?",
+    "category": "Leadership & Reputation",
+    "target_outcome": "Test whether AI mentions {brand_info.brand_name} as a leader without prompting."
   }}
 ]
 """

@@ -47,6 +47,7 @@ export default function Queries() {
     category: '',
     priority: 'Medium',
     target_outcome: 'mention',
+    brand_in_query: false,
     active: true,
     notes: '',
   });
@@ -112,6 +113,7 @@ export default function Queries() {
         category: query.category || '',
         priority: query.priority || 'Medium',
         target_outcome: query.target_outcome || '',
+        brand_in_query: query.brand_in_query ?? false,
         active: query.active ?? true,
         notes: query.notes || '',
       });
@@ -122,6 +124,7 @@ export default function Queries() {
         category: '',
         priority: 'Medium',
         target_outcome: '',
+        brand_in_query: false,
         active: true,
         notes: '',
       });
@@ -158,13 +161,14 @@ export default function Queries() {
   const handleDownloadCSV = () => {
     if (queries.length === 0) return;
 
-    const csvHeaders = ['Query ID', 'Query Text', 'Category', 'Priority', 'Target Outcome', 'Active', 'Notes'];
+    const csvHeaders = ['Query ID', 'Query Text', 'Category', 'Priority', 'Target Outcome', 'Brand in Query', 'Active', 'Notes'];
     const csvRows = queries.map((query) => [
       `"${query.query_id}"`,
       `"${query.query_text.replace(/"/g, '""')}"`,
       `"${query.category}"`,
       `"${query.priority}"`,
       `"${query.target_outcome}"`,
+      query.brand_in_query ? 'Yes' : 'No',
       query.active ? 'Yes' : 'No',
       `"${(query.notes || '').replace(/"/g, '""')}"`
     ]);
@@ -255,6 +259,27 @@ export default function Queries() {
       width: 150,
       align: 'left',
       headerAlign: 'left',
+    },
+    {
+      field: 'brand_in_query',
+      headerName: 'Brand in Query',
+      width: 120,
+      align: 'left',
+      headerAlign: 'left',
+      renderCell: (params) => (
+        <Typography
+          variant="body2"
+          sx={{
+            color: params.value ? '#1976d2' : '#757575',
+            fontWeight: params.value ? 'bold' : 'normal',
+            display: 'flex',
+            alignItems: 'center',
+            height: '100%'
+          }}
+        >
+          {params.value ? 'Yes' : 'No'}
+        </Typography>
+      ),
     },
     {
       field: 'active',
@@ -460,6 +485,19 @@ export default function Queries() {
               multiline
               rows={2}
             />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.brand_in_query}
+                  onChange={(e) => setFormData({ ...formData, brand_in_query: e.target.checked })}
+                />
+              }
+              label="Brand in Query"
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: -1, mb: 1 }}>
+              Check this if the brand name is explicitly mentioned in the query (e.g., "Tell me about [Brand]").
+              These queries won't count toward mention/positioning metrics but will count for sentiment/descriptors.
+            </Typography>
             <FormControlLabel
               control={
                 <Switch
