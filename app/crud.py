@@ -81,14 +81,18 @@ def create_query(db: Session, query: schemas.QueryCreate, user_id: int, brand_id
         query_data['brand_id'] = brand_id
 
     # Automatically detect if brand name is in the query text
-    # This overrides any manually set value to ensure accuracy
-    if query_data.get('query_text'):
+    # Only suggest if the user hasn't explicitly provided a value
+    # User can always override by setting brand_in_query explicitly
+    if query_data.get('query_text') and query_data.get('brand_in_query') is None:
         query_data['brand_in_query'] = auto_set_brand_in_query_flag(
             query_data['query_text'],
             db,
             user_id,
             brand_id
         )
+    elif query_data.get('brand_in_query') is None:
+        # Default to False if not detected
+        query_data['brand_in_query'] = False
 
     db_query = models.Query(**query_data)
     db.add(db_query)
@@ -106,23 +110,19 @@ def update_query(db: Session, query_id: str, query_update: schemas.QueryUpdate, 
 
     update_data = query_update.model_dump(exclude_unset=True)
 
-    # If query_text is being updated, automatically detect brand_in_query flag
-    if 'query_text' in update_data and update_data['query_text']:
+    # Only auto-detect brand_in_query if:
+    # 1. Query text is being updated AND
+    # 2. User hasn't explicitly set brand_in_query in this update
+    if 'query_text' in update_data and update_data['query_text'] and 'brand_in_query' not in update_data:
+        # Suggest the automatic detection, but user can override
         update_data['brand_in_query'] = auto_set_brand_in_query_flag(
             update_data['query_text'],
             db,
             user_id,
             brand_id
         )
-    # If only other fields are updated but brand_in_query is not explicitly set,
-    # re-check the existing query_text against current brand name
-    elif 'brand_in_query' not in update_data and db_query.query_text:
-        update_data['brand_in_query'] = auto_set_brand_in_query_flag(
-            db_query.query_text,
-            db,
-            user_id,
-            brand_id
-        )
+    # If user explicitly sets brand_in_query, respect it (it's already in update_data)
+    # Otherwise, keep the existing value (don't add to update_data)
 
     for key, value in update_data.items():
         setattr(db_query, key, value)
