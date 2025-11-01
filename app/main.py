@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv(override=True)  # Load environment variables from .env file
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from fastapi.responses import StreamingResponse
@@ -12,6 +12,8 @@ from datetime import timedelta
 import os
 import subprocess
 import io
+import base64
+from pathlib import Path
 
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
@@ -769,6 +771,71 @@ def delete_report(
     if deleted_report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return deleted_report
+
+
+@app.post("/reports/upload-charts", tags=["Reports"])
+async def upload_chart_images(
+    dashboard: Optional[str] = Form(None),
+    sentiment: Optional[str] = Form(None),
+    positioning: Optional[str] = Form(None),
+    share_of_voice: Optional[str] = Form(None),
+    timestamp: str = Form(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Upload chart images (as base64 strings) and save them to disk with a predictable naming pattern.
+    These will be used by report generation if available.
+    """
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found")
+
+    # Create report_charts directory if it doesn't exist
+    charts_dir = Path("frontend/public/report_charts")
+    charts_dir.mkdir(parents=True, exist_ok=True)
+
+    chart_paths = {}
+
+    # Process each chart image with predictable naming
+    charts_data = {
+        'dashboard': dashboard,
+        'sentiment': sentiment,
+        'positioning': positioning,
+        'share_of_voice': share_of_voice
+    }
+
+    for chart_name, base64_data in charts_data.items():
+        if base64_data:
+            try:
+                # Remove the data:image/png;base64, prefix if present
+                if ',' in base64_data:
+                    base64_data = base64_data.split(',')[1]
+
+                # Decode base64 to binary
+                image_data = base64.b64decode(base64_data)
+
+                # Create filename with predictable pattern that report generation can find
+                # Format: {user_id}_{brand_id}_latest_{chart_name}.png
+                filename = f"{current_user.id}_{brand_id}_latest_{chart_name}.png"
+                filepath = charts_dir / filename
+
+                # Write file
+                with open(filepath, 'wb') as f:
+                    f.write(image_data)
+
+                # Store relative path for markdown
+                chart_paths[chart_name] = f"report_charts/{filename}"
+
+            except Exception as e:
+                print(f"Error saving {chart_name} chart: {e}")
+                continue
+
+    return {
+        "success": True,
+        "chart_paths": chart_paths,
+        "message": f"Uploaded {len(chart_paths)} chart(s) for report generation"
+    }
 
 
 @app.get("/reports/{report_id}/export/word", tags=["Reports"])

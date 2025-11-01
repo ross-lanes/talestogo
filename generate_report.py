@@ -1262,9 +1262,11 @@ def generate_report_main(user_id: int, brand_id: int):
             share_of_voice=share_of_voice,
             descriptor_analysis=descriptor_analysis,
             brand_name=brand_name,
-            timestamp=timestamp
+            timestamp=timestamp,
+            user_id=user_id,
+            brand_id=brand_id
         )
-        print(f"Generated {len(chart_paths)} charts")
+        print(f"Total charts available: {len(chart_paths)}")
 
         # Step 6: Generate report
         print("\nGenerating markdown report...")
