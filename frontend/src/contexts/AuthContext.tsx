@@ -19,6 +19,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   googleLogin: (googleToken: string) => Promise<void>;
+  microsoftLogin: (microsoftToken: string) => Promise<void>;
   register: (email: string, password: string, full_name?: string, organization?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -81,6 +82,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const microsoftLogin = async (microsoftToken: string) => {
+    try {
+      const userData = await authAPI.microsoftLogin(microsoftToken);
+      setUser(userData);
+    } catch (error) {
+      console.error('Microsoft login failed:', error);
+      throw error;
+    }
+  };
+
   const register = async (email: string, password: string, full_name?: string, organization?: string) => {
     try {
       await authAPI.register(email, password, full_name, organization);
@@ -112,6 +123,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loading,
     login,
     googleLogin,
+    microsoftLogin,
     register,
     logout,
     refreshUser,

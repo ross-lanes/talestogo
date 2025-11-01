@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -6,18 +6,43 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  Button,
 } from '@mui/material';
 import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
+import { PublicClientApplication, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { useAuth } from '../../contexts/AuthContext';
 import talesLogo from './tales_black.png';
 
+const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID || '';
+
+const msalConfig = {
+  auth: {
+    clientId: MICROSOFT_CLIENT_ID,
+    authority: 'https://login.microsoftonline.com/common',
+    redirectUri: window.location.origin,
+  },
+  cache: {
+    cacheLocation: 'localStorage' as const,
+    storeAuthStateInCookie: false,
+  },
+};
+
+const msalInstance = new PublicClientApplication(msalConfig);
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { googleLogin } = useAuth();
+  const { googleLogin, microsoftLogin } = useAuth();
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [msalInitialized, setMsalInitialized] = useState(false);
+
+  useEffect(() => {
+    msalInstance.initialize().then(() => {
+      setMsalInitialized(true);
+    });
+  }, []);
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     setError('');
@@ -40,6 +65,36 @@ const Login: React.FC = () => {
 
   const handleGoogleError = () => {
     setError('Google login failed. Please try again.');
+  };
+
+  const handleMicrosoftLogin = async () => {
+    if (!msalInitialized) {
+      setError('Microsoft login is initializing. Please wait...');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const loginRequest = {
+        scopes: ['openid', 'profile', 'email'],
+      };
+
+      const loginResponse = await msalInstance.loginPopup(loginRequest);
+
+      if (loginResponse.idToken) {
+        await microsoftLogin(loginResponse.idToken);
+        navigate('/');
+      } else {
+        throw new Error('No ID token received from Microsoft');
+      }
+    } catch (err: any) {
+      console.error('Microsoft login error:', err);
+      setError(err.response?.data?.detail || 'Microsoft login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,20 +159,51 @@ const Login: React.FC = () => {
           </Box>
         )}
 
-        <GoogleLogin
-          onSuccess={handleGoogleSuccess}
-          onError={handleGoogleError}
-          theme="outline"
-          size="large"
-          text="signin_with"
-          shape="rectangular"
-        />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="rectangular"
+          />
+
+          <Button
+            variant="outlined"
+            onClick={handleMicrosoftLogin}
+            disabled={loading || !msalInitialized}
+            sx={{
+              borderColor: '#665775',
+              color: '#665775',
+              '&:hover': {
+                borderColor: '#54475f',
+                backgroundColor: 'rgba(102, 87, 117, 0.04)',
+              },
+              textTransform: 'none',
+              fontSize: '14px',
+              padding: '10px 16px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </svg>
+            Sign in with Microsoft
+          </Button>
+        </Box>
 
         <Typography
           variant="body2"
           sx={{ mt: 3, color: '#7f8c8d' }}
         >
-          Sign in with your Google account to access TALES
+          Sign in with your Google or Microsoft account to access TALES
         </Typography>
       </Paper>
     </Box>

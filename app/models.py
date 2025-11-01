@@ -23,7 +23,8 @@ class User(Base):
     invitation_expires_at = Column(DateTime, nullable=True)  # When the invitation expires
     # OAuth fields
     google_id = Column(String(255), unique=True, index=True, nullable=True)  # Google OAuth ID
-    oauth_provider = Column(String(50), nullable=True)  # 'google', 'github', etc.
+    microsoft_id = Column(String(255), unique=True, index=True, nullable=True)  # Microsoft OAuth ID
+    oauth_provider = Column(String(50), nullable=True)  # 'google', 'microsoft', etc.
     picture_url = Column(String(500), nullable=True)  # Profile picture URL from OAuth
     # Encrypted API keys (user-provided, encrypted at rest)
     openai_api_key_encrypted = Column(Text, nullable=True)

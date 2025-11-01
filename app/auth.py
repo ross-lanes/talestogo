@@ -20,6 +20,8 @@ from .database import get_db
 from cryptography.fernet import Fernet
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+import requests
+import jwt as pyjwt
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
@@ -29,6 +31,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
+# Microsoft OAuth Configuration
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 
 # Admin Configuration
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "robotrachel@gmail.com")
@@ -217,37 +223,99 @@ def verify_google_token(token: str) -> dict:
         )
 
 
-def get_or_create_oauth_user(db: Session, google_info: dict) -> models.User:
+def verify_microsoft_token(token: str) -> dict:
+    """
+    Verify Microsoft OAuth ID token and return user info.
+    Returns dict with: email, name, microsoft_id
+    """
+    try:
+        # Decode the token without verification first to get the key ID
+        unverified_header = pyjwt.get_unverified_header(token)
+        kid = unverified_header['kid']
+
+        # Get Microsoft's public keys
+        jwks_url = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+        jwks_response = requests.get(jwks_url)
+        jwks = jwks_response.json()
+
+        # Find the correct key
+        public_key = None
+        for key in jwks['keys']:
+            if key['kid'] == kid:
+                public_key = pyjwt.algorithms.RSAAlgorithm.from_jwk(key)
+                break
+
+        if not public_key:
+            raise ValueError('Public key not found')
+
+        # Verify and decode the token
+        decoded = pyjwt.decode(
+            token,
+            public_key,
+            algorithms=['RS256'],
+            audience=MICROSOFT_CLIENT_ID,
+            options={"verify_exp": True}
+        )
+
+        return {
+            'email': decoded.get('email') or decoded.get('preferred_username'),
+            'name': decoded.get('name'),
+            'microsoft_id': decoded['sub'],
+            'email_verified': True  # Microsoft tokens are already verified
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Microsoft token: {str(e)}"
+        )
+
+
+def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'google') -> models.User:
     """
     Get existing OAuth user or create a new one.
+    Supports both Google and Microsoft OAuth.
     New OAuth users are automatically activated.
     """
-    # Check if user exists by google_id
-    user = db.query(models.User).filter(models.User.google_id == google_info['google_id']).first()
+    # Get provider-specific ID field
+    if provider == 'google':
+        provider_id = oauth_info.get('google_id')
+        id_field = models.User.google_id
+    elif provider == 'microsoft':
+        provider_id = oauth_info.get('microsoft_id')
+        id_field = models.User.microsoft_id
+    else:
+        raise ValueError(f"Unsupported OAuth provider: {provider}")
+
+    # Check if user exists by provider ID
+    user = db.query(models.User).filter(id_field == provider_id).first()
 
     if user:
         # Update user info if needed
-        if user.picture_url != google_info.get('picture'):
-            user.picture_url = google_info.get('picture')
-        if user.full_name != google_info.get('name'):
-            user.full_name = google_info.get('name')
+        if provider == 'google' and user.picture_url != oauth_info.get('picture'):
+            user.picture_url = oauth_info.get('picture')
+        if user.full_name != oauth_info.get('name'):
+            user.full_name = oauth_info.get('name')
         user.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(user)
         return user
 
-    # Check if user exists by email (maybe they registered with password before)
-    user = db.query(models.User).filter(models.User.email == google_info['email']).first()
+    # Check if user exists by email (maybe they registered with password or different provider before)
+    user = db.query(models.User).filter(models.User.email == oauth_info['email']).first()
 
     if user:
-        # Link Google account to existing user
-        user.google_id = google_info['google_id']
-        user.oauth_provider = 'google'
-        user.picture_url = google_info.get('picture')
+        # Link OAuth account to existing user
+        if provider == 'google':
+            user.google_id = oauth_info['google_id']
+            user.picture_url = oauth_info.get('picture')
+        elif provider == 'microsoft':
+            user.microsoft_id = oauth_info['microsoft_id']
+
+        user.oauth_provider = provider
         if not user.full_name:
-            user.full_name = google_info.get('name')
+            user.full_name = oauth_info.get('name')
         # Only auto-activate if they're the admin, otherwise keep existing status
-        if google_info['email'].lower() == ADMIN_EMAIL.lower():
+        if oauth_info['email'].lower() == ADMIN_EMAIL.lower():
             user.is_active = True
             user.is_admin = True
         user.updated_at = datetime.utcnow()
@@ -257,14 +325,15 @@ def get_or_create_oauth_user(db: Session, google_info: dict) -> models.User:
 
     # Create new user
     # Check if this email is the admin email
-    is_admin_user = (google_info['email'].lower() == ADMIN_EMAIL.lower())
+    is_admin_user = (oauth_info['email'].lower() == ADMIN_EMAIL.lower())
 
     new_user = models.User(
-        email=google_info['email'],
-        google_id=google_info['google_id'],
-        oauth_provider='google',
-        full_name=google_info.get('name'),
-        picture_url=google_info.get('picture'),
+        email=oauth_info['email'],
+        google_id=oauth_info.get('google_id') if provider == 'google' else None,
+        microsoft_id=oauth_info.get('microsoft_id') if provider == 'microsoft' else None,
+        oauth_provider=provider,
+        full_name=oauth_info.get('name'),
+        picture_url=oauth_info.get('picture') if provider == 'google' else None,
         is_active=is_admin_user,  # Only auto-activate admin user, others need approval
         is_admin=is_admin_user,  # Make admin if email matches ADMIN_EMAIL
         is_invited=False,  # Require admin approval for all new users

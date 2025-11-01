@@ -28,6 +28,7 @@ from app.auth import (
     encrypt_api_key,
     decrypt_api_key,
     verify_google_token,
+    verify_microsoft_token,
     get_or_create_oauth_user,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
@@ -159,6 +160,42 @@ def google_login(google_token: schemas.GoogleLogin, db: Session = Depends(get_db
 
     # Get or create user
     user = get_or_create_oauth_user(db, google_info)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not active. Please contact admin for approval."
+        )
+
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/auth/microsoft", response_model=schemas.Token, tags=["Authentication"])
+def microsoft_login(microsoft_token: schemas.MicrosoftLogin, db: Session = Depends(get_db)):
+    """
+    Login with Microsoft OAuth.
+    Accepts Microsoft ID token and returns JWT access token.
+    Creates new user if doesn't exist (auto-activated for admin).
+    """
+    # Verify Microsoft token and get user info
+    microsoft_info = verify_microsoft_token(microsoft_token.token)
+
+    # Ensure email is verified
+    if not microsoft_info.get('email_verified'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email not verified with Microsoft"
+        )
+
+    # Get or create user
+    user = get_or_create_oauth_user(db, microsoft_info, provider='microsoft')
 
     if not user.is_active:
         raise HTTPException(

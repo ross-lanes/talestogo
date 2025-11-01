@@ -266,6 +266,9 @@ class UserLogin(BaseModel):
 class GoogleLogin(BaseModel):
     token: str  # Google OAuth ID token
 
+class MicrosoftLogin(BaseModel):
+    token: str  # Microsoft OAuth ID token
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     organization: Optional[str] = None

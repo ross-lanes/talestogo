@@ -81,6 +81,20 @@ export const authAPI = {
     return userResponse.data;
   },
 
+  microsoftLogin: async (microsoftToken: string) => {
+    const response = await api.post('/auth/microsoft', { token: microsoftToken });
+    const { access_token } = response.data;
+
+    // Store token
+    localStorage.setItem(TOKEN_KEY, access_token);
+
+    // Fetch and store user data
+    const userResponse = await api.get('/auth/me');
+    localStorage.setItem(USER_KEY, JSON.stringify(userResponse.data));
+
+    return userResponse.data;
+  },
+
   register: async (email: string, password: string, full_name?: string, organization?: string) => {
     const response = await api.post('/auth/register', {
       email,
