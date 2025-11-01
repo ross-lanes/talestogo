@@ -117,11 +117,12 @@ const UserManagement: React.FC = () => {
   const handleCopyLink = () => {
     const emailMessage = `Hi ${invitedUserName},
 
-You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand. Click the link below to set up your account:
+You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand.
 
+To get started, simply visit:
 ${invitationLink}
 
-This link expires in 7 days.
+And sign in with your Google account (${invitedUserEmail}).
 
 Best,
 [Your name]`;
@@ -283,12 +284,12 @@ Best,
         <DialogTitle>Invite New User</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            An invitation link will be created that the user can use to set up their account and choose their own password.
+            Add a user's email address to the approved list. They can then sign in with their Google account.
           </Typography>
 
           <TextField
             fullWidth
-            label="Email"
+            label="Email (must be a Gmail address)"
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
@@ -315,7 +316,7 @@ Best,
         <DialogActions>
           <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleInviteUser} variant="contained" disabled={!inviteEmail}>
-            Create Invitation
+            Add User
           </Button>
         </DialogActions>
       </Dialog>
@@ -362,10 +363,10 @@ Best,
 
       {/* Invitation Link Dialog */}
       <Dialog open={inviteLinkDialogOpen} onClose={handleCloseLinkDialog} maxWidth="md" fullWidth>
-        <DialogTitle>Invitation Created!</DialogTitle>
+        <DialogTitle>User Added Successfully!</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Copy the email message below and send it to the user:
+            {invitedUserEmail} has been added to the approved users list. Copy the email message below and send it to them:
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
@@ -386,11 +387,12 @@ Best,
             <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.875rem' }}>
 {`Hi ${invitedUserName},
 
-You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand. Click the link below to set up your account:
+You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand.
 
+To get started, simply visit:
 ${invitationLink}
 
-This link expires in 7 days.
+And sign in with your Google account (${invitedUserEmail}).
 
 Best,
 [Your name]`}

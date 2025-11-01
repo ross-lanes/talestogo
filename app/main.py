@@ -299,11 +299,10 @@ def create_invitation(
     db: Session = Depends(get_db)
 ):
     """
-    Create an invitation for a new user (admin only).
-    Returns invitation token and URL that admin can copy and send via email.
+    Add user email to approved list (admin only).
+    User can then login directly with Google OAuth.
+    No invitation token needed - just tell them to visit the site and sign in with Google.
     """
-    from app.auth import create_invitation_token, get_password_hash
-
     # Check if user already exists
     existing_user = crud.get_user_by_email(db, email=invitation.email)
     if existing_user:
@@ -312,36 +311,28 @@ def create_invitation(
             detail="User with this email already exists"
         )
 
-    # Generate invitation token
-    token, expires_at = create_invitation_token(
-        email=invitation.email,
-        full_name=invitation.full_name,
-        expires_days=7
-    )
-
-    # Create user with invited status
+    # Create pre-approved user (active and ready for OAuth login)
     new_user = models.User(
         email=invitation.email,
         full_name=invitation.full_name,
         is_invited=True,
-        is_active=False,
-        invitation_token=token,
-        invitation_expires_at=expires_at
+        is_active=True,  # Pre-approved, will be activated on first Google login
+        invitation_token=None,
+        invitation_expires_at=None
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    # Generate frontend URL
+    # Return simple login URL
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    invitation_url = f"{frontend_url}/invite/accept?token={token}"
 
     return schemas.InvitationResponse(
         email=invitation.email,
         full_name=invitation.full_name,
-        invitation_token=token,
-        expires_at=expires_at,
-        invitation_url=invitation_url
+        invitation_token="",  # No token needed
+        expires_at=None,
+        invitation_url=frontend_url  # Just send them to the main site
     )
 
 
