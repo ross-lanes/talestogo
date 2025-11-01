@@ -106,7 +106,7 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const drawer = (
-    <Box>
+    <Box sx={{ height: '100%', backgroundColor: '#ECE8ED' }}>
   <Toolbar
   sx={{
     display: 'flex',

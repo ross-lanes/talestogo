@@ -159,20 +159,23 @@ const Login: React.FC = () => {
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            theme="outline"
-            size="large"
-            text="signin_with"
-            shape="rectangular"
-          />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="outline"
+              size="large"
+              text="signin_with"
+              shape="rectangular"
+            />
+          </Box>
 
           <Button
             variant="outlined"
             onClick={handleMicrosoftLogin}
             disabled={loading || !msalInitialized}
+            fullWidth
             sx={{
               borderColor: '#665775',
               color: '#665775',
@@ -186,6 +189,7 @@ const Login: React.FC = () => {
               fontWeight: 500,
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 1,
             }}
           >
