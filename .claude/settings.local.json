@@ -32,7 +32,10 @@
       "Bash(npm run dev:*)",
       "Bash(git checkout:*)",
       "Bash(psql $DATABASE_URL -c \"SELECT setval(pg_get_serial_sequence(''users'', ''id''), (SELECT MAX(id) FROM users));\")",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix CORS issue: Add withCredentials to axios config\n\nThe axios instance was missing withCredentials: true, which is required\nwhen the backend has allow_credentials=True in CORS configuration.\nWithout this, browsers block requests even when the server sends correct\nCORS headers.\n\nThis fixes the \"No 'Access-Control-Allow-Origin' header\" error when\nattempting Google OAuth login on production domain.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []
