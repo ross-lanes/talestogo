@@ -465,8 +465,8 @@ export default function Dashboard() {
                 {/* Legend on the left */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mr: 2 }}>
                   {[
-                    { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, color: '#58A13B' },
-                    { name: 'Positive', value: sentimentData.positive_pct || 0, color: '#B2C9AB' },
+                    { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, color: '#76FF03' },
+                    { name: 'Positive', value: sentimentData.positive_pct || 0, color: '#58A13B' },
                     { name: 'Neutral', value: sentimentData.neutral_pct || 0, color: '#9FA8DA' },
                     { name: 'Mixed', value: sentimentData.mixed_pct || 0, color: '#75C9C8' },
                     { name: 'Negative', value: sentimentData.negative_pct || 0, color: '#E04320' },
@@ -484,8 +484,8 @@ export default function Dashboard() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#58A13B' },
-                        { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#B2C9AB' },
+                        { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#76FF03' },
+                        { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#58A13B' },
                         { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#9FA8DA' },
                         { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
                         { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#E04320' },
@@ -516,7 +516,7 @@ export default function Dashboard() {
             {positioningData && positioningData.total > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={[
-                  { position: 'Leader', count: positioningData.leader || 0, fill: '#B2C9AB' },
+                  { position: 'Leader', count: positioningData.leader || 0, fill: '#76FF03' },
                   { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
                   { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                   { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
@@ -528,7 +528,7 @@ export default function Dashboard() {
                   <Tooltip />
                   <Bar dataKey="count">
                     {[
-                      { position: 'Leader', count: positioningData.leader || 0, fill: '#B2C9AB' },
+                      { position: 'Leader', count: positioningData.leader || 0, fill: '#76FF03' },
                       { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
                       { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                       { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
