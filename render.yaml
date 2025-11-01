@@ -21,6 +21,8 @@ services:
         sync: false
       - key: DATABASE_URL
         value: sqlite:///./data/tales.db
+      - key: FRONTEND_URL
+        value: https://tales.robotrachel.com
     disk:
       name: tales-data
       mountPath: /app/data
@@ -34,7 +36,7 @@ services:
     staticPublishPath: ./frontend/dist
     envVars:
       - key: VITE_API_URL
-        value: https://tales-cwfx.onrender.com
+        value: https://api.tales.robotrachel.com
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false
     routes:

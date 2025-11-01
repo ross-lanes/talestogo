@@ -48,7 +48,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
-        "https://tales-frontend.onrender.com"  # Production frontend
+        "https://tales-frontend.onrender.com",  # Production frontend (legacy)
+        "https://tales.robotrachel.com"  # Production frontend (custom domain)
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
