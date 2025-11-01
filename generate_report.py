@@ -561,7 +561,41 @@ def generate_strategic_priorities(
         if resp.competitors:
             weaknesses += f"   Competitors mentioned instead: {resp.competitors}\n"
 
-    prompt = f"""You are a strategic communications consultant for a major client.
+    # Fetch recent industry news using Perplexity's real-time search
+    industry = brand_info.industry if brand_info and brand_info.industry else "the industry"
+    news_query = f"Recent news and developments in {industry} in the last 30 days, particularly related to {brand_name} or its competitors"
+
+    try:
+        news_completion = perplexity_client.chat.completions.create(
+            model="sonar-pro",
+            max_tokens=800,
+            messages=[{"role": "user", "content": news_query}],
+            temperature=0.3
+        )
+        recent_news = news_completion.choices[0].message.content
+    except Exception as e:
+        print(f"Warning: Could not fetch recent news: {e}")
+        recent_news = "No recent news data available."
+
+    prompt = f"""You are a strategic communications consultant analyzing AI-generated responses about a brand.
+
+CRITICAL CONTEXT: This analysis examines how Large Language Models (LLMs like ChatGPT, Claude, Perplexity, Gemini) describe {brand_name} when users ask questions. Brands CANNOT directly publish content to LLMs. Instead, LLMs generate responses based on the authoritative sources they reference.
+
+IMPORTANT: Different LLMs prioritize different source types. Your recommendations must be data-driven and strategic:
+- Analyze the PLATFORM-BY-PLATFORM PERFORMANCE data below to identify which LLMs perform well vs. poorly for {brand_name}
+- Look at the actual response examples to understand what sources those LLMs are likely citing
+- Consider that different LLMs may favor different sources:
+  * Academic/research-focused LLMs may prioritize peer-reviewed papers, .edu domains, research institutions
+  * Search-augmented LLMs (like Perplexity) may prioritize recent news articles, authoritative websites, Reddit discussions
+  * Some may favor Wikipedia, government sources (.gov), or technical documentation
+- If {brand_name} performs poorly on a specific platform, diagnose WHY by examining the queries and recommend targeted strategies for the SOURCE TYPES that platform likely values
+
+Your recommendations should be specific about:
+1. WHAT content to create (research papers vs. blog posts vs. technical docs vs. media outreach)
+2. WHERE to publish it (academic journals, tech blogs, Reddit, news outlets, .gov partnerships, etc.)
+3. WHY that approach targets the specific LLMs where {brand_name} underperforms
+
+DO NOT give generic advice like "improve online presence" - every recommendation must be tied to specific patterns in the data
 
 {brand_context_str}
 
@@ -587,7 +621,23 @@ KEY STRENGTHS (Queries where {brand_name} excels):
 KEY WEAKNESSES (Queries where {brand_name} is absent):
 {weaknesses}
 
+RECENT INDUSTRY NEWS & DEVELOPMENTS (Last 30 Days):
+{recent_news}
+
 Based on this comprehensive analysis, generate EXACTLY FIVE strategic priorities for {brand_name}.
+
+IMPORTANT: Consider how recent industry news creates opportunities or threats:
+- If there's a major development, breakthrough, or trend in the industry, recommend how {brand_name} can position itself in relation to it
+- If competitors made news, identify opportunities to counter-program or claim related positioning
+- If there are emerging topics or conversations, recommend getting ahead of them with authoritative content
+- Consider whether recent events change the urgency or approach for any communications goals
+
+CRITICAL: Your priorities must focus on achieving {brand_name}'s strategic messaging goals:
+- Identify TARGET DESCRIPTORS that are underperforming (low match rate, absent from responses, or competitors own them)
+- Recommend specific content strategies to associate {brand_name} with those missing descriptors
+- If a descriptor appears frequently for competitors but not {brand_name}, explain how to claim that positioning
+- Address platform-specific weaknesses with targeted source strategies for those LLMs
+- Connect every recommendation back to increasing the presence of specific target descriptors in AI responses
 
 For each priority:
 
@@ -595,19 +645,27 @@ For each priority:
 
 **Strategic Rationale** (3-4 sentences explaining WHY this matters based on SPECIFIC DATA from above)
 - Reference actual metrics, query examples, competitors, or platform performance
-- Connect to the brand's strategic messages and goals
+- MUST identify which target descriptor(s) this addresses and current vs. desired state
+- Connect to the brand's strategic messages and positioning goals
 - Explain the opportunity cost of not acting
 
 **Key Actions** (4-5 SPECIFIC, measurable actions)
-- Each action must reference specific platforms, query categories, descriptors, or competitors
-- Include target metrics (e.g., "Increase association with 'X' descriptor from Y% to Z%")
-- Specify what content/narratives to create and where to amplify them
+- Each action must specify which target descriptor(s) to emphasize
+- Include target metrics (e.g., "Increase 'innovative' descriptor association from 12% to 35% by creating...")
+- Specify WHAT content to create, WHERE to publish it, and HOW it reinforces target descriptors
+- Reference specific platforms, query categories, competitors, or source types that LLMs prioritize
 - Be tactical and immediately actionable
 
 Format as numbered markdown sections (1., 2., 3., etc.).
 Be data-driven and specific. No generic advice like "improve SEO" or "create more content" - every recommendation must be tailored to {brand_name}'s specific situation shown in the data above.
 Do NOT use emojis or icons.
-Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
+Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers.
+
+IMPORTANT - Citations: If you reference external sources, news, or research:
+- Include inline citations with proper markdown links: [Source Name](URL)
+- Add a "References" section at the end with numbered citations if using footnote-style references
+- If you cannot provide the full reference list with URLs, DO NOT use numbered citations [1], [2], etc. - instead use inline descriptive references like "according to recent reporting in TechCrunch" or "as noted in a Nature study"
+- Only use numbered citations if you will provide the complete reference list"""
 
     completion = perplexity_client.chat.completions.create(
         model="sonar-pro",  # Using Perplexity Sonar Pro for strategic depth

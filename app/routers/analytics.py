@@ -136,11 +136,15 @@ def get_recommendations(
         for section in sections:
             if section.startswith("4. Strategic Recommendations"):
                 # Get everything until the next ## section or end
-                recommendations_text = "## " + section
+                recommendations_text = section
                 # If there's another section after, cut it off
                 next_section_pos = recommendations_text.find("\n## ", 3)
                 if next_section_pos > 0:
                     recommendations_text = recommendations_text[:next_section_pos]
+
+                # Replace the numbered header with just the title
+                recommendations_text = recommendations_text.replace("4. Strategic Recommendations", "Strategic Recommendations", 1)
+                recommendations_text = "## " + recommendations_text
                 break
 
     return {
