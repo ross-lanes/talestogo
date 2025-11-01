@@ -359,7 +359,7 @@ export default function Dashboard() {
               New to TALES?
             </Typography>
             <Typography>
-              Click on the <strong>Add Brand</strong> button to begin!
+              Click on the <strong>Add Brand</strong> button on the upper right to begin!
             </Typography>
           </Paper>
         )}
