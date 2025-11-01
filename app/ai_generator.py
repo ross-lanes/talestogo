@@ -209,8 +209,12 @@ Format example:
     def generate_all(self, user_id: int, brand_id: int) -> Dict[str, int]:
         """
         Generate queries, descriptors, and competitors for a specific brand.
+        APPENDS new items to existing ones instead of replacing them.
         Returns count of items created for each category.
         """
+        from app.crud import generate_next_query_id
+        from app.utils.query_utils import auto_set_brand_in_query_flag
+
         # Get brand info
         brand_info = self.db.query(models.BrandInfo).filter(
             models.BrandInfo.id == brand_id,
@@ -220,38 +224,38 @@ Format example:
         if not brand_info:
             raise ValueError("Brand information not found. Please save brand info first.")
 
-        # Delete existing queries, descriptors, and competitors for this brand
-        self.db.query(models.Query).filter(
-            models.Query.user_id == user_id,
-            models.Query.brand_id == brand_id
-        ).delete()
-        self.db.query(models.TargetDescriptor).filter(
-            models.TargetDescriptor.user_id == user_id,
-            models.TargetDescriptor.brand_id == brand_id
-        ).delete()
-        self.db.query(models.Competitor).filter(
-            models.Competitor.user_id == user_id,
-            models.Competitor.brand_id == brand_id
-        ).delete()
-        self.db.commit()
+        # DO NOT DELETE - just append new items to existing ones
+        # This allows users to keep their manually created items
 
-        # Generate queries
+        # Generate queries and append with proper sequential IDs
         queries = self.generate_queries(brand_info)
-        query_counter = 1
         for query_data in queries:
+            # Generate next available query_id
+            next_query_id = generate_next_query_id(self.db, user_id, brand_id)
+
+            # Auto-detect brand_in_query flag
+            brand_in_query = auto_set_brand_in_query_flag(
+                query_data.get("query_text", ""),
+                self.db,
+                user_id,
+                brand_id
+            )
+
             query = models.Query(
                 user_id=user_id,
                 brand_id=brand_id,
-                query_id=f"Q{query_counter:03d}",
+                query_id=next_query_id,
                 query_text=query_data.get("query_text", ""),
                 category=query_data.get("category"),
                 target_outcome=query_data.get("target_outcome"),
+                brand_in_query=brand_in_query,
                 active=True
             )
             self.db.add(query)
-            query_counter += 1
+            # Flush to get the query in the DB so next generate_next_query_id sees it
+            self.db.flush()
 
-        # Generate descriptors
+        # Generate descriptors and append
         descriptors = self.generate_descriptors(brand_info)
         for descriptor_data in descriptors:
             descriptor = models.TargetDescriptor(
@@ -263,7 +267,7 @@ Format example:
             )
             self.db.add(descriptor)
 
-        # Generate competitors
+        # Generate competitors and append
         competitors = self.generate_competitors(brand_info)
         for competitor_data in competitors:
             competitor = models.Competitor(
