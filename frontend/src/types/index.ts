@@ -71,7 +71,6 @@ export interface CompetitorUpdate {
 export interface TargetDescriptor {
   id: number;
   descriptor: string;
-  category: string;
   is_target: boolean;
   current_ownership?: string;
   priority: string;
@@ -81,7 +80,6 @@ export interface TargetDescriptor {
 
 export interface TargetDescriptorCreate {
   descriptor: string;
-  category: string;
   is_target: boolean;
   current_ownership?: string;
   priority: string;
@@ -90,7 +88,6 @@ export interface TargetDescriptorCreate {
 
 export interface TargetDescriptorUpdate {
   descriptor?: string;
-  category?: string;
   is_target?: boolean;
   current_ownership?: string;
   priority?: string;
