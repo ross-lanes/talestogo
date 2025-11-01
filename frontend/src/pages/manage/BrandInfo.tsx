@@ -17,7 +17,7 @@ import {
   DialogActions,
 } from '@mui/material';
 import { Download } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 
@@ -29,6 +29,7 @@ interface BrandInfo {
   industry: string | null;
   description: string | null;
   strategic_messages: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -36,8 +37,12 @@ interface BrandInfo {
 const BrandInfo: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const isNewBrand = searchParams.get('new') === 'true';
 
   // Form state
+  const [brandId, setBrandId] = useState<number | null>(null);
   const [brandName, setBrandName] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [industry, setIndustry] = useState('');
@@ -53,10 +58,25 @@ const BrandInfo: React.FC = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
 
-  // Fetch existing brand info on mount
+  // Fetch existing brand info on mount (unless creating new brand)
+  // Re-run when location changes (including query params)
   useEffect(() => {
-    fetchBrandInfo();
-  }, []);
+    if (!isNewBrand) {
+      fetchBrandInfo();
+    } else {
+      // For new brand, clear form and skip fetching
+      setBrandId(null);
+      setBrandName('');
+      setWebsiteUrl('');
+      setIndustry('');
+      setDescription('');
+      setStrategicMessages('');
+      setFetching(false);
+      setBrandExists(false);
+      setError('');
+      setSuccess('');
+    }
+  }, [location.search]);
 
   const fetchBrandInfo = async () => {
     setFetching(true);
@@ -64,6 +84,7 @@ const BrandInfo: React.FC = () => {
     try {
       const response = await api.get<BrandInfo>('/brand-info/');
       const data = response.data;
+      setBrandId(data.id);
       setBrandName(data.brand_name || '');
       setWebsiteUrl(data.website_url || '');
       setIndustry(data.industry || '');
@@ -74,6 +95,7 @@ const BrandInfo: React.FC = () => {
       // 404 is expected if brand info doesn't exist yet
       if (err.response?.status === 404) {
         setBrandExists(false);
+        setBrandId(null);
       } else {
         console.error('Error fetching brand info:', err);
         setError(err.response?.data?.detail || 'Failed to load brand info');
@@ -150,15 +172,17 @@ const BrandInfo: React.FC = () => {
         strategic_messages: strategicMessages || null,
       };
 
-      if (brandExists) {
-        // Update existing
-        await api.put('/brand-info/', brandData);
+      if (brandExists && brandId) {
+        // Update existing brand using new endpoint
+        const response = await api.put<BrandInfo>(`/brands/${brandId}`, brandData);
+        setBrandId(response.data.id);
         setSuccess('Brand info updated successfully!');
       } else {
-        // Create new
-        await api.post('/brand-info/', brandData);
-        setSuccess('Brand info created successfully!');
+        // Create new brand using new endpoint
+        const response = await api.post<BrandInfo>('/brands/', brandData);
+        setBrandId(response.data.id);
         setBrandExists(true);
+        setSuccess('Brand info created successfully!');
       }
 
       // Show the dialog after successful save
@@ -267,8 +291,10 @@ const BrandInfo: React.FC = () => {
       </Box>
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h2">Customize Branding</Typography>
-        {brandExists && (
+        <Typography variant="h2">
+          {isNewBrand ? 'Add New Brand' : 'Customize Branding'}
+        </Typography>
+        {brandExists && !isNewBrand && (
           <Button
             variant="outlined"
             startIcon={<Download />}
@@ -281,8 +307,10 @@ const BrandInfo: React.FC = () => {
       </Box>
 
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Configure information about your brand to customize analysis and query generation.
-        This information will be used to tailor AI prompts for your specific brand.
+        {isNewBrand
+          ? 'Enter information about your new brand. This information will be used to customize analysis and query generation.'
+          : 'Configure information about your brand to customize analysis and query generation. This information will be used to tailor AI prompts for your specific brand.'
+        }
       </Typography>
 
       {error && (

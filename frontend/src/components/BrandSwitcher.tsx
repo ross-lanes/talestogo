@@ -35,17 +35,13 @@ const BrandSwitcher: React.FC = () => {
   };
 
   const handleSwitchBrand = async (brandId: number) => {
-    if (brandId === activeBrand?.id) {
-      handleClose();
-      return;
-    }
-
     setSwitching(true);
     try {
       await switchBrand(brandId);
       handleClose();
-      // Optionally reload the page or refresh data
-      window.location.reload();
+      setSwitching(false);
+      // Navigate to the selected brand's Brand Info page
+      navigate('/manage/brand-info');
     } catch (error) {
       console.error('Failed to switch brand:', error);
       setSwitching(false);
@@ -54,7 +50,7 @@ const BrandSwitcher: React.FC = () => {
 
   const handleAddBrand = () => {
     handleClose();
-    navigate('/manage/brand-info');
+    navigate('/manage/brand-info?new=true');
   };
 
   if (loading) {

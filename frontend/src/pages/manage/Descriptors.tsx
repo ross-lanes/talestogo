@@ -45,7 +45,6 @@ export default function Descriptors() {
   const [error, setError] = useState<string>('');
   const [formData, setFormData] = useState<TargetDescriptorCreate>({
     descriptor: '',
-    category: '',
     is_target: true,
     current_ownership: '',
     priority: 'Medium',
@@ -121,7 +120,6 @@ export default function Descriptors() {
       console.log('Opening dialog with descriptor:', descriptor);
       setFormData({
         descriptor: descriptor.descriptor,
-        category: descriptor.category,
         is_target: descriptor.is_target,
         current_ownership: descriptor.current_ownership || '',
         priority: descriptor.priority,
@@ -131,7 +129,6 @@ export default function Descriptors() {
       setSelectedDescriptor(null);
       setFormData({
         descriptor: '',
-        category: '',
         is_target: true,
         current_ownership: '',
         priority: 'Medium',
@@ -168,10 +165,9 @@ export default function Descriptors() {
   const handleDownloadCSV = () => {
     if (descriptors.length === 0) return;
 
-    const csvHeaders = ['Descriptor', 'Category', 'Target for Brand', 'Current Ownership', 'Priority', 'Notes'];
+    const csvHeaders = ['Descriptor', 'Target for Brand', 'Current Ownership', 'Priority', 'Notes'];
     const csvRows = descriptors.map((descriptor) => [
       `"${descriptor.descriptor.replace(/"/g, '""')}"`,
-      `"${descriptor.category}"`,
       descriptor.is_target ? 'Yes' : 'No',
       `"${(descriptor.current_ownership || '').replace(/"/g, '""')}"`,
       `"${descriptor.priority}"`,
@@ -216,14 +212,6 @@ export default function Descriptors() {
       headerName: 'Descriptor',
       flex: 1,
       minWidth: 200,
-    },
-    {
-      field: 'category',
-      headerName: 'Category',
-      width: 150,
-      renderCell: (params) => (
-        <Chip label={params.value} size="small" color="primary" variant="outlined" />
-      ),
     },
     {
       field: 'is_target',
@@ -409,14 +397,6 @@ export default function Descriptors() {
               helperText="The descriptor term or phrase (e.g., 'innovative', 'cutting-edge')"
             />
             <TextField
-              label="Category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              required
-              fullWidth
-              helperText="Examples: Technical, Leadership, Innovation"
-            />
-            <TextField
               label="Current Ownership"
               value={formData.current_ownership}
               onChange={(e) => setFormData({ ...formData, current_ownership: e.target.value })}
@@ -463,7 +443,6 @@ export default function Descriptors() {
             variant="contained"
             disabled={
               !formData.descriptor ||
-              !formData.category ||
               createMutation.isPending ||
               updateMutation.isPending
             }

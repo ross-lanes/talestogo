@@ -32,14 +32,15 @@ class AIGenerator:
             google_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
             if google_key:
                 genai.configure(api_key=google_key)
-                self.google_model = genai.GenerativeModel('gemini-1.5-flash')
+                # Use gemini-2.5-flash (Gemini 1.5 models are retired)
+                self.google_model = genai.GenerativeModel('gemini-2.5-flash')
             else:
                 raise ValueError("GEMINI_API_KEY not found in environment variables")
         else:
             raise ImportError("google-generativeai package not installed")
 
-    def generate_queries(self, brand_info: models.BrandInfo) -> List[str]:
-        """Generate relevant queries based on brand information."""
+    def generate_queries(self, brand_info: models.BrandInfo) -> List[Dict[str, str]]:
+        """Generate relevant queries with metadata based on brand information."""
         prompt = f"""Based on the following brand information, generate 10 relevant search queries that would help understand how AI assistants discuss this brand.
 
 Brand Name: {brand_info.brand_name}
@@ -55,7 +56,19 @@ The queries should:
 4. Be natural questions someone might ask an AI assistant
 5. Cover different aspects of the brand's work and impact
 
-Return ONLY a JSON array of 10 query strings, nothing else. Format: ["query 1", "query 2", ...]
+Return ONLY a JSON array of 10 query objects with the following fields:
+- "query_text": The actual question to ask
+- "category": What the query is about (e.g., "Technology & Innovation", "Impact & Applications", "Leadership & Reputation", "Partnerships & Collaborations", "Research & Development", "Industry Position")
+- "target_outcome": What you hope to learn from the response (1 sentence)
+
+Format example:
+[
+  {{
+    "query_text": "What are the latest breakthroughs in...",
+    "category": "Technology & Innovation",
+    "target_outcome": "Understand how AI discusses the brand's technical achievements."
+  }}
+]
 """
 
         response = self.google_model.generate_content(prompt)
@@ -72,8 +85,8 @@ Return ONLY a JSON array of 10 query strings, nothing else. Format: ["query 1", 
         queries = json.loads(result_text.strip())
         return queries
 
-    def generate_descriptors(self, brand_info: models.BrandInfo) -> List[str]:
-        """Generate ideal descriptive language based on brand information."""
+    def generate_descriptors(self, brand_info: models.BrandInfo) -> List[Dict[str, str]]:
+        """Generate ideal descriptive language with priority based on brand information."""
         prompt = f"""Based on the following brand information, generate 15 ideal descriptive words and short phrases that would be positive to see when people describe this brand.
 
 Brand Name: {brand_info.brand_name}
@@ -89,7 +102,21 @@ The descriptors should:
 4. Cover technical excellence, innovation, impact, and leadership
 5. Align with the strategic messages if provided
 
-Return ONLY a JSON array of 15 descriptor strings, nothing else. Format: ["descriptor 1", "descriptor 2", ...]
+Return ONLY a JSON array of 15 descriptor objects with the following fields:
+- "descriptor": The descriptive word or phrase
+- "priority": Priority level based on strategic importance ("High" for core brand attributes that align with strategic messages, "Medium" for important but secondary attributes, "Low" for nice-to-have descriptors)
+
+Format example:
+[
+  {{
+    "descriptor": "innovative",
+    "priority": "High"
+  }},
+  {{
+    "descriptor": "cutting-edge research",
+    "priority": "Medium"
+  }}
+]
 """
 
         response = self.google_model.generate_content(prompt)
@@ -106,23 +133,48 @@ Return ONLY a JSON array of 15 descriptor strings, nothing else. Format: ["descr
         descriptors = json.loads(result_text.strip())
         return descriptors
 
-    def generate_competitors(self, brand_info: models.BrandInfo) -> List[str]:
-        """Generate list of competitors based on brand information."""
-        prompt = f"""Based on the following brand information, generate a list of 8-12 competitor organizations or institutions that operate in the same space.
+    def generate_competitors(self, brand_info: models.BrandInfo) -> List[Dict[str, str]]:
+        """Generate list of competitors with details based on brand information."""
+        prompt = f"""Based on the following brand information, generate a list of 8-12 competitors at the SAME LEVEL OF SPECIFICITY as the brand.
 
 Brand Name: {brand_info.brand_name}
 Website: {brand_info.website_url or 'N/A'}
 Industry: {brand_info.industry or 'N/A'}
 Description: {brand_info.description or 'N/A'}
 
-The competitors should:
-1. Be actual organizations that work in similar areas
-2. Include both direct competitors and adjacent players
-3. Range from well-known leaders to emerging organizations
-4. Be realistic and verifiable entities
-5. Include both commercial and non-commercial entities if applicable
+CRITICAL INSTRUCTIONS - Match the specificity level:
+- If the brand is a SPECIFIC PRODUCT (like a journal, drug, or software tool), competitors should be OTHER PRODUCTS in the same category, NOT the companies that make them
+- If the brand is an ORGANIZATION (like a lab, company, or university), competitors should be OTHER ORGANIZATIONS in the same space
+- If the brand is a SERVICE, competitors should be OTHER SERVICES
 
-Return ONLY a JSON array of competitor name strings, nothing else. Format: ["competitor 1", "competitor 2", ...]
+Examples:
+- Brand: "Physics of Plasmas" (a journal) → Competitors: Other physics journals like "Plasma Physics and Controlled Fusion", "Journal of Plasma Physics", etc. NOT publishing companies
+- Brand: "Drug X" (treats diabetes) → Competitors: Other diabetes drugs like "Metformin", "Insulin", etc. NOT pharmaceutical companies
+- Brand: "Princeton Plasma Physics Laboratory" (a lab) → Competitors: Other plasma physics labs like "MIT Plasma Science", "Oak Ridge National Lab", etc. NOT the Department of Energy
+- Brand: "Photoshop" (software) → Competitors: Other image editing software like "GIMP", "Affinity Photo", etc. NOT Adobe Corporation
+
+The competitors should:
+1. Be at the EXACT SAME LEVEL as the brand (product-to-product, organization-to-organization, service-to-service)
+2. Operate in the same industry: "{brand_info.industry or 'same industry'}"
+3. Include both direct competitors and adjacent alternatives
+4. Be realistic and verifiable entities
+5. Range from well-known leaders to emerging alternatives
+
+Return ONLY a JSON array of competitor objects with the following fields:
+- "organization": The competitor's name (use the specific product/service/organization name, not the parent company)
+- "type": Type of entity that matches the brand's type (e.g., "Journal", "Drug", "Software", "National Lab", "University Research Group", "Company")
+- "focus_area": Brief description of their main focus area (1-2 sentences)
+- "website": Their website URL (use your knowledge of real entities)
+
+Format example:
+[
+  {{
+    "organization": "Example Journal Name",
+    "type": "Journal",
+    "focus_area": "Publishes research on...",
+    "website": "https://www.example.com"
+  }}
+]
 """
 
         response = self.google_model.generate_content(prompt)
@@ -171,12 +223,14 @@ Return ONLY a JSON array of competitor name strings, nothing else. Format: ["com
         # Generate queries
         queries = self.generate_queries(brand_info)
         query_counter = 1
-        for query_text in queries:
+        for query_data in queries:
             query = models.Query(
                 user_id=user_id,
                 brand_id=brand_id,
                 query_id=f"Q{query_counter:03d}",
-                query_text=query_text,
+                query_text=query_data.get("query_text", ""),
+                category=query_data.get("category"),
+                target_outcome=query_data.get("target_outcome"),
                 active=True
             )
             self.db.add(query)
@@ -184,22 +238,27 @@ Return ONLY a JSON array of competitor name strings, nothing else. Format: ["com
 
         # Generate descriptors
         descriptors = self.generate_descriptors(brand_info)
-        for descriptor_text in descriptors:
+        for descriptor_data in descriptors:
             descriptor = models.TargetDescriptor(
                 user_id=user_id,
                 brand_id=brand_id,
-                descriptor=descriptor_text,
+                descriptor=descriptor_data.get("descriptor", ""),
+                priority=descriptor_data.get("priority", "Medium"),
                 is_target=True
             )
             self.db.add(descriptor)
 
         # Generate competitors
         competitors = self.generate_competitors(brand_info)
-        for competitor_name in competitors:
+        for competitor_data in competitors:
             competitor = models.Competitor(
                 user_id=user_id,
                 brand_id=brand_id,
-                organization=competitor_name
+                organization=competitor_data.get("organization", ""),
+                type=competitor_data.get("type"),
+                focus_area=competitor_data.get("focus_area"),
+                website=competitor_data.get("website"),
+                track=True
             )
             self.db.add(competitor)
 

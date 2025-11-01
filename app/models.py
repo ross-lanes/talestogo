@@ -92,7 +92,6 @@ class TargetDescriptor(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     descriptor = Column(String(200), nullable=False, index=True)
-    category = Column(String(100)) # Technical, Leadership, Innovation
     is_target = Column(Boolean, default=True)
     current_ownership = Column(String(200)) # Who 'owns' this term now
     priority = Column(String(20)) # High, Medium, Low

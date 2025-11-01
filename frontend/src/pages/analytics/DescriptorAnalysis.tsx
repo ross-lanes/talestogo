@@ -101,11 +101,10 @@ export default function DescriptorAnalysis() {
   const handleDownloadCSV = () => {
     if (!sortedDescriptorsData || sortedDescriptorsData.length === 0) return;
 
-    const csvHeaders = ['Used with Brand', 'Target Descriptor', 'Category', 'Mentions', 'Usage Rate', 'Status'];
+    const csvHeaders = ['Used with Brand', 'Target Descriptor', 'Mentions', 'Usage Rate', 'Status'];
     const csvRows = sortedDescriptorsData.map((item: any) => [
       item.isUsed ? 'Yes' : 'No',
       `"${item.desc.descriptor.replace(/"/g, '""')}"`,
-      `"${(item.desc.category || 'Uncategorized').replace(/"/g, '""')}"`,
       item.usage,
       `${item.usageRate}%`,
       item.status
@@ -244,7 +243,6 @@ export default function DescriptorAnalysis() {
                 <TableRow>
                   <TableCell>Used with Brand</TableCell>
                   <TableCell>Target Descriptor</TableCell>
-                  <TableCell>Category</TableCell>
                   <TableCell align="right">Mentions</TableCell>
                   <TableCell align="right">Usage Rate</TableCell>
                   <TableCell>Status</TableCell>
@@ -277,7 +275,6 @@ export default function DescriptorAnalysis() {
                           {desc.descriptor}
                         </Typography>
                       </TableCell>
-                      <TableCell>{desc.category || 'Uncategorized'}</TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" fontWeight={isUsed ? 'bold' : 'normal'}>
                           {usage}

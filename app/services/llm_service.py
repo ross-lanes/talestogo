@@ -85,7 +85,7 @@ def _call_gemini_api(query: str) -> str:
         return "Error: Gemini API key not configured."
 
     print(f"Calling Gemini API for query: '{query[:50]}...'")
-    model = genai.GenerativeModel('gemini-1.5-pro-latest')
+    model = genai.GenerativeModel('gemini-2.5-pro')
     response = model.generate_content(query)
     return response.text
 
@@ -178,7 +178,7 @@ def analyze_raw_response(
 
     print(f"Analyzing response for query: '{query_text[:50]}...'")
     model = genai.GenerativeModel(
-        'gemini-1.5-pro',
+        'gemini-2.5-pro',
         system_instruction=system_prompt,
         generation_config={"response_mime_type": "application/json"}
     )

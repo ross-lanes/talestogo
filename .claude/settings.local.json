@@ -38,7 +38,8 @@
       "Bash(git push)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix database schema: Run migrations on startup\n\nThe production database was missing invitation_token and \ninvitation_expires_at columns, causing a 500 error on Google OAuth login.\n\nUpdated Dockerfile to run migration scripts automatically on startup,\nwhich will add the missing columns to the users table.\n\nThis fixes: sqlalchemy.exc.OperationalError: no such column: users.invitation_token\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git commit:*)",
-      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3\" python3:*)"
+      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3\" python3:*)",
+      "Bash(uvicorn:*)"
     ],
     "deny": [],
     "ask": []

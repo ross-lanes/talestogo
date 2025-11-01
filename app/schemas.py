@@ -95,7 +95,6 @@ class Competitor(CompetitorBase):
 # --- TargetDescriptor Schemas ---
 class TargetDescriptorBase(BaseModel):
     descriptor: str
-    category: Optional[str] = None
     is_target: bool = True
     current_ownership: Optional[str] = None
     priority: Optional[str] = None
@@ -106,7 +105,6 @@ class TargetDescriptorCreate(TargetDescriptorBase):
 
 class TargetDescriptorUpdate(BaseModel):
     descriptor: Optional[str] = None
-    category: Optional[str] = None
     is_target: Optional[bool] = None
     current_ownership: Optional[str] = None
     priority: Optional[str] = None
