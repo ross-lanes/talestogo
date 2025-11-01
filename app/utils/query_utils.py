@@ -9,20 +9,24 @@ from .. import models
 
 def detect_brand_in_query(query_text: str, brand_name: str) -> bool:
     """
-    Automatically detect if the exact brand name is mentioned in a query text.
+    Automatically detect if the exact brand name or its acronym is mentioned in a query text.
 
-    Uses case-insensitive matching for EXACT brand name only.
+    Uses case-insensitive matching for:
+    1. Exact brand name
+    2. Acronym (first letter of each significant word)
+
     Examples:
     - Brand: "Physics of Plasmas"
-      - Matches: "Tell me about Physics of Plasmas"
-      - Does NOT match: "Tell me about Physics" or "What is PoP?"
+      - Matches: "Tell me about Physics of Plasmas" (exact match)
+      - Matches: "What is PoP?" (acronym match)
+      - Does NOT match: "Tell me about Physics" (partial word)
 
     Args:
         query_text: The query text to check
         brand_name: The exact brand name to search for
 
     Returns:
-        True if the exact brand name is found in the query, False otherwise
+        True if the exact brand name or acronym is found in the query, False otherwise
     """
     if not query_text or not brand_name:
         return False
@@ -31,10 +35,24 @@ def detect_brand_in_query(query_text: str, brand_name: str) -> bool:
     query_lower = query_text.lower().strip()
     brand_lower = brand_name.lower().strip()
 
-    # Check for exact brand name match only (case-insensitive)
-    # Use word boundaries to ensure complete match
+    # Check for exact brand name match (case-insensitive)
     pattern = r'\b' + re.escape(brand_lower) + r'\b'
-    return bool(re.search(pattern, query_lower))
+    if re.search(pattern, query_lower):
+        return True
+
+    # Check for acronym match (for multi-word brand names)
+    brand_words = brand_lower.split()
+    if len(brand_words) > 1:
+        # Skip common words when building acronym
+        skip_words = {'the', 'a', 'an', 'of', 'and', 'for', 'to', 'in', 'on', 'at'}
+        acronym = ''.join([word[0] for word in brand_words if word not in skip_words and len(word) > 0])
+
+        if len(acronym) >= 2:
+            acronym_pattern = r'\b' + re.escape(acronym.lower()) + r'\b'
+            if re.search(acronym_pattern, query_lower):
+                return True
+
+    return False
 
 
 def auto_set_brand_in_query_flag(
