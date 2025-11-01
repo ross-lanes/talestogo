@@ -118,7 +118,18 @@ const UserManagement: React.FC = () => {
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(invitationLink);
+    const emailMessage = `Hi ${invitedUserName},
+
+You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand. Click the link below to set up your account:
+
+${invitationLink}
+
+This link expires in 7 days.
+
+Best,
+[Your name]`;
+
+    navigator.clipboard.writeText(emailMessage);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 3000);
   };
@@ -303,7 +314,7 @@ const UserManagement: React.FC = () => {
         <DialogTitle>Invite New User</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Invited users will be automatically approved and can log in immediately with temporary password: TempPassword123!
+            An invitation link will be created that the user can use to set up their account and choose their own password.
           </Typography>
 
           <TextField
@@ -389,24 +400,17 @@ const UserManagement: React.FC = () => {
           </Alert>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Copy the link below and send it to the user via email:
+            Copy the email message below and send it to the user:
           </Typography>
 
           <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-            <TextField
-              fullWidth
-              value={invitationLink}
-              InputProps={{
-                readOnly: true,
-              }}
-              size="small"
-            />
             <Button
               variant="contained"
               onClick={handleCopyLink}
-              sx={{ minWidth: '120px' }}
+              fullWidth
+              size="large"
             >
-              {linkCopied ? 'Copied!' : 'Copy Link'}
+              {linkCopied ? 'Copied!' : 'Copy Email Message'}
             </Button>
           </Box>
 

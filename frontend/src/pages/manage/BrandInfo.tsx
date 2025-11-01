@@ -125,6 +125,21 @@ const BrandInfo: React.FC = () => {
       setLoading(false);
       return;
     }
+    if (!websiteUrl.trim()) {
+      setError('Website URL is required');
+      setLoading(false);
+      return;
+    }
+    if (!industry.trim()) {
+      setError('Industry is required');
+      setLoading(false);
+      return;
+    }
+    if (!description.trim()) {
+      setError('Brand description is required');
+      setLoading(false);
+      return;
+    }
 
     try {
       const brandData = {
@@ -304,17 +319,19 @@ const BrandInfo: React.FC = () => {
           <Grid item xs={12}>
             <TextField
               fullWidth
+              required
               label="Website URL"
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               placeholder="e.g., https://www.pppl.gov"
-              helperText="Optional: Your brand's website"
+              helperText="Your brand's website"
             />
           </Grid>
 
           <Grid item xs={12}>
             <TextField
               fullWidth
+              required
               label="Industry"
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
@@ -326,6 +343,7 @@ const BrandInfo: React.FC = () => {
           <Grid item xs={12}>
             <TextField
               fullWidth
+              required
               multiline
               rows={6}
               label="Brand Description"
