@@ -30,5 +30,6 @@ ENV PYTHONUNBUFFERED=1
 ENV DATABASE_URL=sqlite:///./data/tales.db
 
 # Run database migrations on startup and then start the server
-CMD python -c "from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)" && \
+CMD python app/migrations/run_migrations.py --db-path ./data/tales.db --no-backup && \
+    python -c "from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)" && \
     uvicorn app.main:app --host 0.0.0.0 --port 8000
