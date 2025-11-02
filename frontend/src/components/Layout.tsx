@@ -38,6 +38,7 @@ import {
   AdminPanelSettings as AdminIcon,
   CloudDownload as CollectionIcon,
   MoreVert as MoreVertIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -82,6 +83,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleAdminPanel = () => {
     navigate('/admin/users');
+    handleUserMenuClose();
+  };
+
+  const handleHowTalesWorks = () => {
+    navigate('/how-tales-works');
     handleUserMenuClose();
   };
 
@@ -286,6 +292,12 @@ export default function Layout({ children }: LayoutProps) {
             <ListItemText>User Management</ListItemText>
           </MenuItem>
         )}
+        <MenuItem onClick={handleHowTalesWorks}>
+          <ListItemIcon>
+            <InfoIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>How Tales Works</ListItemText>
+        </MenuItem>
         <Divider />
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>

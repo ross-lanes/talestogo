@@ -42,7 +42,9 @@
       "Bash(uvicorn:*)",
       "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" python3:*)",
       "Bash(psql:*)",
-      "Bash(pip3 list:*)"
+      "Bash(pip3 list:*)",
+      "Bash(git log:*)",
+      "Bash(npx tsc --noEmit)"
     ],
     "deny": [],
     "ask": []

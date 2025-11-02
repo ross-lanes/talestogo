@@ -25,6 +25,7 @@ import ShareOfVoice from './pages/analytics/ShareOfVoice';
 import DescriptorAnalysis from './pages/analytics/DescriptorAnalysis';
 import CompetitorThreats from './pages/analytics/CompetitorThreats';
 import Recommendations from './pages/analytics/Recommendations';
+import HowTalesWorks from './pages/HowTalesWorks';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -208,6 +209,18 @@ function App() {
                       <ProtectedRoute>
                         <Layout>
                           <Settings />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* How Tales Works Route */}
+                  <Route
+                    path="/how-tales-works"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <HowTalesWorks />
                         </Layout>
                       </ProtectedRoute>
                     }
