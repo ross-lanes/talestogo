@@ -935,6 +935,9 @@ def generate_markdown_report(
     sov_insights: str = "",
     descriptor_insights: str = "",
     sentiment_insights: str = "",
+    queries: List[Any] = None,
+    descriptors: List[Any] = None,
+    competitors: List[Any] = None,
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
@@ -1058,44 +1061,6 @@ def generate_markdown_report(
     # Add sentiment insights
     report += f"\n**Insights:**\n\n{sentiment_insights}\n"
 
-    # Add truncated AI statements with links to appendix
-    if responses:
-        report += "\n\n### AI Statements About the Brand (Sorted by Sentiment)\n\n"
-        report += "_Note: Responses are truncated here for readability. See [Appendix: Full AI Responses](#appendix-full-ai-responses) for complete text._\n\n"
-
-        # Group responses by sentiment
-        sentiment_order = ['Very Positive', 'Positive', 'Neutral', 'Mixed', 'Negative', 'Very Negative']
-        statements_by_sentiment = {s: [] for s in sentiment_order}
-
-        for response in responses:
-            # Only include responses where brand was mentioned
-            if response.brand_mentioned in ['Yes', 'Indirect'] and response.response_text:
-                sentiment = response.sentiment if response.sentiment else 'Neutral'
-                if sentiment in statements_by_sentiment:
-                    statements_by_sentiment[sentiment].append({
-                        'platform': response.platform,
-                        'query': response.query_text,
-                        'text': response.response_text,
-                        'positioning': response.brand_position if response.brand_position else 'Not specified'
-                    })
-
-        # Display statements grouped by sentiment with truncated responses
-        for sentiment in sentiment_order:
-            statements = statements_by_sentiment[sentiment]
-            report += f"\n**{sentiment} ({len(statements)} statements)**\n\n"
-
-            if statements:
-                for i, statement in enumerate(statements, 1):
-                    # Truncate response text to 300 characters
-                    text_excerpt = statement['text'][:300] + "..." if len(statement['text']) > 300 else statement['text']
-                    # Create anchor link to full response in appendix
-                    sentiment_slug = sentiment.lower().replace(' ', '-')
-                    report += f"**[Statement {i}](#{sentiment_slug}-statement-{i})** - {statement['platform']} - Positioning: {statement['positioning']}\n"
-                    report += f"- **Query:** {statement['query']}\n"
-                    report += f"- **Response:** {text_excerpt}\n\n"
-            else:
-                report += f"No {sentiment.lower()} statements found in the analyzed responses.\n\n"
-
     report += """
 ---
 
@@ -1129,15 +1094,56 @@ All metrics are based on actual AI platform responses collected during the analy
 
 ---
 
-## Appendix: Full AI Responses
-
-This appendix contains the complete, untruncated text of all AI-generated responses where the brand was mentioned. Responses are organized by sentiment category.
+## Appendix
 
 """
 
-    # Add full AI responses in appendix
+    # Add Queries Table
+    report += "\n### Queries\n\n"
+    report += "| Query | Category | Brand in Query |\n"
+    report += "|-------|----------|----------------|\n"
+
+    if queries:
+        for query in queries:
+            brand_in_query = "Yes" if query.brand_in_query else "No"
+            category = query.category if hasattr(query, 'category') and query.category else "-"
+            report += f"| {query.query_text} | {category} | {brand_in_query} |\n"
+    else:
+        report += "| No queries configured | - | - |\n"
+
+    # Add Descriptors Table
+    report += "\n### Descriptors\n\n"
+    report += "| Descriptor | Target | Priority | Current Ownership |\n"
+    report += "|------------|--------|----------|-------------------|\n"
+
+    if descriptors:
+        for descriptor in descriptors:
+            is_target = "Yes" if descriptor.is_target else "No"
+            priority = descriptor.priority if hasattr(descriptor, 'priority') and descriptor.priority else "-"
+            ownership = descriptor.current_ownership if hasattr(descriptor, 'current_ownership') and descriptor.current_ownership else "-"
+            report += f"| {descriptor.descriptor} | {is_target} | {priority} | {ownership} |\n"
+    else:
+        report += "| No descriptors configured | - | - | - |\n"
+
+    # Add Competitors Table
+    report += "\n### Competitors\n\n"
+    report += "| Organization | Type | Focus Area | Tracking |\n"
+    report += "|--------------|------|------------|----------|\n"
+
+    if competitors:
+        for competitor in competitors:
+            tracking = "Active" if competitor.track else "Inactive"
+            comp_type = competitor.type if hasattr(competitor, 'type') and competitor.type else "-"
+            focus_area = competitor.focus_area if hasattr(competitor, 'focus_area') and competitor.focus_area else "-"
+            report += f"| {competitor.organization} | {comp_type} | {focus_area} | {tracking} |\n"
+    else:
+        report += "| No competitors configured | - | - | - |\n"
+
+    # Add AI Statements organized by sentiment
+    report += "\n### AI Statements About the Brand\n\n"
+
     if responses:
-        # Group responses by sentiment (reuse the same grouping)
+        # Group responses by sentiment
         sentiment_order = ['Very Positive', 'Positive', 'Neutral', 'Mixed', 'Negative', 'Very Negative']
         statements_by_sentiment = {s: [] for s in sentiment_order}
 
@@ -1146,26 +1152,17 @@ This appendix contains the complete, untruncated text of all AI-generated respon
             if response.brand_mentioned in ['Yes', 'Indirect'] and response.response_text:
                 sentiment = response.sentiment if response.sentiment else 'Neutral'
                 if sentiment in statements_by_sentiment:
-                    statements_by_sentiment[sentiment].append({
-                        'platform': response.platform,
-                        'query': response.query_text,
-                        'text': response.response_text,
-                        'positioning': response.brand_position if response.brand_position else 'Not specified'
-                    })
+                    statements_by_sentiment[sentiment].append(response.response_text)
 
-        # Display full statements grouped by sentiment
+        # Display statements grouped by sentiment
         for sentiment in sentiment_order:
             statements = statements_by_sentiment[sentiment]
             if statements:
-                report += f"\n### {sentiment} Responses ({len(statements)} statements)\n\n"
-                for i, statement in enumerate(statements, 1):
-                    # Create anchor ID that matches the link from the main section
-                    sentiment_slug = sentiment.lower().replace(' ', '-')
-                    report += f"<a id=\"{sentiment_slug}-statement-{i}\"></a>\n\n"
-                    report += f"**Statement {i}** - {statement['platform']} - Positioning: {statement['positioning']}\n\n"
-                    report += f"**Query:** {statement['query']}\n\n"
-                    report += f"**Full Response:**\n\n{statement['text']}\n\n"
-                    report += "---\n\n"
+                report += f"\n**{sentiment}** ({len(statements)} statements)\n\n"
+                for statement in statements:
+                    report += f"- {statement}\n\n"
+    else:
+        report += "No AI statements available.\n"
 
     return report
 
@@ -1393,6 +1390,9 @@ def generate_report_main(user_id: int, brand_id: int):
             sov_insights=sov_insights,
             descriptor_insights=descriptor_insights,
             sentiment_insights=sentiment_insights,
+            queries=queries,
+            descriptors=descriptors,
+            competitors=competitors,
         )
 
         # Step 5: Save to database

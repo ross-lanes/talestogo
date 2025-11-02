@@ -91,6 +91,9 @@ export default function Competitors() {
       queryClient.invalidateQueries({ queryKey: ['competitors'] });
       handleCloseDialog();
     },
+    onError: (error: any) => {
+      alert(`Failed to update competitor: ${error.response?.data?.detail || error.message}`);
+    },
   });
 
   // Delete competitor mutation

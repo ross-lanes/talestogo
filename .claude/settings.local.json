@@ -44,7 +44,8 @@
       "Bash(psql:*)",
       "Bash(pip3 list:*)",
       "Bash(git log:*)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" psql:*)"
     ],
     "deny": [],
     "ask": []
