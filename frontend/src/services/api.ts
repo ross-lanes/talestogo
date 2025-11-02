@@ -3,13 +3,6 @@ import axios from 'axios';
 // API Base URL - points to your FastAPI backend
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-// Diagnostic logging for production debugging
-console.log('API Configuration:', {
-  VITE_API_URL: import.meta.env.VITE_API_URL,
-  API_BASE_URL,
-  mode: import.meta.env.MODE
-});
-
 // Token storage keys
 const TOKEN_KEY = 'tales_access_token';
 const USER_KEY = 'tales_user';
