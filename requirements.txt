@@ -21,3 +21,6 @@ email-validator
 matplotlib
 python-multipart
 openpyxl
+python-docx
+reportlab
+markdown2
