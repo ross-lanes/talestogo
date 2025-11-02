@@ -327,8 +327,6 @@ def build_descriptor_context(descriptors: List[TargetDescriptor], descriptor_ana
     for desc in descriptors:
         actual_count = descriptor_analysis.get(desc.descriptor, 0)
         context += f"\n- '{desc.descriptor}'"
-        if desc.category:
-            context += f" (Category: {desc.category})"
         if desc.priority:
             context += f" [Priority: {desc.priority}]"
         context += f"\n  Times associated with brand: {actual_count}"
