@@ -85,8 +85,8 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
     setShowSuccessDialog(false);
   };
 
-  // Don't render progress bar if no task or task is completed
-  if (!taskStatus || taskStatus.status === 'completed') {
+  // Don't render progress bar if no task or task is completed (but show failed tasks)
+  if (!taskStatus || (taskStatus.status === 'completed' && !showSuccessDialog)) {
     return (
       <>
         {/* Success Dialog */}

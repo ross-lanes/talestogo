@@ -1768,18 +1768,92 @@ async def run_analysis(
         project_root = os.path.dirname(os.path.dirname(__file__))
 
         # Run analysis and report generation in sequence in the background with task-id
-        cmd = f"""
-python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id} &&
-python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
-"""
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            cwd=project_root
-        )
+        # Use separate commands to capture which step fails
+        analysis_cmd = f"python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id}"
+        report_cmd = f"python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}"
+
+        # Create a background task to monitor the subprocess
+        import threading
+
+        def run_analysis_task():
+            """Run analysis and report generation, updating task status on completion."""
+            db_task = SessionLocal()
+            try:
+                # Run analysis script
+                analysis_process = subprocess.run(
+                    analysis_cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=project_root,
+                    timeout=3600  # 1 hour timeout
+                )
+
+                if analysis_process.returncode != 0:
+                    # Analysis failed
+                    task = db_task.query(models.TaskStatus).filter(
+                        models.TaskStatus.id == task_status.id
+                    ).first()
+                    if task:
+                        task.status = "failed"
+                        task.error_message = f"Analysis script failed: {analysis_process.stderr[-500:]}"
+                        db_task.commit()
+                    return
+
+                # Run report generation script
+                report_process = subprocess.run(
+                    report_cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=project_root,
+                    timeout=600  # 10 minute timeout
+                )
+
+                if report_process.returncode != 0:
+                    # Report generation failed
+                    task = db_task.query(models.TaskStatus).filter(
+                        models.TaskStatus.id == task_status.id
+                    ).first()
+                    if task:
+                        task.status = "failed"
+                        task.error_message = f"Report generation failed: {report_process.stderr[-500:]}"
+                        db_task.commit()
+                    return
+
+                # Both succeeded
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "completed"
+                    task.message = "Analysis and report generation completed successfully"
+                    db_task.commit()
+
+            except subprocess.TimeoutExpired as e:
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Task timed out: {str(e)}"
+                    db_task.commit()
+            except Exception as e:
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Unexpected error: {str(e)}"
+                    db_task.commit()
+            finally:
+                db_task.close()
+
+        # Start the background thread
+        thread = threading.Thread(target=run_analysis_task, daemon=True)
+        thread.start()
 
         return {
             "message": f"Analysis and report generation started for {len(responses_to_analyze)} responses from {latest_date.strftime('%Y-%m-%d')}.",
@@ -1877,18 +1951,92 @@ async def rerun_analysis(
         project_root = os.path.dirname(os.path.dirname(__file__))
 
         # Run analysis and report generation in sequence in the background
-        cmd = f"""
-python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id} &&
-python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}
-"""
-        process = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            cwd=project_root
-        )
+        # Use separate commands to capture which step fails
+        analysis_cmd = f"python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id}"
+        report_cmd = f"python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}"
+
+        # Create a background task to monitor the subprocess
+        import threading
+
+        def run_reanalysis_task():
+            """Run re-analysis and report generation, updating task status on completion."""
+            db_task = SessionLocal()
+            try:
+                # Run analysis script
+                analysis_process = subprocess.run(
+                    analysis_cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=project_root,
+                    timeout=3600  # 1 hour timeout
+                )
+
+                if analysis_process.returncode != 0:
+                    # Analysis failed
+                    task = db_task.query(models.TaskStatus).filter(
+                        models.TaskStatus.id == task_status.id
+                    ).first()
+                    if task:
+                        task.status = "failed"
+                        task.error_message = f"Analysis script failed: {analysis_process.stderr[-500:]}"
+                        db_task.commit()
+                    return
+
+                # Run report generation script
+                report_process = subprocess.run(
+                    report_cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=project_root,
+                    timeout=600  # 10 minute timeout
+                )
+
+                if report_process.returncode != 0:
+                    # Report generation failed
+                    task = db_task.query(models.TaskStatus).filter(
+                        models.TaskStatus.id == task_status.id
+                    ).first()
+                    if task:
+                        task.status = "failed"
+                        task.error_message = f"Report generation failed: {report_process.stderr[-500:]}"
+                        db_task.commit()
+                    return
+
+                # Both succeeded
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "completed"
+                    task.message = "Re-analysis and report generation completed successfully"
+                    db_task.commit()
+
+            except subprocess.TimeoutExpired as e:
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Task timed out: {str(e)}"
+                    db_task.commit()
+            except Exception as e:
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Unexpected error: {str(e)}"
+                    db_task.commit()
+            finally:
+                db_task.close()
+
+        # Start the background thread
+        thread = threading.Thread(target=run_reanalysis_task, daemon=True)
+        thread.start()
 
         return {
             "message": f"Re-analysis started for {len(all_responses)} responses {date_description}.",
