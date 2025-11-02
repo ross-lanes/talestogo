@@ -12,7 +12,7 @@ import {
 } from '@mui/icons-material';
 import html2canvas from 'html2canvas';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
@@ -84,7 +84,7 @@ export default function Dashboard() {
         const brandNameFormatted = brandName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 
         const link = document.createElement('a');
-        link.download = `${brandNameFormatted}_TalesDashboard_${dateStr}.png`;
+        link.download = `KeyMetrics_${brandNameFormatted}_${dateStr}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
       } catch (error) {
@@ -270,7 +270,7 @@ export default function Dashboard() {
     const color = value > 0 ? 'success.main' : 'error.main';
     return (
       <Typography variant="body2" color={color}>
-        {sign} {value > 0 ? '+' : ''}{value.toFixed(1)}% vs last period
+        {sign} {value > 0 ? '+' : ''}{Math.round(value)}% vs last period
       </Typography>
     );
   };
@@ -375,7 +375,7 @@ export default function Dashboard() {
                     Brand Mentions
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
-                    {metrics.mention_rate}%
+                    {Math.round(metrics.mention_rate ?? 0)}%
                   </Typography>
                   {formatChange(metrics.change_mention_rate)}
                 </Box>
@@ -397,7 +397,7 @@ export default function Dashboard() {
                     Threats Summary
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
-                    {highThreatCount}
+                    {highThreatCount ?? 0}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     High threat competitors
@@ -418,7 +418,7 @@ export default function Dashboard() {
                     Target Descriptor Adoption
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
-                    {metrics.descriptor_match}%
+                    {Math.round(metrics.descriptor_match ?? 0)}%
                   </Typography>
                   {formatChange(metrics.change_descriptor)}
                 </Box>
@@ -437,13 +437,13 @@ export default function Dashboard() {
                     Share of Voice
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
-                    {metrics.share_of_voice}%
+                    {Math.round(metrics.share_of_voice ?? 0)}%
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     {metrics.leading_position}
                   </Typography>
                   <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
-                    {metrics.leadership_visibility}% Leadership Visibility
+                    {Math.round(metrics.leadership_visibility ?? 0)}% Leadership Visibility
                   </Typography>
                 </Box>
                 <VisibilityIcon sx={{ fontSize: 48, color: '#665775' }} />
@@ -474,7 +474,7 @@ export default function Dashboard() {
                     <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Box sx={{ width: 16, height: 16, backgroundColor: item.color, borderRadius: '2px' }} />
                       <Typography variant="body2" sx={{ fontSize: '13px' }}>
-                        {item.name}: {item.value}%
+                        {item.name}: {Math.round(item.value)}%
                       </Typography>
                     </Box>
                   ))}
@@ -496,7 +496,7 @@ export default function Dashboard() {
                       dataKey="value"
                     >
                     </Pie>
-                    <Tooltip formatter={(value) => `${value}%`} />
+                    <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
                   </PieChart>
                 </ResponsiveContainer>
               </Box>
@@ -514,6 +514,33 @@ export default function Dashboard() {
               Positioning Distribution
             </Typography>
             {positioningData && positioningData.total > 0 ? (
+              (() => {
+                const maxValue = Math.max(
+                  positioningData.leader || 0,
+                  positioningData.top_3 || 0,
+                  positioningData.featured || 0,
+                  positioningData.listed || 0,
+                  positioningData.not_mentioned || 0
+                );
+                const minYAxis = maxValue + 2;
+                // Round up to next 5 or 10
+                let roundedMax;
+                if (minYAxis <= 5) {
+                  roundedMax = 5;
+                } else if (minYAxis <= 10) {
+                  roundedMax = 10;
+                } else {
+                  // Round up to next multiple of 5 or 10
+                  const remainder = minYAxis % 10;
+                  if (remainder === 0) {
+                    roundedMax = minYAxis;
+                  } else if (remainder <= 5) {
+                    roundedMax = minYAxis - remainder + 5;
+                  } else {
+                    roundedMax = minYAxis - remainder + 10;
+                  }
+                }
+                return (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={[
                   { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
@@ -524,7 +551,10 @@ export default function Dashboard() {
                 ].filter(item => item.count > 0)}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="position" angle={-45} textAnchor="end" height={80} />
-                  <YAxis />
+                  <YAxis
+                    domain={[0, roundedMax]}
+                    allowDecimals={false}
+                  />
                   <Tooltip />
                   <Bar dataKey="count">
                     {[
@@ -536,9 +566,12 @@ export default function Dashboard() {
                     ].filter(item => item.count > 0).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
+                    <LabelList dataKey="count" position="top" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+                );
+              })()
             ) : (
               <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography color="textSecondary">No positioning data available</Typography>
