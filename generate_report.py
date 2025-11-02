@@ -1018,17 +1018,15 @@ def generate_markdown_report(
 **Descriptor Match Rate:** {descriptor_match_rate}% of brand mentions included at least one target descriptor
 
 **Top Descriptors Associated with {brand_name}:**
+"""
 
-| Descriptor | Mentions |
-|-----------|----------|"""
-
-    # Add descriptor breakdown in table format
+    # Add descriptor breakdown in list format (not table) to avoid truncation of long names
     if descriptor_analysis:
         sorted_descriptors = sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True)
         for descriptor, count in sorted_descriptors[:10]:  # Top 10
-            report += f"\n| {descriptor} | {count} |"
+            report += f"\n- **{descriptor}**: {count} mentions"
     else:
-        report += "\n| No data | - |"
+        report += "\n- No data available"
 
     # Add descriptor performance chart
     if chart_paths and 'descriptor_performance' in chart_paths:
@@ -1060,9 +1058,10 @@ def generate_markdown_report(
     # Add sentiment insights
     report += f"\n**Insights:**\n\n{sentiment_insights}\n"
 
-    # Add all AI statements sorted by sentiment
+    # Add truncated AI statements with links to appendix
     if responses:
-        report += "\n\n**AI Statements About the Brand (Sorted by Sentiment)**\n\n"
+        report += "\n\n### AI Statements About the Brand (Sorted by Sentiment)\n\n"
+        report += "_Note: Responses are truncated here for readability. See [Appendix: Full AI Responses](#appendix-full-ai-responses) for complete text._\n\n"
 
         # Group responses by sentiment
         sentiment_order = ['Very Positive', 'Positive', 'Neutral', 'Mixed', 'Negative', 'Very Negative']
@@ -1080,17 +1079,22 @@ def generate_markdown_report(
                         'positioning': response.brand_position if response.brand_position else 'Not specified'
                     })
 
-        # Display statements grouped by sentiment
+        # Display statements grouped by sentiment with truncated responses
         for sentiment in sentiment_order:
             statements = statements_by_sentiment[sentiment]
+            report += f"\n**{sentiment} ({len(statements)} statements)**\n\n"
+
             if statements:
-                report += f"\n#### {sentiment} ({len(statements)} statements)\n\n"
                 for i, statement in enumerate(statements, 1):
-                    # Truncate long responses to first 500 characters
-                    text_excerpt = statement['text'][:500] + "..." if len(statement['text']) > 500 else statement['text']
-                    report += f"**Statement {i}** - {statement['platform']} - Positioning: {statement['positioning']}\n"
+                    # Truncate response text to 300 characters
+                    text_excerpt = statement['text'][:300] + "..." if len(statement['text']) > 300 else statement['text']
+                    # Create anchor link to full response in appendix
+                    sentiment_slug = sentiment.lower().replace(' ', '-')
+                    report += f"**[Statement {i}](#{sentiment_slug}-statement-{i})** - {statement['platform']} - Positioning: {statement['positioning']}\n"
                     report += f"- **Query:** {statement['query']}\n"
                     report += f"- **Response:** {text_excerpt}\n\n"
+            else:
+                report += f"No {sentiment.lower()} statements found in the analyzed responses.\n\n"
 
     report += """
 ---
@@ -1124,7 +1128,44 @@ Each response was analyzed for:
 All metrics are based on actual AI platform responses collected during the analysis period.
 
 ---
+
+## Appendix: Full AI Responses
+
+This appendix contains the complete, untruncated text of all AI-generated responses where the brand was mentioned. Responses are organized by sentiment category.
+
 """
+
+    # Add full AI responses in appendix
+    if responses:
+        # Group responses by sentiment (reuse the same grouping)
+        sentiment_order = ['Very Positive', 'Positive', 'Neutral', 'Mixed', 'Negative', 'Very Negative']
+        statements_by_sentiment = {s: [] for s in sentiment_order}
+
+        for response in responses:
+            # Only include responses where brand was mentioned
+            if response.brand_mentioned in ['Yes', 'Indirect'] and response.response_text:
+                sentiment = response.sentiment if response.sentiment else 'Neutral'
+                if sentiment in statements_by_sentiment:
+                    statements_by_sentiment[sentiment].append({
+                        'platform': response.platform,
+                        'query': response.query_text,
+                        'text': response.response_text,
+                        'positioning': response.brand_position if response.brand_position else 'Not specified'
+                    })
+
+        # Display full statements grouped by sentiment
+        for sentiment in sentiment_order:
+            statements = statements_by_sentiment[sentiment]
+            if statements:
+                report += f"\n### {sentiment} Responses ({len(statements)} statements)\n\n"
+                for i, statement in enumerate(statements, 1):
+                    # Create anchor ID that matches the link from the main section
+                    sentiment_slug = sentiment.lower().replace(' ', '-')
+                    report += f"<a id=\"{sentiment_slug}-statement-{i}\"></a>\n\n"
+                    report += f"**Statement {i}** - {statement['platform']} - Positioning: {statement['positioning']}\n\n"
+                    report += f"**Query:** {statement['query']}\n\n"
+                    report += f"**Full Response:**\n\n{statement['text']}\n\n"
+                    report += "---\n\n"
 
     return report
 
