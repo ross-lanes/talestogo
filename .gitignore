@@ -43,3 +43,9 @@ Thumbs.db
 # Test coverage
 .coverage
 htmlcov/
+
+# Local test and backup files
+backupfiles/
+test_analytics.py
+test_api_responses.py
+upload_pppl_data.py
