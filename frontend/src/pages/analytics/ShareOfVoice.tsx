@@ -73,18 +73,19 @@ export default function ShareOfVoice() {
   }));
 
 
-  // Helper function to create acronym or abbreviation from organization name
-  // Only use acronyms for names longer than 15 characters
+  // Helper function to create acronym from organization name
   const createAcronym = (name: string): string => {
-    // Only create acronyms for long names (> 15 characters)
-    if (name.length <= 15) return name;
-
     // Split by spaces and common separators
     const words = name.split(/[\s\-_&]+/).filter(word => word.length > 0);
 
-    // If single word and longer than 15 chars, take first 12 chars
+    // If single word, check if it's already an acronym or abbreviation
     if (words.length === 1) {
-      return name.substring(0, 12).toUpperCase();
+      // If already short (<=6 chars) or all caps, return as-is
+      if (name.length <= 6 || name === name.toUpperCase()) {
+        return name;
+      }
+      // Otherwise take first 6 chars
+      return name.substring(0, 6).toUpperCase();
     }
 
     // Create acronym from first letters of each word
