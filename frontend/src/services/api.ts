@@ -266,6 +266,34 @@ export const adminAPI = {
     const response = await api.delete(`/admin/users/${userId}/brands/${brandId}/competitors/${competitorId}`);
     return response.data;
   },
+
+  // Bulk upload
+  uploadQueries: async (userId: number, brandId: number, formData: FormData) => {
+    const response = await api.post(`/admin/users/${userId}/brands/${brandId}/queries/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  uploadDescriptors: async (userId: number, brandId: number, formData: FormData) => {
+    const response = await api.post(`/admin/users/${userId}/brands/${brandId}/descriptors/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  uploadCompetitors: async (userId: number, brandId: number, formData: FormData) => {
+    const response = await api.post(`/admin/users/${userId}/brands/${brandId}/competitors/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 export default api;

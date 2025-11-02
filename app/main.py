@@ -545,6 +545,96 @@ def delete_query(
         raise HTTPException(status_code=404, detail="Query not found")
     return deleted_query
 
+@app.post("/queries/upload", tags=["Queries"])
+async def upload_queries(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Upload queries from an Excel file (admin only). Expected columns: query_id, query_text, category, target_outcome, brand_in_query, active"""
+    from openpyxl import load_workbook
+
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand selected")
+
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="File must be an Excel file (.xlsx or .xls)")
+
+    try:
+        # Read the Excel file
+        contents = await file.read()
+        wb = load_workbook(io.BytesIO(contents))
+        ws = wb.active
+
+        # Get headers from first row
+        headers = [cell.value for cell in ws[1]]
+
+        # Validate required columns
+        required_columns = ['query_id', 'query_text']
+        for col in required_columns:
+            if col not in headers:
+                raise HTTPException(status_code=400, detail=f"Missing required column: {col}")
+
+        created_count = 0
+        updated_count = 0
+        errors = []
+
+        # Process each row (skip header)
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                # Create dict from row
+                row_data = dict(zip(headers, row))
+
+                if not row_data.get('query_id'):
+                    continue  # Skip empty rows
+
+                # Check if query already exists
+                existing_query = db.query(models.Query).filter(
+                    models.Query.query_id == row_data['query_id'],
+                    models.Query.user_id == current_user.id,
+                    models.Query.brand_id == brand_id
+                ).first()
+
+                if existing_query:
+                    # Update existing query
+                    existing_query.query_text = row_data.get('query_text', existing_query.query_text)
+                    existing_query.category = row_data.get('category', existing_query.category)
+                    existing_query.target_outcome = row_data.get('target_outcome', existing_query.target_outcome)
+                    existing_query.brand_in_query = row_data.get('brand_in_query', existing_query.brand_in_query)
+                    if 'active' in row_data and row_data['active'] is not None:
+                        existing_query.active = bool(row_data['active'])
+                    updated_count += 1
+                else:
+                    # Create new query
+                    new_query = models.Query(
+                        user_id=current_user.id,
+                        brand_id=brand_id,
+                        query_id=row_data['query_id'],
+                        query_text=row_data['query_text'],
+                        category=row_data.get('category'),
+                        target_outcome=row_data.get('target_outcome'),
+                        brand_in_query=row_data.get('brand_in_query', False),
+                        active=row_data.get('active', True) if row_data.get('active') is not None else True
+                    )
+                    db.add(new_query)
+                    created_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {row_idx}: {str(e)}")
+
+        db.commit()
+
+        return {
+            "message": "Queries uploaded successfully",
+            "created": created_count,
+            "updated": updated_count,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
+
 
 # --- Response Endpoints ---
 @app.post("/responses/", response_model=schemas.Response, status_code=201, tags=["Responses"])
@@ -763,6 +853,88 @@ def delete_competitor(
         raise HTTPException(status_code=404, detail="Competitor not found")
     return deleted_competitor
 
+@app.post("/competitors/upload", tags=["Competitors"])
+async def upload_competitors(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Upload competitors from an Excel file (admin only). Expected columns: competitor_name, active"""
+    from openpyxl import load_workbook
+
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand selected")
+
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="File must be an Excel file (.xlsx or .xls)")
+
+    try:
+        # Read the Excel file
+        contents = await file.read()
+        wb = load_workbook(io.BytesIO(contents))
+        ws = wb.active
+
+        # Get headers from first row
+        headers = [cell.value for cell in ws[1]]
+
+        # Validate required columns
+        required_columns = ['competitor_name']
+        for col in required_columns:
+            if col not in headers:
+                raise HTTPException(status_code=400, detail=f"Missing required column: {col}")
+
+        created_count = 0
+        updated_count = 0
+        errors = []
+
+        # Process each row (skip header)
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                # Create dict from row
+                row_data = dict(zip(headers, row))
+
+                if not row_data.get('competitor_name'):
+                    continue  # Skip empty rows
+
+                # Check if competitor already exists
+                existing_competitor = db.query(models.Competitor).filter(
+                    models.Competitor.competitor_name == row_data['competitor_name'],
+                    models.Competitor.user_id == current_user.id,
+                    models.Competitor.brand_id == brand_id
+                ).first()
+
+                if existing_competitor:
+                    # Update existing competitor
+                    if 'active' in row_data and row_data['active'] is not None:
+                        existing_competitor.active = bool(row_data['active'])
+                    updated_count += 1
+                else:
+                    # Create new competitor
+                    new_competitor = models.Competitor(
+                        user_id=current_user.id,
+                        brand_id=brand_id,
+                        competitor_name=row_data['competitor_name'],
+                        active=row_data.get('active', True) if row_data.get('active') is not None else True
+                    )
+                    db.add(new_competitor)
+                    created_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {row_idx}: {str(e)}")
+
+        db.commit()
+
+        return {
+            "message": "Competitors uploaded successfully",
+            "created": created_count,
+            "updated": updated_count,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
+
 
 # --- Descriptor Endpoints ---
 @app.post("/descriptors/", response_model=schemas.TargetDescriptor, status_code=201, tags=["Descriptors"])
@@ -834,6 +1006,97 @@ def delete_descriptor(
     if deleted_descriptor is None:
         raise HTTPException(status_code=404, detail="Descriptor not found")
     return deleted_descriptor
+
+@app.post("/descriptors/upload", tags=["Descriptors"])
+async def upload_descriptors(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Upload descriptors from an Excel file (admin only). Expected columns: descriptor, is_target, current_ownership, priority, notes"""
+    from openpyxl import load_workbook
+
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand selected")
+
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="File must be an Excel file (.xlsx or .xls)")
+
+    try:
+        # Read the Excel file
+        contents = await file.read()
+        wb = load_workbook(io.BytesIO(contents))
+        ws = wb.active
+
+        # Get headers from first row
+        headers = [cell.value for cell in ws[1]]
+
+        # Validate required columns
+        required_columns = ['descriptor']
+        for col in required_columns:
+            if col not in headers:
+                raise HTTPException(status_code=400, detail=f"Missing required column: {col}")
+
+        created_count = 0
+        updated_count = 0
+        errors = []
+
+        # Process each row (skip header)
+        for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                # Create dict from row
+                row_data = dict(zip(headers, row))
+
+                if not row_data.get('descriptor'):
+                    continue  # Skip empty rows
+
+                # Check if descriptor already exists
+                existing_descriptor = db.query(models.TargetDescriptor).filter(
+                    models.TargetDescriptor.descriptor == row_data['descriptor'],
+                    models.TargetDescriptor.user_id == current_user.id,
+                    models.TargetDescriptor.brand_id == brand_id
+                ).first()
+
+                if existing_descriptor:
+                    # Update existing descriptor
+                    if 'is_target' in row_data and row_data['is_target'] is not None:
+                        existing_descriptor.is_target = bool(row_data['is_target'])
+                    if 'current_ownership' in row_data:
+                        existing_descriptor.current_ownership = row_data.get('current_ownership')
+                    if 'priority' in row_data:
+                        existing_descriptor.priority = row_data.get('priority')
+                    if 'notes' in row_data:
+                        existing_descriptor.notes = row_data.get('notes')
+                    updated_count += 1
+                else:
+                    # Create new descriptor
+                    new_descriptor = models.TargetDescriptor(
+                        user_id=current_user.id,
+                        brand_id=brand_id,
+                        descriptor=row_data['descriptor'],
+                        is_target=row_data.get('is_target', True) if row_data.get('is_target') is not None else True,
+                        current_ownership=row_data.get('current_ownership'),
+                        priority=row_data.get('priority', 'Medium'),
+                        notes=row_data.get('notes')
+                    )
+                    db.add(new_descriptor)
+                    created_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {row_idx}: {str(e)}")
+
+        db.commit()
+
+        return {
+            "message": "Descriptors uploaded successfully",
+            "created": created_count,
+            "updated": updated_count,
+            "errors": errors if errors else None
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
 
 
 # --- Report Endpoints ---

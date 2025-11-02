@@ -19,6 +19,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Upload as UploadIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -141,6 +142,34 @@ const AdminQueriesTab: React.FC<AdminQueriesTabProps> = ({ userId, brandId }) =>
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const result = await adminAPI.uploadQueries(userId, brandId, formData);
+      setSuccess(`Upload successful: ${result.created} created, ${result.updated} updated`);
+      if (result.errors && result.errors.length > 0) {
+        setError(`Some errors occurred: ${result.errors.join(', ')}`);
+      }
+      loadQueries();
+    } catch (err: any) {
+      console.error('Failed to upload queries:', err);
+      setError(err.response?.data?.detail || 'Failed to upload file');
+    } finally {
+      setLoading(false);
+      // Reset the file input
+      event.target.value = '';
+    }
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'query_id',
@@ -235,13 +264,30 @@ const AdminQueriesTab: React.FC<AdminQueriesTabProps> = ({ userId, brandId }) =>
         <Typography variant="body2" color="text.secondary">
           Total: {queries.length} queries
         </Typography>
-        <Button
-          startIcon={<RefreshIcon />}
-          onClick={loadQueries}
-          size="small"
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            component="label"
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            size="small"
+            disabled={loading}
+          >
+            Upload Excel
+            <input
+              type="file"
+              hidden
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+            />
+          </Button>
+          <Button
+            startIcon={<RefreshIcon />}
+            onClick={loadQueries}
+            size="small"
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       <DataGrid
