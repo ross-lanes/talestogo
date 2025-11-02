@@ -117,8 +117,9 @@ export default function Reports() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading Word document:', error);
+      alert(`Failed to download Word document: ${error.response?.data?.detail || error.message}`);
     }
   };
 
