@@ -146,20 +146,20 @@ class AnalyticsCache:
         positive_count = self._apply_filters(
             self.db.query(func.count(models.Response.id)).filter(
                 and_(
-                    models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                    models.Response.brand_mentioned == 'Yes',
                     models.Response.sentiment.in_(['Very Positive', 'Positive'])
                 )
             ),
             include_brand_in_query=True
         ).scalar() or 0
 
-        # Sentiment breakdown
+        # Sentiment breakdown (only for direct mentions)
         sentiment_breakdown = self._apply_filters(
             self.db.query(
                 models.Response.sentiment,
                 func.count(models.Response.id).label('count')
             ).filter(
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+                models.Response.brand_mentioned == 'Yes'
             ).group_by(models.Response.sentiment),
             include_brand_in_query=True
         ).all()
@@ -374,7 +374,7 @@ class AnalyticsCache:
         recent_positive = self._apply_filters(
             self.db.query(func.count(models.Response.id)).filter(
                 models.Response.timestamp >= mid_date,
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.brand_mentioned == 'Yes',
                 models.Response.sentiment.in_(['Very Positive', 'Positive'])
             ),
             include_brand_in_query=True
@@ -383,7 +383,7 @@ class AnalyticsCache:
         recent_mentions_all = self._apply_filters(
             self.db.query(func.count(models.Response.id)).filter(
                 models.Response.timestamp >= mid_date,
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+                models.Response.brand_mentioned == 'Yes'
             ),
             include_brand_in_query=True
         ).scalar() or 0
@@ -392,7 +392,7 @@ class AnalyticsCache:
             self.db.query(func.count(models.Response.id)).filter(
                 models.Response.timestamp >= start_date,
                 models.Response.timestamp < mid_date,
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.brand_mentioned == 'Yes',
                 models.Response.sentiment.in_(['Very Positive', 'Positive'])
             ),
             include_brand_in_query=True
@@ -402,7 +402,7 @@ class AnalyticsCache:
             self.db.query(func.count(models.Response.id)).filter(
                 models.Response.timestamp >= start_date,
                 models.Response.timestamp < mid_date,
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+                models.Response.brand_mentioned == 'Yes'
             ),
             include_brand_in_query=True
         ).scalar() or 0
@@ -446,7 +446,7 @@ class AnalyticsCache:
         # Get negative statements for detailed review
         negative_responses = self._apply_filters(
             self.db.query(models.Response).filter(
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.brand_mentioned == 'Yes',
                 models.Response.sentiment.in_(['Negative', 'Very Negative'])
             ),
             include_brand_in_query=True

@@ -346,6 +346,10 @@ export default function Data() {
                           color={getSentimentColor(response.sentiment)}
                           size="small"
                         />
+                      ) : response.analyzed_at ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                          Brand not mentioned
+                        </Typography>
                       ) : (
                         '-'
                       )}

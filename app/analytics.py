@@ -75,16 +75,16 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     positive_responses = apply_filters(
         db.query(func.count(models.Response.id)).filter(
             and_(
-                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.brand_mentioned == 'Yes',
                 models.Response.sentiment.in_(['Very Positive', 'Positive'])
             )
         )
     ).scalar() or 0
 
-    # Total mentions for sentiment calculation (ALL responses, not just brand_in_query=False)
+    # Total mentions for sentiment calculation (only direct mentions, not Indirect)
     total_mentions_for_sentiment = apply_filters(
         db.query(func.count(models.Response.id)).filter(
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+            models.Response.brand_mentioned == 'Yes'
         )
     ).scalar() or 0
 
@@ -310,7 +310,7 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
     ).filter(
         and_(
             models.Response.user_id == user_id,
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+            models.Response.brand_mentioned == 'Yes',
             models.Response.sentiment == 'Negative'
         )
     )
@@ -334,7 +334,7 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
         models.Response.platform
     ).filter(
         and_(
-            models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+            models.Response.brand_mentioned == 'Yes',
             models.Response.sentiment == 'Mixed'
         )
     )
@@ -672,7 +672,7 @@ def get_descriptor_insights(db: Session, user_id: int, brand_id: Optional[int] =
         models.Response.pppl_position,
         models.Response.sentiment
     ).filter(
-        models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+        models.Response.brand_mentioned == 'Yes'
     )
 
     if brand_id:

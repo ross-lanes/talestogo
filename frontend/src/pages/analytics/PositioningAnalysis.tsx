@@ -104,25 +104,6 @@ export default function PositioningAnalysis() {
         </Typography>
       </Paper>
 
-      {/* Key Metrics Summary */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 3, mb: 4 }}>
-        <Paper sx={{ p: 3, backgroundColor: '#116C29', color: 'white' }}>
-          <Typography variant="h4">{data?.leader || 0}</Typography>
-          <Typography variant="body1">Leader Position</Typography>
-          <Typography variant="caption">Top recommendation</Typography>
-        </Paper>
-        <Paper sx={{ p: 3, backgroundColor: '#44809C', color: 'white' }}>
-          <Typography variant="h4">{data?.top_3 || 0}</Typography>
-          <Typography variant="body1">Top 3 Position</Typography>
-          <Typography variant="caption">Strong contender</Typography>
-        </Paper>
-        <Paper sx={{ p: 3, backgroundColor: '#58A13B', color: 'white' }}>
-          <Typography variant="h4">{((data?.leader || 0) + (data?.top_3 || 0))}</Typography>
-          <Typography variant="body1">Combined Leadership</Typography>
-          <Typography variant="caption">Leader + Top 3</Typography>
-        </Paper>
-      </Box>
-
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>

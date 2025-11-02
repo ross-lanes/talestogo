@@ -172,12 +172,13 @@ Please analyze this response and provide a JSON object with the following fields
    - "Listed" if {self.brand_name} is just mentioned in a list
    - "Not Mentioned" if not mentioned
 
-3. **sentiment**: What is the sentiment toward {self.brand_name}? (only if mentioned)
+3. **sentiment**: What is the sentiment toward {self.brand_name}? (only if mentioned DIRECTLY with brand_mentioned="Yes", not for Indirect mentions)
    - "Very Positive" - exceptional praise, leader/pioneer language
    - "Positive" - favorable but not exceptional
    - "Neutral" - factual, no clear positive or negative tone
    - "Negative" - critical or unfavorable
    - "Mixed" - both positive and negative elements
+   - Return empty string "" if brand_mentioned is "Indirect" or "No"
 
 4. **descriptors**: Which of these target descriptors are used in connection with {self.brand_name}?
    Return as a comma-separated list or empty string if none match.
