@@ -414,10 +414,21 @@ class AnalyticsCache:
         if not self._calculated:
             self.calculate_all()
 
+        breakdown = self._cache.get('sentiment_breakdown', {})
+        total = sum(breakdown.values())
+
         return {
             'positive_rate': round(self._cache.get('positive_sentiment_rate', 0), 2),
-            'breakdown': self._cache.get('sentiment_breakdown', {}),
-            'total_mentions': self._cache.get('total_mentions_all', 0)
+            'breakdown': breakdown,
+            'total_mentions': self._cache.get('total_mentions_all', 0),
+            # Add percentage fields for dashboard compatibility
+            'total': total,
+            'very_positive_pct': round((breakdown.get('Very Positive', 0) / total * 100) if total > 0 else 0, 2),
+            'positive_pct': round((breakdown.get('Positive', 0) / total * 100) if total > 0 else 0, 2),
+            'neutral_pct': round((breakdown.get('Neutral', 0) / total * 100) if total > 0 else 0, 2),
+            'mixed_pct': round((breakdown.get('Mixed', 0) / total * 100) if total > 0 else 0, 2),
+            'negative_pct': round((breakdown.get('Negative', 0) / total * 100) if total > 0 else 0, 2),
+            'very_negative_pct': round((breakdown.get('Very Negative', 0) / total * 100) if total > 0 else 0, 2),
         }
 
     def get_descriptor_data(self) -> List[Dict[str, Any]]:
@@ -442,12 +453,22 @@ class AnalyticsCache:
         breakdown = self._cache.get('positioning_breakdown', {})
         total = sum(breakdown.values())
 
+        # Return format expected by dashboard
         return {
-            position: {
-                'count': count,
-                'percentage': round((count / total * 100) if total > 0 else 0, 2)
+            'total': total,
+            'leader': breakdown.get('Leader', 0),
+            'top_3': breakdown.get('Top 3', 0),
+            'featured': breakdown.get('Featured', 0),
+            'listed': breakdown.get('Listed', 0),
+            'not_mentioned': breakdown.get('Not Mentioned', 0),
+            # Also include the detailed breakdown for other pages
+            'breakdown': {
+                position: {
+                    'count': count,
+                    'percentage': round((count / total * 100) if total > 0 else 0, 2)
+                }
+                for position, count in breakdown.items()
             }
-            for position, count in breakdown.items()
         }
 
     def invalidate(self):
