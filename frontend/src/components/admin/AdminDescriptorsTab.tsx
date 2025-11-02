@@ -143,6 +143,34 @@ const AdminDescriptorsTab: React.FC<AdminDescriptorsTabProps> = ({ userId, brand
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const result = await adminAPI.uploadDescriptors(userId, brandId, formData);
+      setSuccess(`Upload successful: ${result.created} created, ${result.updated} updated`);
+      if (result.errors && result.errors.length > 0) {
+        setError(`Some errors occurred: ${result.errors.join(', ')}`);
+      }
+      loadDescriptors();
+    } catch (err: any) {
+      console.error('Failed to upload descriptors:', err);
+      setError(err.response?.data?.detail || 'Failed to upload file');
+    } finally {
+      setLoading(false);
+      // Reset the file input
+      event.target.value = '';
+    }
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'descriptor',
@@ -226,13 +254,30 @@ const AdminDescriptorsTab: React.FC<AdminDescriptorsTabProps> = ({ userId, brand
         <Typography variant="body2" color="text.secondary">
           Total: {descriptors.length} descriptors
         </Typography>
-        <Button
-          startIcon={<RefreshIcon />}
-          onClick={loadDescriptors}
-          size="small"
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            component="label"
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            size="small"
+            disabled={loading}
+          >
+            Upload Excel
+            <input
+              type="file"
+              hidden
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+            />
+          </Button>
+          <Button
+            startIcon={<RefreshIcon />}
+            onClick={loadDescriptors}
+            size="small"
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
       <DataGrid

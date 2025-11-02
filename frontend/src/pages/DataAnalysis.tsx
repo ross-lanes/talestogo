@@ -328,6 +328,14 @@ export default function DataAnalysis() {
             queryClient.invalidateQueries({ queryKey: ['reports'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
             queryClient.invalidateQueries({ queryKey: ['responses'] });
+            queryClient.invalidateQueries({ queryKey: ['responses-dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['sentiment-analysis'] });
+            queryClient.invalidateQueries({ queryKey: ['sentiment-breakdown'] });
+            queryClient.invalidateQueries({ queryKey: ['share-of-voice'] });
+            queryClient.invalidateQueries({ queryKey: ['share-of-voice-dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['positioning-analysis'] });
+            queryClient.invalidateQueries({ queryKey: ['positioning-dashboard'] });
+            queryClient.invalidateQueries({ queryKey: ['recommendations'] });
           }}
         />
       )}
