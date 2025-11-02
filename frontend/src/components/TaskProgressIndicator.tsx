@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Box, LinearProgress, Typography, Paper, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { Box, LinearProgress, Typography, Paper, Alert, Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { api } from '../services/api';
 
 interface TaskStatus {
@@ -23,6 +24,7 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const fetchTaskStatus = async () => {
     try {
@@ -41,8 +43,8 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
         }
       }
 
-      // If task failed, stop polling
-      if (data && data.status === 'failed') {
+      // If task failed or cancelled, stop polling
+      if (data && (data.status === 'failed' || data.status === 'cancelled')) {
         setIsPolling(false);
       }
     } catch (error) {
@@ -85,7 +87,24 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
     setShowSuccessDialog(false);
   };
 
-  // Don't render progress bar if no task or task is completed (but show failed tasks)
+  const handleCancelTask = async () => {
+    if (!taskStatus || taskStatus.status !== 'running') return;
+
+    setIsCancelling(true);
+    try {
+      await api.post(`/tasks/cancel/${taskStatus.id}`);
+      setIsPolling(false);
+      // Refresh task status to show cancelled state
+      await fetchTaskStatus();
+    } catch (error: any) {
+      console.error('Error cancelling task:', error);
+      alert(error.response?.data?.detail || 'Failed to cancel task');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  // Don't render progress bar if no task or task is completed (but show failed and cancelled tasks)
   if (!taskStatus || (taskStatus.status === 'completed' && !showSuccessDialog)) {
     return (
       <>
@@ -129,17 +148,38 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
           p: 3,
           mb: 3,
           borderLeft: `4px solid`,
-          borderColor: taskStatus.status === 'failed' ? 'error.main' : 'primary.main',
+          borderColor: taskStatus.status === 'failed' ? 'error.main' : taskStatus.status === 'cancelled' ? 'warning.main' : 'primary.main',
         }}
       >
         <Box>
-          <Typography variant="h6" gutterBottom>
-            {getTaskTypeLabel(taskStatus.task_type)} in Progress
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              {getTaskTypeLabel(taskStatus.task_type)} {taskStatus.status === 'cancelled' ? 'Cancelled' : 'in Progress'}
+            </Typography>
+            {taskStatus.status === 'running' && (
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                startIcon={<StopCircleIcon />}
+                onClick={handleCancelTask}
+                disabled={isCancelling}
+                sx={{ minWidth: 100 }}
+              >
+                {isCancelling ? 'Stopping...' : 'Stop'}
+              </Button>
+            )}
+          </Box>
 
           {taskStatus.status === 'failed' && taskStatus.error_message && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {taskStatus.error_message}
+            </Alert>
+          )}
+
+          {taskStatus.status === 'cancelled' && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {taskStatus.message || 'Task was cancelled'}
             </Alert>
           )}
 

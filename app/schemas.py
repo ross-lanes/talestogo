@@ -371,6 +371,7 @@ class TaskStatus(BaseModel):
     processed_items: int
     message: Optional[str] = None
     error_message: Optional[str] = None
+    process_id: Optional[int] = None
     started_at: datetime.datetime
     completed_at: Optional[datetime.datetime] = None
     updated_at: datetime.datetime

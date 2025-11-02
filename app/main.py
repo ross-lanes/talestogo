@@ -1894,6 +1894,10 @@ async def run_collection(
         process.stdin.write("1\n")
         process.stdin.flush()
 
+        # Store the process ID so we can stop it later if needed
+        task_status.process_id = process.pid
+        db.commit()
+
         return {
             "message": "Response collection started for active brand.",
             "status": "running",
@@ -1987,16 +1991,31 @@ async def run_analysis(
             """Run analysis and report generation, updating task status on completion."""
             db_task = SessionLocal()
             try:
-                # Run analysis script
-                analysis_process = subprocess.run(
+                # Run analysis script using Popen so we can track the PID
+                analysis_process = subprocess.Popen(
                     analysis_cmd,
                     shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    cwd=project_root,
-                    timeout=3600  # 1 hour timeout
+                    cwd=project_root
                 )
+
+                # Store the process ID
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.process_id = analysis_process.pid
+                    db_task.commit()
+
+                # Wait for process to complete with timeout
+                try:
+                    stdout, stderr = analysis_process.communicate(timeout=3600)  # 1 hour timeout
+                except subprocess.TimeoutExpired:
+                    analysis_process.kill()
+                    stdout, stderr = analysis_process.communicate()
+                    raise
 
                 if analysis_process.returncode != 0:
                     # Analysis failed
@@ -2005,7 +2024,7 @@ async def run_analysis(
                     ).first()
                     if task:
                         task.status = "failed"
-                        task.error_message = f"Analysis script failed: {analysis_process.stderr[-500:]}"
+                        task.error_message = f"Analysis script failed: {stderr[-500:] if stderr else 'Unknown error'}"
                         db_task.commit()
                     return
 
@@ -2027,7 +2046,7 @@ async def run_analysis(
                     ).first()
                     if task:
                         task.status = "failed"
-                        task.error_message = f"Report generation failed: {report_process.stderr[-500:]}"
+                        task.error_message = f"Report generation failed: {report_process.stderr[-500:] if report_process.stderr else 'Unknown error'}"
                         db_task.commit()
                     return
 
@@ -2292,3 +2311,58 @@ def get_task_status(
             db.refresh(task)
 
     return task
+
+
+@app.post("/tasks/cancel/{task_id}", tags=["Tasks"])
+def cancel_task(
+    task_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancel a running task by task ID."""
+    import signal
+
+    # Get the task
+    task = db.query(models.TaskStatus).filter(
+        models.TaskStatus.id == task_id,
+        models.TaskStatus.user_id == current_user.id
+    ).first()
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.status != "running":
+        raise HTTPException(status_code=400, detail="Task is not running")
+
+    if not task.process_id:
+        raise HTTPException(status_code=400, detail="Task has no process ID to cancel")
+
+    try:
+        # Try to terminate the process gracefully first
+        os.kill(task.process_id, signal.SIGTERM)
+
+        # Update task status
+        task.status = "cancelled"
+        task.message = "Task cancelled by user"
+        task.completed_at = datetime.datetime.utcnow()
+        db.commit()
+
+        return {
+            "message": "Task cancelled successfully",
+            "task_id": task_id
+        }
+    except ProcessLookupError:
+        # Process doesn't exist anymore, just mark as cancelled
+        task.status = "cancelled"
+        task.message = "Task process not found (may have already completed)"
+        task.completed_at = datetime.datetime.utcnow()
+        db.commit()
+
+        return {
+            "message": "Task process not found, marked as cancelled",
+            "task_id": task_id
+        }
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="No permission to kill this process")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to cancel task: {str(e)}")
