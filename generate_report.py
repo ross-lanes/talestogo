@@ -1077,7 +1077,7 @@ def generate_markdown_report(
                         'platform': response.platform,
                         'query': response.query_text,
                         'text': response.response_text,
-                        'positioning': response.positioning if response.positioning else 'Not specified'
+                        'positioning': response.brand_position if response.brand_position else 'Not specified'
                     })
 
         # Display statements grouped by sentiment
