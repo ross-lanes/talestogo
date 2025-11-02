@@ -610,6 +610,103 @@ def delete_response(
         raise HTTPException(status_code=404, detail="Response not found")
     return deleted_response
 
+@app.get("/responses/export/excel", tags=["Responses"])
+def export_responses_to_excel(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Export all responses for the active brand to an Excel spreadsheet."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill
+
+    # Get all responses for the active brand
+    responses = crud.get_responses(db, user_id=current_user.id, brand_id=brand_id, skip=0, limit=10000)
+
+    if not responses:
+        raise HTTPException(status_code=404, detail="No responses found for export")
+
+    # Get brand name for filename
+    brand = crud.get_active_brand(db, user_id=current_user.id) if brand_id else None
+    brand_name = brand.brand_name if brand else "Unknown"
+
+    # Create workbook and worksheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "AI Responses"
+
+    # Define headers
+    headers = [
+        "Response ID",
+        "Query ID",
+        "Platform",
+        "Response Text",
+        "Collected At",
+        "Analyzed At",
+        "Brand Mentioned",
+        "Brand Position",
+        "Sentiment",
+        "Descriptors",
+        "Competitors",
+        "Sources",
+        "Notes"
+    ]
+
+    # Style headers
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Add data rows
+    for row_num, response in enumerate(responses, 2):
+        ws.cell(row=row_num, column=1).value = response.id
+        ws.cell(row=row_num, column=2).value = response.query_id
+        ws.cell(row=row_num, column=3).value = response.platform
+        ws.cell(row=row_num, column=4).value = response.response_text
+        ws.cell(row=row_num, column=5).value = response.timestamp.strftime('%Y-%m-%d %H:%M:%S') if response.timestamp else ''
+        ws.cell(row=row_num, column=6).value = response.analyzed_at.strftime('%Y-%m-%d %H:%M:%S') if response.analyzed_at else ''
+        ws.cell(row=row_num, column=7).value = response.brand_mentioned or ''
+        ws.cell(row=row_num, column=8).value = response.brand_position or ''
+        ws.cell(row=row_num, column=9).value = response.sentiment or ''
+        ws.cell(row=row_num, column=10).value = response.descriptors or ''
+        ws.cell(row=row_num, column=11).value = response.competitors or ''
+        ws.cell(row=row_num, column=12).value = response.sources or ''
+        ws.cell(row=row_num, column=13).value = response.notes or ''
+
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)  # Cap at 50 for readability
+        ws.column_dimensions[column].width = adjusted_width
+
+    # Save to BytesIO
+    excel_file = io.BytesIO()
+    wb.save(excel_file)
+    excel_file.seek(0)
+
+    # Create safe filename
+    safe_brand_name = "".join(c for c in brand_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{safe_brand_name}_AI_Responses.xlsx"
+
+    return StreamingResponse(
+        excel_file,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 
 # --- Competitor Endpoints ---
 @app.post("/competitors/", response_model=schemas.Competitor, status_code=201, tags=["Competitors"])
@@ -754,10 +851,11 @@ def read_reports(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a list of reports for the current user."""
-    return crud.get_reports(db, user_id=current_user.id, skip=skip, limit=limit)
+    """Retrieve a list of reports for the current user's active brand."""
+    return crud.get_reports(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
 
 @app.get("/reports/{report_id}", response_model=schemas.Report, tags=["Reports"])
 def read_report(

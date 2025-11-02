@@ -20,3 +20,4 @@ requests
 email-validator
 matplotlib
 python-multipart
+openpyxl

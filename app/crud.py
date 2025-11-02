@@ -381,11 +381,12 @@ def get_report(db: Session, report_id: int, user_id: int) -> Optional[models.Rep
         models.Report.user_id == user_id
     ).first()
 
-def get_reports(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Report]:
-    """Gets a list of all reports for a specific user, ordered by creation date (newest first)."""
-    return db.query(models.Report).filter(
-        models.Report.user_id == user_id
-    ).order_by(models.Report.created_at.desc()).offset(skip).limit(limit).all()
+def get_reports(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Report]:
+    """Gets a list of all reports for a specific user and optionally a specific brand, ordered by creation date (newest first)."""
+    query = db.query(models.Report).filter(models.Report.user_id == user_id)
+    if brand_id is not None:
+        query = query.filter(models.Report.brand_id == brand_id)
+    return query.order_by(models.Report.created_at.desc()).offset(skip).limit(limit).all()
 
 def update_report(db: Session, report_id: int, report_update: schemas.ReportUpdate, user_id: int) -> Optional[models.Report]:
     """Updates an existing report (mainly for adding Google Doc URL) for a specific user."""

@@ -20,7 +20,7 @@ import {
   Alert,
   Snackbar,
 } from '@mui/material';
-import { CloudDownload as CollectionIcon, Analytics as AnalysisIcon } from '@mui/icons-material';
+import { CloudDownload as CollectionIcon, Analytics as AnalysisIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
@@ -121,6 +121,50 @@ export default function Data() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  const handleDownloadExcel = async () => {
+    try {
+      const response = await api.get('/responses/export/excel', {
+        responseType: 'blob',
+      });
+
+      // Create a blob URL and trigger download
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Extract filename from Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'AI_Responses.xlsx';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setSnackbar({
+        open: true,
+        message: 'Excel file downloaded successfully',
+        severity: 'success',
+      });
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to download Excel file',
+        severity: 'error',
+      });
+    }
+  };
+
   const handleRowClick = (response: Response) => {
     setSelectedResponse(response);
   };
@@ -156,6 +200,22 @@ export default function Data() {
           Data Collection
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadExcel}
+            disabled={!responses || responses.length === 0}
+            sx={{
+              borderColor: '#80A1D4',
+              color: '#80A1D4',
+              '&:hover': {
+                borderColor: '#6B8BC0',
+                backgroundColor: 'rgba(128, 161, 212, 0.04)',
+              },
+            }}
+          >
+            Download Excel
+          </Button>
           <Button
             variant="contained"
             startIcon={<CollectionIcon />}
