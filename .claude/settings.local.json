@@ -41,7 +41,8 @@
       "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3\" python3:*)",
       "Bash(uvicorn:*)",
       "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" python3:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(pip3 list:*)"
     ],
     "deny": [],
     "ask": []
