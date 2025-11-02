@@ -41,7 +41,9 @@ export default function Recommendations() {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'America/New_York',
+      timeZoneName: 'short'
     });
   };
 
@@ -68,19 +70,10 @@ export default function Recommendations() {
           <Alert severity="info" sx={{ mb: 2 }}>
             {data?.message || 'No recommendations available yet.'}
           </Alert>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Recommendations are generated when you run a Full Analysis. This includes:
-          </Typography>
-          <Typography component="ul" sx={{ pl: 3 }}>
-            <li>Strategic priorities based on your brand's AI presence</li>
-            <li>Competitive threats and opportunities</li>
-            <li>Tactical actions you can take immediately</li>
-            <li>Long-term strategy recommendations</li>
-          </Typography>
           <Button
             variant="contained"
             sx={{ mt: 3 }}
-            onClick={() => navigate('/full-analysis')}
+            onClick={() => navigate('/data-analysis')}
           >
             Run Full Analysis
           </Button>
@@ -90,7 +83,6 @@ export default function Recommendations() {
           {data.report_date && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
               Generated from analysis on {formatDate(data.report_date)}
-              {data.total_responses && ` • ${data.total_responses} responses analyzed`}
             </Typography>
           )}
 
