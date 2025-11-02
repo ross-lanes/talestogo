@@ -73,13 +73,35 @@ export default function ShareOfVoice() {
   }));
 
 
+  // Helper function to create acronym or abbreviation from organization name
+  // Only use acronyms for names longer than 15 characters
+  const createAcronym = (name: string): string => {
+    // Only create acronyms for long names (> 15 characters)
+    if (name.length <= 15) return name;
+
+    // Split by spaces and common separators
+    const words = name.split(/[\s\-_&]+/).filter(word => word.length > 0);
+
+    // If single word and longer than 15 chars, take first 12 chars
+    if (words.length === 1) {
+      return name.substring(0, 12).toUpperCase();
+    }
+
+    // Create acronym from first letters of each word
+    const acronym = words.map(word => word[0].toUpperCase()).join('');
+
+    // If acronym is too long (more than 8 letters), use first 8
+    return acronym.length > 8 ? acronym.substring(0, 8) : acronym;
+  };
+
   // Prepare data for bar chart - top 10 + brand if not in top 10
   const sortedForChart = [...shareData].sort((a, b) => b.share_of_voice - a.share_of_voice);
   const top10 = sortedForChart.slice(0, 10);
   const brandInTop10 = top10.some(item => item.is_brand);
 
   let barChartData = top10.map(item => ({
-    name: item.name,
+    name: createAcronym(item.name),
+    fullName: item.name,
     shareOfVoice: item.share_of_voice,
     is_brand: item.is_brand
   }));
@@ -87,7 +109,8 @@ export default function ShareOfVoice() {
   // Add brand as 11th column if not in top 10
   if (!brandInTop10 && brandData) {
     barChartData.push({
-      name: brandData.name,
+      name: createAcronym(brandData.name),
+      fullName: brandData.name,
       shareOfVoice: brandData.share_of_voice,
       is_brand: true
     });
@@ -194,22 +217,32 @@ export default function ShareOfVoice() {
           </Typography>
           <Box ref={chartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0' }}>
             <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+              <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="name"
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
+                  angle={0}
+                  textAnchor="middle"
+                  height={60}
                   interval={0}
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 11 }}
                 />
                 <YAxis
                   label={{ value: 'Share of Voice (%)', angle: -90, position: 'insideLeft' }}
                   domain={[0, 'auto']}
+                  allowDecimals={false}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`${value.toFixed(1)}%`, 'Share of Voice']}
+                  formatter={(value: number, name: string, props: any) => [
+                    `${value.toFixed(1)}%`,
+                    props.payload.fullName || name
+                  ]}
+                  labelFormatter={(label, payload) => {
+                    if (payload && payload.length > 0) {
+                      return payload[0].payload.fullName || label;
+                    }
+                    return label;
+                  }}
                   labelStyle={{ fontWeight: 'bold' }}
                 />
                 <Bar dataKey="shareOfVoice" radius={[8, 8, 0, 0]}>

@@ -16,6 +16,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
+import { competitorsInclude } from '../utils/organizationNormalizer';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -279,7 +280,7 @@ export default function Dashboard() {
   const competitors = Array.isArray(shareOfVoice) ? shareOfVoice.filter((item: any) => !item.is_brand) : [];
   const competitorThreats = competitors.map((comp: any) => {
     const competitiveResponses = Array.isArray(responses) ? responses.filter((r: any) =>
-      r.competitors && r.competitors.includes(comp.organization)
+      r.competitors && competitorsInclude(r.competitors, comp.organization)
     ) : [];
 
     const negativeWhenCompetitorPresent = competitiveResponses.filter((r: any) =>
@@ -543,19 +544,24 @@ export default function Dashboard() {
                 return (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={[
-                  { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                  { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
-                  { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
-                  { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                  { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
-                ].filter(item => item.count > 0)}>
+                  { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
+                  { position: 'Top 3', fullName: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
+                  { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
+                  { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
+                  { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
+                ]}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="position" angle={-45} textAnchor="end" height={80} />
+                  <XAxis dataKey="position" angle={0} textAnchor="middle" height={40} />
                   <YAxis
                     domain={[0, roundedMax]}
                     allowDecimals={false}
                   />
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value: number, name: string, props: any) => [
+                      value,
+                      props.payload.fullName || name
+                    ]}
+                  />
                   <Bar dataKey="count">
                     {[
                       { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
@@ -563,7 +569,7 @@ export default function Dashboard() {
                       { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                       { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                       { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
-                    ].filter(item => item.count > 0).map((entry, index) => (
+                    ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                     <LabelList dataKey="count" position="top" />

@@ -5,6 +5,7 @@ import { TrendingUp as ThreatIcon, Download as DownloadIcon, Image as ImageIcon 
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef } from 'react';
+import { competitorsInclude } from '../../utils/organizationNormalizer';
 
 export default function CompetitorThreats() {
   const tableRef = useRef<HTMLDivElement>(null);
@@ -43,7 +44,7 @@ export default function CompetitorThreats() {
   const competitorThreats = competitors.map((comp: any) => {
     // Count negative mentions about our brand when competitor is mentioned
     const competitiveResponses = Array.isArray(responses) ? responses.filter((r: any) =>
-      r.competitors && r.competitors.includes(comp.organization)
+      r.competitors && competitorsInclude(r.competitors, comp.organization)
     ) : [];
 
     const negativeWhenCompetitorPresent = competitiveResponses.filter((r: any) =>
@@ -247,7 +248,7 @@ export default function CompetitorThreats() {
                 {competitorThreats.map((comp, index) => {
                   // Extract descriptors for this competitor
                   const compResponses = Array.isArray(responses) ? responses.filter((r: any) =>
-                    r.competitors && r.competitors.includes(comp.name)
+                    r.competitors && competitorsInclude(r.competitors, comp.name)
                   ) : [];
 
                   const descriptorsInCompResponses = compResponses

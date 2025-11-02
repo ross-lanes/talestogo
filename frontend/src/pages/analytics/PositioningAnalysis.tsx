@@ -88,7 +88,7 @@ export default function PositioningAnalysis() {
         count: (data[key] as number) || 0,
         percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0',
         fill: color
-      })).filter(item => item.count > 0)  // Only show positions with data
+      }))  // Show all positions, even if count is 0
     : [];
 
   return (

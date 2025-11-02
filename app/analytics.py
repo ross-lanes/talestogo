@@ -8,6 +8,33 @@ from typing import Dict, List, Any, Optional
 import datetime
 
 
+def normalize_organization_name(name: str) -> str:
+    """
+    Normalize organization names to combine related entities.
+
+    UKAEA, STEP, and MAST-U are all combined under "UKAEA"
+    Tokamak Energy and ST40 are combined under "Tokamak Energy"
+
+    Args:
+        name: Organization name to normalize
+
+    Returns:
+        Normalized organization name
+    """
+    name_lower = name.lower().strip()
+
+    # UKAEA variants (STEP and MAST-U are machines made by UKAEA)
+    if any(variant in name_lower for variant in ['step', 'mast-u', 'mast u', 'ukaea']):
+        return "UKAEA"
+
+    # Tokamak Energy variants (ST40 is a machine made by Tokamak Energy)
+    if any(variant in name_lower for variant in ['st40', 'st-40', 'tokamak energy']):
+        return "Tokamak Energy"
+
+    # Return original name if no normalization needed
+    return name
+
+
 def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Calculate key metrics for the dashboard for a specific brand.
@@ -524,7 +551,9 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
             competitors_list = [comp.strip() for comp in response.competitors.split(',')]
             for comp in competitors_list:
                 if comp:  # Skip empty strings
-                    competitor_mention_counts[comp] = competitor_mention_counts.get(comp, 0) + 1
+                    # Normalize organization name to combine related entities
+                    normalized_name = normalize_organization_name(comp)
+                    competitor_mention_counts[normalized_name] = competitor_mention_counts.get(normalized_name, 0) + 1
 
     # Add all competitors to sov_data
     for comp_name, mention_count in competitor_mention_counts.items():
@@ -614,7 +643,9 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
                 competitors_list = [comp.strip() for comp in response.competitors.split(',')]
                 for comp in competitors_list:
                     if comp:
-                        prev_competitor_counts[comp] = prev_competitor_counts.get(comp, 0) + 1
+                        # Normalize organization name to combine related entities
+                        normalized_name = normalize_organization_name(comp)
+                        prev_competitor_counts[normalized_name] = prev_competitor_counts.get(normalized_name, 0) + 1
 
         # Update trends for competitors
         for item in sov_data:
@@ -705,7 +736,9 @@ def get_descriptor_insights(db: Session, user_id: int, brand_id: Optional[int] =
                     if desc not in descriptor_with_competitors:
                         descriptor_with_competitors[desc] = []
                     comp_list = [c.strip() for c in resp.competitors.split(',') if c.strip()]
-                    descriptor_with_competitors[desc].extend(comp_list)
+                    # Normalize competitor names
+                    normalized_comps = [normalize_organization_name(c) for c in comp_list]
+                    descriptor_with_competitors[desc].extend(normalized_comps)
 
                 # Track by positioning
                 if resp.pppl_position:

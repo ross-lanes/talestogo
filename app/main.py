@@ -700,6 +700,47 @@ def delete_response(
         raise HTTPException(status_code=404, detail="Response not found")
     return deleted_response
 
+@app.post("/responses/bulk-replace-competitor", tags=["Responses"])
+def bulk_replace_competitor(
+    old_name: str,
+    new_name: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Bulk find-and-replace competitor names across all responses for the active brand.
+
+    Args:
+        old_name: The competitor name to find (exact match)
+        new_name: The new name to replace it with
+
+    Returns:
+        Number of responses updated
+    """
+    # Get all responses for the active brand
+    responses = crud.get_responses(db, user_id=current_user.id, brand_id=brand_id, skip=0, limit=100000)
+
+    updated_count = 0
+
+    for response in responses:
+        if response.competitors:
+            # Split by comma, find and replace exact matches, rejoin
+            competitors_list = [comp.strip() for comp in response.competitors.split(',')]
+
+            # Replace exact matches (case-sensitive)
+            updated_list = [new_name if comp == old_name else comp for comp in competitors_list]
+
+            new_competitors = ', '.join(updated_list)
+
+            if new_competitors != response.competitors:
+                response.competitors = new_competitors
+                updated_count += 1
+
+    db.commit()
+
+    return {"updated_count": updated_count, "old_name": old_name, "new_name": new_name}
+
 @app.get("/responses/export/excel", tags=["Responses"])
 def export_responses_to_excel(
     current_user: models.User = Depends(get_current_user),
