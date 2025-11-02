@@ -248,8 +248,16 @@ class AnalyticsCache:
             include_brand_in_query=False
         ).all()
 
-        # Count mentions per organization
+        # Count mentions per organization AND track positioning
         org_counts: Dict[str, int] = {brand_name: len(responses_with_mentions)}
+        org_leader_counts: Dict[str, int] = {}
+        org_top3_counts: Dict[str, int] = {}
+
+        # Count brand's leadership positions
+        brand_leader = sum(1 for r in responses_with_mentions if r.brand_position == 'Leader')
+        brand_top3 = sum(1 for r in responses_with_mentions if r.brand_position == 'Top 3')
+        org_leader_counts[brand_name] = brand_leader
+        org_top3_counts[brand_name] = brand_top3
 
         # Parse competitors from responses
         for response in responses_with_mentions:
@@ -258,19 +266,37 @@ class AnalyticsCache:
                 for competitor in competitors:
                     if competitor and competitor != brand_name:
                         org_counts[competitor] = org_counts.get(competitor, 0) + 1
+                        # Note: We can't track competitor positioning from current data structure
+                        # They're just mentioned, not positioned
+                        if competitor not in org_leader_counts:
+                            org_leader_counts[competitor] = 0
+                            org_top3_counts[competitor] = 0
 
         # Calculate total mentions (brand + competitors)
         total_mentions = sum(org_counts.values())
 
-        # Build share of voice list
-        sov_list = [
-            {
+        # Build share of voice list with leadership visibility
+        sov_list = []
+        for org, count in org_counts.items():
+            is_brand = (org == brand_name)
+            leader_count = org_leader_counts.get(org, 0)
+            top3_count = org_top3_counts.get(org, 0)
+
+            # Leadership visibility = (Leader + Top 3) / total mentions for that org * 100
+            leadership_visibility = ((leader_count + top3_count) / count * 100) if count > 0 else 0.0
+
+            sov_list.append({
                 'organization': org,
                 'mention_count': count,
-                'percentage': (count / total_mentions * 100) if total_mentions > 0 else 0.0
-            }
-            for org, count in org_counts.items()
-        ]
+                'total_mentions': count,  # Alias for frontend compatibility
+                'percentage': (count / total_mentions * 100) if total_mentions > 0 else 0.0,
+                'share_of_voice': (count / total_mentions * 100) if total_mentions > 0 else 0.0,  # Alias
+                'leadership_visibility': round(leadership_visibility, 2),
+                'leader_count': leader_count,
+                'top3_count': top3_count,
+                'is_brand': is_brand
+            })
+
         sov_list.sort(key=lambda x: x['percentage'], reverse=True)
 
         # Brand's share of voice
