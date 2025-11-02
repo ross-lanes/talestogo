@@ -13,12 +13,12 @@ import {
   Button,
 } from '@mui/material';
 import { Download as DownloadIcon } from '@mui/icons-material';
-import axios from 'axios';
+import { api } from '../services/api';
 
 export default function HowTalesWorks() {
   const handleDownload = async () => {
     try {
-      const response = await axios.get('/api/export/how-tales-works/word', {
+      const response = await api.get('/export/how-tales-works/word', {
         responseType: 'blob',
       });
 

@@ -1335,9 +1335,8 @@ All metrics are segmented by platform to identify which AI systems perform bette
 The mention rate quantifies how frequently your brand is referenced by AI platforms when the brand name is not explicitly included in the query, measuring organic visibility.
 
 **Formula:**
-```
+
 Mention Rate (%) = (Number of Mentions / Total Qualifying Responses) × 100
-```
 
 | Component | Definition |
 |-----------|------------|
@@ -1353,9 +1352,8 @@ Mention Rate (%) = (Number of Mentions / Total Qualifying Responses) × 100
 The positioning metric evaluates where your brand appears in AI-generated responses, with higher scores indicating more prominent placement.
 
 **Average Positioning Score Formula:**
-```
+
 Average Positioning Score = (Sum of Individual Position Scores) / Total Responses
-```
 
 **Position Scoring System:**
 
@@ -1370,9 +1368,8 @@ Average Positioning Score = (Sum of Individual Position Scores) / Total Response
 Each response receives a score (1-5) based on how your brand was positioned. The scores are summed across all qualifying responses and divided by total response count to produce an average (range: 1.0 to 5.0). Responses from queries where brand_in_query = True are excluded.
 
 **Leadership Visibility (Sub-metric):**
-```
+
 Leadership Visibility (%) = ((Leader Count + Top 3 Count) / Total Responses) × 100
-```
 
 This metric specifically measures high-quality visibility by combining the top two positioning categories.
 
@@ -1381,9 +1378,8 @@ This metric specifically measures high-quality visibility by combining the top t
 Share of Voice quantifies your brand's relative visibility compared to all organizations (including competitors) mentioned across AI responses.
 
 **Formula:**
-```
+
 Share of Voice (%) = (Brand Mentions / Total All Organization Mentions) × 100
-```
 
 | Component | Definition |
 |-----------|------------|
@@ -1399,9 +1395,8 @@ Share of Voice (%) = (Brand Mentions / Total All Organization Mentions) × 100
 Target descriptor adoption measures how successfully your brand has become associated with the specific descriptors and attributes it aims to own strategically.
 
 **Formula:**
-```
+
 Descriptor Match Rate (%) = (Number of Target Descriptors Found / Total Target Descriptors) × 100
-```
 
 | Component | Definition |
 |-----------|------------|
