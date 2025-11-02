@@ -443,18 +443,103 @@ class AnalyticsCache:
         breakdown = self._cache.get('sentiment_breakdown', {})
         total = sum(breakdown.values())
 
+        # Get negative statements for detailed review
+        negative_responses = self._apply_filters(
+            self.db.query(models.Response).filter(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.sentiment.in_(['Negative', 'Very Negative'])
+            ),
+            include_brand_in_query=True
+        ).all()
+
+        negative_statements = [
+            {
+                'query': resp.query_text or 'Unknown',
+                'platform': resp.platform,
+                'text': resp.response_text
+            }
+            for resp in negative_responses
+        ]
+
+        # Generate insights for each sentiment category
+        sentiment_insights = {}
+        for sentiment_name, count in breakdown.items():
+            percentage = round((count / total * 100) if total > 0 else 0, 1)
+
+            # Create contextual insights based on sentiment type and percentage
+            if sentiment_name == 'Very Positive':
+                if percentage > 30:
+                    insight = f"Strong positive sentiment: {count} mentions ({percentage}%) show your brand is being described in highly favorable terms. This indicates strong brand reputation."
+                elif percentage > 10:
+                    insight = f"Good positive sentiment: {count} mentions ({percentage}%) are very positive. Continue reinforcing the narratives that generate this strong response."
+                else:
+                    insight = f"{count} mentions ({percentage}%) are very positive. Consider amplifying the factors that drive this exceptional sentiment."
+
+            elif sentiment_name == 'Positive':
+                if percentage > 40:
+                    insight = f"Dominant positive sentiment: {count} mentions ({percentage}%) are positive. Your brand messaging is resonating well."
+                elif percentage > 20:
+                    insight = f"Healthy positive sentiment: {count} mentions ({percentage}%) show favorable brand perception."
+                else:
+                    insight = f"{count} mentions ({percentage}%) are positive. Opportunity to increase positive sentiment through targeted messaging."
+
+            elif sentiment_name == 'Neutral':
+                if percentage > 50:
+                    insight = f"High neutral sentiment: {count} mentions ({percentage}%) are neutral. This suggests opportunities to strengthen brand differentiation and emotional connection."
+                elif percentage > 30:
+                    insight = f"Moderate neutral sentiment: {count} mentions ({percentage}%). Consider emphasizing unique value propositions to shift sentiment more positive."
+                else:
+                    insight = f"{count} mentions ({percentage}%) are neutral. Relatively low neutral sentiment suggests clear brand perception."
+
+            elif sentiment_name == 'Mixed':
+                if percentage > 20:
+                    insight = f"High mixed sentiment: {count} mentions ({percentage}%) contain both positive and negative elements. Review these for nuanced brand positioning opportunities."
+                else:
+                    insight = f"{count} mentions ({percentage}%) show mixed sentiment, indicating both strengths and areas for improvement are being recognized."
+
+            elif sentiment_name == 'Negative':
+                if percentage > 15:
+                    insight = f"Concerning negative sentiment: {count} mentions ({percentage}%) are negative. Priority action needed to address perception issues. Review negative statements below for specific concerns."
+                elif percentage > 5:
+                    insight = f"Moderate negative sentiment: {count} mentions ({percentage}%). Monitor and address the specific issues mentioned in these responses."
+                else:
+                    insight = f"Low negative sentiment: {count} mentions ({percentage}%). While concerning, this represents a small portion of overall mentions."
+
+            elif sentiment_name == 'Very Negative':
+                if count > 0:
+                    insight = f"Critical: {count} mentions ({percentage}%) are very negative. Immediate attention required. Review these statements to identify and address serious perception issues."
+                else:
+                    insight = "No very negative mentions detected."
+            else:
+                insight = f"{count} mentions ({percentage}%)"
+
+            # Use lowercase with underscores for the key (matching frontend expectations)
+            key = sentiment_name.lower().replace(' ', '_')
+            sentiment_insights[key] = insight
+
         return {
             'positive_rate': round(self._cache.get('positive_sentiment_rate', 0), 2),
             'breakdown': breakdown,
             'total_mentions': self._cache.get('total_mentions_all', 0),
-            # Add percentage fields for dashboard compatibility
+            # Total count
             'total': total,
+            # Raw counts (for SentimentAnalysis.tsx)
+            'very_positive': breakdown.get('Very Positive', 0),
+            'positive': breakdown.get('Positive', 0),
+            'neutral': breakdown.get('Neutral', 0),
+            'mixed': breakdown.get('Mixed', 0),
+            'negative': breakdown.get('Negative', 0),
+            'very_negative': breakdown.get('Very Negative', 0),
+            # Percentage fields (for Dashboard.tsx)
             'very_positive_pct': round((breakdown.get('Very Positive', 0) / total * 100) if total > 0 else 0, 2),
             'positive_pct': round((breakdown.get('Positive', 0) / total * 100) if total > 0 else 0, 2),
             'neutral_pct': round((breakdown.get('Neutral', 0) / total * 100) if total > 0 else 0, 2),
             'mixed_pct': round((breakdown.get('Mixed', 0) / total * 100) if total > 0 else 0, 2),
             'negative_pct': round((breakdown.get('Negative', 0) / total * 100) if total > 0 else 0, 2),
             'very_negative_pct': round((breakdown.get('Very Negative', 0) / total * 100) if total > 0 else 0, 2),
+            # Additional data for Sentiment Analysis page
+            'sentiment_insights': sentiment_insights,
+            'negative_statements': negative_statements,
         }
 
     def get_descriptor_data(self) -> List[Dict[str, Any]]:
