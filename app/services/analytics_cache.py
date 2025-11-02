@@ -33,19 +33,33 @@ class AnalyticsCache:
             query: SQLAlchemy query to filter
             include_brand_in_query: If False, exclude queries where brand_in_query=True
         """
-        if not include_brand_in_query:
-            query = query.join(
-                models.Query,
-                (models.Response.query_id == models.Query.query_id) &
-                (models.Response.user_id == models.Query.user_id) &
-                (models.Response.brand_id == models.Query.brand_id)
-            ).filter(
-                models.Query.brand_in_query == False
-            )
-
+        # Apply user and brand filters first
         query = query.filter(models.Response.user_id == self.user_id)
         if self.brand_id:
             query = query.filter(models.Response.brand_id == self.brand_id)
+
+        # Only try to filter by brand_in_query if Query table has data
+        if not include_brand_in_query:
+            # Check if any queries exist for this user/brand
+            query_count = self.db.query(func.count(models.Query.id)).filter(
+                models.Query.user_id == self.user_id
+            )
+            if self.brand_id:
+                query_count = query_count.filter(models.Query.brand_id == self.brand_id)
+
+            if query_count.scalar() > 0:
+                # Queries exist, so we can filter by brand_in_query
+                query = query.join(
+                    models.Query,
+                    (models.Response.query_id == models.Query.query_id) &
+                    (models.Response.user_id == models.Query.user_id) &
+                    (models.Response.brand_id == models.Query.brand_id),
+                    isouter=False  # INNER JOIN
+                ).filter(
+                    models.Query.brand_in_query == False
+                )
+            # If no queries exist, don't filter - show all responses
+
         return query
 
     def calculate_all(self) -> Dict[str, Any]:
