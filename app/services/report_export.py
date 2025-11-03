@@ -602,8 +602,6 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
             positioning_breakdown = {}
             if positioning_data.get('leader', 0) > 0:
                 positioning_breakdown['Leader'] = positioning_data['leader']
-            if positioning_data.get('top_3', 0) > 0:
-                positioning_breakdown['Top 3'] = positioning_data['top_3']
             if positioning_data.get('featured', 0) > 0:
                 positioning_breakdown['Featured'] = positioning_data['featured']
             if positioning_data.get('listed', 0) > 0:
@@ -719,7 +717,7 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 ]
                 leader_positioning = [
                     platform_data[p]['positioning'].get('leader_pct', 0) +
-                    platform_data[p]['positioning'].get('top_3_pct', 0)
+                    platform_data[p]['positioning'].get('featured_pct', 0)
                     for p in platforms
                 ]
 
@@ -732,7 +730,7 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                               color=COLORS['primary'])
                 bars2 = ax.bar(x, positive_sentiment, width, label='Positive Sentiment (%)',
                               color='#58A13B')
-                bars3 = ax.bar([i + width for i in x], leader_positioning, width, label='Leader/Top 3 (%)',
+                bars3 = ax.bar([i + width for i in x], leader_positioning, width, label='Leader/Featured (%)',
                               color=COLORS['secondary'])
 
                 # Add value labels on bars

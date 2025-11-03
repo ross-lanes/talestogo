@@ -232,7 +232,7 @@ def generate_platform_comparison_chart(platform_metrics: Dict[str, Dict[str, Any
         for p in platforms
     ]
     leader_positioning = [
-        platform_metrics[p]['positioning']['leader_pct'] + platform_metrics[p]['positioning']['top_3_pct']
+        platform_metrics[p]['positioning']['leader_pct'] + platform_metrics[p]['positioning']['featured_pct']
         for p in platforms
     ]
 
@@ -245,7 +245,7 @@ def generate_platform_comparison_chart(platform_metrics: Dict[str, Dict[str, Any
                     color=COLORS['primary'], edgecolor='white', linewidth=1.5)
     bars2 = ax.bar(x, positive_sentiment, width, label='Positive Sentiment (%)',
                     color=COLORS['success'], edgecolor='white', linewidth=1.5)
-    bars3 = ax.bar([i + width for i in x], leader_positioning, width, label='Leader/Top 3 (%)',
+    bars3 = ax.bar([i + width for i in x], leader_positioning, width, label='Leader/Featured (%)',
                     color=COLORS['secondary'], edgecolor='white', linewidth=1.5)
 
     # Add value labels on bars

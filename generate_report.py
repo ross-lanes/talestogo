@@ -257,7 +257,7 @@ def build_platform_performance_context(platform_metrics: Dict[str, Dict[str, Any
             context += f"\n{platform} (n={metrics['total']}):\n"
             context += f"  - Mention Rate: {metrics['mention']['yes_pct']}%\n"
             context += f"  - Positive Sentiment: {metrics['sentiment']['positive_pct'] + metrics['sentiment']['very_positive_pct']}%\n"
-            context += f"  - Leader/Top 3: {metrics['positioning']['leader_pct'] + metrics['positioning']['top_3_pct']}%\n"
+            context += f"  - Leader/Featured: {metrics['positioning']['leader_pct'] + metrics['positioning']['featured_pct']}%\n"
 
     return context.strip()
 
@@ -591,14 +591,13 @@ def generate_positioning_insights(
 
 POSITIONING DATA:
 - Leader: {positioning_metrics['leader']} responses ({positioning_metrics['leader_pct']}%)
-- Top 3: {positioning_metrics['top_3']} responses ({positioning_metrics['top_3_pct']}%)
 - Featured: {positioning_metrics['featured']} responses ({positioning_metrics['featured_pct']}%)
 - Listed: {positioning_metrics['listed']} responses ({positioning_metrics['listed_pct']}%)
 - Not Mentioned: {positioning_metrics['not_mentioned']} responses ({positioning_metrics['not_mentioned_pct']}%)
 - Average Positioning Score: {positioning_average} out of 5.0
 
 PLATFORM BREAKDOWN:
-{chr(10).join([f"- {platform}: Leader/Top 3 = {metrics['positioning']['leader_pct'] + metrics['positioning']['top_3_pct']}%" for platform, metrics in platform_metrics.items() if metrics['total'] > 0])}
+{chr(10).join([f"- {platform}: Leader/Featured = {metrics['positioning']['leader_pct'] + metrics['positioning']['featured_pct']}%" for platform, metrics in platform_metrics.items() if metrics['total'] > 0])}
 
 Write 3-10 sentences analyzing {brand_name}'s positioning performance. Focus on:
 1. Overall positioning strength (is the brand typically leading, featured, or just listed?)
@@ -814,7 +813,6 @@ def generate_markdown_report(
 | Position | Count | Percentage |
 |----------|-------|------------|
 | Leader | {positioning_metrics['leader']} | {positioning_metrics['leader_pct']}% |
-| Top 3 | {positioning_metrics['top_3']} | {positioning_metrics['top_3_pct']}% |
 | Featured | {positioning_metrics['featured']} | {positioning_metrics['featured_pct']}% |
 | Listed | {positioning_metrics['listed']} | {positioning_metrics['listed_pct']}% |
 | Not Mentioned | {positioning_metrics['not_mentioned']} | {positioning_metrics['not_mentioned_pct']}% |

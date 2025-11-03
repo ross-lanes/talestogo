@@ -442,16 +442,20 @@ def get_positioning_breakdown(db: Session, user_id: int, brand_id: Optional[int]
     position_map = {row.brand_position: row.count for row in results}
     total = sum(position_map.values())
 
+    # Combine Top 3 into Featured for reporting
+    top_3_count = position_map.get('Top 3', 0)
+    featured_count = position_map.get('Featured', 0)
+    combined_featured = top_3_count + featured_count
+
     return {
         "leader": position_map.get('Leader', 0),
-        "top_3": position_map.get('Top 3', 0),
-        "featured": position_map.get('Featured', 0),
+        "top_3": top_3_count,  # Keep for backward compatibility
+        "featured": combined_featured,  # Combined Featured + Top 3
         "listed": position_map.get('Listed', 0),
         "not_mentioned": position_map.get('Not Mentioned', 0),
         "total": total,
         "leader_pct": round((position_map.get('Leader', 0) / total * 100) if total > 0 else 0),
-        "top_3_pct": round((position_map.get('Top 3', 0) / total * 100) if total > 0 else 0),
-        "featured_pct": round((position_map.get('Featured', 0) / total * 100) if total > 0 else 0),
+        "featured_pct": round((combined_featured / total * 100) if total > 0 else 0),  # Combined percentage
         "listed_pct": round((position_map.get('Listed', 0) / total * 100) if total > 0 else 0),
         "not_mentioned_pct": round((position_map.get('Not Mentioned', 0) / total * 100) if total > 0 else 0),
     }
