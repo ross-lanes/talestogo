@@ -2,7 +2,7 @@
 Analytics calculations for dashboard and reports.
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 from . import models
 from typing import Dict, List, Any, Optional
 import datetime
@@ -263,7 +263,7 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
         func.date(models.Response.timestamp).label('date'),
         func.count(models.Response.id).label('total'),
         func.sum(
-            func.case(
+            case(
                 (models.Response.brand_mentioned.in_(['Yes', 'Indirect']), 1),
                 else_=0
             )
