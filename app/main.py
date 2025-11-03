@@ -2142,6 +2142,9 @@ async def rerun_analysis(
     if not all_responses:
         raise HTTPException(status_code=404, detail=f"No responses found for active brand {date_description}.")
 
+    # Collect response IDs before resetting (so we only analyze these specific responses)
+    response_ids = [response.id for response in all_responses]
+
     # Reset analyzed_at to NULL for filtered responses (marks them as unanalyzed)
     for response in all_responses:
         response.analyzed_at = None
@@ -2180,7 +2183,9 @@ async def rerun_analysis(
 
         # Run analysis and report generation in sequence in the background
         # Use separate commands to capture which step fails
-        analysis_cmd = f"python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id}"
+        # Pass specific response IDs instead of --all to only analyze date-filtered responses
+        response_ids_str = ','.join(map(str, response_ids))
+        analysis_cmd = f"python3 {analysis_script} --response-ids {response_ids_str} --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id}"
         report_cmd = f"python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}"
 
         # Create a background task to monitor the subprocess

@@ -290,6 +290,22 @@ Example format:
 
         return False
 
+    def analyze_specific_responses(self, response_ids: List[int]) -> Dict[str, int]:
+        """Analyze specific responses by their IDs (for date-filtered re-analysis)."""
+        # Get the specific responses by ID
+        responses = self.db.query(models.Response).filter(
+            models.Response.id.in_(response_ids),
+            models.Response.user_id == self.user_id
+        ).all()
+
+        print(f"\n{'='*60}")
+        print(f"Response Analysis Started")
+        print(f"{'='*60}")
+        print(f"Analyzing {len(responses)} specific responses (IDs: {response_ids[:5]}{'...' if len(response_ids) > 5 else ''})")
+        print(f"{'='*60}")
+
+        return self._analyze_responses_list(responses)
+
     def analyze_batch(self, limit: Optional[int] = None) -> Dict[str, int]:
         """Analyze all unanalyzed responses for this user and brand."""
         # Get unanalyzed responses for this user and brand
@@ -313,6 +329,10 @@ Example format:
         print(f"Responses to analyze: {len(responses)}")
         print(f"{'='*60}")
 
+        return self._analyze_responses_list(responses)
+
+    def _analyze_responses_list(self, responses: List[models.Response]) -> Dict[str, int]:
+        """Internal method to analyze a list of responses."""
         stats = {
             'total': len(responses),
             'successful': 0,
@@ -390,6 +410,7 @@ def main():
     parser = argparse.ArgumentParser(description='TALES Response Analysis Tool')
     parser.add_argument('--all', action='store_true', help='Analyze all unanalyzed responses')
     parser.add_argument('--limit', type=int, help='Limit number of responses to analyze')
+    parser.add_argument('--response-ids', type=str, help='Comma-separated list of response IDs to analyze')
     parser.add_argument('--user-id', type=int, help='User ID to analyze responses for')
     parser.add_argument('--brand-id', type=int, help='Brand ID to analyze responses for')
     parser.add_argument('--task-id', type=int, help='Task Status ID for progress tracking')
@@ -421,45 +442,52 @@ def main():
 
         analyzer = ResponseAnalyzer(db, user_id=user.id, brand_id=args.brand_id, task_status_id=args.task_id)
 
-        # Get count of unanalyzed responses for this user/brand
-        unanalyzed_query = db.query(models.Response).filter(
-            models.Response.user_id == user.id,
-            models.Response.analyzed_at.is_(None)
-        )
-        if args.brand_id:
-            unanalyzed_query = unanalyzed_query.filter(models.Response.brand_id == args.brand_id)
-
-        unanalyzed_count = unanalyzed_query.count()
-
-        if unanalyzed_count == 0:
-            print("✓ All responses are already analyzed!")
-            return
-
-        # Determine limit based on arguments or user input
-        limit = None
-        if args.all:
-            limit = None
-            print(f"Analyzing ALL {unanalyzed_count} responses...")
-        elif args.limit:
-            limit = args.limit
-            print(f"Analyzing up to {limit} responses...")
+        # Check if specific response IDs were provided
+        if args.response_ids:
+            # Parse comma-separated response IDs
+            response_ids = [int(rid.strip()) for rid in args.response_ids.split(',')]
+            print(f"Analyzing {len(response_ids)} specific responses...")
+            stats = analyzer.analyze_specific_responses(response_ids)
         else:
-            # Interactive mode
-            print(f"Found {unanalyzed_count} unanalyzed responses\n")
-            print("Options:")
-            print(f"  1. Analyze ALL {unanalyzed_count} responses (recommended)")
-            print("  2. Test with first 3 responses only")
-            print("  3. Custom number of responses")
+            # Get count of unanalyzed responses for this user/brand
+            unanalyzed_query = db.query(models.Response).filter(
+                models.Response.user_id == user.id,
+                models.Response.analyzed_at.is_(None)
+            )
+            if args.brand_id:
+                unanalyzed_query = unanalyzed_query.filter(models.Response.brand_id == args.brand_id)
 
-            choice = input("\nEnter choice (1-3) [1]: ").strip() or "1"
+            unanalyzed_count = unanalyzed_query.count()
 
-            if choice == "2":
-                limit = 3
-            elif choice == "3":
-                limit = int(input("How many responses to analyze? ").strip())
+            if unanalyzed_count == 0:
+                print("✓ All responses are already analyzed!")
+                return
 
-        # Run analysis
-        stats = analyzer.analyze_batch(limit=limit)
+            # Determine limit based on arguments or user input
+            limit = None
+            if args.all:
+                limit = None
+                print(f"Analyzing ALL {unanalyzed_count} responses...")
+            elif args.limit:
+                limit = args.limit
+                print(f"Analyzing up to {limit} responses...")
+            else:
+                # Interactive mode
+                print(f"Found {unanalyzed_count} unanalyzed responses\n")
+                print("Options:")
+                print(f"  1. Analyze ALL {unanalyzed_count} responses (recommended)")
+                print("  2. Test with first 3 responses only")
+                print("  3. Custom number of responses")
+
+                choice = input("\nEnter choice (1-3) [1]: ").strip() or "1"
+
+                if choice == "2":
+                    limit = 3
+                elif choice == "3":
+                    limit = int(input("How many responses to analyze? ").strip())
+
+            # Run analysis
+            stats = analyzer.analyze_batch(limit=limit)
 
         print("\n✅ Analysis complete!")
         print(f"\nNext steps:")
