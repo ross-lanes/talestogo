@@ -94,13 +94,27 @@ def calculate_mention_metrics(responses: List[Response]) -> Dict[str, Any]:
     }
 
 
-def calculate_positioning_metrics(responses: List[Response]) -> Dict[str, Any]:
-    """Calculate brand positioning metrics."""
-    total = len(responses)
+def calculate_positioning_metrics(responses: List[Response], queries: List[Query]) -> Dict[str, Any]:
+    """
+    Calculate brand positioning metrics.
+    Matches dashboard logic: excludes responses from queries where brand_in_query=True,
+    and only counts responses where brand was mentioned (Yes or Indirect).
+    """
+    # Build set of query_ids where brand_in_query=True to exclude
+    branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+    # Filter responses: exclude branded queries and only count mentions
+    filtered_responses = [
+        r for r in responses
+        if r.query_id not in branded_query_ids
+        and r.brand_mentioned in ['Yes', 'Indirect']
+    ]
+
+    total = len(filtered_responses)
     if total == 0:
         return {"total": 0, "leader": 0, "top_3": 0, "featured": 0, "listed": 0, "not_mentioned": 0}
 
-    positions = Counter([r.brand_position for r in responses])
+    positions = Counter([r.brand_position for r in filtered_responses])
 
     return {
         "total": total,
@@ -118,12 +132,18 @@ def calculate_positioning_metrics(responses: List[Response]) -> Dict[str, Any]:
 
 
 def calculate_sentiment_metrics(responses: List[Response]) -> Dict[str, Any]:
-    """Calculate sentiment distribution."""
-    total = len(responses)
+    """
+    Calculate sentiment distribution for direct brand mentions only.
+    Only counts responses where brand_mentioned = 'Yes' to match dashboard and sentiment page.
+    """
+    # Filter to only direct brand mentions
+    brand_responses = [r for r in responses if r.brand_mentioned == "Yes"]
+    total = len(brand_responses)
+
     if total == 0:
         return {"total": 0}
 
-    sentiments = Counter([r.sentiment for r in responses])
+    sentiments = Counter([r.sentiment for r in brand_responses])
 
     return {
         "total": total,
@@ -132,15 +152,17 @@ def calculate_sentiment_metrics(responses: List[Response]) -> Dict[str, Any]:
         "neutral": sentiments.get("Neutral", 0),
         "negative": sentiments.get("Negative", 0),
         "mixed": sentiments.get("Mixed", 0),
+        "very_negative": sentiments.get("Very Negative", 0),
         "very_positive_pct": round((sentiments.get("Very Positive", 0) / total) * 100, 1),
         "positive_pct": round((sentiments.get("Positive", 0) / total) * 100, 1),
         "neutral_pct": round((sentiments.get("Neutral", 0) / total) * 100, 1),
         "negative_pct": round((sentiments.get("Negative", 0) / total) * 100, 1),
         "mixed_pct": round((sentiments.get("Mixed", 0) / total) * 100, 1),
+        "very_negative_pct": round((sentiments.get("Very Negative", 0) / total) * 100, 1),
     }
 
 
-def calculate_platform_metrics(responses: List[Response]) -> Dict[str, Dict[str, Any]]:
+def calculate_platform_metrics(responses: List[Response], queries: List[Query]) -> Dict[str, Dict[str, Any]]:
     """Calculate metrics broken down by platform."""
     platforms = {}
 
@@ -150,7 +172,7 @@ def calculate_platform_metrics(responses: List[Response]) -> Dict[str, Dict[str,
         platforms[platform] = {
             "total": len(platform_responses),
             "mention": calculate_mention_metrics(platform_responses),
-            "positioning": calculate_positioning_metrics(platform_responses),
+            "positioning": calculate_positioning_metrics(platform_responses, queries),
             "sentiment": calculate_sentiment_metrics(platform_responses),
         }
 
@@ -158,11 +180,12 @@ def calculate_platform_metrics(responses: List[Response]) -> Dict[str, Dict[str,
 
 
 def analyze_descriptors(responses: List[Response]) -> Dict[str, int]:
-    """Count occurrences of target descriptors."""
+    """Count occurrences of descriptors in responses where brand is directly mentioned."""
     descriptor_counts = Counter()
 
     for response in responses:
-        if hasattr(response, 'descriptors') and response.descriptors:
+        # Only count descriptors from responses where brand is directly mentioned
+        if response.brand_mentioned == "Yes" and hasattr(response, 'descriptors') and response.descriptors:
             # Descriptors are stored as comma-separated strings
             descriptors = [d.strip() for d in response.descriptors.split(',') if d.strip()]
             for descriptor in descriptors:
@@ -186,8 +209,8 @@ def analyze_competitors(responses: List[Response]) -> Dict[str, int]:
 
 
 def calculate_positive_sentiment_rate(responses: List[Response]) -> float:
-    """Calculate percentage of responses with positive or very positive sentiment."""
-    brand_responses = [r for r in responses if r.brand_mentioned in ["Yes", "Indirect"]]
+    """Calculate percentage of responses with positive or very positive sentiment (direct mentions only)."""
+    brand_responses = [r for r in responses if r.brand_mentioned == "Yes"]
     if not brand_responses:
         return 0.0
 
@@ -196,25 +219,54 @@ def calculate_positive_sentiment_rate(responses: List[Response]) -> float:
 
 
 def calculate_descriptor_match_rate(responses: List[Response], descriptors: List[TargetDescriptor]) -> float:
-    """Calculate percentage of responses that mention at least one target descriptor."""
-    brand_responses = [r for r in responses if r.brand_mentioned in ["Yes", "Indirect"]]
+    """
+    Calculate percentage of target descriptors that appear in AI responses where brand is directly mentioned.
+    This matches the 'Target Descriptor Adoption' metric on the dashboard.
+    """
+    # Get only direct brand mentions
+    brand_responses = [r for r in responses if r.brand_mentioned == "Yes"]
     if not brand_responses:
         return 0.0
 
-    with_descriptors = sum(1 for r in brand_responses if r.descriptors and r.descriptors.strip())
-    return round((with_descriptors / len(brand_responses)) * 100, 1)
+    # Build set of target descriptor names (case-insensitive)
+    target_descriptors_set = {td.descriptor.lower().strip() for td in descriptors if td.is_target}
+    if not target_descriptors_set:
+        return 0.0
+
+    # Find which target descriptors actually appear in responses
+    found_target_descriptors = set()
+    for response in brand_responses:
+        if response.descriptors and response.descriptors.strip():
+            desc_list = [d.lower().strip() for d in response.descriptors.split(',') if d.strip()]
+            for desc in desc_list:
+                if desc in target_descriptors_set:
+                    found_target_descriptors.add(desc)
+
+    # Calculate percentage of target descriptors found
+    return round((len(found_target_descriptors) / len(target_descriptors_set)) * 100, 1)
 
 
-def calculate_share_of_voice(responses: List[Response], competitors: List[Competitor], brand_name: str) -> Dict[str, Any]:
-    """Calculate share of voice for brand vs competitors."""
-    # Count total mentions across all organizations
+def calculate_share_of_voice(responses: List[Response], queries: List[Query], competitors: List[Competitor], brand_name: str) -> Dict[str, Any]:
+    """
+    Calculate share of voice for brand vs competitors.
+    Matches dashboard logic: excludes responses from queries where brand_in_query=True,
+    and counts brand by positioning (Leader, Top 3, Featured, Listed) not just 'Yes' mentions.
+    """
+    # Build set of query_ids where brand_in_query=True to exclude
+    branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+    # Count total mentions across all organizations (excluding branded queries)
     total_mentions = 0
     brand_mentions = 0
     competitor_mentions = Counter()
 
     for response in responses:
-        # Count brand mentions
-        if response.brand_mentioned == "Yes":
+        # Skip responses from queries where brand name is in the query
+        if response.query_id in branded_query_ids:
+            continue
+
+        # Count brand mentions by positioning (not just "Yes")
+        if response.brand_position in ['Leader', 'Top 3', 'Featured', 'Listed']:
             brand_mentions += 1
             total_mentions += 1
 
@@ -241,9 +293,91 @@ def calculate_share_of_voice(responses: List[Response], competitors: List[Compet
     }
 
 
-def calculate_positioning_average(responses: List[Response]) -> float:
-    """Calculate average positioning score (Leader=5, Top 3=4, Featured=3, Listed=2, Not Mentioned=1)."""
-    if not responses:
+def calculate_competitor_threats(
+    competitor_sov: Dict[str, Dict[str, Any]],
+    responses: List[Response],
+    brand_name: str
+) -> List[Dict[str, Any]]:
+    """
+    Calculate competitor threat scores using same logic as CompetitorThreats page.
+    Returns list of competitors sorted by threat score (highest first).
+
+    Threat score formula (matches CompetitorThreats.tsx):
+    threatScore = (total_mentions * 0.7) + (negative_when_competitor_present * 2) + (positive_competitor * 1.5)
+
+    Threat levels:
+    - High: score > 50
+    - Medium: score 20-50
+    - Low: score < 20
+    """
+    competitor_threats = []
+
+    for comp_name, comp_data in competitor_sov.items():
+        # Get all responses where this competitor is mentioned
+        competitive_responses = [
+            r for r in responses
+            if r.competitors and comp_name.lower() in r.competitors.lower()
+        ]
+
+        # Count negative sentiment when competitor is present
+        negative_when_competitor_present = sum(
+            1 for r in competitive_responses
+            if r.sentiment in ['Negative', 'Very Negative']
+        )
+
+        # Count positive sentiment for competitor
+        positive_competitor = sum(
+            1 for r in competitive_responses
+            if r.sentiment in ['Positive', 'Very Positive']
+        )
+
+        # Calculate threat score using exact formula from CompetitorThreats.tsx
+        mention_count = comp_data.get('count', 0)
+        threat_score = (mention_count * 0.7) + (negative_when_competitor_present * 2) + (positive_competitor * 1.5)
+        threat_score = round(threat_score)
+
+        # Determine threat level
+        if threat_score > 50:
+            threat_level = 'High'
+        elif threat_score > 20:
+            threat_level = 'Medium'
+        else:
+            threat_level = 'Low'
+
+        competitor_threats.append({
+            'name': comp_name,
+            'mention_count': mention_count,
+            'share_of_voice': comp_data.get('sov', 0.0),
+            'competitive_responses': len(competitive_responses),
+            'negative_overlap': negative_when_competitor_present,
+            'positive_competitor': positive_competitor,
+            'threat_score': threat_score,
+            'threat_level': threat_level
+        })
+
+    # Sort by threat score (highest first)
+    competitor_threats.sort(key=lambda x: x['threat_score'], reverse=True)
+
+    return competitor_threats
+
+
+def calculate_positioning_average(responses: List[Response], queries: List[Query]) -> float:
+    """
+    Calculate average positioning score (Leader=5, Top 3=4, Featured=3, Listed=2, Not Mentioned=1).
+    Matches dashboard logic: excludes responses from queries where brand_in_query=True,
+    and only counts responses where brand was mentioned (Yes or Indirect).
+    """
+    # Build set of query_ids where brand_in_query=True to exclude
+    branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+    # Filter responses: exclude branded queries and only count mentions
+    filtered_responses = [
+        r for r in responses
+        if r.query_id not in branded_query_ids
+        and r.brand_mentioned in ['Yes', 'Indirect']
+    ]
+
+    if not filtered_responses:
         return 0.0
 
     position_scores = {
@@ -254,8 +388,8 @@ def calculate_positioning_average(responses: List[Response]) -> float:
         "Not Mentioned": 1,
     }
 
-    total_score = sum(position_scores.get(r.brand_position, 1) for r in responses)
-    return round(total_score / len(responses), 2)
+    total_score = sum(position_scores.get(r.brand_position, 1) for r in filtered_responses)
+    return round(total_score / len(filtered_responses), 2)
 
 
 def get_negative_sentiment_statements(responses: List[Response]) -> List[Dict[str, str]]:
@@ -448,6 +582,7 @@ def build_platform_performance_context(platform_metrics: Dict[str, Dict[str, Any
 # ==================== AI-POWERED ANALYSIS ====================
 
 def generate_competitor_threat_analysis(
+    top_threats: List[Dict[str, Any]],
     competitor_sov: Dict[str, Dict[str, Any]],
     responses: List[Response],
     competitors_list: List[Competitor],
@@ -457,17 +592,33 @@ def generate_competitor_threat_analysis(
     worst_responses: List[Response],
     competitive_losses: List[Response]
 ) -> str:
-    """Use Claude to generate enhanced competitor threat analysis with concrete examples."""
+    """
+    Use Perplexity to generate enhanced competitor threat analysis.
+    Focuses on the top 3 threats as calculated by calculate_competitor_threats().
+    """
 
-    # Prepare SOV data
+    # Prepare SOV data for top 3 threats
     sov_summary = f"{brand_name}: {competitor_sov.get('brand_sov', 0)}%\n"
-    for comp_name, data in list(competitor_sov.items())[:5]:
-        if comp_name != 'brand_sov':
-            sov_summary += f"{comp_name}: {data['sov']}% ({data['count']} mentions)\n"
+    for threat in top_threats[:3]:
+        sov_summary += f"{threat['name']}: {threat['share_of_voice']}% ({threat['mention_count']} mentions, Threat Score: {threat['threat_score']} - {threat['threat_level']})\n"
 
-    # Build examples of competitive losses
+    # Build examples of competitive losses - filter to focus on top 3 threats
+    top_threat_names = [threat['name'].lower() for threat in top_threats[:3]]
+
+    # Filter worst_responses to only include top 3 threats
+    relevant_worst = [
+        r for r in worst_responses
+        if r.competitors and any(threat_name in r.competitors.lower() for threat_name in top_threat_names)
+    ][:5]
+
+    # Filter competitive_losses to only include top 3 threats
+    relevant_losses = [
+        r for r in competitive_losses
+        if r.competitors and any(threat_name in r.competitors.lower() for threat_name in top_threat_names)
+    ][:5]
+
     competitive_examples = ""
-    for i, resp in enumerate(worst_responses[:5], 1):
+    for i, resp in enumerate(relevant_worst, 1):
         competitive_examples += f"\nExample {i} - Brand Absent, Competitors Mentioned:\n"
         competitive_examples += f"Query: \"{resp.query_text}\"\n"
         competitive_examples += f"Platform: {resp.platform}\n"
@@ -475,14 +626,18 @@ def generate_competitor_threat_analysis(
         excerpt = resp.response_text[:350] + "..." if len(resp.response_text) > 350 else resp.response_text
         competitive_examples += f"Response: \"{excerpt}\"\n"
 
-    for i, resp in enumerate(competitive_losses[:5], 1):
-        competitive_examples += f"\nExample {5+i} - Head-to-Head Loss:\n"
+    offset = len(relevant_worst)
+    for i, resp in enumerate(relevant_losses, 1):
+        competitive_examples += f"\nExample {offset+i} - Head-to-Head Loss:\n"
         competitive_examples += f"Query: \"{resp.query_text}\"\n"
         competitive_examples += f"Platform: {resp.platform}\n"
         competitive_examples += f"{brand_name} position: {resp.brand_position}\n"
         competitive_examples += f"Competitors also mentioned: {resp.competitors}\n"
         excerpt = resp.response_text[:350] + "..." if len(resp.response_text) > 350 else resp.response_text
         competitive_examples += f"Response: \"{excerpt}\"\n"
+
+    # Get names of top 3 threats for the prompt
+    top_3_names = [threat['name'] for threat in top_threats[:3]]
 
     prompt = f"""You are a competitive intelligence analyst for {brand_name}.
 
@@ -491,13 +646,20 @@ def generate_competitor_threat_analysis(
 YOUR COMPETITORS (with strategic context):
 {competitor_context}
 
+TOP 3 COMPETITIVE THREATS (based on quantitative threat analysis):
+The following competitors have been identified as the top 3 threats based on their mention frequency, share of voice, and sentiment patterns:
+
+1. {top_3_names[0] if len(top_3_names) > 0 else 'N/A'}
+2. {top_3_names[1] if len(top_3_names) > 1 else 'N/A'}
+3. {top_3_names[2] if len(top_3_names) > 2 else 'N/A'}
+
 SHARE OF VOICE PERFORMANCE:
 {sov_summary}
 
 ACTUAL COMPETITIVE EXAMPLES FROM AI RESPONSES:
 {competitive_examples}
 
-Based on this detailed competitive intelligence, identify the THREE most significant competitive threats to {brand_name}.
+Based on this detailed competitive intelligence, analyze each of the THREE identified competitive threats to {brand_name} listed above.
 
 For each threat, provide:
 
@@ -938,6 +1100,7 @@ def generate_markdown_report(
     queries: List[Any] = None,
     descriptors: List[Any] = None,
     competitors: List[Any] = None,
+    competitor_threats_data: List[Dict[str, Any]] = None,
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
@@ -1018,9 +1181,11 @@ def generate_markdown_report(
 
 ### 3. Descriptor Analysis
 
-**Descriptor Match Rate:** {descriptor_match_rate}% of brand mentions included at least one target descriptor
+**Target Descriptor Adoption:** {descriptor_match_rate}% of your target descriptors appeared in AI responses where the brand was directly mentioned
 
-**Top Descriptors Associated with {brand_name}:**
+**Top Descriptors Used by AI Platforms When Mentioning {brand_name}:**
+
+*Note: Counts reflect direct brand mentions only (indirect mentions excluded)*
 """
 
     # Add descriptor breakdown in list format (not table) to avoid truncation of long names
@@ -1065,7 +1230,22 @@ def generate_markdown_report(
 ---
 
 ### 5. Threat Analysis
-"""
+
+**Competitor Threat Summary:**
+
+Threats are calculated based on three factors: mention frequency (weight: 0.7), negative sentiment when competitor is present (weight: 2.0), and positive sentiment for competitor (weight: 1.5). Threat levels: High (score > 50), Medium (20-50), Low (< 20).
+
+| Rank | Competitor | Threat Level | Threat Score | Mentions | Share of Voice |
+|------|-----------|--------------|--------------|----------|----------------|"""
+
+    # Add threat table data
+    if competitor_threats_data:
+        for i, threat in enumerate(competitor_threats_data[:10], 1):  # Top 10
+            report += f"\n| {i} | {threat['name']} | {threat['threat_level']} | {threat['threat_score']} | {threat['mention_count']} | {threat['share_of_voice']}% |"
+    else:
+        report += "\n| - | No data | - | - | - | - |"
+
+    report += "\n\n**Detailed Threat Analysis:**\n\n"
     report += competitor_threats
 
     report += """
@@ -1094,75 +1274,7 @@ All metrics are based on actual AI platform responses collected during the analy
 
 ---
 
-## Appendix
-
 """
-
-    # Add Queries Table
-    report += "\n### Queries\n\n"
-    report += "| Query | Category | Brand in Query |\n"
-    report += "|-------|----------|----------------|\n"
-
-    if queries:
-        for query in queries:
-            brand_in_query = "Yes" if query.brand_in_query else "No"
-            category = query.category if hasattr(query, 'category') and query.category else "-"
-            report += f"| {query.query_text} | {category} | {brand_in_query} |\n"
-    else:
-        report += "| No queries configured | - | - |\n"
-
-    # Add Descriptors Table
-    report += "\n### Descriptors\n\n"
-    report += "| Descriptor | Target | Priority | Current Ownership |\n"
-    report += "|------------|--------|----------|-------------------|\n"
-
-    if descriptors:
-        for descriptor in descriptors:
-            is_target = "Yes" if descriptor.is_target else "No"
-            priority = descriptor.priority if hasattr(descriptor, 'priority') and descriptor.priority else "-"
-            ownership = descriptor.current_ownership if hasattr(descriptor, 'current_ownership') and descriptor.current_ownership else "-"
-            report += f"| {descriptor.descriptor} | {is_target} | {priority} | {ownership} |\n"
-    else:
-        report += "| No descriptors configured | - | - | - |\n"
-
-    # Add Competitors Table
-    report += "\n### Competitors\n\n"
-    report += "| Organization | Type | Focus Area | Tracking |\n"
-    report += "|--------------|------|------------|----------|\n"
-
-    if competitors:
-        for competitor in competitors:
-            tracking = "Active" if competitor.track else "Inactive"
-            comp_type = competitor.type if hasattr(competitor, 'type') and competitor.type else "-"
-            focus_area = competitor.focus_area if hasattr(competitor, 'focus_area') and competitor.focus_area else "-"
-            report += f"| {competitor.organization} | {comp_type} | {focus_area} | {tracking} |\n"
-    else:
-        report += "| No competitors configured | - | - | - |\n"
-
-    # Add AI Statements organized by sentiment
-    report += "\n### AI Statements About the Brand\n\n"
-
-    if responses:
-        # Group responses by sentiment
-        sentiment_order = ['Very Positive', 'Positive', 'Neutral', 'Mixed', 'Negative', 'Very Negative']
-        statements_by_sentiment = {s: [] for s in sentiment_order}
-
-        for response in responses:
-            # Only include responses where brand was mentioned
-            if response.brand_mentioned in ['Yes', 'Indirect'] and response.response_text:
-                sentiment = response.sentiment if response.sentiment else 'Neutral'
-                if sentiment in statements_by_sentiment:
-                    statements_by_sentiment[sentiment].append(response.response_text)
-
-        # Display statements grouped by sentiment
-        for sentiment in sentiment_order:
-            statements = statements_by_sentiment[sentiment]
-            if statements:
-                report += f"\n**{sentiment}** ({len(statements)} statements)\n\n"
-                for statement in statements:
-                    report += f"- {statement}\n\n"
-    else:
-        report += "No AI statements available.\n"
 
     return report
 
@@ -1222,15 +1334,15 @@ def generate_report_main(user_id: int, brand_id: int):
         # Step 2: Calculate metrics
         print("\nCalculating metrics...")
         mention_metrics = calculate_mention_metrics(responses)
-        positioning_metrics = calculate_positioning_metrics(responses)
+        positioning_metrics = calculate_positioning_metrics(responses, queries)
         sentiment_metrics = calculate_sentiment_metrics(responses)
-        platform_metrics = calculate_platform_metrics(responses)
+        platform_metrics = calculate_platform_metrics(responses, queries)
         descriptor_analysis = analyze_descriptors(responses)
         competitor_analysis = analyze_competitors(responses)
         positive_sentiment_rate = calculate_positive_sentiment_rate(responses)
         descriptor_match_rate = calculate_descriptor_match_rate(responses, descriptors)
-        share_of_voice = calculate_share_of_voice(responses, competitors, brand_name)
-        positioning_average = calculate_positioning_average(responses)
+        share_of_voice = calculate_share_of_voice(responses, queries, competitors, brand_name)
+        positioning_average = calculate_positioning_average(responses, queries)
         negative_statements = get_negative_sentiment_statements(responses)
 
         print("All metrics calculated")
@@ -1265,6 +1377,17 @@ def generate_report_main(user_id: int, brand_id: int):
 
         print("Context building complete")
 
+        # Step 3b: Calculate competitor threats using CompetitorThreats page logic
+        print("\nCalculating competitor threat scores...")
+        competitor_threats_data = calculate_competitor_threats(
+            competitor_sov=share_of_voice['competitor_sov'],
+            responses=responses,
+            brand_name=brand_name
+        )
+        print(f"  - {len(competitor_threats_data)} competitors analyzed")
+        if competitor_threats_data:
+            print(f"  - Top 3 threats: {', '.join([t['name'] for t in competitor_threats_data[:3]])}")
+
         # Step 4: Generate AI insights with enhanced prompts
         print("\nGenerating AI-powered insights with Claude Sonnet 3.5...")
         print("  - Executive summary...")
@@ -1280,8 +1403,9 @@ def generate_report_main(user_id: int, brand_id: int):
             competitor_context=competitor_context
         )
 
-        print("  - Competitor threat analysis...")
+        print("  - Competitor threat analysis (top 3 threats)...")
         competitor_threats = generate_competitor_threat_analysis(
+            top_threats=competitor_threats_data,
             competitor_sov=share_of_voice['competitor_sov'],
             responses=responses,
             competitors_list=competitors,
@@ -1393,6 +1517,7 @@ def generate_report_main(user_id: int, brand_id: int):
             queries=queries,
             descriptors=descriptors,
             competitors=competitors,
+            competitor_threats_data=competitor_threats_data,
         )
 
         # Step 5: Save to database
