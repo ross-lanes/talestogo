@@ -29,8 +29,7 @@ from collections import Counter
 # ==================== CONSTANTS ====================
 
 POSITION_SCORES = {
-    "Leader": 5,
-    "Top 3": 4,
+    "Leader": 4,
     "Featured": 3,
     "Listed": 2,
     "Not Mentioned": 1,
@@ -171,12 +170,10 @@ def calculate_positioning_metrics(responses: List[Any], queries: List[Any]) -> D
         return {
             "total": 0,
             "leader": 0,
-            "top_3": 0,
             "featured": 0,
             "listed": 0,
             "not_mentioned": 0,
             "leader_pct": 0,
-            "top_3_pct": 0,
             "featured_pct": 0,
             "listed_pct": 0,
             "not_mentioned_pct": 0,
@@ -184,16 +181,17 @@ def calculate_positioning_metrics(responses: List[Any], queries: List[Any]) -> D
 
     positions = Counter([r.brand_position for r in filtered_responses])
 
+    # Combine "Top 3" and "Featured" into single "Featured" category
+    featured_count = positions.get("Featured", 0) + positions.get("Top 3", 0)
+
     return {
         "total": total,
         "leader": positions.get("Leader", 0),
-        "top_3": positions.get("Top 3", 0),
-        "featured": positions.get("Featured", 0),
+        "featured": featured_count,
         "listed": positions.get("Listed", 0),
         "not_mentioned": positions.get("Not Mentioned", 0),
         "leader_pct": round((positions.get("Leader", 0) / total) * 100, 1),
-        "top_3_pct": round((positions.get("Top 3", 0) / total) * 100, 1),
-        "featured_pct": round((positions.get("Featured", 0) / total) * 100, 1),
+        "featured_pct": round((featured_count / total) * 100, 1),
         "listed_pct": round((positions.get("Listed", 0) / total) * 100, 1),
         "not_mentioned_pct": round((positions.get("Not Mentioned", 0) / total) * 100, 1),
     }
@@ -203,7 +201,7 @@ def calculate_positioning_average(responses: List[Any], queries: List[Any]) -> f
     """
     Calculate average positioning score.
 
-    Scoring: Leader=5, Top 3=4, Featured=3, Listed=2, Not Mentioned=1
+    Scoring: Leader=4, Featured=3, Listed=2, Not Mentioned=1
 
     FILTERS APPLIED:
     - Excludes responses from queries where brand_in_query=True
@@ -447,7 +445,7 @@ def calculate_share_of_voice(
 
     FILTERS APPLIED:
     - Excludes responses from queries where brand_in_query=True
-    - Counts brand by POSITIONING (Leader, Top 3, Featured, Listed), not just 'Yes' mentions
+    - Counts brand by POSITIONING (Leader, Featured, Listed), not just 'Yes' mentions
 
     This provides a more accurate measure of brand visibility vs competitors.
 
@@ -475,6 +473,7 @@ def calculate_share_of_voice(
 
         # Count brand mentions by positioning (not just "Yes")
         # This counts any response where brand appears in a meaningful position
+        # Note: "Top 3" is treated as "Featured" for display purposes
         if response.brand_position in ['Leader', 'Top 3', 'Featured', 'Listed']:
             brand_mentions += 1
             total_mentions += 1

@@ -493,7 +493,6 @@ export default function Dashboard() {
               (() => {
                 const maxValue = Math.max(
                   positioningData.leader || 0,
-                  positioningData.top_3 || 0,
                   positioningData.featured || 0,
                   positioningData.listed || 0,
                   positioningData.not_mentioned || 0
@@ -521,7 +520,6 @@ export default function Dashboard() {
                 <BarChart
                   data={[
                     { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                    { position: 'Top 3', fullName: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
                     { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                     { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                     { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
@@ -541,7 +539,6 @@ export default function Dashboard() {
                   <Bar dataKey="count">
                     {[
                       { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                      { position: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
                       { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                       { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                       { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },

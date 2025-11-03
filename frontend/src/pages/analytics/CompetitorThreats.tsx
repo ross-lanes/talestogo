@@ -65,7 +65,7 @@ export default function CompetitorThreats() {
 
     const csvContent = [
       csvHeaders.join(','),
-      ...csvRows.map(row => row.join(','))
+      ...csvRows.map((row: any) => row.join(','))
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -149,21 +149,21 @@ export default function CompetitorThreats() {
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3, mb: 4 }}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#75C9C8' }}>
-            {threats.filter(c => c.threat_level === 'High').length}
+            {threats.filter((c: any) => c.threat_level === 'High').length}
           </Typography>
           <Typography variant="body1">High Threat Competitors</Typography>
           <Typography variant="caption" color="text.secondary">Require immediate attention</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#80A1D4' }}>
-            {threats.filter(c => c.threat_level === 'Medium').length}
+            {threats.filter((c: any) => c.threat_level === 'Medium').length}
           </Typography>
           <Typography variant="body1">Medium Threat</Typography>
           <Typography variant="caption" color="text.secondary">Monitor closely</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#665775' }}>
-            {threats.filter(c => c.threat_level === 'Low').length}
+            {threats.filter((c: any) => c.threat_level === 'Low').length}
           </Typography>
           <Typography variant="body1">Low Threat</Typography>
           <Typography variant="caption" color="text.secondary">Minimal competition</Typography>
@@ -212,7 +212,7 @@ export default function CompetitorThreats() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {threats.map((comp, index) => {
+                {threats.map((comp: any, index: number) => {
                   // Extract descriptors for this competitor
                   const compResponses = Array.isArray(responses) ? responses.filter((r: any) =>
                     r.competitors && competitorsInclude(r.competitors, comp.name)

@@ -78,7 +78,6 @@ export default function PositioningAnalysis() {
     { key: 'not_mentioned', label: 'Not mentioned', color: '#665775' },
     { key: 'listed', label: 'Listed', color: '#80a1d4' },
     { key: 'featured', label: 'Featured', color: '#75c9c8' },
-    { key: 'top_3', label: 'Top 3', color: '#44809C' },
     { key: 'leader', label: 'Leader', color: '#116C29' }  // Bright highlighter green
   ];
 
@@ -193,17 +192,11 @@ export default function PositioningAnalysis() {
           <Box>
             <Typography variant="h6" sx={{ color: '#75c9c8', mb: 1 }}>Featured (Score: 3)</Typography>
             <Typography variant="body1" color="text.secondary">
-              Your brand is featured prominently in the response
+              Your brand receives prominent attention in the response, either through detailed discussion or being highlighted as a top recommendation
             </Typography>
           </Box>
           <Box>
-            <Typography variant="h6" sx={{ color: '#44809C', mb: 1 }}>Top 3 (Score: 4)</Typography>
-            <Typography variant="body1" color="text.secondary">
-              Your brand is among the top 3 recommendations
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="h6" sx={{ color: '#116C29', mb: 1 }}>Leader (Score: 5)</Typography>
+            <Typography variant="h6" sx={{ color: '#116C29', mb: 1 }}>Leader (Score: 4)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand is presented as the top choice or industry leader
             </Typography>
