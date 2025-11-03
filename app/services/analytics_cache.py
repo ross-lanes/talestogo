@@ -19,25 +19,28 @@ class AnalyticsCache:
     and provides them to different parts of the application.
     """
 
-    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None):
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, batch_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
         self.brand_id = brand_id
+        self.batch_id = batch_id
         self._cache: Dict[str, Any] = {}
         self._calculated = False
 
     def _apply_filters(self, query, include_brand_in_query: bool = True):
         """
-        Apply user and brand filters to a query.
+        Apply user, brand, and batch filters to a query.
 
         Args:
             query: SQLAlchemy query to filter
             include_brand_in_query: If False, exclude queries where brand_in_query=True
         """
-        # Apply user and brand filters first
+        # Apply user, brand, and batch filters first
         query = query.filter(models.Response.user_id == self.user_id)
         if self.brand_id:
             query = query.filter(models.Response.brand_id == self.brand_id)
+        if self.batch_id:
+            query = query.filter(models.Response.batch_id == self.batch_id)
 
         # Only try to filter by brand_in_query if Query table has data
         if not include_brand_in_query:

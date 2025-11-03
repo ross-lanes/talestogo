@@ -36,13 +36,15 @@ router = APIRouter(
 def get_dashboard_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
+    batch_id: Optional[int] = None
 ):
     """
     Get key metrics for the dashboard for the active brand.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_dashboard_data()
 
 
@@ -64,13 +66,15 @@ def get_mention_trends(
 def get_sentiment_analysis(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
+    batch_id: Optional[int] = None
 ):
     """
     Get sentiment distribution for brand mentions.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_sentiment_data()
 
 
@@ -90,13 +94,15 @@ def get_descriptor_insights_endpoint(
 def get_positioning_analysis(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
+    batch_id: Optional[int] = None
 ):
     """
     Get brand positioning distribution across responses.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_positioning_data()
 
 
@@ -104,13 +110,15 @@ def get_positioning_analysis(
 def get_share_of_voice_analysis(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
+    batch_id: Optional[int] = None
 ):
     """
     Get share of voice comparison between brand and competitors.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id)
+    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_share_of_voice_data()
 
 
@@ -208,10 +216,12 @@ def get_recommendations(
 def get_competitor_threats_analysis(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
+    batch_id: Optional[int] = None
 ):
     """
     Get competitor threat analysis with threat scores.
+    Optionally filter by batch_id for specific collection batches.
 
     Returns a list of competitors sorted by threat level (highest first).
     Each competitor includes:
@@ -222,10 +232,12 @@ def get_competitor_threats_analysis(
     - threat_score: Calculated threat score
     - threat_level: High/Medium/Low threat classification
     """
-    # Fetch all responses for the user/brand
+    # Fetch all responses for the user/brand/batch
     query = db.query(models.Response).filter(models.Response.user_id == current_user.id)
     if brand_id:
         query = query.filter(models.Response.brand_id == brand_id)
+    if batch_id:
+        query = query.filter(models.Response.batch_id == batch_id)
 
     responses = query.all()
 

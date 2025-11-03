@@ -36,7 +36,7 @@ def normalize_organization_name(name: str) -> str:
     return name
 
 
-def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = None) -> Dict[str, Any]:
+def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = None, batch_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Calculate key metrics for the dashboard for a specific brand.
     Returns mention rate, sentiment, descriptor match, and share of voice.
@@ -48,12 +48,15 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         db: Database session
         user_id: User ID to filter by (required for data isolation)
         brand_id: Optional brand ID to filter by. If None, returns metrics for all user's brands.
+        batch_id: Optional batch ID to filter by. If None, returns metrics for all batches.
     """
-    # Base query for responses - filter by user_id and optionally brand_id
+    # Base query for responses - filter by user_id and optionally brand_id and batch_id
     def apply_filters(query):
         query = query.filter(models.Response.user_id == user_id)
         if brand_id:
             query = query.filter(models.Response.brand_id == brand_id)
+        if batch_id:
+            query = query.filter(models.Response.batch_id == batch_id)
         return query
 
     # Filters that ALSO exclude brand_in_query (for mentions/positioning)
@@ -69,6 +72,8 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         )
         if brand_id:
             query = query.filter(models.Response.brand_id == brand_id)
+        if batch_id:
+            query = query.filter(models.Response.batch_id == batch_id)
         return query
 
     # Get total responses (excluding brand_in_query for mention metrics)

@@ -18,7 +18,7 @@ from pathlib import Path
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
-from app.routers import analytics, admin
+from app.routers import analytics, admin, batches
 from app.auth import (
     get_current_user,
     get_current_admin_user,
@@ -60,6 +60,7 @@ app.add_middleware(
 # Include routers
 app.include_router(analytics.router)
 app.include_router(admin.router)
+app.include_router(batches.router)
 
 # --- Dependencies ---
 def get_db():

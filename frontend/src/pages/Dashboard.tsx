@@ -16,6 +16,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
+import BatchSelector from '../components/BatchSelector';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -53,6 +54,7 @@ export default function Dashboard() {
     severity: 'info',
   });
   const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
 
@@ -122,9 +124,10 @@ export default function Dashboard() {
 
   // Fetch dashboard metrics
   const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
-    queryKey: ['dashboard-metrics'],
+    queryKey: ['dashboard-metrics', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/dashboard');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/dashboard', { params });
       return response.data;
     },
     refetchInterval: 30000, // Auto-refresh every 30 seconds
@@ -132,36 +135,40 @@ export default function Dashboard() {
 
   // Fetch sentiment breakdown
   const { data: sentimentData } = useQuery({
-    queryKey: ['sentiment-breakdown'],
+    queryKey: ['sentiment-breakdown', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/sentiment/breakdown');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/sentiment/breakdown', { params });
       return response.data;
     },
   });
 
   // Fetch share of voice
   const { data: shareOfVoice } = useQuery({
-    queryKey: ['share-of-voice-dashboard'],
+    queryKey: ['share-of-voice-dashboard', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/share-of-voice');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/share-of-voice', { params });
       return response.data;
     },
   });
 
   // Fetch positioning data
   const { data: positioningData } = useQuery({
-    queryKey: ['positioning-dashboard'],
+    queryKey: ['positioning-dashboard', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/positioning/breakdown');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/positioning/breakdown', { params });
       return response.data;
     },
   });
 
   // Fetch competitor threats (calculated server-side)
   const { data: competitorThreats } = useQuery({
-    queryKey: ['competitor-threats-dashboard'],
+    queryKey: ['competitor-threats-dashboard', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/competitor-threats');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/competitor-threats', { params });
       return response.data;
     },
   });
@@ -298,18 +305,28 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h2" component="h1">
           Key Metrics Dashboard
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<DownloadIcon />}
-          onClick={handleDownloadDashboard}
-          size="small"
-        >
-          Download Dashboard as Image
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Box sx={{ minWidth: 300 }}>
+            <BatchSelector
+              selectedBatchId={selectedBatchId}
+              onBatchChange={setSelectedBatchId}
+              showAllOption={true}
+              label="Filter by Collection"
+            />
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadDashboard}
+            size="small"
+          >
+            Download Dashboard as Image
+          </Button>
+        </Box>
       </Box>
 
       {/* Collection Status Banner */}

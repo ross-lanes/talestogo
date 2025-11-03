@@ -56,6 +56,7 @@ class Response(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-tenancy
     brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
+    batch_id = Column(Integer, ForeignKey("collection_batches.id"), nullable=True, index=True)  # Collection batch tracking
     # No Foreign Key constraint, just index for faster lookups by query_id
     query_id = Column(String(10), index=True, nullable=False)
     query_text = Column(Text) # Denormalized
@@ -96,6 +97,22 @@ class TargetDescriptor(Base):
     is_target = Column(Boolean, default=True)
     current_ownership = Column(String(200)) # Who 'owns' this term now
     priority = Column(String(20)) # High, Medium, Low
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class CollectionBatch(Base):
+    __tablename__ = "collection_batches"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)
+    batch_name = Column(String(200), nullable=False)
+    description = Column(Text)
+    started_at = Column(DateTime, nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String(20), default='in_progress')  # in_progress, completed, failed
+    total_queries = Column(Integer, default=0)
+    total_responses = Column(Integer, default=0)
+    platforms = Column(Text)  # Comma-separated list of platforms used
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
