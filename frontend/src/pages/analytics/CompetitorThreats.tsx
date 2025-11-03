@@ -60,7 +60,7 @@ export default function CompetitorThreats() {
       comp.threat_level,
       comp.threat_score,
       comp.mention_count,
-      `${comp.share_of_voice.toFixed(1)}%`
+      `${comp.share_of_voice.toFixed(0)}%`
     ]);
 
     const csvContent = [
@@ -261,7 +261,7 @@ export default function CompetitorThreats() {
                         </Typography>
                       </TableCell>
                       <TableCell align="right">{comp.mention_count}</TableCell>
-                      <TableCell align="right">{comp.share_of_voice.toFixed(1)}%</TableCell>
+                      <TableCell align="right">{comp.share_of_voice.toFixed(0)}%</TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
                           {descriptorDisplay}

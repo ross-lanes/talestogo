@@ -524,12 +524,11 @@ export default function Dashboard() {
                     { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                     { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
                   ]}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 40 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" domain={[0, roundedMax]} allowDecimals={false} />
-                  <YAxis type="category" dataKey="position" width={100} />
+                  <XAxis dataKey="position" angle={-45} textAnchor="end" height={50} />
+                  <YAxis domain={[0, roundedMax]} allowDecimals={false} />
                   <Tooltip
                     formatter={(value: number, name: string, props: any) => [
                       value,
@@ -545,7 +544,7 @@ export default function Dashboard() {
                     ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
-                    <LabelList dataKey="count" position="right" />
+                    <LabelList dataKey="count" position="top" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>

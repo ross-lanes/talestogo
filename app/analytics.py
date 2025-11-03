@@ -6,6 +6,7 @@ from sqlalchemy import func, and_
 from . import models
 from typing import Dict, List, Any, Optional
 import datetime
+from .services import metrics
 
 
 def normalize_organization_name(name: str) -> str:
@@ -160,13 +161,13 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         # Calculate percentage of target descriptors that were found
         descriptor_match = (len(found_target_descriptors) / total_target_descriptors * 100)
 
-    # Calculate leadership visibility (Leader + Top 3 positions) - EXCLUDE brand_in_query
-    pppl_leader_count = apply_filters_exclude_brand_in_query(
-        db.query(func.count(models.Response.id)).filter(
-            models.Response.brand_position.in_(['Leader', 'Top 3'])
-        )
-    ).scalar() or 0
-    leadership_visibility = (pppl_leader_count / total_responses * 100) if total_responses > 0 else 0.0
+    # Calculate leadership visibility using centralized metrics function
+    # Get all responses and queries for the calculation
+    all_responses = apply_filters(db.query(models.Response)).all()
+    all_queries = db.query(models.Query).filter(
+        models.Query.brand_id == brand_id
+    ).all()
+    leadership_visibility = metrics.calculate_leadership_visibility(all_responses, all_queries)
 
     # Calculate true share of voice - need to get from share_of_voice function
     # For dashboard, we'll use a simplified version based on all brand mentions
@@ -235,7 +236,7 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
         "positive_sentiment": round(positive_sentiment),
         "descriptor_match": round(descriptor_match),
         "share_of_voice": round(share_of_voice),
-        "leadership_visibility": round(leadership_visibility),
+        "leadership_visibility": leadership_visibility,
         "change_mention_rate": round(change_mention_rate),
         "change_sentiment": 0.0,  # TODO: Calculate sentiment change
         "change_descriptor": 0.0,  # TODO: Calculate descriptor change
@@ -522,6 +523,13 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
         if brand_info:
             brand_name = brand_info.brand_name
 
+    # Calculate leadership visibility using centralized metrics function
+    all_responses_for_lv = apply_filters(db.query(models.Response)).all()
+    all_queries_for_lv = db.query(models.Query).filter(
+        models.Query.brand_id == brand_id
+    ).all()
+    brand_leadership_visibility = metrics.calculate_leadership_visibility(all_responses_for_lv, all_queries_for_lv)
+
     sov_data = [{
         "organization": brand_name,
         "leader_count": pppl_leader,
@@ -530,7 +538,7 @@ def get_share_of_voice(db: Session, user_id: int, brand_id: Optional[int] = None
         "listed_count": pppl_listed,
         "total_mentions": pppl_total_mentions,
         "share_of_voice": 0,  # Will calculate after getting all mentions
-        "leadership_visibility": round(((pppl_leader + pppl_top3) / total_responses * 100)),  # Quality-weighted
+        "leadership_visibility": brand_leadership_visibility,  # Use centralized calculation
         "is_brand": True  # Mark this as the user's brand
     }]
 

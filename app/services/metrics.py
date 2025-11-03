@@ -132,9 +132,9 @@ def calculate_mention_metrics(responses: List[Any]) -> Dict[str, Any]:
         "yes": mentions.get("Yes", 0),
         "indirect": mentions.get("Indirect", 0),
         "no": mentions.get("No", 0),
-        "yes_pct": round((mentions.get("Yes", 0) / total) * 100, 1),
-        "indirect_pct": round((mentions.get("Indirect", 0) / total) * 100, 1),
-        "no_pct": round((mentions.get("No", 0) / total) * 100, 1),
+        "yes_pct": round((mentions.get("Yes", 0) / total) * 100),
+        "indirect_pct": round((mentions.get("Indirect", 0) / total) * 100),
+        "no_pct": round((mentions.get("No", 0) / total) * 100),
     }
 
 
@@ -190,10 +190,10 @@ def calculate_positioning_metrics(responses: List[Any], queries: List[Any]) -> D
         "featured": featured_count,
         "listed": positions.get("Listed", 0),
         "not_mentioned": positions.get("Not Mentioned", 0),
-        "leader_pct": round((positions.get("Leader", 0) / total) * 100, 1),
-        "featured_pct": round((featured_count / total) * 100, 1),
-        "listed_pct": round((positions.get("Listed", 0) / total) * 100, 1),
-        "not_mentioned_pct": round((positions.get("Not Mentioned", 0) / total) * 100, 1),
+        "leader_pct": round((positions.get("Leader", 0) / total) * 100),
+        "featured_pct": round((featured_count / total) * 100),
+        "listed_pct": round((positions.get("Listed", 0) / total) * 100),
+        "not_mentioned_pct": round((positions.get("Not Mentioned", 0) / total) * 100),
     }
 
 
@@ -279,12 +279,12 @@ def calculate_sentiment_metrics(responses: List[Any]) -> Dict[str, Any]:
         "negative": sentiments.get("Negative", 0),
         "mixed": sentiments.get("Mixed", 0),
         "very_negative": sentiments.get("Very Negative", 0),
-        "very_positive_pct": round((sentiments.get("Very Positive", 0) / total) * 100, 1),
-        "positive_pct": round((sentiments.get("Positive", 0) / total) * 100, 1),
-        "neutral_pct": round((sentiments.get("Neutral", 0) / total) * 100, 1),
-        "negative_pct": round((sentiments.get("Negative", 0) / total) * 100, 1),
-        "mixed_pct": round((sentiments.get("Mixed", 0) / total) * 100, 1),
-        "very_negative_pct": round((sentiments.get("Very Negative", 0) / total) * 100, 1),
+        "very_positive_pct": round((sentiments.get("Very Positive", 0) / total) * 100),
+        "positive_pct": round((sentiments.get("Positive", 0) / total) * 100),
+        "neutral_pct": round((sentiments.get("Neutral", 0) / total) * 100),
+        "negative_pct": round((sentiments.get("Negative", 0) / total) * 100),
+        "mixed_pct": round((sentiments.get("Mixed", 0) / total) * 100),
+        "very_negative_pct": round((sentiments.get("Very Negative", 0) / total) * 100),
     }
 
 
@@ -306,7 +306,7 @@ def calculate_positive_sentiment_rate(responses: List[Any]) -> float:
         return 0.0
 
     positive_count = sum(1 for r in brand_responses if r.sentiment in ["Positive", "Very Positive"])
-    return round((positive_count / len(brand_responses)) * 100, 1)
+    return round((positive_count / len(brand_responses)) * 100)
 
 
 def calculate_platform_metrics(responses: List[Any], queries: List[Any]) -> Dict[str, Dict[str, Any]]:
@@ -404,7 +404,7 @@ def calculate_descriptor_match_rate(responses: List[Any], descriptors: List[Any]
                     found_target_descriptors.add(desc)
 
     # Calculate percentage of target descriptors found
-    return round((len(found_target_descriptors) / len(target_descriptors_set)) * 100, 1)
+    return round((len(found_target_descriptors) / len(target_descriptors_set)) * 100)
 
 
 def analyze_competitors(responses: List[Any]) -> Dict[str, int]:
@@ -432,6 +432,48 @@ def analyze_competitors(responses: List[Any]) -> Dict[str, int]:
                 competitor_counts[normalized_name] += 1
 
     return dict(competitor_counts)
+
+
+def calculate_leadership_visibility(responses: List[Any], queries: List[Any]) -> float:
+    """
+    Calculate leadership visibility percentage.
+
+    Leadership visibility = (Leader + Featured positions) / total_responses * 100
+
+    FILTERS APPLIED:
+    - Excludes responses from queries where brand_in_query=True
+    - Counts all responses (not just brand mentions) as denominator
+
+    Note: Since we combined "Top 3" into "Featured", we now count Leader + Featured.
+    The old calculation used Leader + Top 3, which is equivalent.
+
+    Args:
+        responses: List of Response objects
+        queries: List of Query objects
+
+    Returns:
+        Leadership visibility percentage (0-100)
+    """
+    # Build set of query_ids where brand_in_query=True to exclude
+    branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+    # Filter responses: exclude branded queries
+    filtered_responses = [
+        r for r in responses
+        if r.query_id not in branded_query_ids
+    ]
+
+    total = len(filtered_responses)
+    if total == 0:
+        return 0.0
+
+    # Count Leader and Featured positions (Featured now includes old "Top 3")
+    leadership_count = sum(
+        1 for r in filtered_responses
+        if r.brand_position in ['Leader', 'Top 3', 'Featured']
+    )
+
+    return round((leadership_count / total) * 100)
 
 
 def calculate_share_of_voice(
@@ -488,12 +530,12 @@ def calculate_share_of_voice(
                 total_mentions += 1
 
     # Calculate brand share of voice
-    brand_sov = round((brand_mentions / total_mentions) * 100, 1) if total_mentions > 0 else 0.0
+    brand_sov = round((brand_mentions / total_mentions) * 100) if total_mentions > 0 else 0.0
 
     # Build competitor SOV data (top 5 by default for compatibility)
     competitor_sov = {}
     for comp_name, count in competitor_mentions.most_common(5):
-        sov = round((count / total_mentions) * 100, 1) if total_mentions > 0 else 0.0
+        sov = round((count / total_mentions) * 100) if total_mentions > 0 else 0.0
         competitor_sov[comp_name] = {"count": count, "sov": sov}
 
     return {

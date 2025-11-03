@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional, Tuple
 import datetime
 from datetime import timedelta
 from .. import models
+from . import metrics
 
 
 class AnalyticsCache:
@@ -282,8 +283,20 @@ class AnalyticsCache:
             leader_count = org_leader_counts.get(org, 0)
             top3_count = org_top3_counts.get(org, 0)
 
-            # Leadership visibility = (Leader + Top 3) / total mentions for that org * 100
-            leadership_visibility = ((leader_count + top3_count) / count * 100) if count > 0 else 0.0
+            # Leadership visibility: only calculate for brand using centralized function
+            if is_brand:
+                # Get all responses and queries for centralized calculation
+                all_responses_obj = self._apply_filters(
+                    self.db.query(models.Response),
+                    include_brand_in_query=True
+                ).all()
+                all_queries_obj = self.db.query(models.Query).filter(
+                    models.Query.brand_id == self.brand_id
+                ).all()
+                leadership_visibility = metrics.calculate_leadership_visibility(all_responses_obj, all_queries_obj)
+            else:
+                # Not tracked for competitors
+                leadership_visibility = 0.0
 
             sov_list.append({
                 'organization': org,
@@ -291,7 +304,7 @@ class AnalyticsCache:
                 'total_mentions': count,  # Alias for frontend compatibility
                 'percentage': (count / total_mentions * 100) if total_mentions > 0 else 0.0,
                 'share_of_voice': (count / total_mentions * 100) if total_mentions > 0 else 0.0,  # Alias
-                'leadership_visibility': round(leadership_visibility, 2),
+                'leadership_visibility': leadership_visibility,
                 'leader_count': leader_count,
                 'top3_count': top3_count,
                 'is_brand': is_brand

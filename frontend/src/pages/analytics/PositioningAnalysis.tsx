@@ -85,7 +85,7 @@ export default function PositioningAnalysis() {
     ? positionOrder.map(({ key, label, color }) => ({
         position: label,
         count: (data[key] as number) || 0,
-        percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0',
+        percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(0) : '0',
         fill: color
       }))  // Show all positions, even if count is 0
     : [];
@@ -99,7 +99,7 @@ export default function PositioningAnalysis() {
       {/* Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
         <Typography variant="body1">
-          <strong>Brand positioning</strong> evaluates where your brand appears within AI-generated responses. TALES categorizes each mention into five tiers: Leader (primary recommendation), Top 3 (among leading options), Featured (notable mention), Listed (included but not emphasized), or Not Mentioned. This hierarchy reveals how AI systems prioritize your brand relative to alternatives when answering user queries.
+          <strong>Brand positioning</strong> evaluates where your brand appears within AI-generated responses. TALES categorizes each mention into four tiers: Leader (primary recommendation), Featured (prominent attention or top recommendation), Listed (included but not emphasized), or Not Mentioned. This hierarchy reveals how AI systems prioritize your brand relative to alternatives when answering user queries.
         </Typography>
       </Paper>
 

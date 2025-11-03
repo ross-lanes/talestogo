@@ -59,7 +59,7 @@ export default function StrategicPriorities() {
   if (mentionRate < 50) {
     priorities.push({
       title: 'Increase Brand Visibility',
-      description: `Your brand is only mentioned in ${mentionRate.toFixed(1)}% of AI responses. Focus on increasing your digital footprint and thought leadership to improve visibility.`,
+      description: `Your brand is only mentioned in ${mentionRate.toFixed(0)}% of AI responses. Focus on increasing your digital footprint and thought leadership to improve visibility.`,
       icon: TrendingUp,
       color: '#f44336',
       priority: 'High',
@@ -98,7 +98,7 @@ export default function StrategicPriorities() {
   if (leaderPercentage < 30) {
     priorities.push({
       title: 'Strengthen Market Leadership Position',
-      description: `You're only positioned as a leader in ${leaderPercentage.toFixed(1)}% of mentions. Work on establishing stronger thought leadership.`,
+      description: `You're only positioned as a leader in ${leaderPercentage.toFixed(0)}% of mentions. Work on establishing stronger thought leadership.`,
       icon: Security,
       color: '#2196f3',
       priority: 'Medium',
@@ -117,7 +117,7 @@ export default function StrategicPriorities() {
   if (brandSov < 40) {
     priorities.push({
       title: 'Increase Share of Voice',
-      description: `Your share of voice is ${brandSov.toFixed(1)}%. Competitors are dominating the conversation. Increase your presence in key channels.`,
+      description: `Your share of voice is ${brandSov.toFixed(0)}%. Competitors are dominating the conversation. Increase your presence in key channels.`,
       icon: Campaign,
       color: '#9c27b0',
       priority: 'High',

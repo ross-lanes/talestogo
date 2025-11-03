@@ -111,7 +111,7 @@ export default function SentimentAnalysis() {
         .map(([key, label]) => ({
           name: label,
           value: (data[key] as number) || 0,
-          percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0'
+          percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(0) : '0'
         }))
         .filter(item => item.value > 0)  // Only show sentiments with data in chart
     : [];
@@ -122,7 +122,7 @@ export default function SentimentAnalysis() {
         name: label,
         key: key,
         value: (data[key] as number) || 0,
-        percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(1) : '0',
+        percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(0) : '0',
         insight: data.sentiment_insights?.[key] || 'No insight available.'
       }))
     : [];
