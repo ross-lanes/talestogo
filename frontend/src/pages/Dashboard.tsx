@@ -518,19 +518,20 @@ export default function Dashboard() {
                 }
                 return (
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={[
-                  { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                  { position: 'Top 3', fullName: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
-                  { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
-                  { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                  { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
-                ]}>
+                <BarChart
+                  data={[
+                    { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
+                    { position: 'Top 3', fullName: 'Top 3', count: positioningData.top_3 || 0, fill: '#44809C' },
+                    { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
+                    { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
+                    { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
+                  ]}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="position" angle={0} textAnchor="middle" height={40} />
-                  <YAxis
-                    domain={[0, roundedMax]}
-                    allowDecimals={false}
-                  />
+                  <XAxis type="number" domain={[0, roundedMax]} allowDecimals={false} />
+                  <YAxis type="category" dataKey="position" width={100} />
                   <Tooltip
                     formatter={(value: number, name: string, props: any) => [
                       value,
@@ -547,7 +548,7 @@ export default function Dashboard() {
                     ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
-                    <LabelList dataKey="count" position="top" />
+                    <LabelList dataKey="count" position="right" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
