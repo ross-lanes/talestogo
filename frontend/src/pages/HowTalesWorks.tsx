@@ -79,7 +79,7 @@ export default function HowTalesWorks() {
           Analytical Framework
         </Typography>
         <Typography variant="body1" paragraph>
-          The collected responses undergo a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Perplexity's Sonar model analyzes each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, top 3, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources.
+          The collected responses undergo a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Perplexity's Sonar model analyzes each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources.
         </Typography>
         <Typography variant="body1" paragraph>
           This extraction process is context-aware, incorporating your brand's industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Perplexity's Sonar Pro model synthesizes these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
@@ -188,37 +188,38 @@ export default function HowTalesWorks() {
                 <TableRow>
                   <TableCell sx={{ fontWeight: 600 }}>Position Category</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Point Value</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Definition</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 <TableRow>
                   <TableCell>Leader</TableCell>
-                  <TableCell>5 points</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Top 3</TableCell>
                   <TableCell>4 points</TableCell>
+                  <TableCell>Your brand is presented as the top choice or industry leader</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Featured</TableCell>
                   <TableCell>3 points</TableCell>
+                  <TableCell>Your brand receives prominent attention in the response, either through detailed discussion or being highlighted as a top recommendation</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Listed</TableCell>
                   <TableCell>2 points</TableCell>
+                  <TableCell>Your brand is mentioned in a list with competitors</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Not Mentioned</TableCell>
                   <TableCell>1 point</TableCell>
+                  <TableCell>Your brand was not mentioned in the response</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </TableContainer>
           <Typography variant="body2" paragraph>
-            Each response receives a score (1-5) based on how your brand was positioned. The scores are summed across all qualifying responses and divided by total response count to produce an average (range: 1.0 to 5.0). Responses from queries where brand_in_query = True are excluded.
+            Each response receives a score (1-4) based on how your brand was positioned. The scores are summed across all qualifying responses and divided by total response count to produce an average (range: 1.0 to 4.0). Responses from queries where brand_in_query = True are excluded.
           </Typography>
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mt: 2, fontFamily: 'monospace' }}>
-            Leadership Visibility (%) = ((Leader Count + Top 3 Count) / Total Responses) × 100
+            Leadership Visibility (%) = ((Leader Count + Featured Count) / Total Responses) × 100
           </Box>
           <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
             This metric specifically measures high-quality visibility by combining the top two positioning categories.
@@ -249,7 +250,7 @@ export default function HowTalesWorks() {
               <TableBody>
                 <TableRow>
                   <TableCell>Brand Mentions (Numerator)</TableCell>
-                  <TableCell>Count of responses where your brand achieved positioning of 'Leader', 'Top 3', 'Featured', or 'Listed'</TableCell>
+                  <TableCell>Count of responses where your brand achieved positioning of 'Leader', 'Featured', or 'Listed'</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Total Mentions (Denominator)</TableCell>
