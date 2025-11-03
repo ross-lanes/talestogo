@@ -16,7 +16,6 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Ba
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
-import { competitorsInclude } from '../utils/organizationNormalizer';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -159,11 +158,11 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch responses for threat calculation
-  const { data: responses } = useQuery({
-    queryKey: ['responses-dashboard'],
+  // Fetch competitor threats (calculated server-side)
+  const { data: competitorThreats } = useQuery({
+    queryKey: ['competitor-threats-dashboard'],
     queryFn: async () => {
-      const response = await api.get('/responses/');
+      const response = await api.get('/analytics/competitor-threats');
       return response.data;
     },
   });
@@ -276,34 +275,10 @@ export default function Dashboard() {
     );
   };
 
-  // Calculate competitor threats
-  const competitors = Array.isArray(shareOfVoice) ? shareOfVoice.filter((item: any) => !item.is_brand) : [];
-  const competitorThreats = competitors.map((comp: any) => {
-    const competitiveResponses = Array.isArray(responses) ? responses.filter((r: any) =>
-      r.competitors && competitorsInclude(r.competitors, comp.organization)
-    ) : [];
-
-    const negativeWhenCompetitorPresent = competitiveResponses.filter((r: any) =>
-      r.sentiment === 'Negative' || r.sentiment === 'Very Negative'
-    ).length;
-
-    const positiveCompetitor = competitiveResponses.filter((r: any) =>
-      r.sentiment === 'Positive' || r.sentiment === 'Very Positive'
-    ).length;
-
-    const threatScore = (comp.total_mentions || 0) * 0.7 +
-                        negativeWhenCompetitorPresent * 2 +
-                        positiveCompetitor * 1.5;
-
-    return {
-      name: comp.organization,
-      threatScore: Math.round(threatScore),
-      threatLevel: threatScore > 50 ? 'High' : threatScore > 20 ? 'Medium' : 'Low'
-    };
-  });
-
-  const highThreatCount = competitorThreats.filter(c => c.threatLevel === 'High').length;
-  const mediumThreatCount = competitorThreats.filter(c => c.threatLevel === 'Medium').length;
+  // Use competitor threats from API (already calculated server-side)
+  const threats = competitorThreats || [];
+  const highThreatCount = threats.filter((c: any) => c.threat_level === 'High').length;
+  const mediumThreatCount = threats.filter((c: any) => c.threat_level === 'Medium').length;
 
   return (
     <Box>

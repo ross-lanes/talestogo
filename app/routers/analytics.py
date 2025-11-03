@@ -11,6 +11,7 @@ from .. import analytics, crud, models
 from ..auth import get_current_user
 from ..database import get_db
 from ..services.analytics_cache import AnalyticsCache
+from ..services.metrics import calculate_share_of_voice, calculate_competitor_threats
 
 
 def get_active_brand_id(
@@ -201,3 +202,63 @@ def get_recommendations(
         "report_id": latest_report.id,
         "total_responses": latest_report.total_responses
     }
+
+
+@router.get("/competitor-threats", response_model=List[Dict[str, Any]])
+def get_competitor_threats_analysis(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get competitor threat analysis with threat scores.
+
+    Returns a list of competitors sorted by threat level (highest first).
+    Each competitor includes:
+    - mention_count: Number of times mentioned
+    - share_of_voice: Percentage of total mentions
+    - negative_overlap: Times competitor mentioned with negative brand sentiment
+    - positive_competitor: Times competitor mentioned with positive sentiment
+    - threat_score: Calculated threat score
+    - threat_level: High/Medium/Low threat classification
+    """
+    # Fetch all responses for the user/brand
+    query = db.query(models.Response).filter(models.Response.user_id == current_user.id)
+    if brand_id:
+        query = query.filter(models.Response.brand_id == brand_id)
+
+    responses = query.all()
+
+    # Fetch all queries for the user/brand (needed for filtering)
+    queries_query = db.query(models.Query).filter(models.Query.user_id == current_user.id)
+    if brand_id:
+        queries_query = queries_query.filter(models.Query.brand_id == brand_id)
+
+    queries = queries_query.all()
+
+    # Fetch competitors list
+    competitors_query = db.query(models.Competitor).filter(models.Competitor.user_id == current_user.id)
+    if brand_id:
+        competitors_query = competitors_query.filter(models.Competitor.brand_id == brand_id)
+
+    competitors = competitors_query.all()
+
+    # Get brand name
+    brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == current_user.id)
+    if brand_id:
+        brand_query = brand_query.filter(models.BrandInfo.id == brand_id)
+
+    brand = brand_query.first()
+    brand_name = brand.brand_name if brand else "Your Brand"
+
+    # Use metrics module to calculate share of voice
+    sov_data = calculate_share_of_voice(responses, queries, competitors, brand_name)
+
+    # Use metrics module to calculate competitor threats
+    competitor_threats = calculate_competitor_threats(
+        sov_data['competitor_sov'],
+        responses,
+        brand_name
+    )
+
+    return competitor_threats

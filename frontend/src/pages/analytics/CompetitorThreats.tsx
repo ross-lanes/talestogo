@@ -10,23 +10,23 @@ import { competitorsInclude } from '../../utils/organizationNormalizer';
 export default function CompetitorThreats() {
   const tableRef = useRef<HTMLDivElement>(null);
 
-  const { data: shareOfVoice, isLoading: loadingSov } = useQuery({
-    queryKey: ['share-of-voice-threats'],
+  // Fetch competitor threats from API (includes all calculations)
+  const { data: competitorThreats, isLoading } = useQuery({
+    queryKey: ['competitor-threats'],
     queryFn: async () => {
-      const response = await api.get('/analytics/share-of-voice');
+      const response = await api.get('/analytics/competitor-threats');
       return response.data;
     },
   });
 
-  const { data: responses, isLoading: loadingResponses } = useQuery({
+  // Fetch responses for descriptor display only
+  const { data: responses } = useQuery({
     queryKey: ['responses-threats'],
     queryFn: async () => {
       const response = await api.get('/responses/');
       return response.data;
     },
   });
-
-  const isLoading = loadingSov || loadingResponses;
 
   if (isLoading) {
     return (
@@ -36,43 +36,10 @@ export default function CompetitorThreats() {
     );
   }
 
-  // Analyze competitor threats
-  const brandName = shareOfVoice?.find((item: any) => item.is_brand)?.organization || 'Your Brand';
-  const competitors = Array.isArray(shareOfVoice) ? shareOfVoice.filter((item: any) => !item.is_brand) : [];
+  // Use threat data from API (already sorted by threat score)
+  const threats = competitorThreats || [];
 
-  // Calculate threat scores based on mention count and sentiment
-  const competitorThreats = competitors.map((comp: any) => {
-    // Count negative mentions about our brand when competitor is mentioned
-    const competitiveResponses = Array.isArray(responses) ? responses.filter((r: any) =>
-      r.competitors && competitorsInclude(r.competitors, comp.organization)
-    ) : [];
-
-    const negativeWhenCompetitorPresent = competitiveResponses.filter((r: any) =>
-      r.sentiment === 'Negative' || r.sentiment === 'Very Negative'
-    ).length;
-
-    const positiveCompetitor = competitiveResponses.filter((r: any) =>
-      r.sentiment === 'Positive' || r.sentiment === 'Very Positive'
-    ).length;
-
-    // Threat score: higher mention count + negative sentiment for us = higher threat
-    const threatScore = (comp.total_mentions || 0) * 0.7 +
-                        negativeWhenCompetitorPresent * 2 +
-                        positiveCompetitor * 1.5;
-
-    return {
-      name: comp.organization,
-      mention_count: comp.total_mentions || 0,
-      share_of_voice: comp.share_of_voice || 0,
-      competitive_responses: competitiveResponses.length,
-      negative_overlap: negativeWhenCompetitorPresent,
-      positive_competitor: positiveCompetitor,
-      threatScore: Math.round(threatScore),
-      threatLevel: threatScore > 50 ? 'High' : threatScore > 20 ? 'Medium' : 'Low'
-    };
-  }).sort((a, b) => b.threatScore - a.threatScore);
-
-  const chartData = competitorThreats.slice(0, 10);
+  const chartData = threats.slice(0, 10);
 
   const getThreatColor = (level: string) => {
     switch(level) {
@@ -84,14 +51,14 @@ export default function CompetitorThreats() {
   };
 
   const handleDownloadCSV = () => {
-    if (!competitorThreats || competitorThreats.length === 0) return;
+    if (!threats || threats.length === 0) return;
 
     const csvHeaders = ['Rank', 'Competitor', 'Threat Level', 'Threat Score', 'Mentions', 'Share of Voice'];
-    const csvRows = competitorThreats.map((comp: any, index: number) => [
+    const csvRows = threats.map((comp: any, index: number) => [
       index + 1,
       `"${comp.name.replace(/"/g, '""')}"`,
-      comp.threatLevel,
-      comp.threatScore,
+      comp.threat_level,
+      comp.threat_score,
       comp.mention_count,
       `${comp.share_of_voice.toFixed(1)}%`
     ]);
@@ -182,21 +149,21 @@ export default function CompetitorThreats() {
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3, mb: 4 }}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#75C9C8' }}>
-            {competitorThreats.filter(c => c.threatLevel === 'High').length}
+            {threats.filter(c => c.threat_level === 'High').length}
           </Typography>
           <Typography variant="body1">High Threat Competitors</Typography>
           <Typography variant="caption" color="text.secondary">Require immediate attention</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#80A1D4' }}>
-            {competitorThreats.filter(c => c.threatLevel === 'Medium').length}
+            {threats.filter(c => c.threat_level === 'Medium').length}
           </Typography>
           <Typography variant="body1">Medium Threat</Typography>
           <Typography variant="caption" color="text.secondary">Monitor closely</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#665775' }}>
-            {competitorThreats.filter(c => c.threatLevel === 'Low').length}
+            {threats.filter(c => c.threat_level === 'Low').length}
           </Typography>
           <Typography variant="body1">Low Threat</Typography>
           <Typography variant="caption" color="text.secondary">Minimal competition</Typography>
@@ -215,7 +182,7 @@ export default function CompetitorThreats() {
               startIcon={<DownloadIcon />}
               onClick={handleDownloadCSV}
               size="small"
-              disabled={competitorThreats.length === 0}
+              disabled={threats.length === 0}
             >
               Download as CSV
             </Button>
@@ -224,13 +191,13 @@ export default function CompetitorThreats() {
               startIcon={<ImageIcon />}
               onClick={handleDownloadTop5Image}
               size="small"
-              disabled={competitorThreats.length === 0}
+              disabled={threats.length === 0}
             >
               Download Top 5 as Image
             </Button>
           </Box>
         </Box>
-        {competitorThreats.length > 0 ? (
+        {threats.length > 0 ? (
           <TableContainer ref={tableRef}>
             <Table>
               <TableHead>
@@ -245,7 +212,7 @@ export default function CompetitorThreats() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {competitorThreats.map((comp, index) => {
+                {threats.map((comp, index) => {
                   // Extract descriptors for this competitor
                   const compResponses = Array.isArray(responses) ? responses.filter((r: any) =>
                     r.competitors && competitorsInclude(r.competitors, comp.name)
@@ -281,16 +248,16 @@ export default function CompetitorThreats() {
                         <Typography
                           variant="body2"
                           sx={{
-                            color: getThreatColor(comp.threatLevel),
+                            color: getThreatColor(comp.threat_level),
                             fontWeight: 'bold'
                           }}
                         >
-                          {comp.threatLevel}
+                          {comp.threat_level}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
                         <Typography variant="body2" fontWeight="bold">
-                          {comp.threatScore}
+                          {comp.threat_score}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">{comp.mention_count}</TableCell>
