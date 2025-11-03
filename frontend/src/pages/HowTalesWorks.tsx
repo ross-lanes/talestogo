@@ -221,8 +221,11 @@ export default function HowTalesWorks() {
           <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mt: 2, fontFamily: 'monospace' }}>
             Leadership Visibility (%) = ((Leader Count + Featured Count) / Total Responses) × 100
           </Box>
-          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-            This metric specifically measures high-quality visibility by combining the top two positioning categories.
+          <Typography variant="body2" paragraph sx={{ mt: 2, color: 'text.secondary' }}>
+            Leadership Visibility is calculated by counting responses where your brand achieved either Leader or Featured positioning (the top two tiers), divided by total responses, excluding queries where your brand name was explicitly mentioned. This metric measures high-quality visibility—how often AI platforms actively recommend or prominently feature your brand, not just mention it. Unlike basic mention rate which only measures presence, Leadership Visibility captures strategic positioning strength. All responses (including those where your brand was not mentioned) are counted in the denominator, making this a strict measure of premium positioning.
+          </Typography>
+          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+            <strong>Example:</strong> If you have 85 total responses from non-branded queries, with 8 Leader positions and 16 Featured positions, your Leadership Visibility would be (8 + 16) / 85 × 100 = 28.2%. This means that in approximately 28% of AI responses, your brand receives top-tier positioning as a market leader or featured solution.
           </Typography>
         </Box>
 
