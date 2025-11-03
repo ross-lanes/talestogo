@@ -252,13 +252,13 @@ class AnalyticsCache:
         # Count mentions per organization AND track positioning
         org_counts: Dict[str, int] = {brand_name: len(responses_with_mentions)}
         org_leader_counts: Dict[str, int] = {}
-        org_top3_counts: Dict[str, int] = {}
+        org_featured_counts: Dict[str, int] = {}
 
-        # Count brand's leadership positions
+        # Count brand's leadership positions (Featured includes both Featured and Top 3)
         brand_leader = sum(1 for r in responses_with_mentions if r.brand_position == 'Leader')
-        brand_top3 = sum(1 for r in responses_with_mentions if r.brand_position == 'Top 3')
+        brand_featured = sum(1 for r in responses_with_mentions if r.brand_position in ['Featured', 'Top 3'])
         org_leader_counts[brand_name] = brand_leader
-        org_top3_counts[brand_name] = brand_top3
+        org_featured_counts[brand_name] = brand_featured
 
         # Parse competitors from responses
         for response in responses_with_mentions:
@@ -271,7 +271,7 @@ class AnalyticsCache:
                         # They're just mentioned, not positioned
                         if competitor not in org_leader_counts:
                             org_leader_counts[competitor] = 0
-                            org_top3_counts[competitor] = 0
+                            org_featured_counts[competitor] = 0
 
         # Calculate total mentions (brand + competitors)
         total_mentions = sum(org_counts.values())
@@ -281,7 +281,7 @@ class AnalyticsCache:
         for org, count in org_counts.items():
             is_brand = (org == brand_name)
             leader_count = org_leader_counts.get(org, 0)
-            top3_count = org_top3_counts.get(org, 0)
+            featured_count = org_featured_counts.get(org, 0)
 
             # Leadership visibility: only calculate for brand using centralized function
             if is_brand:
@@ -306,7 +306,7 @@ class AnalyticsCache:
                 'share_of_voice': (count / total_mentions * 100) if total_mentions > 0 else 0.0,  # Alias
                 'leadership_visibility': leadership_visibility,
                 'leader_count': leader_count,
-                'top3_count': top3_count,
+                'featured_count': featured_count,
                 'is_brand': is_brand
             })
 

@@ -48,7 +48,7 @@ export default function ShareOfVoice() {
         share_of_voice: item.share_of_voice,
         leadership_visibility: item.leadership_visibility,
         leader_count: item.leader_count,
-        top3_count: item.top3_count,
+        featured_count: item.featured_count,
         is_brand: item.is_brand || false
       }))
     : [];
@@ -158,7 +158,7 @@ export default function ShareOfVoice() {
           <strong>Share of Voice</strong> measures the percentage of all brand mentions that reference your brand. This is a simple count showing how often your brand appears compared to all competitors.
         </Typography>
         <Typography variant="body1">
-          <strong>Leadership Visibility</strong> measures how often your brand appears in premium positions (Leader or Top 3) within AI responses. This quality-weighted metric shows your brand's strength in competitive positioning, not just presence.
+          <strong>Leadership Visibility</strong> measures how often your brand appears in premium positions (Leader or Featured) within AI responses. This quality-weighted metric shows your brand's strength in competitive positioning, not just presence.
         </Typography>
       </Paper>
 
@@ -188,10 +188,10 @@ export default function ShareOfVoice() {
               Leadership Visibility
             </Typography>
             <Typography variant="body2">
-              Leader or Top 3 positioning
+              Leader or Featured positioning
             </Typography>
             <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-              {brandData.leader_count} Leader + {brandData.top3_count} Top 3
+              {brandData.leader_count} Leader + {brandData.featured_count} Featured
             </Typography>
           </Paper>
         </Box>

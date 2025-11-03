@@ -264,7 +264,8 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
         func.count(models.Response.id).label('total'),
         func.sum(
             case(
-                (models.Response.brand_mentioned.in_(['Yes', 'Indirect']), 1),
+                (models.Response.brand_mentioned == 'Yes', 1),
+                (models.Response.brand_mentioned == 'Indirect', 1),
                 else_=0
             )
         ).label('mentions')
