@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { CalendarMonth } from '@mui/icons-material';
+import { useBrand } from '../contexts/BrandContext';
 
 interface CollectionBatch {
   id: number;
@@ -38,12 +39,16 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
   showAllOption = true,
   label = 'Collection Batch',
 }) => {
+  const { activeBrand } = useBrand();
+
   const { data: batches, isLoading, error } = useQuery<CollectionBatch[]>({
-    queryKey: ['collection-batches'],
+    queryKey: ['collection-batches', activeBrand?.id],
     queryFn: async () => {
-      const response = await api.get('/batches/');
+      const params = activeBrand?.id ? { brand_id: activeBrand.id } : {};
+      const response = await api.get('/batches/', { params });
       return response.data;
     },
+    enabled: !!activeBrand, // Only fetch when there's an active brand
   });
 
   const formatDate = (dateString: string) => {
