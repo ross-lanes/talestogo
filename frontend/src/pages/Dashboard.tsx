@@ -28,7 +28,6 @@ interface DashboardMetrics {
   change_sentiment: number;
   change_descriptor: number;
   leading_position: string;
-  leadership_visibility?: number;
 }
 
 interface TaskStatus {
@@ -419,7 +418,12 @@ export default function Dashboard() {
                     {metrics.leading_position}
                   </Typography>
                   <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
-                    {Math.round(metrics.leadership_visibility ?? 0)}% Leadership Visibility
+                    {(() => {
+                      const brandData = Array.isArray(shareOfVoice)
+                        ? shareOfVoice.find((item: any) => item.is_brand)
+                        : null;
+                      return `${Math.round(brandData?.leadership_visibility ?? 0)}% Leadership Visibility`;
+                    })()}
                   </Typography>
                 </Box>
                 <VisibilityIcon sx={{ fontSize: 48, color: '#665775' }} />
