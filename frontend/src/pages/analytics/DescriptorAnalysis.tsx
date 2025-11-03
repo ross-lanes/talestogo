@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import BatchSelector from '../../components/BatchSelector';
 
 export default function DescriptorAnalysis() {
   const tableRef = useRef<HTMLDivElement>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data: descriptors, isLoading, error } = useQuery({
     queryKey: ['descriptors'],
@@ -18,9 +20,10 @@ export default function DescriptorAnalysis() {
   });
 
   const { data: responses } = useQuery({
-    queryKey: ['responses'],
+    queryKey: ['responses', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/responses/');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/responses/', { params });
       return response.data;
     },
   });
@@ -194,9 +197,19 @@ export default function DescriptorAnalysis() {
 
   return (
     <Box>
-      <Typography variant="h2" component="h1" gutterBottom>
-        Descriptor Analysis
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h2" component="h1">
+          Descriptor Analysis
+        </Typography>
+        <Box sx={{ minWidth: 300 }}>
+          <BatchSelector
+            selectedBatchId={selectedBatchId}
+            onBatchChange={setSelectedBatchId}
+            showAllOption={true}
+            label="Filter by Collection"
+          />
+        </Box>
+      </Box>
 
       {/* Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>

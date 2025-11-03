@@ -4,7 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import BatchSelector from '../../components/BatchSelector';
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
@@ -14,11 +15,13 @@ const BRAND_COLORS = [
 
 export default function PositioningAnalysis() {
   const positioningChartRef = useRef<HTMLDivElement>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['positioning-analysis'],
+    queryKey: ['positioning-analysis', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/positioning/breakdown');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/positioning/breakdown', { params });
       return response.data;
     },
   });
@@ -92,9 +95,19 @@ export default function PositioningAnalysis() {
 
   return (
     <Box>
-      <Typography variant="h2" component="h1" gutterBottom>
-        Positioning Analysis
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h2" component="h1">
+          Positioning Analysis
+        </Typography>
+        <Box sx={{ minWidth: 300 }}>
+          <BatchSelector
+            selectedBatchId={selectedBatchId}
+            onBatchChange={setSelectedBatchId}
+            showAllOption={true}
+            label="Filter by Collection"
+          />
+        </Box>
+      </Box>
 
       {/* Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>

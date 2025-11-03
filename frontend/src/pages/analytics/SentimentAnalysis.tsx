@@ -4,7 +4,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import BatchSelector from '../../components/BatchSelector';
 
 const COLORS = {
   'Very Positive': '#116C29',  // Bright highlighter green
@@ -16,11 +17,13 @@ const COLORS = {
 
 export default function SentimentAnalysis() {
   const sentimentChartRef = useRef<HTMLDivElement>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['sentiment-analysis'],
+    queryKey: ['sentiment-analysis', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/sentiment/breakdown');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/sentiment/breakdown', { params });
       return response.data;
     },
   });
@@ -129,9 +132,19 @@ export default function SentimentAnalysis() {
 
   return (
     <Box>
-      <Typography variant="h2" component="h1" gutterBottom>
-        Sentiment Analysis
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h2" component="h1">
+          Sentiment Analysis
+        </Typography>
+        <Box sx={{ minWidth: 300 }}>
+          <BatchSelector
+            selectedBatchId={selectedBatchId}
+            onBatchChange={setSelectedBatchId}
+            showAllOption={true}
+            label="Filter by Collection"
+          />
+        </Box>
+      </Box>
 
       {/* Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>

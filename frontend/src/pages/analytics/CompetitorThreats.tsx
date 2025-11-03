@@ -4,17 +4,20 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { TrendingUp as ThreatIcon, Download as DownloadIcon, Image as ImageIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { competitorsInclude } from '../../utils/organizationNormalizer';
+import BatchSelector from '../../components/BatchSelector';
 
 export default function CompetitorThreats() {
   const tableRef = useRef<HTMLDivElement>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch competitor threats from API (includes all calculations)
   const { data: competitorThreats, isLoading } = useQuery({
-    queryKey: ['competitor-threats'],
+    queryKey: ['competitor-threats', selectedBatchId],
     queryFn: async () => {
-      const response = await api.get('/analytics/competitor-threats');
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/analytics/competitor-threats', { params });
       return response.data;
     },
   });
@@ -131,9 +134,19 @@ export default function CompetitorThreats() {
 
   return (
     <Box>
-      <Typography variant="h2" component="h1" gutterBottom>
-        Competitor Threats
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h2" component="h1">
+          Competitor Threats
+        </Typography>
+        <Box sx={{ minWidth: 300 }}>
+          <BatchSelector
+            selectedBatchId={selectedBatchId}
+            onBatchChange={setSelectedBatchId}
+            showAllOption={true}
+            label="Filter by Collection"
+          />
+        </Box>
+      </Box>
 
       {/* Static Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
