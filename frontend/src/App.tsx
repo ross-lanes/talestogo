@@ -27,6 +27,7 @@ import CompetitorThreats from './pages/analytics/CompetitorThreats';
 import Recommendations from './pages/analytics/Recommendations';
 import HowTalesWorks from './pages/HowTalesWorks';
 import ScheduledTasks from './pages/ScheduledTasks';
+import CollectAndAnalyze from './pages/CollectAndAnalyze';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -179,41 +180,22 @@ function App() {
                     }
                   />
 
-                  {/* Data Route */}
+                  {/* Collect & Analyze Route */}
                   <Route
-                    path="/data"
+                    path="/collect-analyze"
                     element={
                       <ProtectedRoute>
                         <Layout>
-                          <Data />
+                          <CollectAndAnalyze />
                         </Layout>
                       </ProtectedRoute>
                     }
                   />
 
-                  {/* Scheduled Tasks Route */}
-                  <Route
-                    path="/scheduled-tasks"
-                    element={
-                      <ProtectedRoute>
-                        <Layout>
-                          <ScheduledTasks />
-                        </Layout>
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  {/* Data Analysis Route */}
-                  <Route
-                    path="/data-analysis"
-                    element={
-                      <ProtectedRoute>
-                        <Layout>
-                          <DataAnalysis />
-                        </Layout>
-                      </ProtectedRoute>
-                    }
-                  />
+                  {/* Legacy routes - redirect to new consolidated page */}
+                  <Route path="/data" element={<Navigate to="/collect-analyze" replace />} />
+                  <Route path="/scheduled-tasks" element={<Navigate to="/collect-analyze" replace />} />
+                  <Route path="/data-analysis" element={<Navigate to="/collect-analyze" replace />} />
 
                   {/* Settings Route */}
                   <Route
