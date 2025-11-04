@@ -26,6 +26,7 @@ import DescriptorAnalysis from './pages/analytics/DescriptorAnalysis';
 import CompetitorThreats from './pages/analytics/CompetitorThreats';
 import Recommendations from './pages/analytics/Recommendations';
 import HowTalesWorks from './pages/HowTalesWorks';
+import ScheduledTasks from './pages/ScheduledTasks';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -185,6 +186,18 @@ function App() {
                       <ProtectedRoute>
                         <Layout>
                           <Data />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Scheduled Tasks Route */}
+                  <Route
+                    path="/scheduled-tasks"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <ScheduledTasks />
                         </Layout>
                       </ProtectedRoute>
                     }

@@ -39,6 +39,7 @@ import {
   CloudDownload as CollectionIcon,
   MoreVert as MoreVertIcon,
   Info as InfoIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -96,6 +97,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/', indent: false },
     { text: 'Customize', icon: <CustomizeIcon />, path: '/manage', indent: false },
     { text: 'Data Collection', icon: <CollectionIcon />, path: '/data', indent: false },
+    { text: 'Scheduled Tasks', icon: <ScheduleIcon />, path: '/scheduled-tasks', indent: false },
     { text: 'Data Analysis', icon: <AnalyticsIcon />, path: '/data-analysis', indent: false },
     { text: 'Positioning', icon: <TrendingUpIcon />, path: '/analytics/positioning', indent: true },
     { text: 'Share of Voice', icon: <VisibilityIcon />, path: '/analytics/share-of-voice', indent: true },
