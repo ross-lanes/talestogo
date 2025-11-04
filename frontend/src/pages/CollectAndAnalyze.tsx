@@ -28,6 +28,7 @@ import {
   Radio,
   Switch,
   TextField,
+  IconButton,
 } from '@mui/material';
 import {
   CloudDownload as CollectionIcon,
@@ -35,7 +36,10 @@ import {
   Schedule as ScheduleIcon,
   Save as SaveIcon,
   Download as DownloadIcon,
+  Visibility as ViewIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
+import ReactMarkdown from 'react-markdown';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
@@ -81,12 +85,25 @@ interface Response {
   sentiment: string | null;
 }
 
+interface Report {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  report_content: string;
+  total_responses: number;
+  mention_rate?: number;
+  google_doc_url?: string;
+}
+
 export default function CollectAndAnalyze() {
   const { activeBrand } = useBrand();
   const queryClient = useQueryClient();
   const [currentTab, setCurrentTab] = useState(1);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -141,6 +158,15 @@ export default function CollectAndAnalyze() {
       return response.data;
     },
     enabled: !!schedule,
+  });
+
+  // Fetch reports for archive
+  const { data: reports, isLoading: reportsLoading } = useQuery<Report[]>({
+    queryKey: ['reports'],
+    queryFn: async () => {
+      const response = await api.get('/reports/');
+      return response.data;
+    },
   });
 
   // Collection mutation
@@ -254,6 +280,86 @@ export default function CollectAndAnalyze() {
     }
   };
 
+  const formatDate = (isoString: string) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/New_York',
+      timeZoneName: 'short'
+    });
+  };
+
+  const handleViewInBrowser = (report: Report) => {
+    setSelectedReport(report);
+    setViewDialogOpen(true);
+  };
+
+  const handleDownloadWord = async (report: Report) => {
+    try {
+      const response = await api.get(`/reports/${report.id}/export/word`, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setSnackbar({
+        open: true,
+        message: 'Report downloaded as Word document successfully',
+        severity: 'success',
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to download Word document',
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleDownloadHTML = async (report: Report) => {
+    try {
+      const response = await api.get(`/reports/${report.id}/export/html`, {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setSnackbar({
+        open: true,
+        message: 'HTML report with charts downloaded successfully',
+        severity: 'success',
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Failed to download HTML report',
+        severity: 'error',
+      });
+    }
+  };
+
   if (!activeBrand) {
     return (
       <Box>
@@ -284,6 +390,7 @@ export default function CollectAndAnalyze() {
       >
         <Tab label="Manual Run" />
         <Tab label="Automated Schedule" />
+        <Tab label="Report Archive" />
       </Tabs>
 
       {/* Manual Run Tab */}
@@ -519,6 +626,134 @@ export default function CollectAndAnalyze() {
           )}
         </Box>
       )}
+
+      {/* Report Archive Tab */}
+      {currentTab === 2 && (
+        <Paper sx={{ p: 4 }}>
+          <Typography variant="h5" gutterBottom>
+            Report Archive
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            View and download your generated reports.
+          </Typography>
+
+          {reportsLoading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+              <CircularProgress />
+            </Box>
+          ) : reports && reports.length > 0 ? (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Report</strong></TableCell>
+                    <TableCell align="right"><strong>Actions</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {reports.map((report) => (
+                    <TableRow key={report.id} hover>
+                      <TableCell>
+                        <Typography variant="body1" fontWeight={500}>
+                          {report.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Generated: {formatDate(report.created_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box display="flex" gap={1} justifyContent="flex-end">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<ViewIcon />}
+                            onClick={() => handleViewInBrowser(report)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadWord(report)}
+                          >
+                            Word
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadHTML(report)}
+                          >
+                            HTML
+                          </Button>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Alert severity="info">
+              No reports available yet. Run collection and analysis to generate your first report.
+            </Alert>
+          )}
+        </Paper>
+      )}
+
+      {/* View Report Dialog */}
+      <Dialog
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            {selectedReport?.title}
+            <IconButton onClick={() => setViewDialogOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedReport && (
+            <Box sx={{
+              '& h1, & h2, & h3': { mt: 3, mb: 2 },
+              '& p': { mb: 2 },
+              '& ul, & ol': { mb: 2, pl: 3 },
+              '& li': { mb: 1 },
+              '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },
+              '& th, & td': { border: '1px solid #ddd', padding: '8px', textAlign: 'left' },
+              '& th': { backgroundColor: '#f5f5f5' },
+            }}>
+              <ReactMarkdown>{selectedReport.report_content}</ReactMarkdown>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
+          {selectedReport && (
+            <>
+              <Button
+                startIcon={<DownloadIcon />}
+                onClick={() => handleDownloadWord(selectedReport)}
+                variant="outlined"
+              >
+                Download Word
+              </Button>
+              <Button
+                startIcon={<DownloadIcon />}
+                onClick={() => handleDownloadHTML(selectedReport)}
+                variant="outlined"
+              >
+                Download HTML
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {/* Confirmation Dialog */}
       <Dialog
