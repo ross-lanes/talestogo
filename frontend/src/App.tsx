@@ -28,6 +28,7 @@ import Recommendations from './pages/analytics/Recommendations';
 import HowTalesWorks from './pages/HowTalesWorks';
 import ScheduledTasks from './pages/ScheduledTasks';
 import CollectAndAnalyze from './pages/CollectAndAnalyze';
+import Help from './pages/Help';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -216,6 +217,18 @@ function App() {
                       <ProtectedRoute>
                         <Layout>
                           <HowTalesWorks />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Help Route */}
+                  <Route
+                    path="/help"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Help />
                         </Layout>
                       </ProtectedRoute>
                     }

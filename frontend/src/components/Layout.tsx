@@ -40,6 +40,7 @@ import {
   MoreVert as MoreVertIcon,
   Info as InfoIcon,
   Schedule as ScheduleIcon,
+  HelpOutline as HelpIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -89,6 +90,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleHowTalesWorks = () => {
     navigate('/how-tales-works');
+    handleUserMenuClose();
+  };
+
+  const handleHelp = () => {
+    navigate('/help');
     handleUserMenuClose();
   };
 
@@ -293,6 +299,12 @@ export default function Layout({ children }: LayoutProps) {
             <ListItemText>User Management</ListItemText>
           </MenuItem>
         )}
+        <MenuItem onClick={handleHelp}>
+          <ListItemIcon>
+            <HelpIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Help & Support</ListItemText>
+        </MenuItem>
         <MenuItem onClick={handleHowTalesWorks}>
           <ListItemIcon>
             <InfoIcon fontSize="small" />

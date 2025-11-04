@@ -18,7 +18,7 @@ from pathlib import Path
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
-from app.routers import analytics, admin, batches, scheduled_tasks
+from app.routers import analytics, admin, batches, scheduled_tasks, help
 from app.auth import (
     get_current_user,
     get_current_admin_user,
@@ -62,6 +62,7 @@ app.include_router(analytics.router)
 app.include_router(admin.router)
 app.include_router(batches.router)
 app.include_router(scheduled_tasks.router)
+app.include_router(help.router)
 
 # --- Scheduler ---
 from app.scheduler import start_scheduler, stop_scheduler
