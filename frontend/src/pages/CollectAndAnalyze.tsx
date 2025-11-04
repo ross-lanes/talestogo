@@ -84,7 +84,7 @@ interface Response {
 export default function CollectAndAnalyze() {
   const { activeBrand } = useBrand();
   const queryClient = useQueryClient();
-  const [currentTab, setCurrentTab] = useState(0);
+  const [currentTab, setCurrentTab] = useState(1);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [snackbar, setSnackbar] = useState({
