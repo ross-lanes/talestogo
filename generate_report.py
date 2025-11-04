@@ -740,7 +740,11 @@ Write 3-10 sentences analyzing {brand_name}'s sentiment performance. Focus on:
 
 Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
-Do NOT use multiple pound signs or asterisks as decorative elements."""
+Do NOT use multiple pound signs or asterisks as decorative elements.
+Do NOT include any additional sections, headers, tables, or lists of AI statements.
+Do NOT include an appendix section.
+Do NOT list individual AI responses or statements.
+ONLY provide the paragraph analysis - nothing else after your analysis."""
 
     completion = perplexity_client.chat.completions.create(
         model="sonar-pro",
