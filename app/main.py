@@ -18,7 +18,7 @@ from pathlib import Path
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
-from app.routers import analytics, admin, batches
+from app.routers import analytics, admin, batches, scheduled_tasks
 from app.auth import (
     get_current_user,
     get_current_admin_user,
@@ -61,6 +61,20 @@ app.add_middleware(
 app.include_router(analytics.router)
 app.include_router(admin.router)
 app.include_router(batches.router)
+app.include_router(scheduled_tasks.router)
+
+# --- Scheduler ---
+from app.scheduler import start_scheduler, stop_scheduler
+
+@app.on_event("startup")
+async def startup_event():
+    """Start the background scheduler when the app starts"""
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop the background scheduler when the app shuts down"""
+    stop_scheduler()
 
 # --- Dependencies ---
 def get_db():

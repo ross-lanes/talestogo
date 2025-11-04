@@ -239,6 +239,50 @@ class TaskStatus(Base):
     completed_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+class ScheduledTask(Base):
+    __tablename__ = "scheduled_tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    brand_id = Column(Integer, ForeignKey("brand_info.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Schedule configuration
+    schedule_type = Column(String(20), nullable=False)  # 'first_day', 'middle', 'last_day'
+    is_enabled = Column(Boolean, default=True)
+    timezone = Column(String(50), default='UTC')  # User's timezone
+
+    # Execution tracking
+    last_run_at = Column(DateTime, nullable=True)
+    next_run_at = Column(DateTime, nullable=True, index=True)
+    last_batch_id = Column(Integer, ForeignKey("collection_batches.id"), nullable=True)
+
+    # Notification preferences
+    send_email_notification = Column(Boolean, default=True)
+    notification_email = Column(String(255), nullable=True)  # Optional override email
+
+    # Metadata
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+class ScheduledTaskHistory(Base):
+    __tablename__ = "scheduled_task_history"
+    id = Column(Integer, primary_key=True, index=True)
+    scheduled_task_id = Column(Integer, ForeignKey("scheduled_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=False, index=True)
+
+    # Execution details
+    started_at = Column(DateTime, nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False)  # 'success', 'failed', 'partial'
+
+    # Results
+    batch_id = Column(Integer, ForeignKey("collection_batches.id"), nullable=True)
+    collection_responses = Column(Integer, default=0)
+    analysis_responses = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 # --- End of Models ---
 
 # You can create the database file and tables by running this:
