@@ -133,61 +133,85 @@ export default function DescriptorAnalysis() {
   };
 
   const handleDownloadTop10Image = async () => {
-    if (!tableRef.current) return;
+    if (!tableRef.current || !sortedDescriptorsData) return;
 
-    // Temporarily hide all rows except top 10
     const allRows = tableRef.current.querySelectorAll('tbody tr');
-    const rowsToHide: HTMLElement[] = [];
+    const totalRows = allRows.length;
+    const rowsPerImage = 10;
+    const numImages = Math.ceil(totalRows / rowsPerImage);
+
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    // Store original padding
+    const allCells = tableRef.current.querySelectorAll('td, th');
     const originalPadding: string[] = [];
 
-    // Store original padding and reduce it for all cells
-    const allCells = tableRef.current.querySelectorAll('td, th');
     allCells.forEach((cell) => {
       const htmlCell = cell as HTMLElement;
       originalPadding.push(htmlCell.style.padding);
       htmlCell.style.padding = '4px 8px'; // Reduced padding for slides
     });
 
-    allRows.forEach((row, index) => {
-      if (index >= 10) {
-        rowsToHide.push(row as HTMLElement);
-        (row as HTMLElement).style.display = 'none';
-      }
-    });
-
     try {
-      const canvas = await html2canvas(tableRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-      });
+      // Generate an image for each group of 10 descriptors
+      for (let imageIndex = 0; imageIndex < numImages; imageIndex++) {
+        const startRow = imageIndex * rowsPerImage;
+        const endRow = Math.min(startRow + rowsPerImage, totalRows);
 
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          const today = new Date();
-          const month = String(today.getMonth() + 1).padStart(2, '0');
-          const day = String(today.getDate()).padStart(2, '0');
-          const year = today.getFullYear();
-          const dateStr = `${month}_${day}_${year}`;
+        // Hide all rows except the current group
+        allRows.forEach((row, index) => {
+          const htmlRow = row as HTMLElement;
+          if (index < startRow || index >= endRow) {
+            htmlRow.style.display = 'none';
+          } else {
+            htmlRow.style.display = '';
+          }
+        });
 
-          link.download = `Top10_TargetDescriptors_${dateStr}.png`;
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
+        // Capture the table
+        const canvas = await html2canvas(tableRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+        });
+
+        // Download the image
+        await new Promise<void>((resolve) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              const groupNumber = imageIndex + 1;
+              const rangeStart = startRow + 1;
+              const rangeEnd = endRow;
+
+              link.download = `TargetDescriptors_${rangeStart}-${rangeEnd}_${dateStr}.png`;
+              link.href = url;
+              link.click();
+              URL.revokeObjectURL(url);
+            }
+            resolve();
+          });
+        });
+
+        // Small delay between downloads to avoid browser blocking
+        if (imageIndex < numImages - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
-      });
+      }
     } finally {
-      // Restore hidden rows
-      rowsToHide.forEach(row => {
-        row.style.display = '';
+      // Restore all rows
+      allRows.forEach(row => {
+        (row as HTMLElement).style.display = '';
       });
 
       // Restore original padding
-      const allCells = tableRef.current.querySelectorAll('td, th');
       allCells.forEach((cell, index) => {
         const htmlCell = cell as HTMLElement;
         htmlCell.style.padding = originalPadding[index] || '';
@@ -241,7 +265,7 @@ export default function DescriptorAnalysis() {
               size="small"
               disabled={!descriptors || descriptors.length === 0}
             >
-              Download Top 10 as Image
+              Download as Images (10 per slide)
             </Button>
           </Box>
         </Box>
