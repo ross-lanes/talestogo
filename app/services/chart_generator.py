@@ -548,6 +548,89 @@ def generate_sentiment_trend_chart(trend_data: List[Dict[str, Any]], brand_name:
     return output_path
 
 
+def generate_competitor_threats_chart(threats_data: List[Dict[str, Any]], brand_name: str, output_path: str, top_n: int = 10) -> str:
+    """
+    Generate a horizontal bar chart showing top competitor threats.
+    Returns the file path of the generated chart.
+
+    Args:
+        threats_data: List of dictionaries with keys: name, threat_score, threat_level, mention_count, share_of_voice
+        brand_name: Name of the brand
+        output_path: Path to save the chart
+        top_n: Number of top competitors to display (default: 10)
+    """
+    if not threats_data or len(threats_data) == 0:
+        return None
+
+    # Take top N competitors (data should already be sorted by threat_score)
+    top_threats = threats_data[:top_n]
+
+    # Extract data for chart
+    names = [threat['name'] for threat in top_threats]
+    threat_scores = [threat['threat_score'] for threat in top_threats]
+    threat_levels = [threat['threat_level'] for threat in top_threats]
+
+    # Reverse order so highest threat is at top
+    names = names[::-1]
+    threat_scores = threat_scores[::-1]
+    threat_levels = threat_levels[::-1]
+
+    # Color mapping for threat levels
+    threat_colors = {
+        'High': '#75C9C8',     # TALES teal
+        'Medium': '#80A1D4',   # TALES blue
+        'Low': '#665775'       # TALES purple
+    }
+    colors = [threat_colors.get(level, COLORS['primary']) for level in threat_levels]
+
+    # Modern styling with clean backgrounds
+    fig, ax = plt.subplots(figsize=(12, max(8, len(names) * 0.6)), facecolor=CHART_CONFIG['figure_facecolor'])
+    ax.set_facecolor(CHART_CONFIG['axes_facecolor'])
+
+    # Create horizontal bar chart
+    bars = ax.barh(range(len(names)), threat_scores, color=colors, edgecolor='white', linewidth=2, alpha=0.9)
+
+    # Customize axes
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels(names, fontsize=CHART_CONFIG['tick_size'])
+    ax.set_xlabel('Threat Score', fontsize=CHART_CONFIG['label_size'], weight='bold')
+    ax.set_title(f'Top {len(names)} Competitor Threats to {brand_name}',
+                fontsize=CHART_CONFIG['title_size'], weight='bold', pad=20, color='#2C3E50')
+
+    # Improve grid styling
+    ax.grid(axis='x', alpha=CHART_CONFIG['grid_alpha'], linestyle='--',
+           color=CHART_CONFIG['grid_color'], linewidth=1)
+    ax.set_axisbelow(True)
+
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#D1D8E0')
+    ax.spines['bottom'].set_color('#D1D8E0')
+
+    # Add value labels on bars
+    for i, (bar, score, level) in enumerate(zip(bars, threat_scores, threat_levels)):
+        width = bar.get_width()
+        ax.text(width + 0.5, bar.get_y() + bar.get_height()/2,
+                f'{score:.0f} ({level})',
+                ha='left', va='center', fontsize=10, weight='bold', color='#2C3E50')
+
+    # Add legend for threat levels
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='#75C9C8', label='High Threat'),
+        Patch(facecolor='#80A1D4', label='Medium Threat'),
+        Patch(facecolor='#665775', label='Low Threat')
+    ]
+    ax.legend(handles=legend_elements, loc='lower right', fontsize=CHART_CONFIG['legend_size'])
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=CHART_CONFIG['dpi'], bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    return output_path
+
+
 def generate_all_charts(
     mention_metrics: Dict[str, Any],
     positioning_metrics: Dict[str, Any],
@@ -559,7 +642,8 @@ def generate_all_charts(
     timestamp: str = None,
     user_id: Optional[int] = None,
     brand_id: Optional[int] = None,
-    trend_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    trend_data: Optional[Dict[str, List[Dict[str, Any]]]] = None,
+    competitor_threats: Optional[List[Dict[str, Any]]] = None
 ) -> Dict[str, str]:
     """
     Generate all charts for the report.
@@ -577,6 +661,8 @@ def generate_all_charts(
         timestamp: Optional timestamp for filenames
         user_id: Optional user ID to check for uploaded charts
         brand_id: Optional brand ID to check for uploaded charts
+        trend_data: Optional dictionary with trend data for various metrics
+        competitor_threats: Optional list of competitor threat data
     """
     if timestamp is None:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -648,6 +734,16 @@ def generate_all_charts(
             )
         except Exception as e:
             print(f"Warning: Could not generate descriptor performance chart: {e}")
+
+    # Generate competitor threats chart if data is provided
+    if competitor_threats and 'competitor_threats' not in chart_paths:
+        try:
+            chart_paths['competitor_threats'] = generate_competitor_threats_chart(
+                competitor_threats, brand_name,
+                f"{charts_dir}/{brand_slug}_competitor_threats_{timestamp}.png"
+            )
+        except Exception as e:
+            print(f"Warning: Could not generate competitor threats chart: {e}")
 
     # Generate time-series charts if trend data is provided
     if trend_data:

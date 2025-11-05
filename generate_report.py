@@ -33,6 +33,12 @@ from app.services.metrics import (
     get_negative_sentiment_statements,
     normalize_organization_name,
 )
+from app.services.cached_metrics import (
+    get_brand_mentions_trend_cached,
+    get_positioning_trend_cached,
+    get_sentiment_trend_cached,
+    get_share_of_voice_trend_cached,
+)
 
 # Load environment variables
 load_dotenv()
@@ -1148,7 +1154,43 @@ def generate_report_main(user_id: int, brand_id: int):
 
         print("Section insights generated")
 
-        # Step 5: Generate charts
+        # Step 5: Collect trend data for charts
+        print("\nCollecting trend data for visualization...")
+        trend_data = None
+        try:
+            brand_mentions_trend = get_brand_mentions_trend_cached(db, user_id, brand_id)
+            positioning_trend = get_positioning_trend_cached(db, user_id, brand_id)
+            sentiment_trend = get_sentiment_trend_cached(db, user_id, brand_id)
+            sov_trend = get_share_of_voice_trend_cached(db, user_id, brand_id, brand_name)
+
+            # Format trend data for chart generator
+            if brand_mentions_trend:
+                trend_data = {
+                    'brand_mentions': [
+                        {
+                            'date': str(item['date']),
+                            'mention_percentage': item['mention_rate']
+                        }
+                        for item in brand_mentions_trend
+                    ] if brand_mentions_trend else None,
+                    'positioning': positioning_trend if positioning_trend else None,
+                    'sentiment': sentiment_trend if sentiment_trend else None,
+                    'share_of_voice': [
+                        {
+                            'date': str(item['date']),
+                            'brand_sov': item.get(brand_name, 0),
+                            'competitors': {k: v for k, v in item.items() if k != 'date' and k != brand_name}
+                        }
+                        for item in sov_trend
+                    ] if sov_trend else None
+                }
+                print(f"  - Collected trend data for {len(brand_mentions_trend)} time periods")
+        except Exception as e:
+            print(f"  - Could not collect trend data: {e}")
+            print("  - Charts will be generated without trend lines")
+            trend_data = None
+
+        # Step 6: Generate charts
         print("\nGenerating visualization charts...")
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         chart_paths = generate_all_charts(
@@ -1161,7 +1203,9 @@ def generate_report_main(user_id: int, brand_id: int):
             brand_name=brand_name,
             timestamp=timestamp,
             user_id=user_id,
-            brand_id=brand_id
+            brand_id=brand_id,
+            trend_data=trend_data,
+            competitor_threats=competitor_threats_data
         )
         print(f"Total charts available: {len(chart_paths)}")
 

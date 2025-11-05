@@ -12,7 +12,10 @@
       "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" python3:*)",
       "Bash(python3 -m json.tool:*)",
       "Bash(awk:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
