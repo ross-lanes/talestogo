@@ -1,7 +1,7 @@
-import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, Alert, Button, Card, CardContent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Download } from '@mui/icons-material';
+import { Download, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef } from 'react';
@@ -12,6 +12,15 @@ const BRAND_COLOR = '#665775';
 export default function BrandMentions() {
   const trendChartRef = useRef<HTMLDivElement>(null);
 
+  // Fetch dashboard metrics for the summary card
+  const { data: metrics } = useQuery({
+    queryKey: ['dashboard-metrics'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/dashboard');
+      return response.data;
+    },
+  });
+
   const { data: trendData, isLoading, error } = useQuery({
     queryKey: ['brand-mentions-trend'],
     queryFn: async () => {
@@ -19,6 +28,18 @@ export default function BrandMentions() {
       return response.data;
     },
   });
+
+  // Format change percentage for display
+  const formatChange = (change: number | undefined) => {
+    if (change === undefined || change === null || change === 0) return null;
+    const sign = change > 0 ? '+' : '';
+    const color = change > 0 ? '#58A13B' : '#EA4A4A';
+    return (
+      <Typography variant="body2" sx={{ color, fontWeight: 600 }}>
+        {sign}{change}% vs. previous
+      </Typography>
+    );
+  };
 
   // Download trend chart as PNG
   const handleDownloadTrendChart = async () => {
@@ -61,9 +82,6 @@ export default function BrandMentions() {
     );
   }
 
-  // Get latest data point for summary
-  const latestData = trendData && trendData.length > 0 ? trendData[trendData.length - 1] : null;
-
   // Format dates for display
   const formattedData = trendData?.map((item: any) => ({
     ...item,
@@ -83,23 +101,28 @@ export default function BrandMentions() {
         </Typography>
       </Paper>
 
-      {/* Latest Mention Rate */}
-      {latestData && (
+      {/* Brand Mentions Summary Card - Dashboard Style */}
+      {metrics && (
         <Box sx={{ mb: 4 }}>
-          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white' }}>
-            <Typography variant="h3" sx={{ fontWeight: 700 }}>
-              {latestData.mention_percentage}%
-            </Typography>
-            <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
-              Current Brand Mention Rate
-            </Typography>
-            <Typography variant="body2">
-              {latestData.mention_count} out of {latestData.total_responses} responses
-            </Typography>
-            <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-              Latest collection: {new Date(latestData.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </Typography>
-          </Paper>
+          <Card sx={{ border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="body2">
+                    Brand Mentions
+                  </Typography>
+                  <Typography variant="h4" component="div" color="primary">
+                    {Math.round(metrics.mention_rate ?? 0)}%
+                  </Typography>
+                  {formatChange(metrics.change_mention_rate)}
+                </Box>
+                <TrendingUpIcon sx={{
+                  fontSize: 48,
+                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#665775'
+                }} />
+              </Box>
+            </CardContent>
+          </Card>
         </Box>
       )}
 
