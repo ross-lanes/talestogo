@@ -34,7 +34,6 @@ import {
   Analytics as AnalysisIcon,
   Schedule as ScheduleIcon,
   Save as SaveIcon,
-  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
@@ -81,21 +80,10 @@ interface Response {
   sentiment: string | null;
 }
 
-interface Report {
-  id: number;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  report_content: string;
-  total_responses: number;
-  mention_rate?: number;
-  google_doc_url?: string;
-}
-
 export default function CollectAndAnalyze() {
   const { activeBrand } = useBrand();
   const queryClient = useQueryClient();
-  const [currentTab, setCurrentTab] = useState(1);
+  const [currentTab, setCurrentTab] = useState(0);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -154,14 +142,6 @@ export default function CollectAndAnalyze() {
     enabled: !!schedule,
   });
 
-  // Fetch reports for archive
-  const { data: reports, isLoading: reportsLoading } = useQuery<Report[]>({
-    queryKey: ['reports'],
-    queryFn: async () => {
-      const response = await api.get('/reports/');
-      return response.data;
-    },
-  });
 
   // Collection mutation
   const collectionMutation = useMutation({
@@ -287,68 +267,6 @@ export default function CollectAndAnalyze() {
     });
   };
 
-  const handleDownloadWord = async (report: Report) => {
-    try {
-      const response = await api.get(`/reports/${report.id}/export/word`, {
-        responseType: 'blob',
-      });
-
-      const blob = new Blob([response.data], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${report.title}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setSnackbar({
-        open: true,
-        message: 'Report downloaded as Word document successfully',
-        severity: 'success',
-      });
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to download Word document',
-        severity: 'error',
-      });
-    }
-  };
-
-  const handleDownloadHTML = async (report: Report) => {
-    try {
-      const response = await api.get(`/reports/${report.id}/export/html`, {
-        responseType: 'blob',
-      });
-
-      const blob = new Blob([response.data], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${report.title}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setSnackbar({
-        open: true,
-        message: 'HTML report with charts downloaded successfully',
-        severity: 'success',
-      });
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to download HTML report',
-        severity: 'error',
-      });
-    }
-  };
-
   if (!activeBrand) {
     return (
       <Box>
@@ -377,13 +295,12 @@ export default function CollectAndAnalyze() {
         onChange={(_, newValue) => setCurrentTab(newValue)}
         sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
       >
-        <Tab label="Manual Run" />
         <Tab label="Automated Schedule" />
-        <Tab label="Report Archive" />
+        <Tab label="Manual Reports" />
       </Tabs>
 
-      {/* Manual Run Tab */}
-      {currentTab === 0 && (
+      {/* Manual Reports Tab */}
+      {currentTab === 1 && (
         <Box>
           {/* Action Buttons */}
           <Paper sx={{ p: 4, mb: 4 }}>
@@ -462,7 +379,7 @@ export default function CollectAndAnalyze() {
       )}
 
       {/* Automated Schedule Tab */}
-      {currentTab === 1 && (
+      {currentTab === 0 && (
         <Box>
           {/* Schedule Configuration */}
           <Paper sx={{ p: 4, mb: 4 }}>
@@ -614,73 +531,6 @@ export default function CollectAndAnalyze() {
             </Paper>
           )}
         </Box>
-      )}
-
-      {/* Report Archive Tab */}
-      {currentTab === 2 && (
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Report Archive
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            View and download your generated reports.
-          </Typography>
-
-          {reportsLoading ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-              <CircularProgress />
-            </Box>
-          ) : reports && reports.length > 0 ? (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Report</strong></TableCell>
-                    <TableCell align="right"><strong>Actions</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {reports.map((report) => (
-                    <TableRow key={report.id} hover>
-                      <TableCell>
-                        <Typography variant="body1" fontWeight={500}>
-                          {report.title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Generated: {formatDate(report.created_at)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box display="flex" gap={1} justifyContent="flex-end">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<DownloadIcon />}
-                            onClick={() => handleDownloadWord(report)}
-                          >
-                            Word
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<DownloadIcon />}
-                            onClick={() => handleDownloadHTML(report)}
-                          >
-                            HTML
-                          </Button>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ) : (
-            <Alert severity="info">
-              No reports available yet. Run collection and analysis to generate your first report.
-            </Alert>
-          )}
-        </Paper>
       )}
 
       {/* Confirmation Dialog */}
