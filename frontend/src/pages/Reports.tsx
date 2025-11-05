@@ -13,16 +13,13 @@ import {
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
-  Visibility as VisibilityIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
   Description as WordIcon,
-  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
 import { api } from '../services/api';
 
 interface Report {
@@ -40,8 +37,6 @@ interface Report {
 
 export default function Reports() {
   const queryClient = useQueryClient();
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
 
@@ -65,16 +60,6 @@ export default function Reports() {
       setReportToDelete(null);
     },
   });
-
-  const handleViewReport = (report: Report) => {
-    setSelectedReport(report);
-    setViewDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setViewDialogOpen(false);
-    setSelectedReport(null);
-  };
 
   const handleDeleteClick = (report: Report) => {
     setReportToDelete(report);
@@ -123,21 +108,22 @@ export default function Reports() {
     }
   };
 
-  const handleDownloadPDF = async (report: Report) => {
+  const handleDownloadHTML = async (report: Report) => {
     try {
-      const response = await api.get(`/reports/${report.id}/export/pdf`, {
+      const response = await api.get(`/reports/${report.id}/export/html`, {
         responseType: 'blob',
       });
       const url = URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.html`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
+    } catch (error: any) {
+      console.error('Error downloading HTML:', error);
+      alert(`Failed to download HTML: ${error.response?.data?.detail || error.message}`);
     }
   };
 
@@ -198,27 +184,14 @@ export default function Reports() {
       width: 120,
       getActions: (params) => [
         <GridActionsCellItem
-          icon={<VisibilityIcon />}
-          label="View"
-          onClick={() => handleViewReport(params.row)}
-        />,
-        <GridActionsCellItem
           icon={<WordIcon />}
           label="Word"
           onClick={() => handleDownloadWord(params.row)}
-          showInMenu
-        />,
-        <GridActionsCellItem
-          icon={<PdfIcon />}
-          label="Download PDF"
-          onClick={() => handleDownloadPDF(params.row)}
-          showInMenu
         />,
         <GridActionsCellItem
           icon={<DownloadIcon />}
-          label="Download Markdown"
-          onClick={() => handleDownloadMarkdown(params.row)}
-          showInMenu
+          label="HTML"
+          onClick={() => handleDownloadHTML(params.row)}
         />,
         <GridActionsCellItem
           icon={<DeleteIcon />}
@@ -267,93 +240,6 @@ export default function Reports() {
           }}
         />
       </Paper>
-
-      {/* View Report Dialog */}
-      <Dialog
-        open={viewDialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: { height: '90vh' }
-        }}
-      >
-        <DialogTitle>
-          {selectedReport?.title}
-        </DialogTitle>
-        <DialogContent dividers>
-          {selectedReport && (
-            <Box
-              sx={{
-                '& h1': { fontSize: '2rem', fontWeight: 'bold', mt: 3, mb: 2 },
-                '& h2': { fontSize: '1.5rem', fontWeight: 'bold', mt: 2, mb: 1.5 },
-                '& h3': { fontSize: '1.25rem', fontWeight: 'bold', mt: 1.5, mb: 1 },
-                '& p': { mb: 1.5 },
-                '& ul, & ol': { mb: 1.5, pl: 3 },
-                '& li': { mb: 0.5 },
-                '& table': {
-                  borderCollapse: 'collapse',
-                  width: '100%',
-                  mb: 2,
-                  mt: 2,
-                },
-                '& th, & td': {
-                  border: '1px solid #ddd',
-                  padding: '8px 12px',
-                  textAlign: 'left',
-                },
-                '& th': {
-                  backgroundColor: '#f5f5f5',
-                  fontWeight: 'bold',
-                },
-                '& hr': {
-                  my: 3,
-                  border: 'none',
-                  borderTop: '1px solid #ddd',
-                },
-                '& code': {
-                  backgroundColor: '#f5f5f5',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  fontFamily: 'monospace',
-                },
-                '& pre': {
-                  backgroundColor: '#f5f5f5',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  overflow: 'auto',
-                  mb: 2,
-                },
-              }}
-            >
-              <ReactMarkdown>{selectedReport.report_content}</ReactMarkdown>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button
-            startIcon={<WordIcon />}
-            onClick={() => selectedReport && handleDownloadWord(selectedReport)}
-          >
-            Word
-          </Button>
-          <Button
-            startIcon={<PdfIcon />}
-            onClick={() => selectedReport && handleDownloadPDF(selectedReport)}
-          >
-            PDF
-          </Button>
-          <Button
-            startIcon={<DownloadIcon />}
-            onClick={() => selectedReport && handleDownloadMarkdown(selectedReport)}
-          >
-            Markdown
-          </Button>
-          <Button onClick={handleCloseDialog} variant="contained">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog

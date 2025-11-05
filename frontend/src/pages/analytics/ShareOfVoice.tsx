@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, TrendingFlat, Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
@@ -15,6 +15,7 @@ const COMPETITOR_COLORS = [
 
 export default function ShareOfVoice() {
   const chartRef = useRef<HTMLDivElement>(null);
+  const trendChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -22,6 +23,14 @@ export default function ShareOfVoice() {
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/share-of-voice', { params });
+      return response.data;
+    },
+  });
+
+  const { data: sovTrends, isLoading: loadingTrends } = useQuery({
+    queryKey: ['sov-trends'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/trends/share-of-voice');
       return response.data;
     },
   });
@@ -148,6 +157,62 @@ export default function ShareOfVoice() {
     }
   };
 
+  // Download trend chart as PNG
+  const handleDownloadTrendChart = async () => {
+    if (!trendChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(trendChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateStr = `${month}_${day}_${year}`;
+
+      link.download = `ShareOfVoiceTrend_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
+
+  // Download Share of Voice Distribution as CSV
+  const handleDownloadDistributionCSV = () => {
+    if (!pieData || pieData.length === 0) return;
+
+    const csvHeaders = ['Rank', 'Organization', 'Mentions', 'Share of Voice (%)'];
+    const csvRows = pieData.map((item: any, index: number) => [
+      String(index + 1),
+      `"${item.name.replace(/"/g, '""')}"`,
+      String(item.value),
+      String(item.percentage)
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map((row: string[]) => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `ShareOfVoiceDistribution_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
 
   return (
     <Box>
@@ -223,7 +288,7 @@ export default function ShareOfVoice() {
               onClick={handleDownloadChart}
               size="small"
             >
-              Download Chart As Image
+              Image
             </Button>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -280,13 +345,27 @@ export default function ShareOfVoice() {
       )}
 
       {/* Share of Voice Distribution - Table or Pie Chart */}
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Share of Voice Distribution
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          This shows what percentage of the total "conversation" each organization owns. Higher percentages indicate greater visibility and mind share in AI-generated content.
-        </Typography>
+      <Paper sx={{ p: 4, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">
+              Share of Voice Distribution
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              This shows what percentage of the total "conversation" each organization owns. Higher percentages indicate greater visibility and mind share in AI-generated content.
+            </Typography>
+          </Box>
+          {pieData.length > 0 && (
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadDistributionCSV}
+              size="small"
+            >
+              Spreadsheet
+            </Button>
+          )}
+        </Box>
 
         {pieData.length > 0 ? (
           <>
@@ -370,6 +449,110 @@ export default function ShareOfVoice() {
         ) : (
           <Alert severity="info">
             No share of voice data available yet. Run analysis to generate insights.
+          </Alert>
+        )}
+      </Paper>
+
+      {/* Share of Voice Over Time */}
+      <Paper sx={{ p: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">
+              Share of Voice Trends
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Track how your brand's share of voice compares to top competitors over time
+            </Typography>
+          </Box>
+          {sovTrends && sovTrends.length > 1 && (
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadTrendChart}
+              size="small"
+            >
+              Image
+            </Button>
+          )}
+        </Box>
+
+        {loadingTrends ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 100 }}>
+            <CircularProgress />
+          </Box>
+        ) : sovTrends && sovTrends.length > 0 ? (
+          <>
+            {sovTrends.length === 1 ? (
+              <Alert severity="info">
+                Only one collection batch found. Trend visualization will appear after running additional data collections.
+              </Alert>
+            ) : (
+              <>
+                {/* Format data for chart */}
+                {(() => {
+                  const formattedData = sovTrends.map((item: any) => {
+                    const result: any = {
+                      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                      'Your Brand': item.brand_sov
+                    };
+                    // Add competitors
+                    Object.entries(item.competitors || {}).forEach(([name, sov]) => {
+                      result[name] = sov;
+                    });
+                    return result;
+                  });
+
+                  // Get all organization names (brand + competitors)
+                  const allOrgs = new Set<string>();
+                  allOrgs.add('Your Brand');
+                  sovTrends.forEach((item: any) => {
+                    Object.keys(item.competitors || {}).forEach(name => allOrgs.add(name));
+                  });
+                  const orgNames = Array.from(allOrgs);
+
+                  return (
+                    <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis
+                          label={{ value: 'Share of Voice (%)', angle: -90, position: 'insideLeft' }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip
+                          formatter={(value: number) => [`${value}%`, '']}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Legend />
+                        {orgNames.map((org, index) => (
+                          <Line
+                            key={org}
+                            type="monotone"
+                            dataKey={org}
+                            stroke={org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
+                            strokeWidth={org === 'Your Brand' ? 3 : 2}
+                            name={org}
+                            dot={{ fill: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: org === 'Your Brand' ? 5 : 4 }}
+                            activeDot={{ r: org === 'Your Brand' ? 7 : 6 }}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                    </Box>
+                  );
+                })()}
+              </>
+            )}
+          </>
+        ) : (
+          <Alert severity="info">
+            No share of voice trend data available yet. Data will appear after running data collection.
           </Alert>
         )}
       </Paper>

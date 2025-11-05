@@ -3,7 +3,16 @@
     "allow": [
       "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" psql:*)",
       "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3\" python3:*)",
-      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3\" psql:*)"
+      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3\" psql:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(python -c:*)",
+      "Bash(python:*)",
+      "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" python3:*)",
+      "Bash(python3 -m json.tool:*)",
+      "Bash(awk:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

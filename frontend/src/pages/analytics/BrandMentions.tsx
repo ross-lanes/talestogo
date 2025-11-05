@@ -1,0 +1,210 @@
+import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Download } from '@mui/icons-material';
+import { api } from '../../services/api';
+import html2canvas from 'html2canvas';
+import { useRef } from 'react';
+
+
+const BRAND_COLOR = '#665775';
+
+export default function BrandMentions() {
+  const trendChartRef = useRef<HTMLDivElement>(null);
+
+  const { data: trendData, isLoading, error } = useQuery({
+    queryKey: ['brand-mentions-trend'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/trends/brand-mentions');
+      return response.data;
+    },
+  });
+
+  // Download trend chart as PNG
+  const handleDownloadTrendChart = async () => {
+    if (!trendChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(trendChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateStr = `${month}_${day}_${year}`;
+
+      link.download = `BrandMentionsTrend_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        Failed to load brand mentions analysis. Please try again later.
+      </Alert>
+    );
+  }
+
+  // Get latest data point for summary
+  const latestData = trendData && trendData.length > 0 ? trendData[trendData.length - 1] : null;
+
+  // Format dates for display
+  const formattedData = trendData?.map((item: any) => ({
+    ...item,
+    displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  })) || [];
+
+  return (
+    <Box>
+      <Typography variant="h2" component="h1" sx={{ mb: 3 }}>
+        Brand Mentions
+      </Typography>
+
+      {/* Explanatory Text */}
+      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1">
+          <strong>Brand Mentions</strong> tracks how often your brand appears in AI-generated responses over time. This metric shows the percentage of responses that mention your brand (either directly or indirectly) when answering queries in your domain. An increasing trend indicates growing brand visibility in AI systems.
+        </Typography>
+      </Paper>
+
+      {/* Latest Mention Rate */}
+      {latestData && (
+        <Box sx={{ mb: 4 }}>
+          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white' }}>
+            <Typography variant="h3" sx={{ fontWeight: 700 }}>
+              {latestData.mention_percentage}%
+            </Typography>
+            <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
+              Current Brand Mention Rate
+            </Typography>
+            <Typography variant="body2">
+              {latestData.mention_count} out of {latestData.total_responses} responses
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+              Latest collection: {new Date(latestData.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </Typography>
+          </Paper>
+        </Box>
+      )}
+
+      {/* Trend Chart */}
+      <Paper sx={{ p: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">
+              Brand Mention Rate Over Time
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Percentage of AI responses that mention your brand across all collection periods
+            </Typography>
+          </Box>
+          {formattedData.length > 1 && (
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadTrendChart}
+              size="small"
+            >
+              Image
+            </Button>
+          )}
+        </Box>
+
+        {formattedData.length > 0 ? (
+          <>
+            {formattedData.length === 1 ? (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Only one collection batch found. Trend visualization will appear after running additional data collections.
+              </Alert>
+            ) : (
+              <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="displayDate"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis
+                    label={{ value: 'Mention Rate (%)', angle: -90, position: 'insideLeft' }}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [`${value}%`, 'Mention Rate']}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="mention_percentage"
+                    stroke={BRAND_COLOR}
+                    strokeWidth={3}
+                    name="Mention Rate"
+                    dot={{ fill: BRAND_COLOR, r: 5 }}
+                    activeDot={{ r: 7 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              </Box>
+            )}
+          </>
+        ) : (
+          <Alert severity="info">
+            No brand mention data available yet. Data will appear after running data collection.
+          </Alert>
+        )}
+      </Paper>
+
+      {/* Data Table */}
+      {formattedData.length > 0 && (
+        <Paper sx={{ p: 4, mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            Collection History
+          </Typography>
+          <Box sx={{ overflowX: 'auto', mt: 2 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                  <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold' }}>Date</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mention Rate</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mentions</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Total Responses</th>
+                </tr>
+              </thead>
+              <tbody>
+                {formattedData.slice().reverse().map((item: any, index: number) => (
+                  <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '12px' }}>{item.displayDate}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                      {item.mention_percentage}%
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.mention_count}</td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.total_responses}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Box>
+        </Paper>
+      )}
+    </Box>
+  );
+}

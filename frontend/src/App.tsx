@@ -22,6 +22,7 @@ import UserBrandData from './pages/admin/UserBrandData';
 import SentimentAnalysis from './pages/analytics/SentimentAnalysis';
 import PositioningAnalysis from './pages/analytics/PositioningAnalysis';
 import ShareOfVoice from './pages/analytics/ShareOfVoice';
+import BrandMentions from './pages/analytics/BrandMentions';
 import DescriptorAnalysis from './pages/analytics/DescriptorAnalysis';
 import CompetitorThreats from './pages/analytics/CompetitorThreats';
 import Recommendations from './pages/analytics/Recommendations';
@@ -72,6 +73,16 @@ function App() {
                   />
 
                   {/* Analytics Routes */}
+                  <Route
+                    path="/analytics/brand-mentions"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <BrandMentions />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/analytics/positioning"
                     element={

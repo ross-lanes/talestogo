@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
@@ -17,6 +17,7 @@ const COLORS = {
 
 export default function SentimentAnalysis() {
   const sentimentChartRef = useRef<HTMLDivElement>(null);
+  const sentimentTrendChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -24,6 +25,14 @@ export default function SentimentAnalysis() {
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/sentiment/breakdown', { params });
+      return response.data;
+    },
+  });
+
+  const { data: sentimentTrends, isLoading: loadingTrends } = useQuery({
+    queryKey: ['sentiment-trends'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/trends/sentiment');
       return response.data;
     },
   });
@@ -46,6 +55,31 @@ export default function SentimentAnalysis() {
       const dateStr = `${month}_${day}_${year}`;
 
       link.download = `SentimentAnalysis_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
+
+  // Download sentiment trend chart as PNG
+  const handleDownloadSentimentTrendChart = async () => {
+    if (!sentimentTrendChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(sentimentTrendChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateStr = `${month}_${day}_${year}`;
+
+      link.download = `SentimentTrend_${dateStr}.png`;
       link.href = canvas.toDataURL();
       link.click();
     } catch (error) {
@@ -78,6 +112,69 @@ export default function SentimentAnalysis() {
     const dateStr = `${month}_${day}_${year}`;
 
     link.download = `NegativeStatements_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  // Download sentiment distribution as CSV
+  const handleDownloadSentimentCSV = () => {
+    if (!chartData || chartData.length === 0) return;
+
+    const csvHeaders = ['Sentiment', 'Count', 'Percentage'];
+    const csvRows = chartData.map((item: any) => [
+      `"${item.name}"`,
+      String(item.value),
+      `${item.percentage}%`
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map((row: string[]) => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `SentimentDistribution_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  // Download sentiment trend as CSV
+  const handleDownloadSentimentTrendCSV = () => {
+    if (!sentimentTrends || sentimentTrends.length === 0) return;
+
+    const csvHeaders = ['Date', 'Very Positive (%)', 'Positive (%)', 'Neutral (%)', 'Negative (%)', 'Very Negative (%)'];
+    const csvRows = sentimentTrends.map((item: any) => [
+      new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      String(item.very_positive),
+      String(item.positive),
+      String(item.neutral),
+      String(item.negative),
+      String(item.very_negative)
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map((row: string[]) => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `SentimentTrend_${dateStr}.csv`;
     link.href = URL.createObjectURL(blob);
     link.click();
     URL.revokeObjectURL(link.href);
@@ -163,14 +260,24 @@ export default function SentimentAnalysis() {
               Total brand mentions analyzed: {data?.total || 0}
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={handleDownloadSentimentChart}
-            size="small"
-          >
-            Download Chart As Image
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadSentimentCSV}
+              size="small"
+            >
+              Spreadsheet
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadSentimentChart}
+              size="small"
+            >
+              Image
+            </Button>
+          </Box>
         </Box>
 
         {chartData.length > 0 ? (
@@ -246,7 +353,7 @@ export default function SentimentAnalysis() {
               onClick={handleDownloadNegativeStatementsCSV}
               size="small"
             >
-              Download as CSV
+              Spreadsheet
             </Button>
           )}
         </Box>
@@ -270,6 +377,133 @@ export default function SentimentAnalysis() {
           <Typography variant="body2" color="text.secondary">
             None
           </Typography>
+        )}
+      </Paper>
+
+      {/* Sentiment Over Time */}
+      <Paper sx={{ p: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">
+              Sentiment Distribution Over Time
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Track how sentiment toward your brand has evolved across collection periods
+            </Typography>
+          </Box>
+          {sentimentTrends && sentimentTrends.length > 1 && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={handleDownloadSentimentTrendCSV}
+                size="small"
+              >
+                Spreadsheet
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={handleDownloadSentimentTrendChart}
+                size="small"
+              >
+                Image
+              </Button>
+            </Box>
+          )}
+        </Box>
+
+        {loadingTrends ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 100 }}>
+            <CircularProgress />
+          </Box>
+        ) : sentimentTrends && sentimentTrends.length > 0 ? (
+          <>
+            {sentimentTrends.length === 1 ? (
+              <Alert severity="info">
+                Only one collection batch found. Trend visualization will appear after running additional data collections.
+              </Alert>
+            ) : (
+              <>
+                {/* Format dates for display */}
+                {(() => {
+                  const formattedData = sentimentTrends.map((item: any) => ({
+                    ...item,
+                    displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  }));
+
+                  return (
+                    <Box ref={sentimentTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                      <ResponsiveContainer width="100%" height={400}>
+                      <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="displayDate"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis
+                          label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [`${value}%`, name]}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Legend />
+                        <Area
+                          type="monotone"
+                          dataKey="very_positive"
+                          stackId="1"
+                          stroke={COLORS['Very Positive']}
+                          fill={COLORS['Very Positive']}
+                          name="Very Positive"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="positive"
+                          stackId="1"
+                          stroke={COLORS['Positive']}
+                          fill={COLORS['Positive']}
+                          name="Positive"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="neutral"
+                          stackId="1"
+                          stroke={COLORS['Neutral']}
+                          fill={COLORS['Neutral']}
+                          name="Neutral"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="negative"
+                          stackId="1"
+                          stroke={COLORS['Negative']}
+                          fill={COLORS['Negative']}
+                          name="Negative"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="very_negative"
+                          stackId="1"
+                          stroke={COLORS['Very Negative']}
+                          fill={COLORS['Very Negative']}
+                          name="Very Negative"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    </Box>
+                  );
+                })()}
+              </>
+            )}
+          </>
+        ) : (
+          <Alert severity="info">
+            No sentiment trend data available yet. Data will appear after running data collection.
+          </Alert>
         )}
       </Paper>
     </Box>

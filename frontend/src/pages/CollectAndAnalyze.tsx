@@ -28,7 +28,6 @@ import {
   Radio,
   Switch,
   TextField,
-  IconButton,
 } from '@mui/material';
 import {
   CloudDownload as CollectionIcon,
@@ -36,10 +35,7 @@ import {
   Schedule as ScheduleIcon,
   Save as SaveIcon,
   Download as DownloadIcon,
-  Visibility as ViewIcon,
-  Close as CloseIcon,
 } from '@mui/icons-material';
-import ReactMarkdown from 'react-markdown';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { format } from 'date-fns';
@@ -102,8 +98,6 @@ export default function CollectAndAnalyze() {
   const [currentTab, setCurrentTab] = useState(1);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -291,11 +285,6 @@ export default function CollectAndAnalyze() {
       timeZone: 'America/New_York',
       timeZoneName: 'short'
     });
-  };
-
-  const handleViewInBrowser = (report: Report) => {
-    setSelectedReport(report);
-    setViewDialogOpen(true);
   };
 
   const handleDownloadWord = async (report: Report) => {
@@ -666,14 +655,6 @@ export default function CollectAndAnalyze() {
                           <Button
                             size="small"
                             variant="outlined"
-                            startIcon={<ViewIcon />}
-                            onClick={() => handleViewInBrowser(report)}
-                          >
-                            View
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
                             startIcon={<DownloadIcon />}
                             onClick={() => handleDownloadWord(report)}
                           >
@@ -701,59 +682,6 @@ export default function CollectAndAnalyze() {
           )}
         </Paper>
       )}
-
-      {/* View Report Dialog */}
-      <Dialog
-        open={viewDialogOpen}
-        onClose={() => setViewDialogOpen(false)}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            {selectedReport?.title}
-            <IconButton onClick={() => setViewDialogOpen(false)} size="small">
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent dividers>
-          {selectedReport && (
-            <Box sx={{
-              '& h1, & h2, & h3': { mt: 3, mb: 2 },
-              '& p': { mb: 2 },
-              '& ul, & ol': { mb: 2, pl: 3 },
-              '& li': { mb: 1 },
-              '& table': { width: '100%', borderCollapse: 'collapse', mb: 2 },
-              '& th, & td': { border: '1px solid #ddd', padding: '8px', textAlign: 'left' },
-              '& th': { backgroundColor: '#f5f5f5' },
-            }}>
-              <ReactMarkdown>{selectedReport.report_content}</ReactMarkdown>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
-          {selectedReport && (
-            <>
-              <Button
-                startIcon={<DownloadIcon />}
-                onClick={() => handleDownloadWord(selectedReport)}
-                variant="outlined"
-              >
-                Download Word
-              </Button>
-              <Button
-                startIcon={<DownloadIcon />}
-                onClick={() => handleDownloadHTML(selectedReport)}
-                variant="outlined"
-              >
-                Download HTML
-              </Button>
-            </>
-          )}
-        </DialogActions>
-      </Dialog>
 
       {/* Confirmation Dialog */}
       <Dialog

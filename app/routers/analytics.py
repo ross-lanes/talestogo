@@ -274,3 +274,82 @@ def get_competitor_threats_analysis(
     )
 
     return competitor_threats
+
+
+@router.get("/trends/brand-mentions", response_model=List[Dict[str, Any]])
+def get_brand_mentions_over_time(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get brand mention percentage over time, grouped by collection batches.
+    Uses cached batch analytics for fast performance.
+    """
+    from ..services.cached_metrics import get_brand_mentions_trend_cached
+
+    if not brand_id:
+        return []
+
+    return get_brand_mentions_trend_cached(db, current_user.id, brand_id)
+
+
+@router.get("/trends/positioning", response_model=List[Dict[str, Any]])
+def get_positioning_over_time(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get positioning distribution over time, grouped by collection batches.
+    Uses cached batch analytics for fast performance.
+    """
+    from ..services.cached_metrics import get_positioning_trend_cached
+
+    if not brand_id:
+        return []
+
+    return get_positioning_trend_cached(db, current_user.id, brand_id)
+
+
+@router.get("/trends/share-of-voice", response_model=List[Dict[str, Any]])
+def get_share_of_voice_over_time(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get share of voice over time for brand and top competitors, grouped by collection batches.
+    Uses cached batch analytics for fast performance.
+    """
+    from ..services.cached_metrics import get_share_of_voice_trend_cached
+
+    if not brand_id:
+        return []
+
+    # Get brand name
+    brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == current_user.id)
+    if brand_id:
+        brand_query = brand_query.filter(models.BrandInfo.id == brand_id)
+    brand = brand_query.first()
+    brand_name = brand.brand_name if brand else "Your Brand"
+
+    return get_share_of_voice_trend_cached(db, current_user.id, brand_id, brand_name)
+
+
+@router.get("/trends/sentiment", response_model=List[Dict[str, Any]])
+def get_sentiment_over_time(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get sentiment distribution over time, grouped by collection batches.
+    Uses cached batch analytics for fast performance.
+    """
+    from ..services.cached_metrics import get_sentiment_trend_cached
+
+    if not brand_id:
+        return []
+
+    return get_sentiment_trend_cached(db, current_user.id, brand_id)

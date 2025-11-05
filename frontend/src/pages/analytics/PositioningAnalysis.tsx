@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, LineChart, Line, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, LineChart, Line, Legend, AreaChart, Area } from 'recharts';
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
@@ -15,6 +15,7 @@ const BRAND_COLORS = [
 
 export default function PositioningAnalysis() {
   const positioningChartRef = useRef<HTMLDivElement>(null);
+  const positioningTrendChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -26,10 +27,10 @@ export default function PositioningAnalysis() {
     },
   });
 
-  const { data: mentionTrends, isLoading: loadingTrends } = useQuery({
-    queryKey: ['mention-trends'],
+  const { data: positioningTrends, isLoading: loadingPositioningTrends } = useQuery({
+    queryKey: ['positioning-trends'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/mentions?days=30');
+      const response = await api.get('/analytics/trends/positioning');
       return response.data;
     },
   });
@@ -57,6 +58,61 @@ export default function PositioningAnalysis() {
     } catch (error) {
       console.error('Error downloading chart:', error);
     }
+  };
+
+  // Download positioning trend chart as PNG
+  const handleDownloadPositioningTrendChart = async () => {
+    if (!positioningTrendChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(positioningTrendChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateStr = `${month}_${day}_${year}`;
+
+      link.download = `PositioningTrend_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
+
+  // Download positioning distribution as CSV
+  const handleDownloadPositioningCSV = () => {
+    if (!chartData || chartData.length === 0) return;
+
+    const csvHeaders = ['Position', 'Count', 'Percentage'];
+    const csvRows = chartData.map((item: any) => [
+      `"${item.position}"`,
+      String(item.count),
+      `${item.percentage}%`
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map((row: string[]) => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = today.getFullYear();
+    const dateStr = `${month}_${day}_${year}`;
+
+    link.download = `BrandPositioning_${dateStr}.csv`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   if (isLoading) {
@@ -126,14 +182,24 @@ export default function PositioningAnalysis() {
               How your brand is positioned across all AI responses
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            startIcon={<Download />}
-            onClick={handleDownloadPositioningChart}
-            size="small"
-          >
-            Download Chart As Image
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadPositioningCSV}
+              size="small"
+            >
+              Spreadsheet
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadPositioningChart}
+              size="small"
+            >
+              Image
+            </Button>
+          </Box>
         </Box>
 
         {chartData.length > 0 ? (
@@ -217,65 +283,111 @@ export default function PositioningAnalysis() {
         </Box>
       </Paper>
 
-      {/* Mentions Over Time */}
+      {/* Positioning Distribution Over Time */}
       <Paper sx={{ p: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Brand Mentions Over Time
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">
+              Positioning Distribution Over Time
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              How your brand's positioning has evolved across collection periods
+            </Typography>
+          </Box>
+          {positioningTrends && positioningTrends.length > 1 && (
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadPositioningTrendChart}
+              size="small"
+            >
+              Image
+            </Button>
+          )}
+        </Box>
 
-        {loadingTrends ? (
+        {loadingPositioningTrends ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 100 }}>
             <CircularProgress />
           </Box>
-        ) : mentionTrends && mentionTrends.length > 0 ? (
+        ) : positioningTrends && positioningTrends.length > 0 ? (
           <>
-            {/* Show latest mention count */}
-            {(() => {
-              const latestData = mentionTrends[mentionTrends.length - 1];
-              return (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="body1" color="text.secondary">
-                    Latest collection: <strong>{latestData.mentions}</strong> brand mentions out of <strong>{latestData.total_responses}</strong> total responses ({latestData.mention_rate}%)
-                  </Typography>
-                </Box>
-              );
-            })()}
+            {positioningTrends.length === 1 ? (
+              <Alert severity="info">
+                Only one collection batch found. Trend visualization will appear after running additional data collections.
+              </Alert>
+            ) : (
+              <>
+                {/* Format dates for display */}
+                {(() => {
+                  const formattedData = positioningTrends.map((item: any) => ({
+                    ...item,
+                    displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  }));
 
-            {/* Only show graph if there are multiple data points */}
-            {mentionTrends.length > 1 && (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={mentionTrends} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="date"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis
-                    label={{ value: 'Mention Rate (%)', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}%`, 'Mention Rate']}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="mention_rate"
-                    stroke="#665775"
-                    strokeWidth={2}
-                    name="Mention Rate"
-                    dot={{ fill: '#665775', r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                  return (
+                    <Box ref={positioningTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                      <ResponsiveContainer width="100%" height={400}>
+                      <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="displayDate"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis
+                          label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [`${value}%`, name]}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Legend />
+                        <Area
+                          type="monotone"
+                          dataKey="leader"
+                          stackId="1"
+                          stroke="#116C29"
+                          fill="#116C29"
+                          name="Leader"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="featured"
+                          stackId="1"
+                          stroke="#75c9c8"
+                          fill="#75c9c8"
+                          name="Featured"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="listed"
+                          stackId="1"
+                          stroke="#80a1d4"
+                          fill="#80a1d4"
+                          name="Listed"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="not_mentioned"
+                          stackId="1"
+                          stroke="#665775"
+                          fill="#665775"
+                          name="Not Mentioned"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                    </Box>
+                  );
+                })()}
+              </>
             )}
           </>
         ) : (
           <Alert severity="info">
-            No mention trend data available yet. Data will appear after running data collection.
+            No positioning trend data available yet. Data will appear after running data collection.
           </Alert>
         )}
       </Paper>

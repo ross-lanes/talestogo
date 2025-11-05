@@ -169,7 +169,10 @@ async def complete_batch(
     """
     Mark a batch as completed and update its statistics.
     This should be called when a data collection finishes.
+    Automatically caches batch analytics for fast reporting.
     """
+    from ..services.batch_analytics import compute_batch_analytics
+
     batch = db.query(CollectionBatch).filter_by(
         id=batch_id,
         user_id=current_user.id
@@ -189,6 +192,13 @@ async def complete_batch(
 
     db.commit()
     db.refresh(batch)
+
+    # Compute and cache batch analytics for fast future reporting
+    try:
+        compute_batch_analytics(db, batch_id, current_user.id, batch.brand_id)
+    except Exception as e:
+        # Log the error but don't fail the batch completion
+        print(f"Warning: Failed to cache batch analytics: {e}")
 
     return {
         "message": "Batch completed successfully",

@@ -116,6 +116,51 @@ class CollectionBatch(Base):
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class BatchAnalytics(Base):
+    """
+    Cached analytics for each collection batch.
+    Stores pre-computed metrics to avoid reprocessing responses.
+    """
+    __tablename__ = "batch_analytics"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=False, index=True)
+    batch_id = Column(Integer, ForeignKey("collection_batches.id"), nullable=False, unique=True, index=True)
+
+    # Collection date (from batch)
+    collection_date = Column(DateTime, nullable=False, index=True)
+
+    # Overall metrics
+    total_responses = Column(Integer, default=0)
+
+    # Brand mentions (excluding brand_in_query responses)
+    mention_count = Column(Integer, default=0)
+    mention_rate = Column(Float, default=0.0)
+
+    # Positioning breakdown
+    leader_count = Column(Integer, default=0)
+    featured_count = Column(Integer, default=0)
+    listed_count = Column(Integer, default=0)
+    not_mentioned_count = Column(Integer, default=0)
+
+    # Sentiment breakdown (all responses where brand is mentioned)
+    very_positive_count = Column(Integer, default=0)
+    positive_count = Column(Integer, default=0)
+    neutral_count = Column(Integer, default=0)
+    negative_count = Column(Integer, default=0)
+    very_negative_count = Column(Integer, default=0)
+    mixed_count = Column(Integer, default=0)
+
+    # Share of voice (JSON storing {org_name: count})
+    sov_data = Column(Text, nullable=True)  # JSON string
+
+    # Descriptor usage (JSON storing {descriptor: count})
+    descriptor_data = Column(Text, nullable=True)  # JSON string
+
+    # Metadata
+    computed_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 class Campaign(Base):
     __tablename__ = "campaigns"
     id = Column(Integer, primary_key=True, index=True)

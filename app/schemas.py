@@ -172,6 +172,37 @@ class CitedSource(CitedSourceBase):
     created_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
+# --- BatchAnalytics Schemas ---
+class BatchAnalyticsBase(BaseModel):
+    batch_id: int
+    collection_date: datetime.datetime
+    total_responses: int = 0
+    mention_count: int = 0
+    mention_rate: float = 0.0
+    leader_count: int = 0
+    featured_count: int = 0
+    listed_count: int = 0
+    not_mentioned_count: int = 0
+    very_positive_count: int = 0
+    positive_count: int = 0
+    neutral_count: int = 0
+    negative_count: int = 0
+    very_negative_count: int = 0
+    mixed_count: int = 0
+    sov_data: Optional[str] = None
+    descriptor_data: Optional[str] = None
+
+class BatchAnalyticsCreate(BatchAnalyticsBase):
+    pass
+
+class BatchAnalytics(BatchAnalyticsBase):
+    id: int
+    user_id: int
+    brand_id: int
+    computed_at: datetime.datetime
+    updated_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
 # --- Report Schemas ---
 class ReportBase(BaseModel):
     title: str

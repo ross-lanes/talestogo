@@ -12,24 +12,39 @@ from datetime import datetime
 from pathlib import Path
 
 # Set style for professional-looking charts
-plt.style.use('seaborn-v0_8-darkgrid')
+plt.style.use('seaborn-v0_8-whitegrid')
 
-# Color palette - professional blues and grays
+# Modern, professional color palette inspired by data visualization best practices
 COLORS = {
-    'primary': '#58A13B',     # Extended green (Positive sentiment)
-    'secondary': '#42a5f5',
-    'success': '#116C29',     # Bright highlighter green (Very Positive sentiment)
-    'warning': '#ffa726',
-    'danger': '#E04320',      # Burnt orange/red (Negative sentiment)
-    'neutral': '#9FA8DA',     # Periwinkle (Neutral sentiment)
-    'very_negative': '#EA4A4A',  # Extended red (Very Negative sentiment)
-    'palette': ['#58A13B', '#42a5f5', '#116C29', '#ffa726', '#E04320', '#9FA8DA', '#9575cd', '#4db6ac']
+    'primary': '#5B8DEE',      # Professional blue
+    'secondary': '#7C5CDB',    # Purple
+    'success': '#00C48C',      # Emerald green (Very Positive sentiment)
+    'positive': '#4ECB71',     # Light green (Positive sentiment)
+    'warning': '#FFA26B',      # Soft orange
+    'danger': '#FF6B9D',       # Soft red (Negative sentiment)
+    'very_negative': '#E74C3C', # Bright red (Very Negative sentiment)
+    'neutral': '#95AAC9',      # Soft blue-gray (Neutral sentiment)
+    'mixed': '#C5A3FF',        # Light purple (Mixed sentiment)
+    'palette': ['#5B8DEE', '#7C5CDB', '#00C48C', '#4ECB71', '#FFA26B', '#FF6B9D', '#95AAC9', '#FFD93D']
+}
+
+# Chart styling configuration
+CHART_CONFIG = {
+    'figure_facecolor': '#FFFFFF',
+    'axes_facecolor': '#F8F9FA',
+    'grid_color': '#E1E8ED',
+    'grid_alpha': 0.6,
+    'title_size': 18,
+    'label_size': 13,
+    'tick_size': 11,
+    'legend_size': 11,
+    'dpi': 300
 }
 
 
 def ensure_charts_directory():
     """Ensure the charts output directory exists."""
-    charts_dir = "report_charts"
+    charts_dir = "frontend/public/report_charts"
     if not os.path.exists(charts_dir):
         os.makedirs(charts_dir)
     return charts_dir
@@ -133,24 +148,42 @@ def generate_positioning_bar_chart(positioning_metrics: Dict[str, Any], brand_na
 
     colors_map = [COLORS['success'], COLORS['primary'], COLORS['secondary'], COLORS['warning'], COLORS['danger']]
 
-    fig, ax = plt.subplots(figsize=(12, 7))
-    bars = ax.bar(positions, counts, color=colors_map, edgecolor='white', linewidth=2)
+    fig, ax = plt.subplots(figsize=(12, 7), facecolor=CHART_CONFIG['figure_facecolor'])
+    ax.set_facecolor(CHART_CONFIG['axes_facecolor'])
 
-    # Add value labels on top of bars
+    bars = ax.bar(positions, counts, color=colors_map, edgecolor='white', linewidth=2.5, alpha=0.9)
+
+    # Add value labels on top of bars with better styling
     for bar in bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{int(height)}',
-                ha='center', va='bottom', fontsize=12, weight='bold')
+        if height > 0:
+            ax.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{int(height)}',
+                    ha='center', va='bottom', fontsize=CHART_CONFIG['label_size'],
+                    weight='bold', color='#2C3E50')
 
-    ax.set_ylabel('Number of Responses', fontsize=13, weight='bold')
-    ax.set_xlabel('Positioning Category', fontsize=13, weight='bold')
-    ax.set_title(f'{brand_name} Positioning in AI Responses', fontsize=16, weight='bold', pad=20)
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    ax.set_ylabel('Number of Responses', fontsize=CHART_CONFIG['label_size'], weight='bold', color='#2C3E50')
+    ax.set_xlabel('Positioning Category', fontsize=CHART_CONFIG['label_size'], weight='bold', color='#2C3E50')
+    ax.set_title(f'{brand_name} Positioning in AI Responses',
+                fontsize=CHART_CONFIG['title_size'], weight='bold', pad=20, color='#2C3E50')
 
+    # Improve grid styling
+    ax.grid(axis='y', alpha=CHART_CONFIG['grid_alpha'], linestyle='--',
+           color=CHART_CONFIG['grid_color'], linewidth=1)
+    ax.set_axisbelow(True)
+
+    # Style tick labels
+    ax.tick_params(axis='both', labelsize=CHART_CONFIG['tick_size'], colors='#2C3E50')
     plt.xticks(rotation=15, ha='right')
+
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#D1D8E0')
+    ax.spines['bottom'].set_color('#D1D8E0')
+
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.savefig(output_path, dpi=CHART_CONFIG['dpi'], bbox_inches='tight')
     plt.close()
 
     return output_path
@@ -158,7 +191,7 @@ def generate_positioning_bar_chart(positioning_metrics: Dict[str, Any], brand_na
 
 def generate_sentiment_pie_chart(sentiment_metrics: Dict[str, Any], brand_name: str, output_path: str) -> str:
     """
-    Generate a compact pie chart showing sentiment distribution with labels inside slices.
+    Generate a modern donut chart showing sentiment distribution.
     Returns the file path of the generated chart.
     """
     labels = ['Very Positive', 'Positive', 'Neutral', 'Negative', 'Mixed']
@@ -176,38 +209,45 @@ def generate_sentiment_pie_chart(sentiment_metrics: Dict[str, Any], brand_name: 
         return None
 
     labels, sizes = zip(*filtered_data)
-    colors = [COLORS['success'], COLORS['primary'], COLORS['neutral'], COLORS['danger'], COLORS['warning']][:len(labels)]
+    colors = [COLORS['success'], COLORS['positive'], COLORS['neutral'], COLORS['danger'], COLORS['mixed']][:len(labels)]
 
-    # Calculate percentages
-    total = sum(sizes)
-    percentages = [(size / total) * 100 for size in sizes]
+    # Create modern donut chart
+    fig, ax = plt.subplots(figsize=(10, 8), facecolor=CHART_CONFIG['figure_facecolor'])
+    ax.set_facecolor(CHART_CONFIG['axes_facecolor'])
 
-    # Create compact pie chart
-    fig, ax = plt.subplots(figsize=(6, 5))
-
-    # Create pie chart with percentage labels inside
+    # Create donut chart
     wedges, texts, autotexts = ax.pie(
         sizes,
         labels=labels,
         colors=colors,
         autopct='%1.1f%%',
         startangle=90,
-        textprops={'fontsize': 9},
-        pctdistance=0.85  # Position percentage labels closer to center
+        textprops={'fontsize': CHART_CONFIG['label_size'], 'weight': 'bold'},
+        pctdistance=0.85,
+        wedgeprops=dict(width=0.5, edgecolor='white', linewidth=3)  # Donut style with white borders
     )
 
-    # Style the labels - category names outside
+    # Style the labels
     for text in texts:
-        text.set_fontsize(9)
+        text.set_fontsize(CHART_CONFIG['label_size'])
         text.set_weight('bold')
+        text.set_color('#2C3E50')
 
-    # Style the percentage labels - white and bold
+    # Style the percentage labels
     for autotext in autotexts:
         autotext.set_color('white')
-        autotext.set_fontsize(10)
+        autotext.set_fontsize(CHART_CONFIG['label_size'])
         autotext.set_weight('bold')
 
-    ax.set_title(f'Sentiment Distribution\n{brand_name}', fontsize=11, weight='bold', pad=10)
+    # Add center circle for donut effect with total count
+    total = sum(sizes)
+    centre_circle = plt.Circle((0, 0), 0.35, fc=CHART_CONFIG['axes_facecolor'], linewidth=0)
+    ax.add_artist(centre_circle)
+    ax.text(0, 0, f'{total}\nResponses', ha='center', va='center',
+            fontsize=16, weight='bold', color='#2C3E50')
+
+    ax.set_title(f'{brand_name} Sentiment Distribution',
+                fontsize=CHART_CONFIG['title_size'], weight='bold', pad=20, color='#2C3E50')
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=200, bbox_inches='tight')
@@ -359,6 +399,155 @@ def generate_descriptor_performance_chart(descriptor_analysis: Dict[str, int], b
     return output_path
 
 
+def generate_brand_mentions_trend_chart(trend_data: List[Dict[str, Any]], brand_name: str, output_path: str) -> str:
+    """
+    Generate a line chart showing brand mention percentage over time.
+    Returns the file path of the generated chart.
+    """
+    if not trend_data or len(trend_data) < 2:
+        return None
+
+    dates = [item['date'][:10] for item in trend_data]  # Extract date (YYYY-MM-DD)
+    percentages = [item['mention_percentage'] for item in trend_data]
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    ax.plot(dates, percentages, marker='o', linewidth=3, markersize=8,
+            color=COLORS['primary'], markerfacecolor=COLORS['success'])
+
+    ax.set_ylabel('Mention Rate (%)', fontsize=13, weight='bold')
+    ax.set_xlabel('Collection Date', fontsize=13, weight='bold')
+    ax.set_title(f'{brand_name} Brand Mention Rate Over Time', fontsize=16, weight='bold', pad=20)
+    ax.grid(axis='both', alpha=0.3, linestyle='--')
+    ax.set_ylim(0, 100)
+
+    # Rotate x-axis labels for better readability
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return output_path
+
+
+def generate_positioning_trend_chart(trend_data: List[Dict[str, Any]], brand_name: str, output_path: str) -> str:
+    """
+    Generate a stacked area chart showing positioning distribution over time.
+    Returns the file path of the generated chart.
+    """
+    if not trend_data or len(trend_data) < 2:
+        return None
+
+    dates = [item['date'][:10] for item in trend_data]
+    leader = [item['leader'] for item in trend_data]
+    featured = [item['featured'] for item in trend_data]
+    listed = [item['listed'] for item in trend_data]
+    not_mentioned = [item['not_mentioned'] for item in trend_data]
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    ax.stackplot(range(len(dates)), leader, featured, listed, not_mentioned,
+                 labels=['Leader', 'Featured', 'Listed', 'Not Mentioned'],
+                 colors=[COLORS['success'], COLORS['primary'], COLORS['secondary'], COLORS['danger']],
+                 alpha=0.8)
+
+    ax.set_ylabel('Percentage (%)', fontsize=13, weight='bold')
+    ax.set_xlabel('Collection Date', fontsize=13, weight='bold')
+    ax.set_title(f'{brand_name} Positioning Distribution Over Time', fontsize=16, weight='bold', pad=20)
+    ax.legend(loc='upper left', fontsize=11)
+    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    ax.set_ylim(0, 100)
+    ax.set_xticks(range(len(dates)))
+    ax.set_xticklabels(dates, rotation=45, ha='right')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return output_path
+
+
+def generate_share_of_voice_trend_chart(trend_data: List[Dict[str, Any]], brand_name: str, output_path: str) -> str:
+    """
+    Generate a multi-line chart showing share of voice trends for brand and competitors.
+    Returns the file path of the generated chart.
+    """
+    if not trend_data or len(trend_data) < 2:
+        return None
+
+    dates = [item['date'][:10] for item in trend_data]
+    brand_sov = [item['brand_sov'] for item in trend_data]
+
+    # Get all competitor names
+    all_competitors = set()
+    for item in trend_data:
+        all_competitors.update(item.get('competitors', {}).keys())
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    # Plot brand line (thicker, highlighted)
+    ax.plot(dates, brand_sov, marker='o', linewidth=3, markersize=8,
+            color=COLORS['success'], label=brand_name, zorder=10)
+
+    # Plot competitor lines
+    colors_cycle = COLORS['palette'][1:]  # Skip first color (used for brand)
+    for i, competitor in enumerate(sorted(all_competitors)):
+        competitor_sov = [item.get('competitors', {}).get(competitor, 0) for item in trend_data]
+        ax.plot(dates, competitor_sov, marker='s', linewidth=2, markersize=6,
+                color=colors_cycle[i % len(colors_cycle)], label=competitor, alpha=0.7)
+
+    ax.set_ylabel('Share of Voice (%)', fontsize=13, weight='bold')
+    ax.set_xlabel('Collection Date', fontsize=13, weight='bold')
+    ax.set_title('Share of Voice: Brand vs. Competitors Over Time', fontsize=16, weight='bold', pad=20)
+    ax.legend(loc='best', fontsize=10)
+    ax.grid(axis='both', alpha=0.3, linestyle='--')
+    ax.set_ylim(0, 100)
+
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return output_path
+
+
+def generate_sentiment_trend_chart(trend_data: List[Dict[str, Any]], brand_name: str, output_path: str) -> str:
+    """
+    Generate a stacked area chart showing sentiment distribution over time.
+    Returns the file path of the generated chart.
+    """
+    if not trend_data or len(trend_data) < 2:
+        return None
+
+    dates = [item['date'][:10] for item in trend_data]
+    very_positive = [item['very_positive'] for item in trend_data]
+    positive = [item['positive'] for item in trend_data]
+    neutral = [item['neutral'] for item in trend_data]
+    negative = [item['negative'] for item in trend_data]
+    very_negative = [item['very_negative'] for item in trend_data]
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    ax.stackplot(range(len(dates)), very_positive, positive, neutral, negative, very_negative,
+                 labels=['Very Positive', 'Positive', 'Neutral', 'Negative', 'Very Negative'],
+                 colors=[COLORS['success'], COLORS['primary'], COLORS['neutral'], COLORS['warning'], COLORS['very_negative']],
+                 alpha=0.8)
+
+    ax.set_ylabel('Percentage (%)', fontsize=13, weight='bold')
+    ax.set_xlabel('Collection Date', fontsize=13, weight='bold')
+    ax.set_title(f'{brand_name} Sentiment Distribution Over Time', fontsize=16, weight='bold', pad=20)
+    ax.legend(loc='upper left', fontsize=11)
+    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    ax.set_ylim(0, 100)
+    ax.set_xticks(range(len(dates)))
+    ax.set_xticklabels(dates, rotation=45, ha='right')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    return output_path
+
+
 def generate_all_charts(
     mention_metrics: Dict[str, Any],
     positioning_metrics: Dict[str, Any],
@@ -369,7 +558,8 @@ def generate_all_charts(
     brand_name: str,
     timestamp: str = None,
     user_id: Optional[int] = None,
-    brand_id: Optional[int] = None
+    brand_id: Optional[int] = None,
+    trend_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
 ) -> Dict[str, str]:
     """
     Generate all charts for the report.
@@ -459,9 +649,56 @@ def generate_all_charts(
         except Exception as e:
             print(f"Warning: Could not generate descriptor performance chart: {e}")
 
+    # Generate time-series charts if trend data is provided
+    if trend_data:
+        if 'brand_mentions_trend' not in chart_paths and trend_data.get('brand_mentions'):
+            try:
+                chart_paths['brand_mentions_trend'] = generate_brand_mentions_trend_chart(
+                    trend_data['brand_mentions'], brand_name,
+                    f"{charts_dir}/{brand_slug}_brand_mentions_trend_{timestamp}.png"
+                )
+            except Exception as e:
+                print(f"Warning: Could not generate brand mentions trend chart: {e}")
+
+        if 'positioning_trend' not in chart_paths and trend_data.get('positioning'):
+            try:
+                chart_paths['positioning_trend'] = generate_positioning_trend_chart(
+                    trend_data['positioning'], brand_name,
+                    f"{charts_dir}/{brand_slug}_positioning_trend_{timestamp}.png"
+                )
+            except Exception as e:
+                print(f"Warning: Could not generate positioning trend chart: {e}")
+
+        if 'share_of_voice_trend' not in chart_paths and trend_data.get('share_of_voice'):
+            try:
+                chart_paths['share_of_voice_trend'] = generate_share_of_voice_trend_chart(
+                    trend_data['share_of_voice'], brand_name,
+                    f"{charts_dir}/{brand_slug}_share_of_voice_trend_{timestamp}.png"
+                )
+            except Exception as e:
+                print(f"Warning: Could not generate share of voice trend chart: {e}")
+
+        if 'sentiment_trend' not in chart_paths and trend_data.get('sentiment'):
+            try:
+                chart_paths['sentiment_trend'] = generate_sentiment_trend_chart(
+                    trend_data['sentiment'], brand_name,
+                    f"{charts_dir}/{brand_slug}_sentiment_trend_{timestamp}.png"
+                )
+            except Exception as e:
+                print(f"Warning: Could not generate sentiment trend chart: {e}")
+
     # Filter out None values (charts that couldn't be generated)
     chart_paths = {k: v for k, v in chart_paths.items() if v is not None}
 
-    print(f"Generated {len(chart_paths)} charts in {charts_dir}/")
+    # Convert filesystem paths to web-relative paths
+    # frontend/public/report_charts/file.png -> report_charts/file.png
+    web_paths = {}
+    for key, path in chart_paths.items():
+        if path.startswith('frontend/public/'):
+            web_paths[key] = path.replace('frontend/public/', '')
+        else:
+            web_paths[key] = path
 
-    return chart_paths
+    print(f"Generated {len(web_paths)} charts in {charts_dir}/")
+
+    return web_paths

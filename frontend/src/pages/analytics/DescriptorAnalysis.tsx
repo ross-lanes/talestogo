@@ -256,16 +256,16 @@ export default function DescriptorAnalysis() {
               size="small"
               disabled={!descriptors || descriptors.length === 0}
             >
-              Download as CSV
+              Spreadsheet
             </Button>
             <Button
               variant="outlined"
-              startIcon={<ImageIcon />}
+              startIcon={<DownloadIcon />}
               onClick={handleDownloadTop10Image}
               size="small"
               disabled={!descriptors || descriptors.length === 0}
             >
-              Download as Images (10 per slide)
+              Images
             </Button>
           </Box>
         </Box>

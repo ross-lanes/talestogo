@@ -324,8 +324,9 @@ export default function Descriptors() {
             startIcon={<DownloadIcon />}
             onClick={handleDownloadCSV}
             disabled={descriptors.length === 0 || !activeBrand}
+            size="small"
           >
-            Download as CSV
+            Spreadsheet
           </Button>
           <Button
             variant="contained"

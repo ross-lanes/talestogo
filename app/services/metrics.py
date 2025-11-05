@@ -659,3 +659,263 @@ def get_negative_sentiment_statements(responses: List[Any]) -> List[Dict[str, st
         }
         for r in negative_responses[:10]  # Limit to top 10
     ]
+
+
+# ==================== TIME-SERIES CALCULATIONS ====================
+
+def calculate_brand_mentions_over_time(collections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Calculate brand mention percentage for each collection over time.
+
+    FILTERS APPLIED:
+    - Excludes responses from queries where brand_in_query=True
+    - Counts responses where brand_mentioned in ['Yes', 'Indirect']
+
+    Args:
+        collections: List of dicts with keys:
+            - date: Collection date (string or date object)
+            - responses: List of Response objects for that collection
+            - queries: List of Query objects for that collection
+
+    Returns:
+        List of dicts sorted by date, each containing:
+        - date: Collection date (ISO format string)
+        - mention_percentage: Percentage of responses mentioning brand (0-100)
+        - mention_count: Number of responses mentioning brand
+        - total_responses: Total number of responses (excluding branded queries)
+    """
+    trend_data = []
+
+    for collection in collections:
+        date = collection.get('date')
+        responses = collection.get('responses', [])
+        queries = collection.get('queries', [])
+
+        # Filter out responses from branded queries
+        filtered_responses = filter_exclude_branded_queries(responses, queries)
+
+        total = len(filtered_responses)
+        if total == 0:
+            continue
+
+        # Count mentions (Yes or Indirect)
+        mentions = sum(1 for r in filtered_responses if r.brand_mentioned in ['Yes', 'Indirect'])
+        mention_percentage = round((mentions / total) * 100) if total > 0 else 0
+
+        trend_data.append({
+            'date': date.isoformat() if hasattr(date, 'isoformat') else str(date),
+            'mention_percentage': mention_percentage,
+            'mention_count': mentions,
+            'total_responses': total
+        })
+
+    # Sort by date
+    trend_data.sort(key=lambda x: x['date'])
+    return trend_data
+
+
+def calculate_positioning_over_time(collections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Calculate positioning distribution for each collection over time.
+
+    FILTERS APPLIED:
+    - Excludes responses from queries where brand_in_query=True
+    - Only counts responses where brand_mentioned in ['Yes', 'Indirect']
+
+    Args:
+        collections: List of dicts with keys:
+            - date: Collection date (string or date object)
+            - responses: List of Response objects for that collection
+            - queries: List of Query objects for that collection
+
+    Returns:
+        List of dicts sorted by date, each containing:
+        - date: Collection date (ISO format string)
+        - leader: Percentage of Leader positions
+        - featured: Percentage of Featured positions
+        - listed: Percentage of Listed positions
+        - not_mentioned: Percentage of Not Mentioned
+        - total_mentions: Total responses counted
+    """
+    trend_data = []
+
+    for collection in collections:
+        date = collection.get('date')
+        responses = collection.get('responses', [])
+        queries = collection.get('queries', [])
+
+        # Use the same positioning metrics calculation
+        positioning = calculate_positioning_metrics(responses, queries)
+
+        if positioning['total'] == 0:
+            continue
+
+        trend_data.append({
+            'date': date.isoformat() if hasattr(date, 'isoformat') else str(date),
+            'leader': positioning['leader_pct'],
+            'featured': positioning['featured_pct'],
+            'listed': positioning['listed_pct'],
+            'not_mentioned': positioning['not_mentioned_pct'],
+            'total_mentions': positioning['total']
+        })
+
+    # Sort by date
+    trend_data.sort(key=lambda x: x['date'])
+    return trend_data
+
+
+def calculate_share_of_voice_over_time(
+    collections: List[Dict[str, Any]],
+    brand_name: str,
+    top_n_competitors: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    Calculate share of voice over time for brand and top competitors.
+
+    FILTERS APPLIED:
+    - Excludes responses from queries where brand_in_query=True
+    - Counts brand by POSITIONING (Leader, Featured, Listed)
+
+    Args:
+        collections: List of dicts with keys:
+            - date: Collection date (string or date object)
+            - responses: List of Response objects for that collection
+            - queries: List of Query objects for that collection
+        brand_name: Name of the brand being analyzed
+        top_n_competitors: Number of top competitors to include
+
+    Returns:
+        List of dicts sorted by date, each containing:
+        - date: Collection date (ISO format string)
+        - brand_sov: Brand's share of voice percentage
+        - competitors: Dict mapping competitor name -> SOV percentage
+        - total_mentions: Total mentions counted
+    """
+    # First pass: identify top N competitors across all time periods
+    all_competitor_counts = Counter()
+
+    for collection in collections:
+        responses = collection.get('responses', [])
+        queries = collection.get('queries', [])
+
+        branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+        for response in responses:
+            if response.query_id in branded_query_ids:
+                continue
+
+            if response.competitors:
+                comp_list = [c.strip() for c in response.competitors.split(',') if c.strip()]
+                for comp in comp_list:
+                    normalized_name = normalize_organization_name(comp)
+                    all_competitor_counts[normalized_name] += 1
+
+    # Get top N competitors
+    top_competitors = [name for name, _ in all_competitor_counts.most_common(top_n_competitors)]
+
+    # Second pass: calculate SOV for each time period
+    trend_data = []
+
+    for collection in collections:
+        date = collection.get('date')
+        responses = collection.get('responses', [])
+        queries = collection.get('queries', [])
+
+        branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+        total_mentions = 0
+        brand_mentions = 0
+        competitor_mentions = Counter()
+
+        for response in responses:
+            if response.query_id in branded_query_ids:
+                continue
+
+            # Count brand mentions by positioning
+            if response.brand_position in ['Leader', 'Top 3', 'Featured', 'Listed']:
+                brand_mentions += 1
+                total_mentions += 1
+
+            # Count competitor mentions (only top N)
+            if response.competitors:
+                comp_list = [c.strip() for c in response.competitors.split(',') if c.strip()]
+                for comp in comp_list:
+                    normalized_name = normalize_organization_name(comp)
+                    if normalized_name in top_competitors:
+                        competitor_mentions[normalized_name] += 1
+                        total_mentions += 1
+
+        if total_mentions == 0:
+            continue
+
+        # Calculate percentages
+        brand_sov = round((brand_mentions / total_mentions) * 100) if total_mentions > 0 else 0
+
+        competitors_sov = {}
+        for comp_name in top_competitors:
+            count = competitor_mentions.get(comp_name, 0)
+            sov = round((count / total_mentions) * 100) if total_mentions > 0 else 0
+            competitors_sov[comp_name] = sov
+
+        trend_data.append({
+            'date': date.isoformat() if hasattr(date, 'isoformat') else str(date),
+            'brand_sov': brand_sov,
+            'competitors': competitors_sov,
+            'total_mentions': total_mentions
+        })
+
+    # Sort by date
+    trend_data.sort(key=lambda x: x['date'])
+    return trend_data
+
+
+def calculate_sentiment_over_time(collections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Calculate sentiment distribution for each collection over time.
+
+    FILTERS APPLIED:
+    - Only counts direct mentions (brand_mentioned == 'Yes')
+    - NO brand_in_query filtering (sentiment applies to all mentions)
+
+    Args:
+        collections: List of dicts with keys:
+            - date: Collection date (string or date object)
+            - responses: List of Response objects for that collection
+
+    Returns:
+        List of dicts sorted by date, each containing:
+        - date: Collection date (ISO format string)
+        - very_positive: Percentage
+        - positive: Percentage
+        - neutral: Percentage
+        - negative: Percentage
+        - very_negative: Percentage
+        - mixed: Percentage
+        - total_mentions: Total direct mentions counted
+    """
+    trend_data = []
+
+    for collection in collections:
+        date = collection.get('date')
+        responses = collection.get('responses', [])
+
+        # Use the same sentiment metrics calculation
+        sentiment = calculate_sentiment_metrics(responses)
+
+        if sentiment['total'] == 0:
+            continue
+
+        trend_data.append({
+            'date': date.isoformat() if hasattr(date, 'isoformat') else str(date),
+            'very_positive': sentiment['very_positive_pct'],
+            'positive': sentiment['positive_pct'],
+            'neutral': sentiment['neutral_pct'],
+            'negative': sentiment['negative_pct'],
+            'very_negative': sentiment['very_negative_pct'],
+            'mixed': sentiment['mixed_pct'],
+            'total_mentions': sentiment['total']
+        })
+
+    # Sort by date
+    trend_data.sort(key=lambda x: x['date'])
+    return trend_data

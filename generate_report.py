@@ -504,11 +504,7 @@ Be data-driven and specific. No generic advice like "improve SEO" or "create mor
 Do NOT use emojis or icons.
 Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers.
 
-IMPORTANT - Citations: If you reference external sources, news, or research:
-- Include inline citations with proper markdown links: [Source Name](URL)
-- Add a "References" section at the end with numbered citations if using footnote-style references
-- If you cannot provide the full reference list with URLs, DO NOT use numbered citations [1], [2], etc. - instead use inline descriptive references like "according to recent reporting in TechCrunch" or "as noted in a Nature study"
-- Only use numbered citations if you will provide the complete reference list"""
+IMPORTANT - Citations: DO NOT include any citations, references, or external sources. Base all analysis solely on the data provided above. Do NOT add a "References" section at the end."""
 
     completion = perplexity_client.chat.completions.create(
         model="sonar-pro",  # Using Perplexity Sonar Pro for strategic depth
