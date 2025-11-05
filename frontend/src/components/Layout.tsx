@@ -112,6 +112,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Sentiment', icon: <SentimentIcon />, path: '/analytics/sentiment', indent: true },
     { text: 'Threats', icon: <WarningIcon />, path: '/analytics/threats', indent: true },
     { text: 'Recommendations', icon: <FlagIcon />, path: '/analytics/recommendations', indent: true },
+    { text: 'Reports', icon: <ReportIcon />, path: '/reports', indent: false },
   ];
 
   const handleMenuItemClick = (item: any) => {

@@ -11,6 +11,7 @@ import Competitors from './pages/manage/Competitors';
 import Descriptors from './pages/manage/Descriptors';
 import BrandInfo from './pages/manage/BrandInfo';
 import Reports from './pages/Reports';
+import ReportsPage from './pages/ReportsPage';
 import DataAnalysis from './pages/DataAnalysis';
 import Data from './pages/Data';
 import Login from './pages/auth/Login';
@@ -240,6 +241,18 @@ function App() {
                       <ProtectedRoute>
                         <Layout>
                           <Help />
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Reports Route */}
+                  <Route
+                    path="/reports"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <ReportsPage />
                         </Layout>
                       </ProtectedRoute>
                     }

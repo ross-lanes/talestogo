@@ -1550,6 +1550,40 @@ def export_report_to_html(
     )
 
 
+@app.get("/reports/{report_id}/export/pptx", tags=["Reports"])
+def export_report_to_pptx(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Export a report to PowerPoint slideshow with embedded PNG charts."""
+    from app.services.report_slideshow import generate_slideshow
+
+    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Generate PowerPoint slideshow
+    pptx_file = generate_slideshow(
+        db_report.report_content,
+        db_report.title,
+        db,
+        user_id=current_user.id,
+        brand_id=brand_id
+    )
+
+    # Create safe filename
+    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{safe_filename}.pptx"
+
+    return StreamingResponse(
+        pptx_file,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 # --- Brand Info Endpoints ---
 # --- Multi-Brand Endpoints ---
 
