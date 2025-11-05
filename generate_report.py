@@ -805,9 +805,12 @@ def generate_markdown_report(
 
 """
 
-    # Add Dashboard chart after Executive Summary
-    if chart_paths and 'dashboard' in chart_paths:
-        report += f"\n![Key Metrics Dashboard]({chart_paths['dashboard']})\n\n"
+    # Add Key Metrics charts after Executive Summary
+    if chart_paths and 'mention_rate' in chart_paths:
+        report += f"\n![Key Metrics Dashboard]({chart_paths['mention_rate']})\n\n"
+
+    if chart_paths and 'share_of_voice' in chart_paths:
+        report += f"\n![Share of Voice]({chart_paths['share_of_voice']})\n\n"
 
     report += f"""
 ---
