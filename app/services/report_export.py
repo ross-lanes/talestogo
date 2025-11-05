@@ -337,6 +337,7 @@ def export_to_word_with_charts(
     Returns:
         BytesIO object containing the Word document with charts
     """
+    import os
     from app import analytics
     from app import models
 
@@ -384,8 +385,8 @@ def export_to_word_with_charts(
     title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph()  # Spacer
 
-    # Generate charts as images
-    chart_images = _generate_chart_images(db, user_id, brand_id)
+    # Extract chart paths from markdown content (no need to regenerate)
+    # Chart images are already generated and stored in frontend/public/report_charts/
 
     # Parse markdown content directly (no extra sections)
     lines = markdown_content.split('\n')
@@ -419,42 +420,30 @@ def export_to_word_with_charts(
 
         # Images (markdown format: ![alt text](path))
         elif line.startswith('![') and '](' in line:
-            # Extract image key from markdown
-            # Format: ![Description](chart_paths['key']) or ![Description](report_charts/filename.png)
+            # Extract image path from markdown: ![Description](report_charts/filename.png)
             try:
-                # Try to find the chart key between single quotes
-                if "chart_paths['" in line or 'chart_paths["' in line:
-                    key_start = line.find("['") + 2 if "['" in line else line.find('["') + 2
-                    key_end = line.find("']") if "']" in line else line.find('"]')
-                    if key_start > 1 and key_end > key_start:
-                        chart_key = line[key_start:key_end]
-                        if chart_key in chart_images:
-                            doc.add_picture(chart_images[chart_key], width=Inches(5.5))
+                # Find the path between parentheses
+                start = line.find('](') + 2
+                end = line.find(')', start)
+                if start > 1 and end > start:
+                    image_path = line[start:end]
+
+                    # Convert web path to filesystem path
+                    if image_path.startswith('report_charts/'):
+                        # Path is relative to frontend/public/
+                        full_path = os.path.join('frontend', 'public', image_path)
+
+                        # Check if file exists and embed it
+                        if os.path.exists(full_path):
+                            doc.add_picture(full_path, width=Inches(5.5))
                             doc.add_paragraph()  # Add spacing after image
-                else:
-                    # Try to extract chart name from filename (e.g., "sentiment" from "..._sentiment_...png")
-                    # Look for common chart types in the filename
-                    chart_types = ['dashboard', 'mention_rate', 'share_of_voice', 'sentiment',
-                                   'platform_comparison', 'positioning', 'descriptor_performance']
-                    for chart_type in chart_types:
-                        if chart_type in line.lower().replace('_', ' ') or chart_type.replace('_', ' ') in line.lower():
-                            # Map filename patterns to chart keys
-                            chart_key_map = {
-                                'dashboard': 'dashboard',
-                                'mention rate': 'mention_rate',
-                                'share of voice': 'share_of_voice',
-                                'sentiment': 'sentiment',
-                                'platform': 'platform_comparison',
-                                'positioning': 'positioning',
-                                'descriptor': 'descriptor_performance'
-                            }
-                            for pattern, key in chart_key_map.items():
-                                if pattern in line.lower():
-                                    if key in chart_images:
-                                        doc.add_picture(chart_images[key], width=Inches(5.5))
-                                        doc.add_paragraph()  # Add spacing after image
-                                    break
-                            break
+                        else:
+                            print(f"Warning: Chart image not found at {full_path}")
+                    elif os.path.exists(image_path):
+                        # Direct filesystem path
+                        doc.add_picture(image_path, width=Inches(5.5))
+                        doc.add_paragraph()
+
             except Exception as e:
                 print(f"Error embedding image: {e}")
                 # Skip the image if there's an error
@@ -517,10 +506,6 @@ def export_to_word_with_charts(
                 para.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
         i += 1
-
-    # Clean up chart images
-    for img_buffer in chart_images.values():
-        img_buffer.close()
 
     # Save to BytesIO
     output = io.BytesIO()

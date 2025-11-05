@@ -280,15 +280,52 @@ def generate_html_report_with_charts(
     return html
 
 
-def markdown_to_html(markdown_content: str) -> str:
-    """Convert markdown to HTML (simple conversion)"""
+def markdown_to_html(markdown_content: str, embed_images: bool = True) -> str:
+    """
+    Convert markdown to HTML (simple conversion)
+
+    Args:
+        markdown_content: Markdown content to convert
+        embed_images: If True, embed images as base64 data URLs for standalone HTML
+    """
     import re
+    import os
+    import base64
 
     html = markdown_content
 
-    # Remove image markdown syntax (![alt text](path))
-    # This removes lines like ![Description](chart_paths['key']) or ![Description](report_charts/filename.png)
-    html = re.sub(r'!\[.*?\]\(.*?\)\n?', '', html)
+    # Convert image markdown to HTML img tags
+    def convert_image(match):
+        alt_text = match.group(1)
+        image_path = match.group(2)
+
+        # Convert web path to filesystem path
+        if image_path.startswith('report_charts/'):
+            full_path = os.path.join('frontend', 'public', image_path)
+        elif os.path.exists(image_path):
+            full_path = image_path
+        else:
+            # Try with frontend/public prefix
+            full_path = os.path.join('frontend', 'public', image_path)
+
+        # Embed as base64 for standalone HTML
+        if embed_images and os.path.exists(full_path):
+            try:
+                with open(full_path, 'rb') as img_file:
+                    img_data = base64.b64encode(img_file.read()).decode('utf-8')
+                    return f'<img src="data:image/png;base64,{img_data}" alt="{alt_text}" style="max-width: 100%; height: auto; margin: 20px 0; display: block;">'
+            except Exception as e:
+                print(f"Warning: Could not embed image {full_path}: {e}")
+
+        # Fallback to web path
+        if image_path.startswith('report_charts/'):
+            web_path = '/' + image_path
+        else:
+            web_path = image_path
+
+        return f'<img src="{web_path}" alt="{alt_text}" style="max-width: 100%; height: auto; margin: 20px 0; display: block;">'
+
+    html = re.sub(r'!\[(.*?)\]\((.*?)\)', convert_image, html)
 
     # Process tables first (before other conversions)
     def convert_tables(text):
