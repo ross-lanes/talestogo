@@ -485,11 +485,31 @@ def get_brand_by_id(db: Session, brand_id: int, user_id: int) -> Optional[models
     ).first()
 
 def get_active_brand(db: Session, user_id: int) -> Optional[models.BrandInfo]:
-    """Gets the currently active brand for a user."""
-    return db.query(models.BrandInfo).filter(
+    """Gets the currently active brand for a user (owned or shared)."""
+    # First, try to get an owned brand that is active
+    owned_active = db.query(models.BrandInfo).filter(
         models.BrandInfo.user_id == user_id,
         models.BrandInfo.is_active == True
     ).first()
+
+    if owned_active:
+        return owned_active
+
+    # If no owned active brand, check if user has any shared brands
+    # Return the most recently created shared brand
+    shared_brand_ids = db.query(models.BrandShare.brand_id).filter(
+        models.BrandShare.user_id == user_id
+    ).all()
+
+    if not shared_brand_ids:
+        return None
+
+    shared_brand_ids = [bid[0] for bid in shared_brand_ids]
+
+    # Get the most recently created shared brand
+    return db.query(models.BrandInfo).filter(
+        models.BrandInfo.id.in_(shared_brand_ids)
+    ).order_by(models.BrandInfo.created_at.desc()).first()
 
 def get_brand_info(db: Session, user_id: int) -> Optional[models.BrandInfo]:
     """Legacy function - gets active brand for backward compatibility."""
