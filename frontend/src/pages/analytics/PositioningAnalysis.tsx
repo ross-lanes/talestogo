@@ -294,7 +294,7 @@ export default function PositioningAnalysis() {
               How your brand's positioning has evolved across collection periods
             </Typography>
           </Box>
-          {positioningTrends && positioningTrends.length > 1 && (
+          {positioningTrends && positioningTrends.length > 0 && (
             <Button
               variant="outlined"
               startIcon={<Download />}
@@ -312,78 +312,70 @@ export default function PositioningAnalysis() {
           </Box>
         ) : positioningTrends && positioningTrends.length > 0 ? (
           <>
-            {positioningTrends.length === 1 ? (
-              <Alert severity="info">
-                Only one collection batch found. Trend visualization will appear after running additional data collections.
-              </Alert>
-            ) : (
-              <>
-                {/* Format dates for display */}
-                {(() => {
-                  const formattedData = positioningTrends.map((item: any) => ({
-                    ...item,
-                    displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                  }));
+            {/* Format dates for display */}
+            {(() => {
+              const formattedData = positioningTrends.map((item: any) => ({
+                ...item,
+                displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              }));
 
-                  return (
-                    <Box ref={positioningTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                      <ResponsiveContainer width="100%" height={400}>
-                      <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="displayDate"
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis
-                          label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
-                          domain={[0, 100]}
-                        />
-                        <Tooltip
-                          formatter={(value: number, name: string) => [`${value}%`, name]}
-                          labelFormatter={(label) => `Date: ${label}`}
-                        />
-                        <Legend />
-                        <Area
-                          type="monotone"
-                          dataKey="leader"
-                          stackId="1"
-                          stroke="#116C29"
-                          fill="#116C29"
-                          name="Leader"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="featured"
-                          stackId="1"
-                          stroke="#75c9c8"
-                          fill="#75c9c8"
-                          name="Featured"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="listed"
-                          stackId="1"
-                          stroke="#80a1d4"
-                          fill="#80a1d4"
-                          name="Listed"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="not_mentioned"
-                          stackId="1"
-                          stroke="#665775"
-                          fill="#665775"
-                          name="Not Mentioned"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                    </Box>
-                  );
-                })()}
-              </>
-            )}
+              return (
+                <Box ref={positioningTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                  <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="displayDate"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis
+                      label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [`${value}%`, name]}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="leader"
+                      stackId="1"
+                      stroke="#116C29"
+                      fill="#116C29"
+                      name="Leader"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="featured"
+                      stackId="1"
+                      stroke="#75c9c8"
+                      fill="#75c9c8"
+                      name="Featured"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="listed"
+                      stackId="1"
+                      stroke="#80a1d4"
+                      fill="#80a1d4"
+                      name="Listed"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="not_mentioned"
+                      stackId="1"
+                      stroke="#665775"
+                      fill="#665775"
+                      name="Not Mentioned"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                </Box>
+              );
+            })()}
           </>
         ) : (
           <Alert severity="info">

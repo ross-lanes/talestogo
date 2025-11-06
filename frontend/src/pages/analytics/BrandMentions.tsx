@@ -137,7 +137,7 @@ export default function BrandMentions() {
               Percentage of AI responses that mention your brand across all collection periods
             </Typography>
           </Box>
-          {formattedData.length > 1 && (
+          {formattedData.length > 0 && (
             <Button
               variant="outlined"
               startIcon={<Download />}
@@ -150,45 +150,37 @@ export default function BrandMentions() {
         </Box>
 
         {formattedData.length > 0 ? (
-          <>
-            {formattedData.length === 1 ? (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Only one collection batch found. Trend visualization will appear after running additional data collections.
-              </Alert>
-            ) : (
-              <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="displayDate"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis
-                    label={{ value: 'Mention Rate (%)', angle: -90, position: 'insideLeft' }}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}%`, 'Mention Rate']}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="mention_percentage"
-                    stroke={BRAND_COLOR}
-                    strokeWidth={3}
-                    name="Mention Rate"
-                    dot={{ fill: BRAND_COLOR, r: 5 }}
-                    activeDot={{ r: 7 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-              </Box>
-            )}
-          </>
+          <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+            <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="displayDate"
+                angle={-45}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis
+                label={{ value: 'Mention Rate (%)', angle: -90, position: 'insideLeft' }}
+                domain={[0, 100]}
+              />
+              <Tooltip
+                formatter={(value: number) => [`${value}%`, 'Mention Rate']}
+                labelFormatter={(label) => `Date: ${label}`}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="mention_percentage"
+                stroke={BRAND_COLOR}
+                strokeWidth={3}
+                name="Mention Rate"
+                dot={{ fill: BRAND_COLOR, r: 5 }}
+                activeDot={{ r: 7 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          </Box>
         ) : (
           <Alert severity="info">
             No brand mention data available yet. Data will appear after running data collection.

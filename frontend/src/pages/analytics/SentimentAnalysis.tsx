@@ -391,7 +391,7 @@ export default function SentimentAnalysis() {
               Track how sentiment toward your brand has evolved across collection periods
             </Typography>
           </Box>
-          {sentimentTrends && sentimentTrends.length > 1 && (
+          {sentimentTrends && sentimentTrends.length > 0 && (
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="outlined"
@@ -419,86 +419,78 @@ export default function SentimentAnalysis() {
           </Box>
         ) : sentimentTrends && sentimentTrends.length > 0 ? (
           <>
-            {sentimentTrends.length === 1 ? (
-              <Alert severity="info">
-                Only one collection batch found. Trend visualization will appear after running additional data collections.
-              </Alert>
-            ) : (
-              <>
-                {/* Format dates for display */}
-                {(() => {
-                  const formattedData = sentimentTrends.map((item: any) => ({
-                    ...item,
-                    displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                  }));
+            {/* Format dates for display */}
+            {(() => {
+              const formattedData = sentimentTrends.map((item: any) => ({
+                ...item,
+                displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              }));
 
-                  return (
-                    <Box ref={sentimentTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                      <ResponsiveContainer width="100%" height={400}>
-                      <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="displayDate"
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis
-                          label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
-                          domain={[0, 100]}
-                        />
-                        <Tooltip
-                          formatter={(value: number, name: string) => [`${value}%`, name]}
-                          labelFormatter={(label) => `Date: ${label}`}
-                        />
-                        <Legend />
-                        <Area
-                          type="monotone"
-                          dataKey="very_positive"
-                          stackId="1"
-                          stroke={COLORS['Very Positive']}
-                          fill={COLORS['Very Positive']}
-                          name="Very Positive"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="positive"
-                          stackId="1"
-                          stroke={COLORS['Positive']}
-                          fill={COLORS['Positive']}
-                          name="Positive"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="neutral"
-                          stackId="1"
-                          stroke={COLORS['Neutral']}
-                          fill={COLORS['Neutral']}
-                          name="Neutral"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="negative"
-                          stackId="1"
-                          stroke={COLORS['Negative']}
-                          fill={COLORS['Negative']}
-                          name="Negative"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="very_negative"
-                          stackId="1"
-                          stroke={COLORS['Very Negative']}
-                          fill={COLORS['Very Negative']}
-                          name="Very Negative"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                    </Box>
-                  );
-                })()}
-              </>
-            )}
+              return (
+                <Box ref={sentimentTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                  <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="displayDate"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis
+                      label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [`${value}%`, name]}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="very_positive"
+                      stackId="1"
+                      stroke={COLORS['Very Positive']}
+                      fill={COLORS['Very Positive']}
+                      name="Very Positive"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="positive"
+                      stackId="1"
+                      stroke={COLORS['Positive']}
+                      fill={COLORS['Positive']}
+                      name="Positive"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="neutral"
+                      stackId="1"
+                      stroke={COLORS['Neutral']}
+                      fill={COLORS['Neutral']}
+                      name="Neutral"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="negative"
+                      stackId="1"
+                      stroke={COLORS['Negative']}
+                      fill={COLORS['Negative']}
+                      name="Negative"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="very_negative"
+                      stackId="1"
+                      stroke={COLORS['Very Negative']}
+                      fill={COLORS['Very Negative']}
+                      name="Very Negative"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                </Box>
+              );
+            })()}
           </>
         ) : (
           <Alert severity="info">

@@ -464,7 +464,7 @@ export default function ShareOfVoice() {
               Track how your brand's share of voice compares to top competitors over time
             </Typography>
           </Box>
-          {sovTrends && sovTrends.length > 1 && (
+          {sovTrends && sovTrends.length > 0 && (
             <Button
               variant="outlined"
               startIcon={<Download />}
@@ -482,73 +482,65 @@ export default function ShareOfVoice() {
           </Box>
         ) : sovTrends && sovTrends.length > 0 ? (
           <>
-            {sovTrends.length === 1 ? (
-              <Alert severity="info">
-                Only one collection batch found. Trend visualization will appear after running additional data collections.
-              </Alert>
-            ) : (
-              <>
-                {/* Format data for chart */}
-                {(() => {
-                  const formattedData = sovTrends.map((item: any) => {
-                    const result: any = {
-                      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                      'Your Brand': item.brand_sov
-                    };
-                    // Add competitors
-                    Object.entries(item.competitors || {}).forEach(([name, sov]) => {
-                      result[name] = sov;
-                    });
-                    return result;
-                  });
+            {/* Format data for chart */}
+            {(() => {
+              const formattedData = sovTrends.map((item: any) => {
+                const result: any = {
+                  date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                  'Your Brand': item.brand_sov
+                };
+                // Add competitors
+                Object.entries(item.competitors || {}).forEach(([name, sov]) => {
+                  result[name] = sov;
+                });
+                return result;
+              });
 
-                  // Get all organization names (brand + competitors)
-                  const allOrgs = new Set<string>();
-                  allOrgs.add('Your Brand');
-                  sovTrends.forEach((item: any) => {
-                    Object.keys(item.competitors || {}).forEach(name => allOrgs.add(name));
-                  });
-                  const orgNames = Array.from(allOrgs);
+              // Get all organization names (brand + competitors)
+              const allOrgs = new Set<string>();
+              allOrgs.add('Your Brand');
+              sovTrends.forEach((item: any) => {
+                Object.keys(item.competitors || {}).forEach(name => allOrgs.add(name));
+              });
+              const orgNames = Array.from(allOrgs);
 
-                  return (
-                    <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="date"
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis
-                          label={{ value: 'Share of Voice (%)', angle: -90, position: 'insideLeft' }}
-                          domain={[0, 100]}
-                        />
-                        <Tooltip
-                          formatter={(value: number) => [`${value}%`, '']}
-                          labelFormatter={(label) => `Date: ${label}`}
-                        />
-                        <Legend />
-                        {orgNames.map((org, index) => (
-                          <Line
-                            key={org}
-                            type="monotone"
-                            dataKey={org}
-                            stroke={org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
-                            strokeWidth={org === 'Your Brand' ? 3 : 2}
-                            name={org}
-                            dot={{ fill: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: org === 'Your Brand' ? 5 : 4 }}
-                            activeDot={{ r: org === 'Your Brand' ? 7 : 6 }}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
-                    </Box>
-                  );
-                })()}
-              </>
-            )}
+              return (
+                <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis
+                      label={{ value: 'Share of Voice (%)', angle: -90, position: 'insideLeft' }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [`${value}%`, '']}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend />
+                    {orgNames.map((org, index) => (
+                      <Line
+                        key={org}
+                        type="monotone"
+                        dataKey={org}
+                        stroke={org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
+                        strokeWidth={org === 'Your Brand' ? 3 : 2}
+                        name={org}
+                        dot={{ fill: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: org === 'Your Brand' ? 5 : 4 }}
+                        activeDot={{ r: org === 'Your Brand' ? 7 : 6 }}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+                </Box>
+              );
+            })()}
           </>
         ) : (
           <Alert severity="info">
