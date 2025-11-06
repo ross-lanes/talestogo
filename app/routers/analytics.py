@@ -26,6 +26,29 @@ def get_active_brand_id(
     active_brand = crud.get_active_brand(db, user_id=current_user.id)
     return active_brand.id if active_brand else None
 
+
+def get_brand_owner_user_id(
+    brand_id: Optional[int],
+    current_user: models.User,
+    db: Session
+) -> int:
+    """
+    Get the user_id to use for querying responses.
+
+    For shared brands, returns the brand owner's user_id.
+    For owned brands or when no brand_id, returns current_user.id.
+
+    This ensures shared users can see the brand owner's responses.
+    """
+    if brand_id:
+        # Get the brand to find its owner
+        brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+        if brand:
+            return brand.user_id
+
+    # Default to current user
+    return current_user.id
+
 router = APIRouter(
     prefix="/analytics",
     tags=["analytics"]
@@ -44,7 +67,8 @@ def get_dashboard_analytics(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_dashboard_data()
 
 
@@ -59,7 +83,8 @@ def get_mention_trends(
     Get mention rate trends over time for the active brand.
     Query parameter: days (default: 30)
     """
-    return analytics.get_mention_trend(db, user_id=current_user.id, days=days, brand_id=brand_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    return analytics.get_mention_trend(db, user_id=owner_user_id, days=days, brand_id=brand_id)
 
 
 @router.get("/sentiment/breakdown", response_model=Dict[str, Any])
@@ -74,7 +99,8 @@ def get_sentiment_analysis(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_sentiment_data()
 
 
@@ -87,7 +113,8 @@ def get_descriptor_insights_endpoint(
     """
     Get AI-generated insights about descriptor usage patterns.
     """
-    return analytics.get_descriptor_insights(db, user_id=current_user.id, brand_id=brand_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    return analytics.get_descriptor_insights(db, user_id=owner_user_id, brand_id=brand_id)
 
 
 @router.get("/positioning/breakdown", response_model=Dict[str, Any])
@@ -102,7 +129,8 @@ def get_positioning_analysis(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_positioning_data()
 
 
@@ -118,7 +146,8 @@ def get_share_of_voice_analysis(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    cache = AnalyticsCache(db, user_id=current_user.id, brand_id=brand_id, batch_id=batch_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_share_of_voice_data()
 
 
@@ -131,8 +160,9 @@ def get_recommendations(
     """
     Get the latest AI-generated recommendations from the most recent report.
     """
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
     # Query for the most recent report for the user/brand
-    query = db.query(models.Report).filter(models.Report.user_id == current_user.id)
+    query = db.query(models.Report).filter(models.Report.user_id == owner_user_id)
     if brand_id:
         query = query.filter(models.Report.brand_id == brand_id)
 
@@ -232,8 +262,9 @@ def get_competitor_threats_analysis(
     - threat_score: Calculated threat score
     - threat_level: High/Medium/Low threat classification
     """
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
     # Fetch all responses for the user/brand/batch
-    query = db.query(models.Response).filter(models.Response.user_id == current_user.id)
+    query = db.query(models.Response).filter(models.Response.user_id == owner_user_id)
     if brand_id:
         query = query.filter(models.Response.brand_id == brand_id)
     if batch_id:
@@ -242,21 +273,21 @@ def get_competitor_threats_analysis(
     responses = query.all()
 
     # Fetch all queries for the user/brand (needed for filtering)
-    queries_query = db.query(models.Query).filter(models.Query.user_id == current_user.id)
+    queries_query = db.query(models.Query).filter(models.Query.user_id == owner_user_id)
     if brand_id:
         queries_query = queries_query.filter(models.Query.brand_id == brand_id)
 
     queries = queries_query.all()
 
     # Fetch competitors list
-    competitors_query = db.query(models.Competitor).filter(models.Competitor.user_id == current_user.id)
+    competitors_query = db.query(models.Competitor).filter(models.Competitor.user_id == owner_user_id)
     if brand_id:
         competitors_query = competitors_query.filter(models.Competitor.brand_id == brand_id)
 
     competitors = competitors_query.all()
 
     # Get brand name
-    brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == current_user.id)
+    brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == owner_user_id)
     if brand_id:
         brand_query = brand_query.filter(models.BrandInfo.id == brand_id)
 
@@ -291,7 +322,8 @@ def get_brand_mentions_over_time(
     if not brand_id:
         return []
 
-    return get_brand_mentions_trend_cached(db, current_user.id, brand_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    return get_brand_mentions_trend_cached(db, owner_user_id, brand_id)
 
 
 @router.get("/trends/positioning", response_model=List[Dict[str, Any]])
@@ -309,7 +341,8 @@ def get_positioning_over_time(
     if not brand_id:
         return []
 
-    return get_positioning_trend_cached(db, current_user.id, brand_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    return get_positioning_trend_cached(db, owner_user_id, brand_id)
 
 
 @router.get("/trends/share-of-voice", response_model=List[Dict[str, Any]])
@@ -327,14 +360,15 @@ def get_share_of_voice_over_time(
     if not brand_id:
         return []
 
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
     # Get brand name
-    brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == current_user.id)
+    brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == owner_user_id)
     if brand_id:
         brand_query = brand_query.filter(models.BrandInfo.id == brand_id)
     brand = brand_query.first()
     brand_name = brand.brand_name if brand else "Your Brand"
 
-    return get_share_of_voice_trend_cached(db, current_user.id, brand_id, brand_name)
+    return get_share_of_voice_trend_cached(db, owner_user_id, brand_id, brand_name)
 
 
 @router.get("/trends/sentiment", response_model=List[Dict[str, Any]])
@@ -352,4 +386,5 @@ def get_sentiment_over_time(
     if not brand_id:
         return []
 
-    return get_sentiment_trend_cached(db, current_user.id, brand_id)
+    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    return get_sentiment_trend_cached(db, owner_user_id, brand_id)
