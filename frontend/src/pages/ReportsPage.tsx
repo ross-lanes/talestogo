@@ -182,21 +182,25 @@ export default function ReportsPage() {
       width: 140,
       getActions: (params) => [
         <GridActionsCellItem
+          key="word"
           icon={<WordIcon />}
           label="Word"
           onClick={() => handleDownloadWord(params.row)}
         />,
         <GridActionsCellItem
+          key="html"
           icon={<DownloadIcon />}
           label="HTML"
           onClick={() => handleDownloadHTML(params.row)}
         />,
         <GridActionsCellItem
+          key="slideshow"
           icon={<SlideshowIcon />}
           label="Slideshow"
           onClick={() => handleDownloadSlideshow(params.row)}
         />,
         <GridActionsCellItem
+          key="delete"
           icon={<DeleteIcon />}
           label="Delete"
           onClick={() => handleDeleteClick(params.row)}

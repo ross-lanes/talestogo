@@ -104,22 +104,111 @@ def generate_slideshow(
         title_para.font.bold = True
         title_para.font.color.rgb = TALES_PURPLE
 
-        # Add summary text
+        # Add summary text as bullets
         text_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5.5))
         text_frame = text_box.text_frame
         text_frame.word_wrap = True
 
-        # Remove markdown formatting
+        # Remove markdown formatting and split into sentences
         clean_summary = re.sub(r'\*\*(.*?)\*\*', r'\1', exec_summary)
-        text_frame.text = clean_summary
 
-        for paragraph in text_frame.paragraphs:
-            paragraph.font.size = Pt(14)
-            paragraph.font.color.rgb = RGBColor(51, 51, 51)
-            paragraph.space_before = Pt(6)
-            paragraph.space_after = Pt(6)
+        # Split into sentences and create bullets (limit to key points)
+        sentences = [s.strip() for s in clean_summary.split('.') if s.strip() and len(s.strip()) > 20]
 
-    # === Extract and add chart images ===
+        # Take first 5-6 most important sentences as bullets
+        key_points = sentences[:6]
+
+        for i, point in enumerate(key_points):
+            if i == 0:
+                p = text_frame.paragraphs[0]
+            else:
+                p = text_frame.add_paragraph()
+
+            p.text = f"• {point.strip()}"
+            p.font.size = Pt(16)
+            p.font.color.rgb = RGBColor(51, 51, 51)
+            p.space_before = Pt(8)
+            p.space_after = Pt(8)
+            p.level = 0
+
+    # === Generate chart slides for all analytics sections ===
+    from app.services.chart_generator import (
+        ensure_charts_directory,
+        generate_mention_rate_pie_chart,
+        generate_sentiment_pie_chart,
+        generate_positioning_bar_chart,
+        generate_share_of_voice_chart
+    )
+    from app.analytics import (
+        get_dashboard_metrics,
+        get_sentiment_breakdown,
+        get_positioning_breakdown,
+        get_share_of_voice
+    )
+
+    charts_dir = ensure_charts_directory()
+    generated_charts = []
+
+    try:
+        # Generate Dashboard/Brand Mentions chart
+        dashboard_metrics = get_dashboard_metrics(db, user_id, brand_id)
+        if dashboard_metrics and dashboard_metrics.get('mention_rate') is not None:
+            chart_path = os.path.join(charts_dir, f"slideshow_mention_rate_{user_id}_{brand_id}.png")
+            generate_mention_rate_pie_chart(dashboard_metrics, brand_name, chart_path)
+            generated_charts.append(("Brand Mention Rate", chart_path))
+
+        # Generate Sentiment chart
+        sentiment_data = get_sentiment_breakdown(db, user_id, brand_id)
+        if sentiment_data and sentiment_data.get('total', 0) > 0:
+            chart_path = os.path.join(charts_dir, f"slideshow_sentiment_{user_id}_{brand_id}.png")
+            generate_sentiment_pie_chart(sentiment_data, brand_name, chart_path)
+            generated_charts.append(("Sentiment Distribution", chart_path))
+
+        # Generate Positioning chart
+        positioning_data = get_positioning_breakdown(db, user_id, brand_id)
+        if positioning_data and positioning_data.get('total', 0) > 0:
+            chart_path = os.path.join(charts_dir, f"slideshow_positioning_{user_id}_{brand_id}.png")
+            generate_positioning_bar_chart(positioning_data, brand_name, chart_path)
+            generated_charts.append(("Brand Positioning", chart_path))
+
+        # Generate Share of Voice chart
+        sov_data = get_share_of_voice(db, user_id, brand_id)
+        if sov_data and len(sov_data) > 0:
+            chart_path = os.path.join(charts_dir, f"slideshow_share_of_voice_{user_id}_{brand_id}.png")
+            generate_share_of_voice_chart(sov_data, brand_name, chart_path)
+            generated_charts.append(("Share of Voice", chart_path))
+
+    except Exception as e:
+        print(f"Error generating charts: {e}")
+
+    # Add slides for generated charts
+    for chart_title, chart_path in generated_charts:
+        if not os.path.exists(chart_path):
+            continue
+
+        # Create slide for this chart
+        blank_layout = prs.slide_layouts[6]
+        slide = prs.slides.add_slide(blank_layout)
+
+        # Add title
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.7))
+        title_frame = title_box.text_frame
+        title_frame.text = chart_title
+        title_para = title_frame.paragraphs[0]
+        title_para.font.size = Pt(32)
+        title_para.font.bold = True
+        title_para.font.color.rgb = TALES_PURPLE
+
+        # Add chart image (centered, large)
+        try:
+            left = Inches(1)
+            top = Inches(1.2)
+            width = Inches(8)
+            slide.shapes.add_picture(chart_path, left, top, width=width)
+        except Exception as e:
+            print(f"Error adding chart {chart_path}: {e}")
+
+    # === Extract and add chart images from markdown (if any exist) ===
     images = re.findall(r'!\[(.*?)\]\((.*?)\)', markdown_content)
 
     chart_titles = {
