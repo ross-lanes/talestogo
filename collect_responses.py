@@ -56,6 +56,7 @@ class ResponseCollector:
         self.user_id = user_id
         self.brand_id = brand_id
         self.task_status_id = task_status_id
+        self.batch_id = None  # Will be set when collection starts
 
         # Initialize API clients
         self.openai_client = None
@@ -201,6 +202,7 @@ class ResponseCollector:
         response = models.Response(
             user_id=self.user_id,
             brand_id=self.brand_id,  # Associate response with brand
+            batch_id=self.batch_id,  # Associate response with batch
             query_id=query_id,
             query_text=query_text,
             platform=platform,
@@ -262,11 +264,31 @@ class ResponseCollector:
         if limit:
             queries = queries[:limit]
 
+        # Create a new collection batch
+        platforms_list = platforms or ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
+        batch_name = f"Collection {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        batch = models.CollectionBatch(
+            user_id=self.user_id,
+            brand_id=self.brand_id,
+            batch_name=batch_name,
+            description=f"Automated collection of {len(queries)} queries across {len(platforms_list)} platforms",
+            platforms=', '.join(platforms_list),
+            started_at=datetime.utcnow(),
+            status='in_progress',
+            total_queries=0,
+            total_responses=0
+        )
+        self.db.add(batch)
+        self.db.commit()
+        self.db.refresh(batch)
+        self.batch_id = batch.id
+
         print(f"\n{'='*60}")
         print(f"Response Collection Started")
+        print(f"Batch ID: {self.batch_id} - {batch_name}")
         print(f"{'='*60}")
         print(f"Queries to process: {len(queries)}")
-        print(f"Platforms: {platforms or ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']}")
+        print(f"Platforms: {platforms_list}")
         print(f"{'='*60}")
 
         stats = {
@@ -304,13 +326,28 @@ class ResponseCollector:
                     stats[platform] += 1
                 processed_count += 1
 
-        # Mark as complete
+        # Mark task as complete
         self.update_task_progress(total_items, total_items, "Collection completed")
+
+        # Complete the batch
+        total_responses = sum(stats[p] for p in ['ChatGPT', 'Claude', 'Gemini', 'Perplexity'])
+        batch = self.db.query(models.CollectionBatch).filter(
+            models.CollectionBatch.id == self.batch_id
+        ).first()
+
+        if batch:
+            batch.completed_at = datetime.utcnow()
+            batch.status = 'completed'
+            batch.total_responses = total_responses
+            batch.total_queries = stats['total_queries']
+            self.db.commit()
 
         print(f"\n{'='*60}")
         print(f"Collection Summary")
         print(f"{'='*60}")
+        print(f"  • Batch ID: {self.batch_id}")
         print(f"  • Total queries processed: {stats['total_queries']}")
+        print(f"  • Total responses collected: {total_responses}")
         print(f"  • Successful: {stats['successful']}")
         print(f"  • Failed: {stats['failed']}")
         print(f"  • ChatGPT responses: {stats['ChatGPT']}")

@@ -80,7 +80,7 @@ export default function ShareOfVoice() {
   const pieData = shareData.map((item, index) => ({
     name: item.name,
     value: item.mention_count || 0,
-    percentage: totalMentions > 0 ? ((item.mention_count || 0) / totalMentions * 100).toFixed(0) : '0',
+    percentage: totalMentions > 0 ? Math.round((item.mention_count || 0) / totalMentions * 100) : 0,
     is_brand: item.is_brand
   }));
 
@@ -245,7 +245,7 @@ export default function ShareOfVoice() {
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3, mb: 4 }}>
           <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white' }}>
             <Typography variant="h3" sx={{ fontWeight: 700 }}>
-              {brandData.share_of_voice?.toFixed(0) || 0}%
+              {Math.round(brandData.share_of_voice || 0)}%
             </Typography>
             <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
               Share of Voice
@@ -260,7 +260,7 @@ export default function ShareOfVoice() {
 
           <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white' }}>
             <Typography variant="h3" sx={{ fontWeight: 700 }}>
-              {brandData.leadership_visibility !== undefined ? brandData.leadership_visibility.toFixed(0) : '0'}%
+              {Math.round(brandData.leadership_visibility || 0)}%
             </Typography>
             <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
               Leadership Visibility
@@ -313,7 +313,7 @@ export default function ShareOfVoice() {
                 />
                 <Tooltip
                   formatter={(value: number, name: string, props: any) => [
-                    `${value.toFixed(0)}%`,
+                    `${Math.round(value)}%`,
                     props.payload.fullName || name
                   ]}
                   labelFormatter={(label, payload) => {
@@ -334,7 +334,7 @@ export default function ShareOfVoice() {
                   <LabelList
                     dataKey="shareOfVoice"
                     position="top"
-                    formatter={(value: any) => typeof value === 'number' ? `${value.toFixed(0)}%` : ''}
+                    formatter={(value: any) => typeof value === 'number' ? `${Math.round(value)}%` : ''}
                     style={{ fontSize: '12px', fontWeight: 'bold' }}
                   />
                 </Bar>
@@ -530,10 +530,11 @@ export default function ShareOfVoice() {
                         type="monotone"
                         dataKey={org}
                         stroke={org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
-                        strokeWidth={org === 'Your Brand' ? 3 : 2}
+                        strokeWidth={formattedData.length === 1 ? 0 : (org === 'Your Brand' ? 3 : 2)}
                         name={org}
-                        dot={{ fill: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: org === 'Your Brand' ? 5 : 4 }}
-                        activeDot={{ r: org === 'Your Brand' ? 7 : 6 }}
+                        dot={{ fill: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: org === 'Your Brand' ? 8 : 6, stroke: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], strokeWidth: 2 }}
+                        activeDot={{ r: org === 'Your Brand' ? 10 : 8 }}
+                        connectNulls={true}
                       />
                     ))}
                   </LineChart>

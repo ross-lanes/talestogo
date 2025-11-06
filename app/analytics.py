@@ -101,7 +101,7 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
             models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
         )
     ).scalar() or 0
-    mention_rate = (pppl_mentions / total_responses) * 100 if total_responses > 0 else 0.0
+    mention_rate = round((pppl_mentions / total_responses) * 100) if total_responses > 0 else 0
 
     # Calculate positive sentiment rate (Very Positive, Positive) - INCLUDE ALL responses
     # Sentiment analysis applies to ALL queries, even ones with brand name in them
@@ -230,8 +230,8 @@ def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = N
     ).scalar() or 0
 
     # Calculate changes
-    current_mention_rate = (recent_mentions / recent_total * 100) if recent_total > 0 else 0
-    prev_mention_rate = (prev_mentions / prev_total * 100) if prev_total > 0 else 0
+    current_mention_rate = round((recent_mentions / recent_total * 100)) if recent_total > 0 else 0
+    prev_mention_rate = round((prev_mentions / prev_total * 100)) if prev_total > 0 else 0
     change_mention_rate = current_mention_rate - prev_mention_rate
 
     return {
@@ -296,10 +296,10 @@ def get_mention_trend(db: Session, user_id: int, days: int = 30, brand_id: Optio
 
     trend_data = []
     for row in results:
-        mention_rate = (row.mentions / row.total * 100) if row.total > 0 else 0
+        mention_rate = round((row.mentions / row.total * 100)) if row.total > 0 else 0
         trend_data.append({
             "date": row.date.isoformat() if row.date else None,
-            "mention_rate": round(mention_rate),
+            "mention_rate": mention_rate,
             "total_responses": row.total,
             "mentions": row.mentions
         })

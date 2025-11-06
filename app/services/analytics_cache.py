@@ -141,7 +141,7 @@ class AnalyticsCache:
         total = self._cache['total_responses_for_mentions']
         mentions = self._cache['total_mentions_for_positioning']
 
-        self._cache['mention_rate'] = (mentions / total * 100) if total > 0 else 0.0
+        self._cache['mention_rate'] = round((mentions / total * 100)) if total > 0 else 0
         self._cache['mention_count'] = mentions
 
     def _calculate_sentiment_metrics(self):
@@ -382,8 +382,8 @@ class AnalyticsCache:
         ).scalar() or 0
 
         # Calculate mention rate change
-        recent_mention_rate = (recent_mentions / recent_responses * 100) if recent_responses > 0 else 0.0
-        prev_mention_rate = (prev_mentions / prev_responses * 100) if prev_responses > 0 else 0.0
+        recent_mention_rate = round((recent_mentions / recent_responses * 100)) if recent_responses > 0 else 0
+        prev_mention_rate = round((prev_mentions / prev_responses * 100)) if prev_responses > 0 else 0
         mention_rate_change = recent_mention_rate - prev_mention_rate
 
         # Sentiment trends (including all responses)
@@ -428,9 +428,9 @@ class AnalyticsCache:
         sentiment_change = recent_sentiment_rate - prev_sentiment_rate
 
         self._cache['trends'] = {
-            'mention_rate_change': round(mention_rate_change, 2),
-            'sentiment_change': round(sentiment_change, 2),
-            'descriptor_change': 0.0  # Can be calculated if needed
+            'mention_rate_change': round(mention_rate_change),
+            'sentiment_change': round(sentiment_change),
+            'descriptor_change': 0  # Can be calculated if needed
         }
 
     def get_dashboard_data(self) -> Dict[str, Any]:
@@ -480,7 +480,7 @@ class AnalyticsCache:
         # Generate insights for each sentiment category
         sentiment_insights = {}
         for sentiment_name, count in breakdown.items():
-            percentage = round((count / total * 100) if total > 0 else 0, 1)
+            percentage = round((count / total * 100) if total > 0 else 0)
 
             # Create contextual insights based on sentiment type and percentage
             if sentiment_name == 'Very Positive':
@@ -592,7 +592,7 @@ class AnalyticsCache:
             'breakdown': {
                 position: {
                     'count': count,
-                    'percentage': round((count / total * 100) if total > 0 else 0, 2)
+                    'percentage': round((count / total * 100) if total > 0 else 0)
                 }
                 for position, count in breakdown.items()
             }

@@ -144,7 +144,7 @@ export default function PositioningAnalysis() {
     ? positionOrder.map(({ key, label, color }) => ({
         position: label,
         count: (data[key] as number) || 0,
-        percentage: data.total > 0 ? (((data[key] as number || 0) / data.total) * 100).toFixed(0) : '0',
+        percentage: data.total > 0 ? Math.round(((data[key] as number || 0) / data.total) * 100) : 0,
         fill: color
       }))  // Show all positions, even if count is 0
     : [];

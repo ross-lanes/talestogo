@@ -70,7 +70,7 @@ export default function DescriptorAnalysis() {
     .map(([name, count]) => ({
       name,
       count,
-      percentage: brandMentionCount > 0 ? ((count / brandMentionCount) * 100).toFixed(0) : 0
+      percentage: brandMentionCount > 0 ? Math.round((count / brandMentionCount) * 100) : 0
     }))
     .sort((a, b) => b.count - a.count);
 
@@ -82,7 +82,7 @@ export default function DescriptorAnalysis() {
     ? descriptors
         .map((desc: any) => {
           const usage = descriptorCounts.get(desc.descriptor) || 0;
-          const usageRate = brandMentionCount > 0 ? ((usage / brandMentionCount) * 100).toFixed(0) : 0;
+          const usageRate = brandMentionCount > 0 ? Math.round((usage / brandMentionCount) * 100) : 0;
           const isUsed = usage > 0;
 
           let status = 'Not Used';

@@ -135,7 +135,7 @@ def compute_batch_analytics(
                 descriptor_counts[desc] = descriptor_counts.get(desc, 0) + 1
 
     # Calculate mention rate
-    mention_rate = (mention_count / total_responses * 100) if total_responses > 0 else 0.0
+    mention_rate = round((mention_count / total_responses * 100)) if total_responses > 0 else 0
 
     # Check if analytics already exist for this batch
     existing = db.query(models.BatchAnalytics).filter(

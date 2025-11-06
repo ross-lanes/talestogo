@@ -171,12 +171,13 @@ export default function BrandMentions() {
               <Legend />
               <Line
                 type="monotone"
-                dataKey="mention_percentage"
+                dataKey="mention_rate"
                 stroke={BRAND_COLOR}
-                strokeWidth={3}
+                strokeWidth={formattedData.length === 1 ? 0 : 3}
                 name="Mention Rate"
-                dot={{ fill: BRAND_COLOR, r: 5 }}
-                activeDot={{ r: 7 }}
+                dot={{ fill: BRAND_COLOR, r: 4, stroke: BRAND_COLOR, strokeWidth: 2 }}
+                activeDot={{ r: 6 }}
+                connectNulls={true}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -209,10 +210,10 @@ export default function BrandMentions() {
                   <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
                     <td style={{ padding: '12px' }}>{item.displayDate}</td>
                     <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
-                      {item.mention_percentage}%
+                      {item.mention_rate}%
                     </td>
                     <td style={{ padding: '12px', textAlign: 'right' }}>{item.mention_count}</td>
-                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.total_responses}</td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.total}</td>
                   </tr>
                 ))}
               </tbody>

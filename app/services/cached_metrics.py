@@ -62,10 +62,10 @@ def get_positioning_trend_cached(
         if total > 0:
             trend_data.append({
                 'date': batch_analytics.collection_date,
-                'leader': round((batch_analytics.leader_count / total) * 100, 1),
-                'featured': round((batch_analytics.featured_count / total) * 100, 1),
-                'listed': round((batch_analytics.listed_count / total) * 100, 1),
-                'not_mentioned': round((batch_analytics.not_mentioned_count / total) * 100, 1)
+                'leader': round((batch_analytics.leader_count / total) * 100),
+                'featured': round((batch_analytics.featured_count / total) * 100),
+                'listed': round((batch_analytics.listed_count / total) * 100),
+                'not_mentioned': round((batch_analytics.not_mentioned_count / total) * 100)
             })
 
     return trend_data
@@ -94,12 +94,12 @@ def get_sentiment_trend_cached(
         if mention_count > 0:
             trend_data.append({
                 'date': batch_analytics.collection_date,
-                'very_positive': round((batch_analytics.very_positive_count / mention_count) * 100, 1),
-                'positive': round((batch_analytics.positive_count / mention_count) * 100, 1),
-                'neutral': round((batch_analytics.neutral_count / mention_count) * 100, 1),
-                'negative': round((batch_analytics.negative_count / mention_count) * 100, 1),
-                'very_negative': round((batch_analytics.very_negative_count / mention_count) * 100, 1),
-                'mixed': round((batch_analytics.mixed_count / mention_count) * 100, 1)
+                'very_positive': round((batch_analytics.very_positive_count / mention_count) * 100),
+                'positive': round((batch_analytics.positive_count / mention_count) * 100),
+                'neutral': round((batch_analytics.neutral_count / mention_count) * 100),
+                'negative': round((batch_analytics.negative_count / mention_count) * 100),
+                'very_negative': round((batch_analytics.very_negative_count / mention_count) * 100),
+                'mixed': round((batch_analytics.mixed_count / mention_count) * 100)
             })
 
     return trend_data
@@ -156,7 +156,7 @@ def get_share_of_voice_trend_cached(
         if total_mentions > 0:
             for key in data_point:
                 if key != 'date':
-                    data_point[key] = round((data_point[key] / total_mentions) * 100, 1)
+                    data_point[key] = round((data_point[key] / total_mentions) * 100)
 
         trend_data.append(data_point)
 

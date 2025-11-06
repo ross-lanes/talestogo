@@ -225,10 +225,10 @@ def calculate_positioning_average(responses: List[Any], queries: List[Any]) -> f
     ]
 
     if not filtered_responses:
-        return 0.0
+        return 0
 
     total_score = sum(POSITION_SCORES.get(r.brand_position, 1) for r in filtered_responses)
-    return round(total_score / len(filtered_responses), 2)
+    return round(total_score / len(filtered_responses))
 
 
 def calculate_sentiment_metrics(responses: List[Any]) -> Dict[str, Any]:
