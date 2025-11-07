@@ -9,11 +9,6 @@ import {
   Alert,
   Snackbar,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Table,
   TableBody,
   TableCell,
@@ -84,7 +79,6 @@ export default function CollectAndAnalyze() {
   const { activeBrand } = useBrand();
   const queryClient = useQueryClient();
   const [currentTab, setCurrentTab] = useState(0);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -203,21 +197,8 @@ export default function CollectAndAnalyze() {
     },
   });
 
-  const handleOpenConfirmDialog = () => {
-    setConfirmDialogOpen(true);
-  };
-
-  const handleConfirmCollection = () => {
-    setConfirmDialogOpen(false);
-    collectionMutation.mutate();
-  };
-
-  const handleCancelCollection = () => {
-    setConfirmDialogOpen(false);
-  };
-
   const handleRunPipeline = () => {
-    handleOpenConfirmDialog();
+    collectionMutation.mutate();
   };
 
   const getStatusColor = (status: string): 'success' | 'error' | 'warning' => {
@@ -483,32 +464,6 @@ export default function CollectAndAnalyze() {
           )}
         </Box>
       )}
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={confirmDialogOpen}
-        onClose={handleCancelCollection}
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby="confirm-dialog-description"
-      >
-        <DialogTitle id="confirm-dialog-title">
-          Confirm Data Collection
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText id="confirm-dialog-description">
-            Are you sure you want to run data collection? This will query all configured AI platforms
-            and may take a few minutes to complete.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelCollection} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmCollection} variant="contained" color="primary" autoFocus>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Snackbar for notifications */}
       <Snackbar

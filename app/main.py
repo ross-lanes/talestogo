@@ -1950,11 +1950,6 @@ async def run_collection(
                 stderr=subprocess.PIPE,
                 text=True
             )
-            # Send "1" to run all queries (auto-select option 1)
-            process.stdin.write("1\n")
-            process.stdin.flush()
-            process.stdin.close()
-
             # Store the process ID
             task = db_thread.query(models.TaskStatus).filter(
                 models.TaskStatus.id == collection_task.id
@@ -1964,7 +1959,8 @@ async def run_collection(
                 db_thread.commit()
 
             # Wait for collection to complete
-            stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+            # Send "1" to run all queries (auto-select option 1)
+            stdout, stderr = process.communicate(input="1\n", timeout=3600)  # 1 hour timeout
 
             if process.returncode != 0:
                 # Collection failed
