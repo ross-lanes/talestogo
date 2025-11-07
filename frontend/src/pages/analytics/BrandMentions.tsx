@@ -86,8 +86,9 @@ export default function BrandMentions() {
     );
   }
 
-  // Show the current metric even if there's no trend data yet
-  const hasCurrentMetrics = metrics && metrics.mention_rate !== undefined;
+  // Show the current metric only if we have actual response data
+  // mention_rate will be 0 if there's no data, so we need to check for actual responses
+  const hasCurrentMetrics = metrics && metrics.total_responses !== undefined && metrics.total_responses > 0;
 
   // Format dates for display
   const formattedData = trendData?.map((item: any) => ({
