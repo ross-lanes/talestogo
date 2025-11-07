@@ -12,8 +12,8 @@ const BRAND_COLOR = '#665775';
 export default function BrandMentions() {
   const trendChartRef = useRef<HTMLDivElement>(null);
 
-  // Fetch dashboard metrics for the summary card
-  const { data: metrics } = useQuery({
+  // Fetch dashboard metrics - this is the single source of truth for current metrics
+  const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
     queryKey: ['dashboard-metrics'],
     queryFn: async () => {
       const response = await api.get('/analytics/dashboard');
@@ -21,13 +21,17 @@ export default function BrandMentions() {
     },
   });
 
-  const { data: trendData, isLoading, error } = useQuery({
+  // Fetch trend data for the chart and table
+  const { data: trendData, isLoading: trendLoading, error: trendError } = useQuery({
     queryKey: ['brand-mentions-trend'],
     queryFn: async () => {
       const response = await api.get('/analytics/trends/brand-mentions');
       return response.data;
     },
   });
+
+  const isLoading = metricsLoading || trendLoading;
+  const error = metricsError || trendError;
 
   // Format change percentage for display
   const formatChange = (change: number | undefined) => {
@@ -82,6 +86,9 @@ export default function BrandMentions() {
     );
   }
 
+  // Show the current metric even if there's no trend data yet
+  const hasCurrentMetrics = metrics && metrics.mention_rate !== undefined;
+
   // Format dates for display
   const formattedData = trendData?.map((item: any) => ({
     ...item,
@@ -102,7 +109,7 @@ export default function BrandMentions() {
       </Paper>
 
       {/* Brand Mentions Summary Card - Dashboard Style */}
-      {metrics && (
+      {hasCurrentMetrics ? (
         <Box sx={{ mb: 4 }}>
           <Card sx={{ border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <CardContent>
@@ -112,7 +119,7 @@ export default function BrandMentions() {
                     Brand Mentions
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
-                    {Math.round(metrics.mention_rate ?? 0)}%
+                    {Math.round(metrics.mention_rate)}%
                   </Typography>
                   {formatChange(metrics.change_mention_rate)}
                 </Box>
@@ -124,6 +131,10 @@ export default function BrandMentions() {
             </CardContent>
           </Card>
         </Box>
+      ) : (
+        <Alert severity="info" sx={{ mb: 4 }}>
+          No brand mention data available yet. Data will appear after running data collection.
+        </Alert>
       )}
 
       {/* Trend Chart */}
