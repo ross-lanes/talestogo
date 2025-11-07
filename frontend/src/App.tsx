@@ -33,6 +33,8 @@ import CollectAndAnalyze from './pages/CollectAndAnalyze';
 import Help from './pages/Help';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
+import { TaskStatusProvider } from './contexts/TaskStatusContext';
+import { TaskStatusBanner } from './components/TaskStatusBanner';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -55,7 +57,9 @@ function App() {
           <Router>
             <AuthProvider>
               <BrandProvider>
-                <Routes>
+                <TaskStatusProvider>
+                  <TaskStatusBanner />
+                  <Routes>
                   {/* Public Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
@@ -283,6 +287,7 @@ function App() {
                   {/* Catch-all redirect */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
+                </TaskStatusProvider>
               </BrandProvider>
             </AuthProvider>
           </Router>

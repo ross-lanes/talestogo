@@ -18,7 +18,7 @@ from pathlib import Path
 # Use explicit imports from the 'app' package
 from app import crud, models, schemas
 from app.database import SessionLocal, engine
-from app.routers import analytics, admin, batches, scheduled_tasks, help
+from app.routers import analytics, admin, batches, scheduled_tasks, help, tasks
 from app.auth import (
     get_current_user,
     get_current_admin_user,
@@ -63,6 +63,7 @@ app.include_router(admin.router)
 app.include_router(batches.router)
 app.include_router(scheduled_tasks.router)
 app.include_router(help.router)
+app.include_router(tasks.router)
 
 # --- Scheduler ---
 from app.scheduler import start_scheduler, stop_scheduler
@@ -1896,7 +1897,10 @@ async def run_collection(
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Trigger response collection using the collection script for active brand."""
+    """
+    Trigger response collection followed by automatic analysis for active brand.
+    Collection and analysis run sequentially in the background.
+    """
     if not brand_id:
         raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
 
@@ -1911,7 +1915,7 @@ async def run_collection(
         raise HTTPException(status_code=400, detail="No active queries found for this brand.")
 
     # Create task status for collection
-    task_status = models.TaskStatus(
+    collection_task = models.TaskStatus(
         user_id=current_user.id,
         brand_id=brand_id,
         task_type="collection",
@@ -1920,45 +1924,221 @@ async def run_collection(
         processed_items=0,
         message="Starting collection..."
     )
-    db.add(task_status)
+    db.add(collection_task)
     db.commit()
-    db.refresh(task_status)
+    db.refresh(collection_task)
 
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
-    try:
-        # Run the collection script in the background with task-id
-        cmd = [
-            "python3", script_path,
-            str(current_user.id),
-            "--brand-id", str(brand_id),
-            "--task-id", str(task_status.id)
-        ]
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        # Send "1" to run all queries (auto-select option 1)
-        process.stdin.write("1\n")
-        process.stdin.flush()
+    # Start background thread to run collection then analysis
+    import threading
 
-        # Store the process ID so we can stop it later if needed
-        task_status.process_id = process.pid
-        db.commit()
+    def run_collection_then_analysis():
+        """Run collection, wait for completion, then run analysis."""
+        db_thread = SessionLocal()
+        try:
+            # === RUN COLLECTION ===
+            script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
+            cmd = [
+                "python3", script_path,
+                str(current_user.id),
+                "--brand-id", str(brand_id),
+                "--task-id", str(collection_task.id)
+            ]
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            # Send "1" to run all queries (auto-select option 1)
+            process.stdin.write("1\n")
+            process.stdin.flush()
+            process.stdin.close()
 
-        return {
-            "message": "Response collection started for active brand.",
-            "status": "running",
-            "task_id": task_status.id,
-            "note": "Collection is running in the background. Check the Responses page to see new data."
-        }
-    except Exception as e:
-        task_status.status = "failed"
-        task_status.error_message = str(e)
-        db.commit()
-        raise HTTPException(status_code=500, detail=f"Failed to start collection: {str(e)}")
+            # Store the process ID
+            task = db_thread.query(models.TaskStatus).filter(
+                models.TaskStatus.id == collection_task.id
+            ).first()
+            if task:
+                task.process_id = process.pid
+                db_thread.commit()
+
+            # Wait for collection to complete
+            stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+
+            if process.returncode != 0:
+                # Collection failed
+                task = db_thread.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == collection_task.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Collection script failed: {stderr[-500:] if stderr else 'Unknown error'}"
+                    task.completed_at = datetime.datetime.utcnow()
+                    db_thread.commit()
+
+                # Send email notification about collection failure
+                from app.services.email_notifications import send_task_completion_email
+                send_task_completion_email(
+                    db=db_thread,
+                    user_id=current_user.id,
+                    task_type='collection',
+                    task_id=collection_task.id,
+                    status='failed',
+                    brand_id=brand_id,
+                    error_message=task.error_message if task else "Collection failed"
+                )
+                return
+
+            # Collection succeeded - mark as completed
+            task = db_thread.query(models.TaskStatus).filter(
+                models.TaskStatus.id == collection_task.id
+            ).first()
+            if task:
+                task.status = "completed"
+                task.completed_at = datetime.datetime.utcnow()
+                db_thread.commit()
+
+            # Send email notification about collection success
+            from app.services.email_notifications import send_task_completion_email
+            send_task_completion_email(
+                db=db_thread,
+                user_id=current_user.id,
+                task_type='collection',
+                task_id=collection_task.id,
+                status='completed',
+                brand_id=brand_id
+            )
+
+            # === RUN ANALYSIS AUTOMATICALLY ===
+            # Get newly collected responses
+            responses_to_analyze = db_thread.query(models.Response).filter(
+                models.Response.user_id == current_user.id,
+                models.Response.brand_id == brand_id,
+                models.Response.analyzed_at.is_(None)
+            ).all()
+
+            if not responses_to_analyze:
+                # No new responses to analyze
+                return
+
+            # Create analysis task
+            analysis_task = models.TaskStatus(
+                user_id=current_user.id,
+                brand_id=brand_id,
+                task_type="analysis",
+                status="running",
+                total_items=len(responses_to_analyze),
+                processed_items=0,
+                message=f"Analyzing {len(responses_to_analyze)} newly collected responses..."
+            )
+            db_thread.add(analysis_task)
+            db_thread.commit()
+            db_thread.refresh(analysis_task)
+
+            # Run analysis script
+            analysis_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
+            analysis_cmd = [
+                "python3", analysis_script,
+                "--all",
+                "--user-id", str(current_user.id),
+                "--brand-id", str(brand_id),
+                "--task-id", str(analysis_task.id)
+            ]
+
+            analysis_process = subprocess.Popen(
+                analysis_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            # Store the process ID
+            task = db_thread.query(models.TaskStatus).filter(
+                models.TaskStatus.id == analysis_task.id
+            ).first()
+            if task:
+                task.process_id = analysis_process.pid
+                db_thread.commit()
+
+            # Wait for analysis to complete
+            stdout, stderr = analysis_process.communicate(timeout=3600)  # 1 hour timeout
+
+            if analysis_process.returncode != 0:
+                # Analysis failed
+                task = db_thread.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == analysis_task.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Analysis script failed: {stderr[-500:] if stderr else 'Unknown error'}"
+                    task.completed_at = datetime.datetime.utcnow()
+                    db_thread.commit()
+
+                # Send email notification about analysis failure
+                send_task_completion_email(
+                    db=db_thread,
+                    user_id=current_user.id,
+                    task_type='analysis',
+                    task_id=analysis_task.id,
+                    status='failed',
+                    brand_id=brand_id,
+                    error_message=task.error_message if task else "Analysis failed"
+                )
+                return
+
+            # Analysis succeeded
+            task = db_thread.query(models.TaskStatus).filter(
+                models.TaskStatus.id == analysis_task.id
+            ).first()
+            if task:
+                task.status = "completed"
+                task.completed_at = datetime.datetime.utcnow()
+                db_thread.commit()
+
+            # Send email notification about analysis success
+            send_task_completion_email(
+                db=db_thread,
+                user_id=current_user.id,
+                task_type='analysis',
+                task_id=analysis_task.id,
+                status='completed',
+                brand_id=brand_id
+            )
+
+        except subprocess.TimeoutExpired:
+            # Timeout - mark task as failed
+            task = db_thread.query(models.TaskStatus).filter(
+                models.TaskStatus.id == collection_task.id
+            ).first()
+            if task and task.status == "running":
+                task.status = "failed"
+                task.error_message = "Collection timed out after 1 hour"
+                task.completed_at = datetime.datetime.utcnow()
+                db_thread.commit()
+        except Exception as e:
+            # General error
+            task = db_thread.query(models.TaskStatus).filter(
+                models.TaskStatus.id == collection_task.id
+            ).first()
+            if task and task.status == "running":
+                task.status = "failed"
+                task.error_message = str(e)
+                task.completed_at = datetime.datetime.utcnow()
+                db_thread.commit()
+        finally:
+            db_thread.close()
+
+    # Start the background thread
+    thread = threading.Thread(target=run_collection_then_analysis, daemon=True)
+    thread.start()
+
+    return {
+        "message": "Data collection and analysis started for active brand.",
+        "status": "running",
+        "task_id": collection_task.id,
+        "note": "Collection will run first, then analysis will automatically start. Check the task status banner for progress."
+    }
 
 @app.post("/tasks/run-analysis/", status_code=202, tags=["Tasks"])
 async def run_analysis(

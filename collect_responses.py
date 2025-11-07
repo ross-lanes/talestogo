@@ -356,6 +356,10 @@ class ResponseCollector:
         print(f"  • Perplexity responses: {stats['Perplexity']}")
         print(f"{'='*60}\n")
 
+        # Store batch_id in stats for auto-trigger use
+        stats['batch_id'] = self.batch_id
+        stats['total_responses'] = total_responses
+
         return stats
 
 
