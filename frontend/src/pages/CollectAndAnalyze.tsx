@@ -31,7 +31,6 @@ import {
 } from '@mui/material';
 import {
   CloudDownload as CollectionIcon,
-  Analytics as AnalysisIcon,
   Schedule as ScheduleIcon,
   Save as SaveIcon,
 } from '@mui/icons-material';
@@ -166,29 +165,6 @@ export default function CollectAndAnalyze() {
     },
   });
 
-  // Analysis mutation
-  const analysisMutation = useMutation({
-    mutationFn: async () => {
-      const response = await api.post('/tasks/run-analysis/');
-      return response.data;
-    },
-    onSuccess: (data) => {
-      setShowProgress(true);
-      setSnackbar({
-        open: true,
-        message: data.message + ' Analysis will populate analytics data.',
-        severity: 'info',
-      });
-    },
-    onError: (error: any) => {
-      setSnackbar({
-        open: true,
-        message: error.response?.data?.detail || 'Failed to start analysis',
-        severity: 'error',
-      });
-    },
-  });
-
   // Save schedule mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -296,7 +272,7 @@ export default function CollectAndAnalyze() {
         sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
       >
         <Tab label="Automated Schedule" />
-        <Tab label="Manual Reports" />
+        <Tab label="Manual Run" />
       </Tabs>
 
       {/* Manual Reports Tab */}
@@ -308,41 +284,24 @@ export default function CollectAndAnalyze() {
               Run Collection & Analysis
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Collect responses from AI platforms, then analyze them to populate insights across all analytics pages.
+              Collect responses from AI platforms and automatically analyze them to populate insights across all analytics pages.
             </Typography>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<CollectionIcon />}
-                onClick={handleRunPipeline}
-                disabled={collectionMutation.isPending}
-                sx={{
-                  backgroundColor: '#80A1D4',
-                  '&:hover': {
-                    backgroundColor: '#6B8BC0',
-                  },
-                }}
-              >
-                {collectionMutation.isPending ? 'Collecting...' : 'Run Collection'}
-              </Button>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<AnalysisIcon />}
-                onClick={() => analysisMutation.mutate()}
-                disabled={analysisMutation.isPending || !responses || responses.length === 0}
-                sx={{
-                  backgroundColor: '#665775',
-                  '&:hover': {
-                    backgroundColor: '#554866',
-                  },
-                }}
-              >
-                {analysisMutation.isPending ? 'Analyzing...' : 'Run Analysis'}
-              </Button>
-            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<CollectionIcon />}
+              onClick={handleRunPipeline}
+              disabled={collectionMutation.isPending}
+              sx={{
+                backgroundColor: '#80A1D4',
+                '&:hover': {
+                  backgroundColor: '#6B8BC0',
+                },
+              }}
+            >
+              {collectionMutation.isPending ? 'Running...' : 'Run Collection & Analysis'}
+            </Button>
           </Paper>
 
           {/* Progress Indicator */}
