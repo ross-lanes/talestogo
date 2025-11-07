@@ -39,7 +39,41 @@ interface TaskStatusProviderProps {
 export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [dismissedTaskIds, setDismissedTaskIds] = useState<Set<number>>(new Set());
+
+  // Initialize dismissed task IDs from localStorage
+  const [dismissedTaskIds, setDismissedTaskIds] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem('dismissedTaskIds');
+      const lastCleanup = localStorage.getItem('dismissedTaskIds_lastCleanup');
+
+      // Clean up old dismissed task IDs every 7 days
+      const now = Date.now();
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      if (!lastCleanup || (now - parseInt(lastCleanup)) > sevenDays) {
+        // Clear old dismissed tasks
+        localStorage.removeItem('dismissedTaskIds');
+        localStorage.setItem('dismissedTaskIds_lastCleanup', String(now));
+        return new Set();
+      }
+
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return new Set(parsed);
+      }
+    } catch (error) {
+      console.error('Failed to load dismissed task IDs from localStorage:', error);
+    }
+    return new Set();
+  });
+
+  // Persist dismissed task IDs to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('dismissedTaskIds', JSON.stringify(Array.from(dismissedTaskIds)));
+    } catch (error) {
+      console.error('Failed to save dismissed task IDs to localStorage:', error);
+    }
+  }, [dismissedTaskIds]);
 
   const refreshTasks = useCallback(async () => {
     try {
@@ -56,16 +90,11 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
     }
   }, [dismissedTaskIds]);
 
-  const dismissTask = useCallback(async (taskId: number) => {
-    try {
-      await api.post(`/tasks/${taskId}/dismiss`);
-      // Add to dismissed set
-      setDismissedTaskIds(prev => new Set(prev).add(taskId));
-      // Remove from current tasks
-      setTasks(prev => prev.filter(task => task.id !== taskId));
-    } catch (error: any) {
-      console.error('Failed to dismiss task:', error);
-    }
+  const dismissTask = useCallback((taskId: number) => {
+    // Add to dismissed set (persisted to localStorage via useEffect)
+    setDismissedTaskIds(prev => new Set(prev).add(taskId));
+    // Remove from current tasks
+    setTasks(prev => prev.filter(task => task.id !== taskId));
   }, []);
 
   // Poll for task updates every 5 seconds
