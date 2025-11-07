@@ -281,10 +281,10 @@ export default function CollectAndAnalyze() {
           {/* Action Buttons */}
           <Paper sx={{ p: 4, mb: 4 }}>
             <Typography variant="h5" gutterBottom>
-              Run Collection & Analysis
+              Manually Run Collection & Analysis
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Collect responses from AI platforms and automatically analyze them to populate insights across all analytics pages.
+              Click the button below to gather responses from AI platforms and automatically analyze them to populate insights across all analytics pages. This process will take some time. You will receive an email when the process is complete.
             </Typography>
 
             <Button
