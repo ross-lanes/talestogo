@@ -41,21 +41,10 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
   const [isLoading, setIsLoading] = useState(false);
 
   // Initialize dismissed task IDs from localStorage
+  // Once a task is dismissed, it stays dismissed forever (for that specific task ID)
   const [dismissedTaskIds, setDismissedTaskIds] = useState<Set<number>>(() => {
     try {
       const stored = localStorage.getItem('dismissedTaskIds');
-      const lastCleanup = localStorage.getItem('dismissedTaskIds_lastCleanup');
-
-      // Clean up old dismissed task IDs every 7 days
-      const now = Date.now();
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
-      if (!lastCleanup || (now - parseInt(lastCleanup)) > sevenDays) {
-        // Clear old dismissed tasks
-        localStorage.removeItem('dismissedTaskIds');
-        localStorage.setItem('dismissedTaskIds_lastCleanup', String(now));
-        return new Set();
-      }
-
       if (stored) {
         const parsed = JSON.parse(stored);
         return new Set(parsed);
