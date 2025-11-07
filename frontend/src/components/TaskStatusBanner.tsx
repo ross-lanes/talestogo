@@ -118,22 +118,21 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
                 {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </IconButton>
             )}
-            {task.status !== 'running' && (
-              <IconButton
-                size="small"
-                onClick={() => onDismiss(task.id)}
-                title="Close notification"
-                sx={{
-                  color: 'text.secondary',
-                  '&:hover': {
-                    color: 'error.main',
-                    backgroundColor: 'rgba(234, 74, 74, 0.1)'
-                  }
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-            )}
+            {/* Always show close button so users can dismiss notifications */}
+            <IconButton
+              size="small"
+              onClick={() => onDismiss(task.id)}
+              title="Close notification"
+              sx={{
+                color: 'text.secondary',
+                '&:hover': {
+                  color: 'error.main',
+                  backgroundColor: 'rgba(234, 74, 74, 0.1)'
+                }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
           </Box>
         </Box>
 
