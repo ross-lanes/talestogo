@@ -154,7 +154,7 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
-              {getTaskTypeLabel(taskStatus.task_type)} {taskStatus.status === 'cancelled' ? 'Cancelled' : 'in Progress'}
+              {getTaskTypeLabel(taskStatus.task_type)} {taskStatus.status === 'cancelled' ? 'Cancelled' : 'In Progress'}
             </Typography>
             {taskStatus.status === 'running' && (
               <Button
