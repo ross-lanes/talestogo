@@ -76,6 +76,8 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
     switch (taskType) {
       case 'collection':
         return 'Data Collection';
+      case 'analysis':
+        return 'Analysis';
       case 'analysis_and_report':
         return 'Analysis & Report Generation';
       default:
