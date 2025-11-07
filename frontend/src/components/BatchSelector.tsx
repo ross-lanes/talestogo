@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { CalendarMonth } from '@mui/icons-material';
 import { useBrand } from '../contexts/BrandContext';
+import { formatDateEST } from '../utils/dateUtils';
 
 interface CollectionBatch {
   id: number;
@@ -52,12 +53,7 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
   });
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return formatDateEST(dateString, 'short');
   };
 
   const getStatusColor = (status: string) => {

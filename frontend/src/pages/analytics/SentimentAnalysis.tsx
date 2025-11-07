@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
+import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 
 const COLORS = {
   'Very Positive': '#116C29',  // Bright highlighter green
@@ -48,11 +49,7 @@ export default function SentimentAnalysis() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       link.download = `SentimentAnalysis_${dateStr}.png`;
       link.href = canvas.toDataURL();
@@ -73,11 +70,7 @@ export default function SentimentAnalysis() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       link.download = `SentimentTrend_${dateStr}.png`;
       link.href = canvas.toDataURL();
@@ -105,11 +98,7 @@ export default function SentimentAnalysis() {
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const year = today.getFullYear();
-    const dateStr = `${month}_${day}_${year}`;
+    const dateStr = formatDateForFilename();
 
     link.download = `NegativeStatements_${dateStr}.csv`;
     link.href = URL.createObjectURL(blob);
@@ -135,11 +124,7 @@ export default function SentimentAnalysis() {
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const year = today.getFullYear();
-    const dateStr = `${month}_${day}_${year}`;
+    const dateStr = formatDateForFilename();
 
     link.download = `SentimentDistribution_${dateStr}.csv`;
     link.href = URL.createObjectURL(blob);
@@ -153,7 +138,7 @@ export default function SentimentAnalysis() {
 
     const csvHeaders = ['Date', 'Very Positive (%)', 'Positive (%)', 'Neutral (%)', 'Negative (%)', 'Very Negative (%)'];
     const csvRows = sentimentTrends.map((item: any) => [
-      new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      formatDateEST(item.date, 'short'),
       String(item.very_positive),
       String(item.positive),
       String(item.neutral),
@@ -168,11 +153,7 @@ export default function SentimentAnalysis() {
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const year = today.getFullYear();
-    const dateStr = `${month}_${day}_${year}`;
+    const dateStr = formatDateForFilename();
 
     link.download = `SentimentTrend_${dateStr}.csv`;
     link.href = URL.createObjectURL(blob);
@@ -423,7 +404,7 @@ export default function SentimentAnalysis() {
             {(() => {
               const formattedData = sentimentTrends.map((item: any) => ({
                 ...item,
-                displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                displayDate: formatDateEST(item.date, 'short')
               }));
 
               return (

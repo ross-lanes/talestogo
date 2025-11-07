@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
+import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 
 const BRAND_COLOR = '#665775';
 const COMPETITOR_COLORS = [
@@ -140,11 +141,7 @@ export default function ShareOfVoice() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       const brandName = brandData?.name || 'Brand';
       const brandNameFormatted = brandName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
@@ -168,11 +165,7 @@ export default function ShareOfVoice() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       link.download = `ShareOfVoiceTrend_${dateStr}.png`;
       link.href = canvas.toDataURL();
@@ -201,11 +194,7 @@ export default function ShareOfVoice() {
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const year = today.getFullYear();
-    const dateStr = `${month}_${day}_${year}`;
+    const dateStr = formatDateForFilename();
 
     link.download = `ShareOfVoiceDistribution_${dateStr}.csv`;
     link.href = URL.createObjectURL(blob);
@@ -486,7 +475,7 @@ export default function ShareOfVoice() {
             {(() => {
               const formattedData = sovTrends.map((item: any) => {
                 const result: any = {
-                  date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                  date: formatDateEST(item.date, 'short'),
                   'Your Brand': item.brand_sov
                 };
                 // Add competitors

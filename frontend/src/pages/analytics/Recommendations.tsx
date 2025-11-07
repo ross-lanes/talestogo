@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
+import { formatDateEST } from '../../utils/dateUtils';
 
 export default function Recommendations() {
   const navigate = useNavigate();
@@ -17,16 +18,7 @@ export default function Recommendations() {
   });
 
   const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/New_York',
-      timeZoneName: 'short'
-    });
+    return formatDateEST(isoString, 'full');
   };
 
   if (isLoading) {

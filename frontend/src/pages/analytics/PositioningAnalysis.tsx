@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
+import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
@@ -46,11 +47,7 @@ export default function PositioningAnalysis() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       link.download = `BrandPositioning_${dateStr}.png`;
       link.href = canvas.toDataURL();
@@ -71,11 +68,7 @@ export default function PositioningAnalysis() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       link.download = `PositioningTrend_${dateStr}.png`;
       link.href = canvas.toDataURL();
@@ -103,11 +96,7 @@ export default function PositioningAnalysis() {
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const year = today.getFullYear();
-    const dateStr = `${month}_${day}_${year}`;
+    const dateStr = formatDateForFilename();
 
     link.download = `BrandPositioning_${dateStr}.csv`;
     link.href = URL.createObjectURL(blob);
@@ -316,7 +305,7 @@ export default function PositioningAnalysis() {
             {(() => {
               const formattedData = positioningTrends.map((item: any) => ({
                 ...item,
-                displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                displayDate: formatDateEST(item.date, 'short')
               }));
 
               return (

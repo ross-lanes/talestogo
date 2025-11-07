@@ -20,6 +20,7 @@ import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import { formatDateEST } from '../../utils/dateUtils';
 
 interface Response {
   id: number;
@@ -256,7 +257,7 @@ export default function Responses() {
                   Platform: <Chip label={selectedResponse.platform} size="small" sx={{ ml: 1 }} />
                 </Typography>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Collected: {new Date(selectedResponse.timestamp).toLocaleString()}
+                  Collected: {formatDateEST(selectedResponse.timestamp, 'full')}
                 </Typography>
               </Box>
 
@@ -288,7 +289,7 @@ export default function Responses() {
                     )}
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Analyzed: {new Date(selectedResponse.analyzed_at).toLocaleString()}
+                    Analyzed: {formatDateEST(selectedResponse.analyzed_at, 'full')}
                   </Typography>
                 </Box>
               )}

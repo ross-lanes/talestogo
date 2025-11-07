@@ -21,6 +21,7 @@ import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { formatDateEST } from '../utils/dateUtils';
 
 interface Report {
   id: number;
@@ -144,7 +145,7 @@ export default function Reports() {
       headerName: 'Created',
       width: 180,
       valueFormatter: (params) => {
-        return new Date(params).toLocaleString();
+        return formatDateEST(params, 'full');
       },
     },
     {
@@ -259,7 +260,7 @@ export default function Reports() {
                 Title: {reportToDelete.title}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Created: {new Date(reportToDelete.created_at).toLocaleString()}
+                Created: {formatDateEST(reportToDelete.created_at, 'full')}
               </Typography>
             </Box>
           )}

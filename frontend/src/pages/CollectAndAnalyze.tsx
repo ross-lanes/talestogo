@@ -39,6 +39,7 @@ import { api } from '../services/api';
 import { format } from 'date-fns';
 import { useBrand } from '../contexts/BrandContext';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
+import { formatDateEST } from '../utils/dateUtils';
 
 interface ScheduleData {
   id: number;
@@ -231,16 +232,7 @@ export default function CollectAndAnalyze() {
   };
 
   const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/New_York',
-      timeZoneName: 'short'
-    });
+    return formatDateEST(isoString, 'full');
   };
 
   if (!activeBrand) {

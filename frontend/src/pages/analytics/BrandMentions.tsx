@@ -5,6 +5,7 @@ import { Download, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef } from 'react';
+import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 
 
 const BRAND_COLOR = '#665775';
@@ -56,11 +57,7 @@ export default function BrandMentions() {
       });
 
       const link = document.createElement('a');
-      const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const year = today.getFullYear();
-      const dateStr = `${month}_${day}_${year}`;
+      const dateStr = formatDateForFilename();
 
       link.download = `BrandMentionsTrend_${dateStr}.png`;
       link.href = canvas.toDataURL();
@@ -93,7 +90,7 @@ export default function BrandMentions() {
   // Format dates for display
   const formattedData = trendData?.map((item: any) => ({
     ...item,
-    displayDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    displayDate: formatDateEST(item.date, 'short')
   })) || [];
 
   return (

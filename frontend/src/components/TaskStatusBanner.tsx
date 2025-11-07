@@ -18,6 +18,7 @@ import {
   Autorenew as AutorenewIcon,
 } from '@mui/icons-material';
 import { useTaskStatus, type Task } from '../contexts/TaskStatusContext';
+import { formatDateEST } from '../utils/dateUtils';
 
 const TASK_TYPE_LABELS: Record<string, string> = {
   collection: 'Data Collection',
@@ -201,11 +202,11 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
               </Alert>
             )}
             <Typography variant="caption" color="text.secondary" display="block">
-              Started: {new Date(task.started_at).toLocaleString()}
+              Started: {formatDateEST(task.started_at, 'full')}
             </Typography>
             {task.completed_at && (
               <Typography variant="caption" color="text.secondary" display="block">
-                Completed: {new Date(task.completed_at).toLocaleString()}
+                Completed: {formatDateEST(task.completed_at, 'full')}
               </Typography>
             )}
           </Box>
