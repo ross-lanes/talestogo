@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -41,6 +41,17 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
 
   const taskLabel = TASK_TYPE_LABELS[task.task_type] || task.task_type;
   const taskColor = TASK_TYPE_COLORS[task.task_type] || '#665775';
+
+  // Auto-dismiss completed tasks after 30 seconds
+  useEffect(() => {
+    if (task.status === 'completed') {
+      const timer = setTimeout(() => {
+        onDismiss(task.id);
+      }, 30000); // 30 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [task.status, task.id, onDismiss]);
 
   // Determine status icon and color
   const getStatusIcon = () => {
@@ -102,6 +113,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
                 size="small"
                 onClick={() => setExpanded(!expanded)}
                 title={expanded ? 'Collapse' : 'Expand'}
+                sx={{ color: 'text.secondary' }}
               >
                 {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </IconButton>
@@ -110,7 +122,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
               <IconButton
                 size="small"
                 onClick={() => onDismiss(task.id)}
-                title="Dismiss"
+                title="Close notification"
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'error.main',
+                    backgroundColor: 'rgba(234, 74, 74, 0.1)'
+                  }
+                }}
               >
                 <CloseIcon />
               </IconButton>
