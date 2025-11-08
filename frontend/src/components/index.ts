@@ -16,4 +16,4 @@ export { default as Layout } from './Layout';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as ShareBrandDialog } from './ShareBrandDialog';
 export { default as TaskProgressIndicator } from './TaskProgressIndicator';
-export { default as TaskStatusBanner } from './TaskStatusBanner';
+export { TaskStatusBanner } from './TaskStatusBanner';
