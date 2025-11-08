@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 import json
 import datetime
 from .. import models
-from ..analytics import normalize_organization_name
+from .metrics import normalize_organization_name
 
 
 def compute_batch_analytics(

@@ -7,33 +7,7 @@ from . import models
 from typing import Dict, List, Any, Optional
 import datetime
 from .services import metrics
-
-
-def normalize_organization_name(name: str) -> str:
-    """
-    Normalize organization names to combine related entities.
-
-    UKAEA, STEP, and MAST-U are all combined under "UKAEA"
-    Tokamak Energy and ST40 are combined under "Tokamak Energy"
-
-    Args:
-        name: Organization name to normalize
-
-    Returns:
-        Normalized organization name
-    """
-    name_lower = name.lower().strip()
-
-    # UKAEA variants (STEP and MAST-U are machines made by UKAEA)
-    if any(variant in name_lower for variant in ['step', 'mast-u', 'mast u', 'ukaea']):
-        return "UKAEA"
-
-    # Tokamak Energy variants (ST40 is a machine made by Tokamak Energy)
-    if any(variant in name_lower for variant in ['st40', 'st-40', 'tokamak energy']):
-        return "Tokamak Energy"
-
-    # Return original name if no normalization needed
-    return name
+from .services.metrics import normalize_organization_name
 
 
 def get_dashboard_metrics(db: Session, user_id: int, brand_id: Optional[int] = None, batch_id: Optional[int] = None) -> Dict[str, Any]:

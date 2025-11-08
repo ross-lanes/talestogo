@@ -51,41 +51,67 @@ THREAT_THRESHOLDS = {
 
 def normalize_organization_name(name: str) -> str:
     """
-    Normalize organization names for consistent grouping.
-    Combines variations of the same organization.
+    SINGLE SOURCE OF TRUTH for organization name normalization.
+
+    Normalize organization names for consistent grouping across the entire application.
+    This function combines variations of the same organization into a canonical name.
+
+    IMPORTANT: This is imported by:
+    - app.analytics
+    - app.services.batch_analytics
+    - scripts.admin.generate_report
+    - frontend (via API responses)
+
+    When adding new normalization rules, add them to this function ONLY.
 
     Examples:
-    - "OpenAI" and "Open AI" -> "OpenAI"
-    - "Google Cloud" and "Google" -> "Google"
+    - "STEP", "MAST-U", "UKAEA" -> "UKAEA"
+    - "ST40", "Tokamak Energy" -> "Tokamak Energy"
+    - "OpenAI", "Open AI" -> "OpenAI"
+    - "Google Cloud", "Google" -> "Google"
     """
     if not name:
         return name
 
-    name = name.strip()
+    name_lower = name.strip().lower()
 
-    # Common normalizations
+    # UKAEA variants (STEP and MAST-U are machines/projects made by UKAEA)
+    if any(variant in name_lower for variant in ['step', 'mast-u', 'mast u', 'ukaea']):
+        return "UKAEA"
+
+    # Tokamak Energy variants (ST40 is a machine made by Tokamak Energy)
+    if any(variant in name_lower for variant in ['st40', 'st-40', 'tokamak energy']):
+        return "Tokamak Energy"
+
+    # Tech company normalizations (dictionary-based for exact matches)
     normalizations = {
         # OpenAI variations
         'open ai': 'OpenAI',
         'openai': 'OpenAI',
 
         # Google variations
+        'google': 'Google',
         'google cloud': 'Google',
         'google workspace': 'Google',
 
         # Microsoft variations
+        'microsoft': 'Microsoft',
         'microsoft azure': 'Microsoft',
         'microsoft 365': 'Microsoft',
 
         # Amazon variations
+        'aws': 'AWS',
         'amazon web services': 'AWS',
         'amazon aws': 'AWS',
-
-        # Add more as needed
     }
 
-    name_lower = name.lower()
-    return normalizations.get(name_lower, name)
+    # Check dictionary for exact match (case-insensitive)
+    normalized = normalizations.get(name_lower)
+    if normalized:
+        return normalized
+
+    # Return original name if no normalization rule matched
+    return name.strip()
 
 
 def filter_exclude_branded_queries(responses: List[Any], queries: List[Any]) -> List[Any]:
