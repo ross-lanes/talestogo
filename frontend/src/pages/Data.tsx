@@ -23,7 +23,7 @@ import {
 import { CloudDownload as CollectionIcon, Analytics as AnalysisIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { format } from 'date-fns';
+import { formatDateEST } from '../utils/dateUtils';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 
 interface Response {
@@ -326,7 +326,7 @@ export default function Data() {
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {response.timestamp ? format(new Date(response.timestamp), 'MMM dd, yyyy h:mm a') : '-'}
+                      {response.timestamp ? formatDateEST(response.timestamp, 'full') : '-'}
                     </TableCell>
                     <TableCell>
                       {response.brand_mentioned ? (
@@ -455,7 +455,7 @@ export default function Data() {
                     Collected
                   </Typography>
                   <Typography variant="body2">
-                    {selectedResponse.timestamp ? format(new Date(selectedResponse.timestamp), 'MMM dd, yyyy h:mm a') : '-'}
+                    {selectedResponse.timestamp ? formatDateEST(selectedResponse.timestamp, 'full') : '-'}
                   </Typography>
                 </Box>
                 <Box>

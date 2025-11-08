@@ -33,7 +33,6 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 

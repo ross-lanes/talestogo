@@ -31,7 +31,6 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { format } from 'date-fns';
 import { useBrand } from '../contexts/BrandContext';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import { formatDateEST } from '../utils/dateUtils';
@@ -391,7 +390,7 @@ export default function CollectAndAnalyze() {
 
                 {schedule && schedule.next_run_at && (
                   <Alert severity="info" sx={{ mb: 3 }}>
-                    Next scheduled run: {format(new Date(schedule.next_run_at), 'MMMM dd, yyyy \'at\' h:mm a')}
+                    Next scheduled run: {formatDateEST(schedule.next_run_at, 'full')}
                   </Alert>
                 )}
 
@@ -435,7 +434,7 @@ export default function CollectAndAnalyze() {
                     {history.map((run) => (
                       <TableRow key={run.id}>
                         <TableCell>
-                          {format(new Date(run.started_at), 'MMM dd, yyyy h:mm a')}
+                          {formatDateEST(run.started_at, 'full')}
                         </TableCell>
                         <TableCell>
                           <Chip
