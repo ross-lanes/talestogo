@@ -5,6 +5,7 @@ import datetime
 
 # Import your models and schemas
 from . import models, schemas
+from .utils.db_helpers import generic_update, generic_delete, update_with_timestamp
 
 # === Query CRUD Functions ===
 
@@ -240,23 +241,23 @@ def create_competitor(db: Session, competitor: schemas.CompetitorCreate, user_id
     return db_competitor
 
 def update_competitor(db: Session, competitor_id: int, competitor_update: schemas.CompetitorUpdate, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
-    db_competitor = get_competitor(db, competitor_id, user_id, brand_id)
-    if not db_competitor:
-        return None
-    update_data = competitor_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_competitor, key, value)
-    db.commit()
-    db.refresh(db_competitor)
-    return db_competitor
+    return generic_update(
+        db=db,
+        get_function=get_competitor,
+        schema_update=competitor_update,
+        competitor_id=competitor_id,
+        user_id=user_id,
+        brand_id=brand_id
+    )
 
 def delete_competitor(db: Session, competitor_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
-    db_competitor = get_competitor(db, competitor_id, user_id, brand_id)
-    if not db_competitor:
-        return None
-    db.delete(db_competitor)
-    db.commit()
-    return db_competitor
+    return generic_delete(
+        db=db,
+        get_function=get_competitor,
+        competitor_id=competitor_id,
+        user_id=user_id,
+        brand_id=brand_id
+    )
 
 def get_competitor_by_organization(db: Session, organization: str, user_id: int, brand_id: Optional[int] = None) -> Optional[models.Competitor]:
     """Gets a single competitor by its organization name for a specific user and brand."""
@@ -319,24 +320,24 @@ def get_target_descriptors(db: Session, user_id: int, brand_id: Optional[int] = 
 
 def update_descriptor(db: Session, descriptor_id: int, descriptor_update: schemas.TargetDescriptorUpdate, user_id: int, brand_id: Optional[int] = None) -> Optional[models.TargetDescriptor]:
     """Updates an existing descriptor for a specific user and brand."""
-    db_descriptor = get_descriptor(db, descriptor_id, user_id, brand_id)
-    if not db_descriptor:
-        return None
-    update_data = descriptor_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_descriptor, key, value)
-    db.commit()
-    db.refresh(db_descriptor)
-    return db_descriptor
+    return generic_update(
+        db=db,
+        get_function=get_descriptor,
+        schema_update=descriptor_update,
+        descriptor_id=descriptor_id,
+        user_id=user_id,
+        brand_id=brand_id
+    )
 
 def delete_descriptor(db: Session, descriptor_id: int, user_id: int, brand_id: Optional[int] = None) -> Optional[models.TargetDescriptor]:
     """Deletes a descriptor by its ID for a specific user and brand."""
-    db_descriptor = get_descriptor(db, descriptor_id, user_id, brand_id)
-    if not db_descriptor:
-        return None
-    db.delete(db_descriptor)
-    db.commit()
-    return db_descriptor
+    return generic_delete(
+        db=db,
+        get_function=get_descriptor,
+        descriptor_id=descriptor_id,
+        user_id=user_id,
+        brand_id=brand_id
+    )
 
 
 # === Campaign CRUD Functions ===
@@ -390,24 +391,22 @@ def get_reports(db: Session, user_id: int, brand_id: Optional[int] = None, skip:
 
 def update_report(db: Session, report_id: int, report_update: schemas.ReportUpdate, user_id: int) -> Optional[models.Report]:
     """Updates an existing report (mainly for adding Google Doc URL) for a specific user."""
-    db_report = get_report(db, report_id=report_id, user_id=user_id)
-    if not db_report:
-        return None
-    update_data = report_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_report, key, value)
-    db.commit()
-    db.refresh(db_report)
-    return db_report
+    return generic_update(
+        db=db,
+        get_function=get_report,
+        schema_update=report_update,
+        report_id=report_id,
+        user_id=user_id
+    )
 
 def delete_report(db: Session, report_id: int, user_id: int) -> Optional[models.Report]:
     """Deletes a report by its ID for a specific user."""
-    db_report = get_report(db, report_id=report_id, user_id=user_id)
-    if not db_report:
-        return None
-    db.delete(db_report)
-    db.commit()
-    return db_report
+    return generic_delete(
+        db=db,
+        get_function=get_report,
+        report_id=report_id,
+        user_id=user_id
+    )
 
 
 # === AnalysisHistory CRUD Functions ===
