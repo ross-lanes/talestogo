@@ -5,6 +5,11 @@ from typing import List, Optional
 from app import crud, models, schemas
 from app.database import SessionLocal
 from app.auth import get_current_user
+from app.utils.brand_access import (
+    get_active_brand_id,
+    get_user_brand_or_404,
+    get_user_owned_brand_or_403
+)
 
 
 def get_db():
@@ -17,18 +22,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def get_active_brand_id(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> Optional[int]:
-    """
-    Helper function to get the active brand_id for the current user.
-    Returns None if no active brand exists (allows multi-brand view).
-    """
-    active_brand = crud.get_active_brand(db, user_id=current_user.id)
-    return active_brand.id if active_brand else None
 
 
 # Create routers for modern and legacy endpoints
@@ -136,15 +129,7 @@ def share_brand_endpoint(
 ):
     """Share a brand with another user by email."""
     # Verify the current user has access to this brand (owns it or has it shared)
-    if not crud.user_has_brand_access(db, brand_id, current_user.id):
-        raise HTTPException(status_code=404, detail="Brand not found or you don't have permission to share it")
-
-    brand = db.query(models.BrandInfo).filter(
-        models.BrandInfo.id == brand_id
-    ).first()
-
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
+    brand = get_user_brand_or_404(db, brand_id, current_user.id)
 
     # Find the user to share with by email
     user_to_share_with = db.query(models.User).filter(models.User.email == share_data.email).first()
@@ -186,8 +171,7 @@ def get_brand_shares_endpoint(
 ):
     """Get all users this brand is shared with."""
     # Verify user has access to this brand
-    if not crud.user_has_brand_access(db, brand_id, current_user.id):
-        raise HTTPException(status_code=404, detail="Brand not found or you don't have permission to view shares")
+    get_user_brand_or_404(db, brand_id, current_user.id)
 
     # Get all shares with user details
     shares = db.query(models.BrandShare).filter(
@@ -224,13 +208,7 @@ def remove_brand_share_endpoint(
 ):
     """Remove a brand share (unshare with a user). Only the brand owner can remove shares."""
     # Verify user OWNS this brand (not just has access)
-    brand = db.query(models.BrandInfo).filter(
-        models.BrandInfo.id == brand_id,
-        models.BrandInfo.user_id == current_user.id
-    ).first()
-
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found or only the brand owner can remove shares")
+    get_user_owned_brand_or_403(db, brand_id, current_user.id)
 
     # Find and delete the share
     share = db.query(models.BrandShare).filter(

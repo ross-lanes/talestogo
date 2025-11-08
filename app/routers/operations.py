@@ -18,23 +18,12 @@ import signal
 from .. import models, schemas, crud
 from ..auth import get_current_user
 from ..database import SessionLocal, get_db
+from ..utils.brand_access import get_active_brand_id
 
 router = APIRouter(
     prefix="/tasks",
     tags=["Operations"]
 )
-
-
-def get_active_brand_id(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> Optional[int]:
-    """
-    Helper function to get the active brand_id for the current user.
-    Returns None if no active brand exists (allows multi-brand view).
-    """
-    active_brand = crud.get_active_brand(db, user_id=current_user.id)
-    return active_brand.id if active_brand else None
 
 
 # --- Celery Task Trigger for the main weekly run ---

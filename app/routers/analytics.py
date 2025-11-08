@@ -7,47 +7,12 @@ to avoid redundant calculations across different endpoints.
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional
-from .. import analytics, crud, models
+from .. import analytics, models
 from ..auth import get_current_user
 from ..database import get_db
 from ..services.analytics_cache import AnalyticsCache
 from ..services.metrics import calculate_share_of_voice, calculate_competitor_threats
-
-
-def get_active_brand_id(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> Optional[int]:
-    """
-    Helper function to get the active brand_id for the current user.
-    Returns None if no active brand exists (allows multi-brand view).
-    """
-    # Get the active brand for the CURRENT USER ONLY
-    active_brand = crud.get_active_brand(db, user_id=current_user.id)
-    return active_brand.id if active_brand else None
-
-
-def get_brand_owner_user_id(
-    brand_id: Optional[int],
-    current_user: models.User,
-    db: Session
-) -> int:
-    """
-    Get the user_id to use for querying responses.
-
-    For shared brands, returns the brand owner's user_id.
-    For owned brands or when no brand_id, returns current_user.id.
-
-    This ensures shared users can see the brand owner's responses.
-    """
-    if brand_id:
-        # Get the brand to find its owner
-        brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
-        if brand:
-            return brand.user_id
-
-    # Default to current user
-    return current_user.id
+from ..utils.brand_access import get_active_brand_id, get_data_owner_user_id
 
 router = APIRouter(
     prefix="/analytics",
@@ -67,7 +32,7 @@ def get_dashboard_analytics(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_dashboard_data()
 
@@ -83,7 +48,7 @@ def get_mention_trends(
     Get mention rate trends over time for the active brand.
     Query parameter: days (default: 30)
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return analytics.get_mention_trend(db, user_id=owner_user_id, days=days, brand_id=brand_id)
 
 
@@ -99,7 +64,7 @@ def get_sentiment_analysis(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_sentiment_data()
 
@@ -113,7 +78,7 @@ def get_descriptor_insights_endpoint(
     """
     Get AI-generated insights about descriptor usage patterns.
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return analytics.get_descriptor_insights(db, user_id=owner_user_id, brand_id=brand_id)
 
 
@@ -129,7 +94,7 @@ def get_positioning_analysis(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_positioning_data()
 
@@ -146,7 +111,7 @@ def get_share_of_voice_analysis(
     Uses centralized AnalyticsCache to avoid redundant calculations.
     Optionally filter by batch_id for specific collection batches.
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
     return cache.get_share_of_voice_data()
 
@@ -160,7 +125,7 @@ def get_recommendations(
     """
     Get the latest AI-generated recommendations from the most recent report.
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     # Query for the most recent report for the user/brand
     query = db.query(models.Report).filter(models.Report.user_id == owner_user_id)
     if brand_id:
@@ -262,7 +227,7 @@ def get_competitor_threats_analysis(
     - threat_score: Calculated threat score
     - threat_level: High/Medium/Low threat classification
     """
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     # Fetch all responses for the user/brand/batch
     query = db.query(models.Response).filter(models.Response.user_id == owner_user_id)
     if brand_id:
@@ -322,7 +287,7 @@ def get_brand_mentions_over_time(
     if not brand_id:
         return []
 
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return get_brand_mentions_trend_cached(db, owner_user_id, brand_id)
 
 
@@ -341,7 +306,7 @@ def get_positioning_over_time(
     if not brand_id:
         return []
 
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return get_positioning_trend_cached(db, owner_user_id, brand_id)
 
 
@@ -360,7 +325,7 @@ def get_share_of_voice_over_time(
     if not brand_id:
         return []
 
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     # Get brand name
     brand_query = db.query(models.BrandInfo).filter(models.BrandInfo.user_id == owner_user_id)
     if brand_id:
@@ -386,5 +351,5 @@ def get_sentiment_over_time(
     if not brand_id:
         return []
 
-    owner_user_id = get_brand_owner_user_id(brand_id, current_user, db)
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return get_sentiment_trend_cached(db, owner_user_id, brand_id)
