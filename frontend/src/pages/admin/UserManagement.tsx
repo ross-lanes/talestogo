@@ -20,6 +20,9 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Select,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -46,6 +49,13 @@ interface User {
   created_at: string;
 }
 
+interface Tenant {
+  id: number;
+  tenant_name: string;
+  primary_color: string;
+  secondary_color: string;
+}
+
 const UserManagement: React.FC = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -55,11 +65,15 @@ const UserManagement: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Tenants
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+
   // Invite dialog
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteOrganization, setInviteOrganization] = useState('');
+  const [inviteTenantId, setInviteTenantId] = useState<number | ''>('');
 
 
   // Edit dialog
@@ -81,8 +95,18 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     if (isAdmin) {
       loadUsers();
+      loadTenants();
     }
   }, [isAdmin]);
+
+  const loadTenants = async () => {
+    try {
+      const data = await adminAPI.listTenants();
+      setTenants(data);
+    } catch (err: any) {
+      console.error('Failed to load tenants:', err);
+    }
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -109,7 +133,8 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization);
+      const tenantIdToUse = inviteTenantId === '' ? undefined : inviteTenantId;
+      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse);
 
       // Close the invite dialog
       setInviteDialogOpen(false);
@@ -118,6 +143,7 @@ const UserManagement: React.FC = () => {
       setInviteEmail('');
       setInviteFullName('');
       setInviteOrganization('');
+      setInviteTenantId('');
 
       // Reload users to get the new user
       await loadUsers();
@@ -412,6 +438,30 @@ const UserManagement: React.FC = () => {
             onChange={(e) => setInviteOrganization(e.target.value)}
             sx={{ mb: 2 }}
           />
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="tenant-select-label">Tenant (Optional)</InputLabel>
+            <Select
+              labelId="tenant-select-label"
+              id="tenant-select"
+              value={inviteTenantId}
+              label="Tenant (Optional)"
+              onChange={(e) => setInviteTenantId(e.target.value as number | '')}
+            >
+              <MenuItem value="">
+                <em>Use My Tenant (Default)</em>
+              </MenuItem>
+              {tenants.map((tenant) => (
+                <MenuItem key={tenant.id} value={tenant.id}>
+                  {tenant.tenant_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Typography variant="caption" color="text.secondary">
+            Leave tenant as default to assign user to your tenant. Select a specific tenant to assign them to a different organization.
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
