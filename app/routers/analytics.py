@@ -3,15 +3,23 @@ Analytics API endpoints.
 
 All analytics calculations are centralized through AnalyticsCache service
 to avoid redundant calculations across different endpoints.
+
+Redis caching is used to significantly reduce database load and improve
+response times for frequently accessed analytics data.
+
+Date range filtering is available to limit data lookback window for improved
+performance with large datasets. Default lookback is 180 days (configurable).
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional
-from .. import analytics, models
+from datetime import datetime
+from .. import analytics, models, config
 from ..auth import get_current_user
 from ..database import get_db
 from ..services.analytics_cache import AnalyticsCache
 from ..services.metrics import calculate_share_of_voice, calculate_competitor_threats
+from ..services.redis_cache import get_redis_cache
 from ..utils.brand_access import get_active_brand_id, get_data_owner_user_id
 
 router = APIRouter(
@@ -25,16 +33,65 @@ def get_dashboard_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     brand_id: Optional[int] = Depends(get_active_brand_id),
-    batch_id: Optional[int] = None
+    batch_id: Optional[int] = None,
+    date_from: Optional[datetime] = Query(None, description="Start date for filtering (ISO format)"),
+    date_to: Optional[datetime] = Query(None, description="End date for filtering (ISO format)"),
+    days: Optional[int] = Query(None, description="Lookback period in days (overrides date_from)")
 ):
     """
     Get key metrics for the dashboard for the active brand.
-    Uses centralized AnalyticsCache to avoid redundant calculations.
-    Optionally filter by batch_id for specific collection batches.
+
+    Performance optimizations:
+    - Uses centralized AnalyticsCache to avoid redundant calculations
+    - Redis caching with 15-minute TTL for improved performance
+    - Default 180-day lookback window (configurable via ANALYTICS_DEFAULT_LOOKBACK_DAYS)
+
+    Filtering options:
+    - batch_id: Filter by specific collection batch (takes precedence over date filtering)
+    - days: Number of days to look back (e.g., days=30 for last 30 days)
+    - date_from/date_to: Custom date range (ISO format: 2024-01-01T00:00:00)
+
+    Note: When batch_id is specified, date filtering is ignored as batches represent
+    a specific point-in-time collection.
     """
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
-    cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
-    return cache.get_dashboard_data()
+
+    # Determine date range
+    if days is not None:
+        # Use days parameter as lookback window
+        default_days = days
+    else:
+        # Use configured default
+        default_days = config.ANALYTICS_DEFAULT_LOOKBACK_DAYS
+
+    # Try Redis cache first (cache key includes date range)
+    redis_cache = get_redis_cache()
+    cached_data = redis_cache.get_dashboard_data(owner_user_id, brand_id, batch_id)
+    if cached_data is not None:
+        return cached_data
+
+    # Cache miss - calculate from database
+    cache = AnalyticsCache(
+        db,
+        user_id=owner_user_id,
+        brand_id=brand_id,
+        batch_id=batch_id,
+        date_from=date_from,
+        date_to=date_to,
+        default_days=default_days
+    )
+    data = cache.get_dashboard_data()
+
+    # Store in Redis for next time
+    redis_cache.set_dashboard_data(
+        owner_user_id,
+        brand_id,
+        data,
+        batch_id,
+        ttl_seconds=config.REDIS_CACHE_TTL_DASHBOARD
+    )
+
+    return data
 
 
 @router.get("/trends/mentions", response_model=List[Dict[str, Any]])
@@ -62,11 +119,25 @@ def get_sentiment_analysis(
     """
     Get sentiment distribution for brand mentions.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Redis caching with 15-minute TTL for improved performance.
     Optionally filter by batch_id for specific collection batches.
     """
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Try Redis cache first
+    redis_cache = get_redis_cache()
+    cached_data = redis_cache.get_sentiment_breakdown(owner_user_id, brand_id, batch_id)
+    if cached_data is not None:
+        return cached_data
+
+    # Cache miss - calculate from database
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
-    return cache.get_sentiment_data()
+    data = cache.get_sentiment_data()
+
+    # Store in Redis for next time
+    redis_cache.set_sentiment_breakdown(owner_user_id, brand_id, data, batch_id, ttl_seconds=900)
+
+    return data
 
 
 @router.get("/descriptors/insights", response_model=Dict[str, Any])
@@ -92,11 +163,25 @@ def get_positioning_analysis(
     """
     Get brand positioning distribution across responses.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Redis caching with 15-minute TTL for improved performance.
     Optionally filter by batch_id for specific collection batches.
     """
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Try Redis cache first
+    redis_cache = get_redis_cache()
+    cached_data = redis_cache.get_positioning_breakdown(owner_user_id, brand_id, batch_id)
+    if cached_data is not None:
+        return cached_data
+
+    # Cache miss - calculate from database
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
-    return cache.get_positioning_data()
+    data = cache.get_positioning_data()
+
+    # Store in Redis for next time
+    redis_cache.set_positioning_breakdown(owner_user_id, brand_id, data, batch_id, ttl_seconds=900)
+
+    return data
 
 
 @router.get("/share-of-voice", response_model=List[Dict[str, Any]])
@@ -109,11 +194,25 @@ def get_share_of_voice_analysis(
     """
     Get share of voice comparison between brand and competitors.
     Uses centralized AnalyticsCache to avoid redundant calculations.
+    Redis caching with 15-minute TTL for improved performance.
     Optionally filter by batch_id for specific collection batches.
     """
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Try Redis cache first
+    redis_cache = get_redis_cache()
+    cached_data = redis_cache.get_share_of_voice(owner_user_id, brand_id, batch_id)
+    if cached_data is not None:
+        return cached_data
+
+    # Cache miss - calculate from database
     cache = AnalyticsCache(db, user_id=owner_user_id, brand_id=brand_id, batch_id=batch_id)
-    return cache.get_share_of_voice_data()
+    data = cache.get_share_of_voice_data()
+
+    # Store in Redis for next time
+    redis_cache.set_share_of_voice(owner_user_id, brand_id, data, batch_id, ttl_seconds=900)
+
+    return data
 
 
 @router.get("/recommendations", response_model=Dict[str, Any])

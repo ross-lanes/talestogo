@@ -19,7 +19,21 @@ class AnalyticsCache:
     and provides them to different parts of the application.
     """
 
-    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, batch_id: Optional[int] = None):
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, batch_id: Optional[int] = None,
+                 date_from: Optional[datetime.datetime] = None, date_to: Optional[datetime.datetime] = None,
+                 default_days: int = 180):
+        """
+        Initialize AnalyticsCache with optional date filtering.
+
+        Args:
+            db: Database session
+            user_id: User ID for multi-tenancy
+            brand_id: Optional brand ID for multi-brand support
+            batch_id: Optional batch ID to filter specific collection
+            date_from: Optional start date for filtering (inclusive)
+            date_to: Optional end date for filtering (inclusive)
+            default_days: Default lookback period in days if no dates specified (default: 180)
+        """
         self.db = db
         self.user_id = user_id
         self.brand_id = brand_id
@@ -27,9 +41,21 @@ class AnalyticsCache:
         self._cache: Dict[str, Any] = {}
         self._calculated = False
 
+        # Date filtering with configurable default window
+        if date_to is None:
+            self.date_to = datetime.datetime.utcnow()
+        else:
+            self.date_to = date_to
+
+        if date_from is None and default_days > 0:
+            # Default to looking back N days from date_to
+            self.date_from = self.date_to - timedelta(days=default_days)
+        else:
+            self.date_from = date_from
+
     def _apply_filters(self, query, include_brand_in_query: bool = True):
         """
-        Apply user, brand, and batch filters to a query.
+        Apply user, brand, batch, and date filters to a query.
 
         Args:
             query: SQLAlchemy query to filter
@@ -41,6 +67,14 @@ class AnalyticsCache:
             query = query.filter(models.Response.brand_id == self.brand_id)
         if self.batch_id:
             query = query.filter(models.Response.batch_id == self.batch_id)
+
+        # Apply date range filtering (if not filtering by specific batch)
+        # Batch filtering takes precedence over date filtering
+        if not self.batch_id:
+            if self.date_from:
+                query = query.filter(models.Response.timestamp >= self.date_from)
+            if self.date_to:
+                query = query.filter(models.Response.timestamp <= self.date_to)
 
         # Only try to filter by brand_in_query if Query table has data
         if not include_brand_in_query:
@@ -177,7 +211,14 @@ class AnalyticsCache:
         }
 
     def _calculate_descriptor_metrics(self):
-        """Calculate descriptor match metrics (includes all responses)."""
+        """
+        Calculate descriptor match metrics (includes all responses).
+
+        Optimized to reduce memory usage by:
+        1. Getting unique descriptor values from DB instead of loading all responses
+        2. Using set operations for faster matching
+        3. Only loading descriptor text, not full response objects
+        """
         # Get target descriptors
         target_descriptors_query = self.db.query(models.TargetDescriptor).filter(
             models.TargetDescriptor.user_id == self.user_id,
@@ -191,36 +232,66 @@ class AnalyticsCache:
         target_descriptors = target_descriptors_query.all()
         total_target_descriptors = len(target_descriptors)
 
-        # Get responses with mentions
-        responses_with_mentions = self._apply_filters(
-            self.db.query(models.Response).filter(
+        if total_target_descriptors == 0:
+            # No target descriptors configured
+            self._cache['descriptor_match_rate'] = 0.0
+            self._cache['matched_descriptors_count'] = 0
+            self._cache['total_target_descriptors'] = 0
+            self._cache['top_descriptors'] = []
+            self._cache['descriptor_counts'] = {}
+            return
+
+        # Build lowercase target descriptor set for matching
+        target_desc_lower = {td.descriptor.lower(): td.descriptor for td in target_descriptors}
+
+        # OPTIMIZED: Get only descriptor column + count of responses (not full response objects)
+        # This significantly reduces memory usage
+        responses_count_query = self._apply_filters(
+            self.db.query(func.count(models.Response.id)).filter(
                 models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
             ),
             include_brand_in_query=True
+        )
+        total_mention_responses = responses_count_query.scalar() or 0
+
+        # Get unique descriptors and their counts using GROUP BY
+        descriptor_aggregation = self._apply_filters(
+            self.db.query(
+                models.Response.descriptors,
+                func.count(models.Response.id).label('response_count')
+            ).filter(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                models.Response.descriptors.isnot(None),
+                models.Response.descriptors != ''
+            ).group_by(models.Response.descriptors),
+            include_brand_in_query=True
         ).all()
 
-        # Count descriptor matches
+        # Count descriptor matches using set operations
         matched_descriptors = set()
         descriptor_counts: Dict[str, int] = {}
 
-        for response in responses_with_mentions:
-            if response.descriptors:
-                response_descriptors = [d.strip().lower() for d in response.descriptors.split(',')]
-                for target_desc in target_descriptors:
-                    target_lower = target_desc.descriptor.lower()
+        for descriptor_str, response_count in descriptor_aggregation:
+            if descriptor_str:
+                # Parse comma-separated descriptors
+                response_descriptors = [d.strip().lower() for d in descriptor_str.split(',')]
+
+                # Check which target descriptors match this descriptor string
+                for target_lower, target_original in target_desc_lower.items():
+                    # Substring matching (both directions)
                     if any(target_lower in resp_desc or resp_desc in target_lower
                            for resp_desc in response_descriptors):
-                        matched_descriptors.add(target_desc.descriptor)
-                        descriptor_counts[target_desc.descriptor] = descriptor_counts.get(
-                            target_desc.descriptor, 0
-                        ) + 1
+                        matched_descriptors.add(target_original)
+                        descriptor_counts[target_original] = descriptor_counts.get(
+                            target_original, 0
+                        ) + response_count
 
         # Calculate match rate
         descriptor_match_rate = (len(matched_descriptors) / total_target_descriptors * 100) if total_target_descriptors > 0 else 0.0
 
         # Top descriptors
         top_descriptors = sorted(
-            [{'descriptor': k, 'count': v, 'match_rate': (v / len(responses_with_mentions) * 100) if responses_with_mentions else 0}
+            [{'descriptor': k, 'count': v, 'match_rate': (v / total_mention_responses * 100) if total_mention_responses > 0 else 0}
              for k, v in descriptor_counts.items()],
             key=lambda x: x['count'],
             reverse=True
@@ -233,7 +304,14 @@ class AnalyticsCache:
         self._cache['descriptor_counts'] = descriptor_counts
 
     def _calculate_share_of_voice(self):
-        """Calculate share of voice metrics (excludes brand_in_query)."""
+        """
+        Calculate share of voice metrics (excludes brand_in_query).
+
+        Optimized to reduce memory usage by:
+        1. Using aggregation queries where possible
+        2. Loading only necessary columns (competitors, brand_position)
+        3. Avoiding loading full response text
+        """
         # Get brand name
         brand = self.db.query(models.BrandInfo).filter(
             models.BrandInfo.user_id == self.user_id
@@ -244,9 +322,13 @@ class AnalyticsCache:
 
         brand_name = brand.brand_name if brand else "Your Brand"
 
-        # Get all responses with mentions
+        # OPTIMIZED: Get only needed columns instead of full response objects
         responses_with_mentions = self._apply_filters(
-            self.db.query(models.Response).filter(
+            self.db.query(
+                models.Response.id,
+                models.Response.competitors,
+                models.Response.brand_position
+            ).filter(
                 models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
             ),
             include_brand_in_query=False

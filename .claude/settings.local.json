@@ -1,13 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(lsof:*)",
-      "Bash(xargs kill -9)",
-      "Bash(DATABASE_URL=\"postgresql://localhost/tales_db\" python -m uvicorn:*)",
-      "Bash(git revert:*)",
-      "Bash(tree:*)",
-      "Bash(git mv:*)",
-      "Bash(git rm:*)"
+      "Bash(npm install:*)",
+      "Bash(frontend/src/test/setup.ts)",
+      "Bash(npm test:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

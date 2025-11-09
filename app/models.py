@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Float, Text, Date,
-    MetaData, Table, create_engine, ForeignKey
+    MetaData, Table, create_engine, ForeignKey, Index
 )
 from sqlalchemy.orm import relationship
 # Import Base from your database setup file
@@ -51,6 +51,12 @@ class Query(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+    # Composite indexes for performance optimization
+    __table_args__ = (
+        Index('idx_query_brand_branded', 'brand_id', 'brand_in_query'),
+        Index('idx_query_compound_lookup', 'query_id', 'user_id', 'brand_id'),
+    )
+
 class Response(Base):
     __tablename__ = "responses"
     id = Column(Integer, primary_key=True, index=True)
@@ -73,6 +79,20 @@ class Response(Base):
     campaign_period = Column(String(100))
     notes = Column(Text) # Analysis notes
     analyzed_at = Column(DateTime, nullable=True, index=True) # Index to quickly find unanalyzed
+
+    # Composite indexes for performance optimization
+    __table_args__ = (
+        # Critical index for multi-tenant + multi-brand + batch filtering (used in every analytics query)
+        Index('idx_response_user_brand_batch', 'user_id', 'brand_id', 'batch_id'),
+        # For sentiment analysis queries that filter by both sentiment and brand_mentioned
+        Index('idx_response_sentiment_mentioned', 'sentiment', 'brand_mentioned'),
+        # For positioning breakdown queries
+        Index('idx_response_position_mentioned', 'brand_position', 'brand_mentioned'),
+        # For time-based queries with user filtering (trends, date ranges)
+        Index('idx_response_timestamp_user', 'timestamp', 'user_id', 'brand_id'),
+        # For JOIN operations with Query table on query_id lookups
+        Index('idx_response_query_lookup', 'query_id', 'user_id', 'brand_id'),
+    )
 
 class Competitor(Base):
     __tablename__ = "competitors"
