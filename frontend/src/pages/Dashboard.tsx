@@ -32,6 +32,7 @@ interface DashboardMetrics {
 }
 
 interface TaskStatus {
+  id: number;
   status: string;
   task_type: string;
   progress: number;
