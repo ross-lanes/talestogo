@@ -197,75 +197,98 @@ const TenantManagement: React.FC = () => {
 
       <Grid container spacing={3}>
         {tenants.map((tenant) => (
-          <Grid item xs={12} md={6} lg={4} key={tenant.id}>
+          <Grid item xs={12} key={tenant.id}>
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Left: Logo and Name */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1 }}>
                     {tenant.logo_url ? (
-                      <Avatar src={tenant.logo_url} sx={{ width: 56, height: 56 }} />
+                      <Avatar src={tenant.logo_url} sx={{ width: 64, height: 64 }} />
                     ) : (
-                      <Avatar sx={{ width: 56, height: 56, bgcolor: tenant.primary_color }}>
-                        <BusinessIcon />
+                      <Avatar sx={{ width: 64, height: 64, bgcolor: tenant.primary_color }}>
+                        <BusinessIcon fontSize="large" />
                       </Avatar>
                     )}
                     <Box>
-                      <Typography variant="h6" component="div">
+                      <Typography variant="h5" component="div">
                         {tenant.tenant_name}
                       </Typography>
                       {tenant.subdomain && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary">
                           {tenant.subdomain}
                         </Typography>
                       )}
                     </Box>
                   </Box>
-                  <Box>
-                    <IconButton size="small" onClick={() => handleOpenDialog(tenant)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(tenant)} color="error">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+
+                  {/* Middle: Colors */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'center' }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Primary Color
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: 100,
+                          height: 50,
+                          bgcolor: tenant.primary_color,
+                          border: '1px solid #ddd',
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          {tenant.primary_color}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        Secondary Color
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: 100,
+                          height: 50,
+                          bgcolor: tenant.secondary_color,
+                          border: '1px solid #ddd',
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          {tenant.secondary_color}
+                        </Typography>
+                      </Box>
+                    </Box>
                   </Box>
-                </Box>
 
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Brand Colors:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 40,
-                        bgcolor: tenant.primary_color,
-                        border: '1px solid #ddd',
-                        borderRadius: 1,
-                      }}
-                      title={`Primary: ${tenant.primary_color}`}
-                    />
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 40,
-                        bgcolor: tenant.secondary_color,
-                        border: '1px solid #ddd',
-                        borderRadius: 1,
-                      }}
-                      title={`Secondary: ${tenant.secondary_color}`}
-                    />
+                  {/* Right: Details and Actions */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, justifyContent: 'flex-end' }}>
+                    <Box sx={{ textAlign: 'right' }}>
+                      {tenant.custom_domain && (
+                        <Typography variant="body2" color="text.secondary">
+                          Domain: {tenant.custom_domain}
+                        </Typography>
+                      )}
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Created: {new Date(tenant.created_at).toLocaleDateString()}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <IconButton onClick={() => handleOpenDialog(tenant)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton onClick={() => handleDelete(tenant)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
                   </Box>
-
-                  {tenant.custom_domain && (
-                    <Typography variant="body2" color="text.secondary">
-                      Domain: {tenant.custom_domain}
-                    </Typography>
-                  )}
-
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                    Created: {new Date(tenant.created_at).toLocaleDateString()}
-                  </Typography>
                 </Box>
               </CardContent>
             </Card>
