@@ -62,7 +62,7 @@ async def execute_scheduled_task(schedule_id: int):
         db.refresh(collection_task)
 
         # Run collection script
-        script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
+        script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "admin", "collect_responses.py")
         cmd = [
             "python3", script_path,
             str(schedule.user_id),

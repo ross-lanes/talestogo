@@ -90,7 +90,7 @@ async def run_collection(
         db_thread = SessionLocal()
         try:
             # === RUN COLLECTION ===
-            script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "collect_responses.py")
+            script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "admin", "collect_responses.py")
             cmd = [
                 "python3", script_path,
                 str(current_user.id),
