@@ -42,6 +42,7 @@ interface User {
   email: string;
   full_name?: string;
   organization?: string;
+  tenant_id?: number;
   is_admin: boolean;
   is_active: boolean;
   is_invited: boolean;
@@ -294,10 +295,15 @@ const UserManagement: React.FC = () => {
       minWidth: 150,
     },
     {
-      field: 'organization',
-      headerName: 'Organization',
+      field: 'tenant_id',
+      headerName: 'Tenant',
       flex: 0.8,
       minWidth: 150,
+      renderCell: (params) => {
+        const user = params.row as User;
+        const tenant = tenants.find(t => t.id === user.tenant_id);
+        return tenant ? tenant.tenant_name : '-';
+      },
     },
     {
       field: 'is_active',
