@@ -18,7 +18,9 @@
       "Bash(curl:*)",
       "Bash(python migrations/add_solstice_tenant.py:*)",
       "Bash(python:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Bash(xargs:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
