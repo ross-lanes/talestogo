@@ -297,7 +297,7 @@ def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
 
     # Map email domains to tenant names
     domain_to_tenant = {
-        'solsticehc.net': 'Solstice Health Communications',
+        'solsticehc.net': 'Solstice HC',
         # Add more domain mappings here as needed
     }
 
