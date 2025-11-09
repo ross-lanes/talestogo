@@ -35,7 +35,7 @@ services:
     repo: https://github.com/rtwodeetwo/tales_project
     branch: main
     dockerfilePath: ./Dockerfile
-    dockerCommand: celery -A app.celery_app worker --loglevel=info
+    dockerCommand: celery -A celery_app.celery worker --loglevel=info
     envVars:
       - key: SECRET_KEY
         sync: false
