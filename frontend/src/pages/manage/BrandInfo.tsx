@@ -19,6 +19,7 @@ import {
 import { Download, Share } from '@mui/icons-material';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBrand } from '../../contexts/BrandContext';
 import { api } from '../../services/api';
 import ShareBrandDialog from '../../components/ShareBrandDialog';
 
@@ -37,6 +38,7 @@ interface BrandInfo {
 
 const BrandInfo: React.FC = () => {
   const { user } = useAuth();
+  const { switchBrand } = useBrand();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -204,6 +206,11 @@ const BrandInfo: React.FC = () => {
     try {
       // Call the backend API to generate queries, descriptors, and competitors
       await api.post('/brand-info/generate');
+
+      // Switch to this brand to ensure the queries page shows the right data
+      if (brandId) {
+        await switchBrand(brandId);
+      }
 
       // Navigate to queries page
       navigate('/manage/queries');
