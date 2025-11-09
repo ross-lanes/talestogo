@@ -56,23 +56,31 @@ def analyze_responses_batch_task(self, response_ids: List[int]):
     Analyzes a batch of raw responses and saves the structured data.
     """
     logger.info("--- Starting analysis batch task ---")
-    db = SessionLocal() 
+    db = SessionLocal()
     try:
-        # Get context data first
-        competitors = [c.organization for c in crud.get_competitors(db, limit=1000)]
-        descriptors = [d.descriptor for d in crud.get_target_descriptors(db, limit=1000)]
-
-        if not competitors or not descriptors:
-            logger.warning("No competitors or target descriptors found in the database. Analysis may be inaccurate.")
-
         # Get a batch of unanalyzed responses
         responses_to_analyze = crud.get_responses_by_ids(db, response_ids=response_ids)
-        
+
         if not responses_to_analyze:
             logger.info(f"No responses found for IDs: {response_ids}")
             return f"No responses found for IDs: {response_ids}"
 
         logger.info(f"Found {len(responses_to_analyze)} responses to analyze.")
+
+        # Get user_id and brand_id from the first response for filtering
+        # All responses in a batch should belong to the same user and brand
+        first_response = responses_to_analyze[0]
+        user_id = first_response.user_id
+        brand_id = first_response.brand_id
+
+        logger.info(f"Analyzing responses for user_id={user_id}, brand_id={brand_id}")
+
+        # Get context data filtered by user and brand
+        competitors = [c.organization for c in crud.get_competitors(db, user_id=user_id, brand_id=brand_id, limit=1000)]
+        descriptors = [d.descriptor for d in crud.get_target_descriptors(db, user_id=user_id, brand_id=brand_id, limit=1000)]
+
+        if not competitors or not descriptors:
+            logger.warning(f"No competitors or target descriptors found for user {user_id}, brand {brand_id}. Analysis may be inaccurate.")
 
         for response in responses_to_analyze:
             logger.info(f"Analyzing response ID: {response.id} for query '{response.query_id}'...")
@@ -84,7 +92,7 @@ def analyze_responses_batch_task(self, response_ids: List[int]):
                     competitors=competitors,
                     descriptors=descriptors
                 )
-                
+
                 # Update the response in the database with the structured analysis
                 if "error" not in analysis_result:
                     # The service already returns a dict with string values, which matches the model, not the Pydantic schema for input
@@ -112,35 +120,54 @@ def analyze_responses_batch_task(self, response_ids: List[int]):
 def run_weekly_queries_task(self):
     """
     The main task scheduled to run weekly.
-    It fetches all active queries and dispatches individual tasks for each platform.
+    It fetches all active queries FOR ALL USERS AND BRANDS and dispatches individual tasks for each platform.
     """
     logger.info("--- Starting weekly query run ---")
     db = SessionLocal()
     try:
-        active_queries = crud.get_active_queries(db, limit=1000) # Get all active queries
+        # Get all active queries across all users and brands
+        # Query the database directly since CRUD functions require user_id
+        active_queries = db.query(models.Query).filter(
+            models.Query.active == True
+        ).limit(1000).all()
+
         if not active_queries:
             logger.info("No active queries found. Weekly run complete.")
             return "No active queries."
 
-        logger.info(f"Found {len(active_queries)} active queries to process.")
-        
+        logger.info(f"Found {len(active_queries)} active queries to process across all users/brands.")
+
         platforms = ["Perplexity", "Claude", "Gemini"]
-        
-        # Create a group of tasks to run in parallel
-        # A chord will execute the analysis task only after all query tasks are complete.
-        callback = analyze_responses_batch_task.s()
-        task_chord = chord(
-            query_llm_platform_task.s(query_pk=query.id, platform=platform)
-            for query in active_queries
-            for platform in platforms
-        )(callback)
 
-        # The chord must be called with apply_async() to be scheduled.
-        task_chord.apply_async()
+        # Group queries by user and brand for proper analysis batching
+        # We need to analyze each user/brand separately with their own competitors/descriptors
+        queries_by_brand = {}
+        for query in active_queries:
+            key = (query.user_id, query.brand_id)
+            if key not in queries_by_brand:
+                queries_by_brand[key] = []
+            queries_by_brand[key].append(query)
 
-        logger.info(f"Dispatched a chord of {len(active_queries) * len(platforms)} query tasks with an analysis callback.")
-        
+        logger.info(f"Processing {len(queries_by_brand)} unique user/brand combinations")
+
+        # Create separate chords for each user/brand combination
+        for (user_id, brand_id), brand_queries in queries_by_brand.items():
+            logger.info(f"Dispatching tasks for user_id={user_id}, brand_id={brand_id}: {len(brand_queries)} queries")
+
+            # Create a chord for this user/brand's queries
+            callback = analyze_responses_batch_task.s()
+            task_chord = chord(
+                query_llm_platform_task.s(query_pk=query.id, platform=platform)
+                for query in brand_queries
+                for platform in platforms
+            )(callback)
+
+            # Schedule this chord
+            task_chord.apply_async()
+
+            logger.info(f"Dispatched chord for user_id={user_id}, brand_id={brand_id}: {len(brand_queries) * len(platforms)} query tasks")
+
     finally:
         db.close()
 
-    return f"Successfully dispatched chord for {len(active_queries)} queries."
+    return f"Successfully dispatched chords for {len(active_queries)} total queries across {len(queries_by_brand)} user/brand combinations."
