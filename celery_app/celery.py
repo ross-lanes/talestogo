@@ -48,9 +48,9 @@ app.conf.update(
 
 # Celery Beat (Scheduler) Configuration
 app.conf.beat_schedule = {
-    # Executes every Friday at 10:00 a.m. ET
-    'run-weekly-queries-every-friday-morning': {
-        'task': 'celery_app.tasks.run_weekly_queries_task',
-        'schedule': crontab(hour=10, minute=0, day_of_week='friday'),
+    # Check daily for scheduled tasks that are due to run
+    'check-scheduled-tasks-daily': {
+        'task': 'celery_app.tasks.check_and_run_scheduled_tasks',
+        'schedule': crontab(hour=10, minute=0),  # Every day at 10:00 AM ET
     },
 }

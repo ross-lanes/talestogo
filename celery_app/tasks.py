@@ -6,6 +6,7 @@ from app.database import SessionLocal
 from app import crud, schemas, models
 from app.services.llm_service import query_platform_api, analyze_raw_response
 from typing import List
+from sqlalchemy import and_
 
 logger = logging.getLogger(__name__)
 
@@ -171,3 +172,112 @@ def run_weekly_queries_task(self):
         db.close()
 
     return f"Successfully dispatched chords for {len(active_queries)} total queries across {len(queries_by_brand)} user/brand combinations."
+
+
+@celery_app.task(bind=True)
+def check_and_run_scheduled_tasks(self):
+    """
+    Daily task that checks for scheduled tasks that are due to run.
+    Looks at the next_run_at field and triggers collection for brands that are due.
+    """
+    logger.info("--- Checking for scheduled tasks to run ---")
+    db = SessionLocal()
+    try:
+        now = datetime.datetime.utcnow()
+
+        # Get all enabled scheduled tasks where next_run_at is in the past
+        due_tasks = db.query(models.ScheduledTask).filter(
+            and_(
+                models.ScheduledTask.is_enabled == True,
+                models.ScheduledTask.next_run_at <= now
+            )
+        ).all()
+
+        if not due_tasks:
+            logger.info("No scheduled tasks due to run.")
+            return "No scheduled tasks due."
+
+        logger.info(f"Found {len(due_tasks)} scheduled tasks due to run")
+
+        for task in due_tasks:
+            logger.info(f"Running scheduled task for user_id={task.user_id}, brand_id={task.brand_id}, schedule_type={task.schedule_type}")
+
+            try:
+                # Get active queries for this user and brand
+                active_queries = crud.get_active_queries(db, user_id=task.user_id, brand_id=task.brand_id, limit=1000)
+
+                if not active_queries:
+                    logger.warning(f"No active queries for user_id={task.user_id}, brand_id={task.brand_id}")
+                    continue
+
+                platforms = ["Perplexity", "Claude", "Gemini"]
+
+                # Create a chord for this brand's queries with analysis callback
+                callback = analyze_responses_batch_task.s()
+                task_chord = chord(
+                    query_llm_platform_task.s(query_pk=query.id, platform=platform)
+                    for query in active_queries
+                    for platform in platforms
+                )(callback)
+
+                # Schedule this chord
+                task_chord.apply_async()
+
+                # Update last_run_at
+                task.last_run_at = now
+
+                # Calculate next_run_at based on schedule_type
+                if task.schedule_type == 'first_day':
+                    # Next month, 1st day
+                    if now.month == 12:
+                        next_run = datetime.datetime(now.year + 1, 1, 1, 10, 0, 0)
+                    else:
+                        next_run = datetime.datetime(now.year, now.month + 1, 1, 10, 0, 0)
+                elif task.schedule_type == 'middle':
+                    # Next month, 15th day
+                    if now.month == 12:
+                        next_run = datetime.datetime(now.year + 1, 1, 15, 10, 0, 0)
+                    else:
+                        next_run = datetime.datetime(now.year, now.month + 1, 15, 10, 0, 0)
+                elif task.schedule_type == 'last_day':
+                    # Last day of next month
+                    if now.month == 12:
+                        next_month = datetime.datetime(now.year + 1, 1, 1)
+                    else:
+                        next_month = datetime.datetime(now.year, now.month + 1, 1)
+                    # Get last day by going to first of following month and subtracting 1 day
+                    if next_month.month == 12:
+                        first_of_following = datetime.datetime(next_month.year + 1, 1, 1)
+                    else:
+                        first_of_following = datetime.datetime(next_month.year, next_month.month + 1, 1)
+                    last_day_of_next_month = first_of_following - datetime.timedelta(days=1)
+                    next_run = datetime.datetime(last_day_of_next_month.year, last_day_of_next_month.month, last_day_of_next_month.day, 10, 0, 0)
+                else:
+                    logger.error(f"Unknown schedule_type: {task.schedule_type}")
+                    continue
+
+                task.next_run_at = next_run
+                db.commit()
+
+                logger.info(f"Scheduled task dispatched for user_id={task.user_id}, brand_id={task.brand_id}. Next run: {next_run}")
+
+                # Create history record
+                history = models.ScheduledTaskHistory(
+                    scheduled_task_id=task.id,
+                    user_id=task.user_id,
+                    brand_id=task.brand_id,
+                    started_at=now,
+                    status='running',
+                    collection_responses=len(active_queries) * len(platforms)
+                )
+                db.add(history)
+                db.commit()
+
+            except Exception as e:
+                logger.error(f"Failed to run scheduled task for user_id={task.user_id}, brand_id={task.brand_id}: {e}", exc_info=True)
+                continue
+
+        return f"Triggered {len(due_tasks)} scheduled tasks"
+
+    finally:
+        db.close()
