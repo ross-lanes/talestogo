@@ -60,6 +60,11 @@ export default function Dashboard() {
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
 
+  // Reset selectedBatchId when brand changes
+  useEffect(() => {
+    setSelectedBatchId(null);
+  }, [activeBrand?.id]);
+
   // Function to download dashboard as PNG
   const handleDownloadDashboard = async () => {
     if (dashboardRef.current) {
