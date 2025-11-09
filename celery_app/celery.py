@@ -10,14 +10,21 @@ from celery.schedules import crontab
 # This ensures that REDIS_URL is available when the app is created.
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
-# --- SQLite Broker Setup (No External Service Needed) ---
-# We will use SQLite as the message broker and result backend.
-# This is simple, requires no extra services, and is the modern replacement
-# for the old filesystem broker, perfect for development.
+# --- Broker Setup ---
+# Use PostgreSQL as the broker and result backend in production
+# Fall back to SQLite for local development
 
-db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'celery.sqlite3')
-broker_url = f'sqla+sqlite:///{db_path}'
-result_backend_url = f'db+sqlite:///{db_path}'
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith('postgresql'):
+    # Production: Use PostgreSQL as broker
+    # Convert postgresql:// to sqla+postgresql:// for broker
+    broker_url = database_url.replace('postgresql://', 'db+postgresql://')
+    result_backend_url = database_url.replace('postgresql://', 'db+postgresql://')
+else:
+    # Development: Use SQLite
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'celery.sqlite3')
+    broker_url = f'sqla+sqlite:///{db_path}'
+    result_backend_url = f'db+sqlite:///{db_path}'
 
 # Define the Celery application instance.
 # The first argument is the name of the project's main module.
