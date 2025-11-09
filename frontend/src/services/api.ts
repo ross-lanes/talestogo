@@ -1,7 +1,11 @@
 import axios from 'axios';
 
 // API Base URL - points to your FastAPI backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Auto-detect HTTPS in production, fallback to localhost for dev
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
+  (window.location.protocol === 'https:'
+    ? 'https://api.tales.robotrachel.com'
+    : 'http://localhost:8000');
 
 // Token storage keys
 const TOKEN_KEY = 'tales_access_token';
