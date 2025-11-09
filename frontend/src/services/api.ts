@@ -324,7 +324,7 @@ export const adminAPI = {
     secondary_color?: string;
     custom_domain?: string;
   }) => {
-    const response = await api.post('/tenants', data);
+    const response = await api.post('/tenants/', data);
     return response.data;
   },
 
