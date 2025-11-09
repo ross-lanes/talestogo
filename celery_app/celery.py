@@ -51,6 +51,6 @@ app.conf.beat_schedule = {
     # Check daily for scheduled tasks that are due to run
     'check-scheduled-tasks-daily': {
         'task': 'celery_app.tasks.check_and_run_scheduled_tasks',
-        'schedule': crontab(hour=10, minute=0),  # Every day at 10:00 AM ET
+        'schedule': crontab(hour=2, minute=0),  # Every day at 2:00 AM ET
     },
 }
