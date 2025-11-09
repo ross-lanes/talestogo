@@ -227,7 +227,9 @@ const TenantManagement: React.FC = () => {
                         sx={{
                           width: 120,
                           height: 60,
-                          bgcolor: tenant.logo_url.toLowerCase().includes('white') ? '#000000' : '#f5f5f5',
+                          bgcolor: tenant.logo_url.toLowerCase().includes('white')
+                            ? (tenant.primary_color || tenant.secondary_color || '#000000')
+                            : '#f5f5f5',
                           border: '1px solid #e0e0e0',
                           borderRadius: 1,
                           display: 'flex',
@@ -436,7 +438,9 @@ const TenantManagement: React.FC = () => {
                     width: 160,
                     height: 80,
                     margin: '0 auto',
-                    bgcolor: formData.logo_url.toLowerCase().includes('white') ? '#000000' : '#f5f5f5',
+                    bgcolor: formData.logo_url.toLowerCase().includes('white')
+                      ? (formData.primary_color || formData.secondary_color || '#000000')
+                      : '#f5f5f5',
                     border: '1px solid #e0e0e0',
                     borderRadius: 1,
                     display: 'flex',
