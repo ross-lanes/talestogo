@@ -207,7 +207,7 @@ Your story starts at {production_url}.
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
 
 May your metrics be ever in your favor,
-Robot Rachel"""
+RobotRachel"""
     elif domain == 'gmail.com':
         subject = 'Welcome to Tales - Shape Your AI story'
         body = f"""Hi {user.full_name or user.email},
@@ -222,7 +222,7 @@ Your story starts at {production_url}.
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
 
 May your metrics be ever in your favor,
-Robot Rachel"""
+RobotRachel"""
     else:
         subject = 'Welcome to Tales - Shape Your AI story'
         body = f"""Hi {user.full_name or user.email},
@@ -236,7 +236,7 @@ Your story starts at {production_url}.
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
 
 May your metrics be ever in your favor,
-Robot Rachel"""
+RobotRachel"""
 
     # Send email
     try:
