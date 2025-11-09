@@ -43,6 +43,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat-schedule-wal
+
 # Test coverage
 .coverage
 htmlcov/

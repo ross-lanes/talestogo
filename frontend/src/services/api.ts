@@ -312,7 +312,7 @@ export const adminAPI = {
 
   // Tenant management
   listTenants: async () => {
-    const response = await api.get('/tenants');
+    const response = await api.get('/tenants/');
     return response.data;
   },
 
