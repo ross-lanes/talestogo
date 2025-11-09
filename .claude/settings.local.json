@@ -13,7 +13,8 @@
       "Bash(npm run build:*)",
       "Bash(lsof:*)",
       "Bash(python -m uvicorn:*)",
-      "Bash(python cleanup_stale_tasks.py:*)"
+      "Bash(python cleanup_stale_tasks.py:*)",
+      "Bash(python migrations/add_tenant_support.py:*)"
     ],
     "deny": [],
     "ask": []

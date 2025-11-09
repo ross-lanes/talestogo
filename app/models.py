@@ -7,10 +7,24 @@ from sqlalchemy.orm import relationship
 # Import Base from your database setup file
 from .database import Base
 
+# === Tenant Model (for multi-tenancy) ===
+class Tenant(Base):
+    __tablename__ = "tenants"
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_name = Column(String(200), nullable=False)
+    subdomain = Column(String(100), unique=True, nullable=True)
+    logo_url = Column(Text, nullable=True)
+    primary_color = Column(String(7), default='#75C9C8')
+    secondary_color = Column(String(7), default='#665775')
+    custom_domain = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 # === User Model (for authentication and multi-tenancy) ===
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=True)  # Nullable for OAuth users
     full_name = Column(String(200))
@@ -268,6 +282,7 @@ class Configuration(Base):
 class BrandInfo(Base):
     __tablename__ = "brand_info"
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # Multi-brand support: user can have up to 20 brands
     brand_name = Column(String(200), nullable=False)
     website_url = Column(String(500), nullable=True)
