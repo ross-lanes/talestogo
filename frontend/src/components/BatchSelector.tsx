@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   Box,
   FormControl,
@@ -60,30 +60,10 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
     });
   };
 
-  // Track if we've already initialized the default batch for this brand
-  const hasInitialized = useRef(false);
-  const lastBrandId = useRef(activeBrand?.id);
-
   // Sort batches by started_at descending (most recent first)
   const sortedBatches = batches ? [...batches].sort((a, b) =>
     new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
   ) : [];
-
-  // Reset initialization flag when brand changes
-  useEffect(() => {
-    if (lastBrandId.current !== activeBrand?.id) {
-      hasInitialized.current = false;
-      lastBrandId.current = activeBrand?.id;
-    }
-  }, [activeBrand?.id]);
-
-  // Set default to most recent batch on initial load (only once per brand)
-  useEffect(() => {
-    if (sortedBatches.length > 0 && selectedBatchId === null && !hasInitialized.current) {
-      hasInitialized.current = true;
-      onBatchChange(sortedBatches[0].id);
-    }
-  }, [sortedBatches.length, selectedBatchId, onBatchChange]);
 
   if (isLoading) {
     return (
