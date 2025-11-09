@@ -52,7 +52,19 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
 
       return () => clearTimeout(timer);
     }
-  }, [task.status, task.id, onDismiss]);
+
+    // Also auto-dismiss tasks that have been "running" for more than 2 hours (likely stale)
+    if (task.status === 'running') {
+      const startedAt = new Date(task.started_at).getTime();
+      const now = Date.now();
+      const twoHoursInMs = 2 * 60 * 60 * 1000;
+
+      if (now - startedAt > twoHoursInMs) {
+        console.warn(`Auto-dismissing stale task ${task.id} that has been running for >2 hours`);
+        onDismiss(task.id);
+      }
+    }
+  }, [task.status, task.id, task.started_at, onDismiss]);
 
   // Determine status icon and color
   const getStatusIcon = () => {

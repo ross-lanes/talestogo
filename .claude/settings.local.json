@@ -6,7 +6,14 @@
       "Bash(npm test:*)",
       "Bash(find:*)",
       "Bash(chmod:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(lsof:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(python cleanup_stale_tasks.py:*)"
     ],
     "deny": [],
     "ask": []

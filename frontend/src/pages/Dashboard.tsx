@@ -55,6 +55,7 @@ export default function Dashboard() {
   });
   const [collectionStatus, setCollectionStatus] = useState<'idle' | 'running'>('idle');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [dismissedTaskId, setDismissedTaskId] = useState<number | null>(null);
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
 
@@ -289,8 +290,12 @@ export default function Dashboard() {
   return (
     <Box>
       {/* Task Progress Indicator */}
-      {taskStatus && taskStatus.status === 'running' && (
-        <Alert severity="info" sx={{ mb: 3 }}>
+      {taskStatus && taskStatus.status === 'running' && dismissedTaskId !== taskStatus.id && (
+        <Alert
+          severity="info"
+          sx={{ mb: 3 }}
+          onClose={() => setDismissedTaskId(taskStatus.id)}
+        >
           <Box display="flex" alignItems="center" gap={2}>
             <CircularProgress size={20} />
             <Box flex={1}>

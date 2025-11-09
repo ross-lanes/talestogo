@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   FormControl,
@@ -7,13 +7,11 @@ import {
   MenuItem,
   CircularProgress,
   Typography,
-  Chip,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { CalendarMonth } from '@mui/icons-material';
 import { useBrand } from '../contexts/BrandContext';
-import { formatDateEST } from '../utils/dateUtils';
 
 interface CollectionBatch {
   id: number;
@@ -53,21 +51,26 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
   });
 
   const formatDate = (dateString: string) => {
-    return formatDateEST(dateString, 'short');
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'America/New_York'
+    });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'warning';
-      case 'failed':
-        return 'error';
-      default:
-        return 'default';
+  // Sort batches by started_at descending (most recent first)
+  const sortedBatches = batches ? [...batches].sort((a, b) =>
+    new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+  ) : [];
+
+  // Set default to most recent batch on initial load
+  useEffect(() => {
+    if (sortedBatches.length > 0 && selectedBatchId === null) {
+      onBatchChange(sortedBatches[0].id);
     }
-  };
+  }, [sortedBatches.length, selectedBatchId, onBatchChange]);
 
   if (isLoading) {
     return (
@@ -96,6 +99,15 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
     );
   }
 
+  // Get the display value for the selected batch
+  const getDisplayValue = () => {
+    if (selectedBatchId === null || selectedBatchId === undefined) {
+      return 'All Data';
+    }
+    const selectedBatch = sortedBatches.find(b => b.id === selectedBatchId);
+    return selectedBatch ? formatDate(selectedBatch.started_at) : '';
+  };
+
   return (
     <FormControl fullWidth size="small">
       <InputLabel id="batch-selector-label">{label}</InputLabel>
@@ -111,6 +123,11 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
         startAdornment={
           <CalendarMonth sx={{ ml: 1, mr: 0.5, color: 'text.secondary', fontSize: 20 }} />
         }
+        renderValue={() => (
+          <Typography variant="body2" fontWeight={500}>
+            {getDisplayValue()}
+          </Typography>
+        )}
       >
         {showAllOption && (
           <MenuItem value="">
@@ -119,35 +136,11 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
             </Typography>
           </MenuItem>
         )}
-        {batches.map((batch) => (
+        {sortedBatches.map((batch) => (
           <MenuItem key={batch.id} value={batch.id}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', py: 0.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                <Typography variant="body2" fontWeight={500}>
-                  {batch.batch_name}
-                </Typography>
-                <Chip
-                  label={batch.status}
-                  size="small"
-                  color={getStatusColor(batch.status)}
-                  sx={{ height: 20, fontSize: '0.7rem', textTransform: 'capitalize' }}
-                />
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {formatDate(batch.started_at)}
-                  {batch.completed_at && ` - ${formatDate(batch.completed_at)}`}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {batch.total_responses} responses • {batch.total_queries} queries
-                </Typography>
-                {batch.platforms && (
-                  <Typography variant="caption" color="text.secondary">
-                    {batch.platforms}
-                  </Typography>
-                )}
-              </Box>
-            </Box>
+            <Typography variant="body2">
+              {formatDate(batch.started_at)}
+            </Typography>
           </MenuItem>
         ))}
       </Select>

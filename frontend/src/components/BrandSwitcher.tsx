@@ -40,8 +40,8 @@ const BrandSwitcher: React.FC = () => {
       await switchBrand(brandId);
       handleClose();
       setSwitching(false);
-      // Navigate to the selected brand's Brand Info page
-      navigate('/manage/brand-info');
+      // Navigate to Dashboard when brand is switched
+      navigate('/dashboard');
     } catch (error) {
       console.error('Failed to switch brand:', error);
       setSwitching(false);

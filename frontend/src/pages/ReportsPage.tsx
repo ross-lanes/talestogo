@@ -19,9 +19,9 @@ import {
 import {
   Description as WordIcon,
   Download as DownloadIcon,
-  Slideshow as SlideshowIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Slideshow as SlideshowIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -124,7 +124,7 @@ export default function ReportsPage() {
 
   const handleDownloadSlideshow = async (report: Report) => {
     try {
-      const response = await api.get(`/reports/${report.id}/export/pptx`, {
+      const response = await api.get(`/reports/${report.id}/export/slideshow`, {
         responseType: 'blob',
       });
       const url = URL.createObjectURL(response.data);
@@ -193,12 +193,6 @@ export default function ReportsPage() {
           icon={<DownloadIcon />}
           label="HTML"
           onClick={() => handleDownloadHTML(params.row)}
-        />,
-        <GridActionsCellItem
-          key="slideshow"
-          icon={<SlideshowIcon />}
-          label="Slideshow"
-          onClick={() => handleDownloadSlideshow(params.row)}
         />,
         <GridActionsCellItem
           key="delete"
