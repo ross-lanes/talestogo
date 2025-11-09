@@ -22,29 +22,29 @@ def delete_pppl_today_items():
         print(f"Brand ID: {pppl.id}")
         print(f"User ID: {pppl.user_id}")
 
-        # Get today's date (start of day in UTC)
-        today_start = datetime.datetime.now(datetime.UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        print(f"\n=== Searching for items created after: {today_start} ===\n")
+        # Look for items created after 4:00 PM ET on Nov 9, 2025 (which is 9:00 PM UTC)
+        cutoff_time = datetime.datetime(2025, 11, 9, 21, 0, 0, tzinfo=datetime.UTC)
+        print(f"\n=== Searching for items created after: {cutoff_time} (4:00 PM ET Nov 9) ===\n")
 
-        # Find queries created today
+        # Find queries created after cutoff
         queries_today = db.query(models.Query).filter(
             models.Query.brand_id == pppl.id,
             models.Query.user_id == pppl.user_id,
-            models.Query.created_at >= today_start
+            models.Query.created_at >= cutoff_time
         ).all()
 
-        # Find competitors created today
+        # Find competitors created after cutoff
         competitors_today = db.query(models.Competitor).filter(
             models.Competitor.brand_id == pppl.id,
             models.Competitor.user_id == pppl.user_id,
-            models.Competitor.created_at >= today_start
+            models.Competitor.created_at >= cutoff_time
         ).all()
 
-        # Find descriptors created today
+        # Find descriptors created after cutoff
         descriptors_today = db.query(models.TargetDescriptor).filter(
             models.TargetDescriptor.brand_id == pppl.id,
             models.TargetDescriptor.user_id == pppl.user_id,
-            models.TargetDescriptor.created_at >= today_start
+            models.TargetDescriptor.created_at >= cutoff_time
         ).all()
 
         print(f"Found {len(queries_today)} queries created today")
