@@ -270,6 +270,23 @@ def verify_microsoft_token(token: str) -> dict:
         )
 
 
+def get_oauth_provider_for_email(email: str) -> Optional[str]:
+    """
+    Determine the default OAuth provider based on email domain.
+    Returns 'google', 'microsoft', or None.
+    """
+    email_domain = email.split('@')[-1].lower()
+
+    # Map email domains to OAuth providers
+    domain_to_oauth = {
+        'gmail.com': 'google',
+        'solsticehc.net': 'microsoft',
+        # Add more domain mappings here as needed
+    }
+
+    return domain_to_oauth.get(email_domain)
+
+
 def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
     """
     Determine which tenant a user should belong to based on their email domain.
@@ -356,7 +373,12 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
         elif provider == 'microsoft':
             user.microsoft_id = oauth_info['microsoft_id']
 
-        user.oauth_provider = provider
+        # Set OAuth provider - use the one based on email domain if not already set
+        if not user.oauth_provider:
+            user.oauth_provider = get_oauth_provider_for_email(oauth_info['email']) or provider
+        else:
+            user.oauth_provider = provider
+
         if not user.full_name:
             user.full_name = oauth_info.get('name')
         # Only auto-activate if they're the admin, otherwise keep existing status
@@ -375,11 +397,14 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
     # Get tenant_id based on email domain
     tenant_id = get_tenant_id_for_email(db, oauth_info['email'])
 
+    # Get OAuth provider based on email domain, fallback to provided provider
+    oauth_provider = get_oauth_provider_for_email(oauth_info['email']) or provider
+
     new_user = models.User(
         email=oauth_info['email'],
         google_id=oauth_info.get('google_id') if provider == 'google' else None,
         microsoft_id=oauth_info.get('microsoft_id') if provider == 'microsoft' else None,
-        oauth_provider=provider,
+        oauth_provider=oauth_provider,  # Use domain-based provider
         full_name=oauth_info.get('name'),
         picture_url=oauth_info.get('picture') if provider == 'google' else None,
         tenant_id=tenant_id,  # Auto-assign tenant based on email domain
