@@ -307,6 +307,35 @@ export const adminAPI = {
     const response = await api.get('/tenants');
     return response.data;
   },
+
+  createTenant: async (data: {
+    tenant_name: string;
+    subdomain?: string;
+    logo_url?: string;
+    primary_color?: string;
+    secondary_color?: string;
+    custom_domain?: string;
+  }) => {
+    const response = await api.post('/tenants', data);
+    return response.data;
+  },
+
+  updateTenant: async (tenantId: number, data: {
+    tenant_name?: string;
+    subdomain?: string;
+    logo_url?: string;
+    primary_color?: string;
+    secondary_color?: string;
+    custom_domain?: string;
+  }) => {
+    const response = await api.put(`/tenants/${tenantId}`, data);
+    return response.data;
+  },
+
+  deleteTenant: async (tenantId: number) => {
+    const response = await api.delete(`/tenants/${tenantId}`);
+    return response.data;
+  },
 };
 
 export default api;

@@ -42,6 +42,7 @@ import {
   Info as InfoIcon,
   Schedule as ScheduleIcon,
   HelpOutline as HelpIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -89,6 +90,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleAdminPanel = () => {
     navigate('/admin/users');
+    handleUserMenuClose();
+  };
+
+  const handleTenantManagement = () => {
+    navigate('/admin/tenants');
     handleUserMenuClose();
   };
 
@@ -364,12 +370,20 @@ export default function Layout({ children }: LayoutProps) {
             <ListItemText>Settings</ListItemText>
           </MenuItem>
           {isAdmin && (
-            <MenuItem onClick={handleAdminPanel}>
-              <ListItemIcon>
-                <AdminIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>User Management</ListItemText>
-            </MenuItem>
+            <>
+              <MenuItem onClick={handleAdminPanel}>
+                <ListItemIcon>
+                  <AdminIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>User Management</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleTenantManagement}>
+                <ListItemIcon>
+                  <BusinessIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Tenant Management</ListItemText>
+              </MenuItem>
+            </>
           )}
           <MenuItem onClick={handleHelp}>
             <ListItemIcon>

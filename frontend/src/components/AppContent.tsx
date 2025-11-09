@@ -10,6 +10,7 @@ import ReportsPage from '../pages/ReportsPage';
 import CollectAndAnalyze from '../pages/CollectAndAnalyze';
 import Settings from '../pages/Settings';
 import UserManagement from '../pages/admin/UserManagement';
+import TenantManagement from '../pages/admin/TenantManagement';
 import UserBrandData from '../pages/admin/UserBrandData';
 import SentimentAnalysis from '../pages/analytics/SentimentAnalysis';
 import PositioningAnalysis from '../pages/analytics/PositioningAnalysis';
@@ -243,6 +244,16 @@ export const AppContent: React.FC = () => {
               <ProtectedRoute requireAdmin>
                 <Layout>
                   <UserManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/tenants"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Layout>
+                  <TenantManagement />
                 </Layout>
               </ProtectedRoute>
             }
