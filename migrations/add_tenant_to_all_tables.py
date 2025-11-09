@@ -43,6 +43,17 @@ def add_tenant_columns():
 
         try:
             for table in tables_needing_tenant:
+                # Check if table exists
+                table_check = conn.execute(text(f"""
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_name='{table}'
+                """))
+
+                if not table_check.fetchone():
+                    print(f"⊘ {table} table does not exist, skipping")
+                    continue
+
                 # Check if column already exists
                 result = conn.execute(text(f"""
                     SELECT column_name
