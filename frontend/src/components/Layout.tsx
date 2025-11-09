@@ -45,7 +45,9 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTenant } from '../contexts/TenantContext';
 import BrandSwitcher from './BrandSwitcher';
+import TenantSwitcher from './TenantSwitcher';
 import talesWhite from './tales_white.png';
 
 const drawerWidth = 240;
@@ -60,6 +62,7 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isAdmin } = useAuth();
+  const { tenant } = useTenant();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -122,7 +125,7 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const drawer = (
-    <Box sx={{ height: '100%', backgroundColor: '#ECE8ED' }}>
+    <Box sx={{ height: '100%', backgroundColor: tenant?.primary_color || '#665775' }}>
   <Toolbar
   sx={{
     display: 'flex',
@@ -134,7 +137,7 @@ export default function Layout({ children }: LayoutProps) {
     height: { xs: 106, sm: 114 },
     gap: 1,
     cursor: 'pointer',
-    backgroundColor: '#665775',          // 💜 background color
+    backgroundColor: tenant?.primary_color || '#665775',  // Use tenant primary color
     color: 'common.white',               // make all text inside white
     '&:hover': {
     },
@@ -170,8 +173,12 @@ export default function Layout({ children }: LayoutProps) {
   </Typography>
 </Toolbar>
 
-      <Divider />
-      <List sx={{ backgroundColor: '#ECE8ED' }}>
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
+      <Box sx={{ px: 2, py: 2 }}>
+        <TenantSwitcher />
+      </Box>
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
+      <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
@@ -179,25 +186,24 @@ export default function Layout({ children }: LayoutProps) {
               onClick={() => handleMenuItemClick(item)}
               sx={{
                 pl: item.indent ? 5.75 : 2,
-                backgroundColor: '#ECE8ED',
                 '&:hover': {
-                  backgroundColor: 'rgba(128, 161, 212, 0.2)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 },
                 '&.Mui-selected': {
-                  backgroundColor: 'rgba(128, 161, 212, 0.3)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.16)',
                   borderLeft: '4px solid',
-                  borderLeftColor: 'secondary.main',
+                  borderLeftColor: 'common.white',
                 },
               }}
             >
-              <ListItemIcon sx={{ color: 'secondary.main', minWidth: 36 }}>
+              <ListItemIcon sx={{ color: 'common.white', minWidth: 36 }}>
                 {item.icon}
               </ListItemIcon>
               <ListItemText
                 primary={item.text}
                 primaryTypographyProps={{
                   fontWeight: location.pathname === item.path ? 600 : 400,
-                  color: 'text.primary'
+                  color: 'common.white'
                 }}
               />
             </ListItemButton>
@@ -210,118 +216,8 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh' }}>
       <CssBaseline />
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-          backgroundColor: 'primary.main',
-        }}
-      >
-<Toolbar
-  sx={{
-    minHeight: { xs: 106, sm: 114 },
-    height: { xs: 106, sm: 114 },
-  }}
->
-  {/* Left: hamburger (mobile only) */}
-  <IconButton
-    color="inherit"
-    aria-label="open drawer"
-    edge="start"
-    onClick={handleDrawerToggle}
-    sx={{ mr: 2, display: { sm: 'none' } }}
-  >
-    <MenuIcon />
-  </IconButton>
-  
-  {/* Right: group pushed to the far right with ml: 'auto' */}
-  {user && (
-    <Box
-      sx={{
-        ml: 'auto',                    // <-- pushes this box to the right
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        color: 'common.white',         // base color for descendants
-        // Make sure icons and typography inside are white as well
-        '& .MuiTypography-root': { color: 'common.white' },
-        '& .MuiSvgIcon-root': { color: 'common.white' },
-        // Apply white to any other descendants (BrandSwitcher internals)
-        '& *': { color: 'common.white' },
-      }}
-    >
-      {/* BrandSwitcher often renders its own elements — wrapping + descendant selector above forces white */}
-      <BrandSwitcher />
-      {/* Avatar: keep bg as secondary, but force the letter to be white */}
-      <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
-        <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>
-          {user.email.charAt(0).toUpperCase()}
-        </Avatar>
-      </IconButton>
-    </Box>
-  )}
-</Toolbar>
-        
-      </AppBar>
 
-      {/* User Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleUserMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
-        }}
-      >
-        <Box sx={{ px: 2, py: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            Signed in as
-          </Typography>
-          <Typography variant="body1" fontWeight={600}>
-            {user?.email}
-          </Typography>
-        </Box>
-        <Divider />
-        <MenuItem onClick={handleSettings}>
-          <ListItemIcon>
-            <SettingsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Settings</ListItemText>
-        </MenuItem>
-        {isAdmin && (
-          <MenuItem onClick={handleAdminPanel}>
-            <ListItemIcon>
-              <AdminIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>User Management</ListItemText>
-          </MenuItem>
-        )}
-        <MenuItem onClick={handleHelp}>
-          <ListItemIcon>
-            <HelpIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Help & Support</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleHowTalesWorks}>
-          <ListItemIcon>
-            <InfoIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>How Tales Works</ListItemText>
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Logout</ListItemText>
-        </MenuItem>
-      </Menu>
+      {/* Sidebar Navigation */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -339,7 +235,6 @@ export default function Layout({ children }: LayoutProps) {
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              backgroundColor: 'white',
             },
           }}
         >
@@ -350,10 +245,11 @@ export default function Layout({ children }: LayoutProps) {
           sx={{
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
+              position: 'relative',
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              backgroundColor: 'white',
+              height: '100%',
             },
           }}
           open
@@ -361,26 +257,143 @@ export default function Layout({ children }: LayoutProps) {
           {drawer}
         </Drawer>
       </Box>
+
+      {/* Main Content Area */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: 0,
           width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
-          maxWidth: '100vw',
           minHeight: '100vh',
           backgroundColor: 'white',
-          boxSizing: 'border-box',
-          overflowX: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <Toolbar
+        {/* Top AppBar */}
+        <AppBar
+          position="static"
           sx={{
-            minHeight: { xs: 106, sm: 114 },
-            height: { xs: 106, sm: 114 },
+            backgroundColor: 'primary.main',
           }}
-        />
-        <Box sx={{ p: 3, minHeight: 'calc(100vh - 114px)', backgroundColor: 'white' }}>
+        >
+          <Toolbar
+            sx={{
+              minHeight: { xs: 106, sm: 114 },
+              height: { xs: 106, sm: 114 },
+            }}
+          >
+            {/* Left: hamburger (mobile only) */}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { sm: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+
+            {/* Tenant Logo (if available) */}
+            {tenant?.logo_url && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+                <img
+                  src={tenant.logo_url}
+                  alt={tenant.tenant_name}
+                  style={{
+                    height: '40px',
+                    maxWidth: '150px',
+                    objectFit: 'contain',
+                  }}
+                />
+              </Box>
+            )}
+
+            {/* Right: group pushed to the far right with ml: 'auto' */}
+            {user && (
+              <Box
+                sx={{
+                  ml: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  color: 'common.white',
+                  '& .MuiTypography-root': { color: 'common.white' },
+                  '& .MuiSvgIcon-root': { color: 'common.white' },
+                  '& *': { color: 'common.white' },
+                }}
+              >
+                <BrandSwitcher />
+                <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>
+                    {user.email.charAt(0).toUpperCase()}
+                  </Avatar>
+                </IconButton>
+              </Box>
+            )}
+          </Toolbar>
+        </AppBar>
+
+        {/* User Menu */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleUserMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Signed in as
+            </Typography>
+            <Typography variant="body1" fontWeight={600}>
+              {user?.email}
+            </Typography>
+          </Box>
+          <Divider />
+          <MenuItem onClick={handleSettings}>
+            <ListItemIcon>
+              <SettingsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Settings</ListItemText>
+          </MenuItem>
+          {isAdmin && (
+            <MenuItem onClick={handleAdminPanel}>
+              <ListItemIcon>
+                <AdminIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>User Management</ListItemText>
+            </MenuItem>
+          )}
+          <MenuItem onClick={handleHelp}>
+            <ListItemIcon>
+              <HelpIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Help & Support</ListItemText>
+          </MenuItem>
+          <MenuItem onClick={handleHowTalesWorks}>
+            <ListItemIcon>
+              <InfoIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>How Tales Works</ListItemText>
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={handleLogout}>
+            <ListItemIcon>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Logout</ListItemText>
+          </MenuItem>
+        </Menu>
+
+        {/* Page Content */}
+        <Box sx={{ p: 3, flexGrow: 1, backgroundColor: 'white' }}>
           {children}
         </Box>
       </Box>

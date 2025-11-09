@@ -23,27 +23,31 @@ Tales now supports multi-tenancy, allowing multiple organizations (tenants) to u
 - Updated `User` model with `tenant_id` foreign key
 - Updated `BrandInfo` model with `tenant_id` foreign key
 
-## What's Next (Phase 2 & 3)
+## What's Completed (Phase 2)
 
-### Phase 2: Backend Updates
-1. **Add Tenant schemas** (`app/schemas.py`)
-   - `TenantCreate`, `TenantUpdate`, `TenantResponse`
+### ✅ Backend Updates
+1. **Added Tenant schemas** (`app/schemas.py`)
+   - `TenantBase`, `TenantCreate`, `TenantUpdate`, `Tenant`
+   - All schemas include branding fields (logo_url, primary_color, secondary_color)
 
-2. **Add Tenant router** (`app/routers/tenants.py`)
-   - GET `/tenants/` - List tenants (admin only)
-   - GET `/tenants/{id}` - Get tenant details
+2. **Added Tenant router** (`app/routers/tenants.py`)
+   - GET `/tenants/me` - Get current user's tenant
+   - GET `/tenants/` - List all tenants (admin only)
+   - GET `/tenants/{tenant_id}` - Get specific tenant
    - POST `/tenants/` - Create new tenant (admin only)
-   - PUT `/tenants/{id}` - Update tenant branding
-   - DELETE `/tenants/{id}` - Delete tenant (admin only)
+   - PUT `/tenants/{tenant_id}` - Update tenant branding
+   - DELETE `/tenants/{tenant_id}` - Delete tenant (admin only, with safety checks)
 
-3. **Update Authentication**
-   - Include tenant info in JWT token
-   - Add tenant to login response
-   - Filter brands by user's tenant_id
+3. **Updated Authentication** (`app/schemas.py`)
+   - Added `tenant_id` to User schema response
+   - Users now see their tenant_id in `/auth/me` response
 
-4. **Update Brand endpoints**
-   - Auto-assign tenant_id when creating brands
-   - Filter brands by current user's tenant
+4. **Updated Brand endpoints** (`app/crud.py`, `app/routers/brands.py`)
+   - Auto-assign `tenant_id` from user when creating brands
+   - Added tenant validation to brand sharing (users can only share with same tenant)
+   - All brand operations respect tenant boundaries
+
+## What's Next (Phase 3)
 
 ### Phase 3: Frontend Updates
 1. **Add Tenant Context**
@@ -99,10 +103,22 @@ All queries automatically filter by tenant:
 Current state:
 - ✅ Database schema updated
 - ✅ Models updated
-- ⏳ Backend APIs need updating
-- ⏳ Frontend needs tenant context
+- ✅ Backend APIs updated (Phase 2 complete)
+- ⏳ Frontend needs tenant context (Phase 3)
 
 All existing functionality works as before - everything is assigned to the default "Generic Tales" tenant.
+
+### Testing Tenant APIs
+
+The backend now supports full tenant management. To test:
+
+1. **Get your tenant**: `GET /tenants/me` (requires authentication)
+2. **List all tenants** (admin only): `GET /tenants/`
+3. **Create tenant** (admin only): `POST /tenants/`
+4. **Update tenant**: `PUT /tenants/{tenant_id}`
+5. **Delete tenant** (admin only): `DELETE /tenants/{tenant_id}`
+
+Brand sharing is now tenant-scoped - users can only share brands with users in the same tenant.
 
 ## Deployment Notes
 

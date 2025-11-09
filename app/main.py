@@ -23,7 +23,8 @@ from app.routers import (
     descriptors,
     reports,
     brands,
-    operations
+    operations,
+    tenants
 )
 
 # This line ensures tables are created if they don't exist when the app starts.
@@ -55,6 +56,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.admin_router)
 app.include_router(users.invitation_router)
+app.include_router(tenants.router)
 app.include_router(queries.router)
 app.include_router(responses.router)
 app.include_router(competitors.router)

@@ -100,7 +100,7 @@ const Login: React.FC = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#665775',
+        backgroundColor: '#ffffff',
         minHeight: '100vh',
         width: '100vw',
         display: 'flex',

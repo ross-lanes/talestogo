@@ -140,6 +140,11 @@ def share_brand_endpoint(
     if user_to_share_with.id == current_user.id:
         raise HTTPException(status_code=400, detail="You cannot share a brand with yourself")
 
+    # Ensure both users are in the same tenant
+    if current_user.tenant_id and user_to_share_with.tenant_id:
+        if current_user.tenant_id != user_to_share_with.tenant_id:
+            raise HTTPException(status_code=403, detail="You can only share brands with users in your organization")
+
     # Check if already shared with this user
     existing_share = db.query(models.BrandShare).filter(
         models.BrandShare.brand_id == brand_id,

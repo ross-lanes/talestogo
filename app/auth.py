@@ -270,6 +270,30 @@ def verify_microsoft_token(token: str) -> dict:
         )
 
 
+def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
+    """
+    Determine which tenant a user should belong to based on their email domain.
+    Returns tenant_id or None if no match found (will use default tenant).
+    """
+    email_domain = email.split('@')[-1].lower()
+
+    # Map email domains to tenant names
+    domain_to_tenant = {
+        'solsticehc.net': 'Solstice Health Communications',
+        # Add more domain mappings here as needed
+    }
+
+    tenant_name = domain_to_tenant.get(email_domain)
+    if not tenant_name:
+        # Default to "Generic Tales" tenant
+        tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == 'Generic Tales').first()
+        return tenant.id if tenant else None
+
+    # Find the tenant by name
+    tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == tenant_name).first()
+    return tenant.id if tenant else None
+
+
 def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'google') -> models.User:
     """
     Get existing OAuth user or create a new one.
@@ -327,6 +351,9 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
     # Check if this email is the admin email
     is_admin_user = (oauth_info['email'].lower() == ADMIN_EMAIL.lower())
 
+    # Get tenant_id based on email domain
+    tenant_id = get_tenant_id_for_email(db, oauth_info['email'])
+
     new_user = models.User(
         email=oauth_info['email'],
         google_id=oauth_info.get('google_id') if provider == 'google' else None,
@@ -334,6 +361,7 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
         oauth_provider=provider,
         full_name=oauth_info.get('name'),
         picture_url=oauth_info.get('picture') if provider == 'google' else None,
+        tenant_id=tenant_id,  # Auto-assign tenant based on email domain
         is_active=is_admin_user,  # Only auto-activate admin user, others need approval
         is_admin=is_admin_user,  # Make admin if email matches ADMIN_EMAIL
         is_invited=False,  # Require admin approval for all new users

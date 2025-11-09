@@ -524,8 +524,15 @@ def create_brand_info(db: Session, brand_info: schemas.BrandInfoCreate, user_id:
     if brand_count >= 20:
         raise ValueError("Maximum 20 brands per user")
 
+    # Get user to retrieve tenant_id
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+
     brand_data = brand_info.model_dump()
     brand_data['user_id'] = user_id
+
+    # Automatically assign tenant_id from user
+    if user and user.tenant_id:
+        brand_data['tenant_id'] = user.tenant_id
 
     # If this is the first brand, make it active
     if brand_count == 0:
@@ -617,11 +624,18 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]
 
 def create_user(db: Session, user: schemas.UserCreate, hashed_password: str, is_invited: bool = False) -> models.User:
     """Creates a new user."""
+    # Import here to avoid circular dependency
+    from .auth import get_tenant_id_for_email
+
+    # Get tenant_id based on email domain
+    tenant_id = get_tenant_id_for_email(db, user.email)
+
     db_user = models.User(
         email=user.email,
         hashed_password=hashed_password,
         full_name=user.full_name,
         organization=user.organization,
+        tenant_id=tenant_id,  # Auto-assign tenant based on email domain
         is_invited=is_invited,
         is_active=False,  # Must be approved by admin
         is_admin=False
