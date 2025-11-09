@@ -93,16 +93,22 @@ def create_tenant(
             detail="Only admins can create tenants"
         )
 
+    # Convert empty strings to None for optional fields
+    tenant_data = tenant.model_dump()
+    for field in ['subdomain', 'logo_url', 'custom_domain']:
+        if field in tenant_data and tenant_data[field] == '':
+            tenant_data[field] = None
+
     # Check if subdomain is already taken
-    if tenant.subdomain:
-        existing = db.query(Tenant).filter(Tenant.subdomain == tenant.subdomain).first()
+    if tenant_data.get('subdomain'):
+        existing = db.query(Tenant).filter(Tenant.subdomain == tenant_data['subdomain']).first()
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Subdomain '{tenant.subdomain}' is already taken"
+                detail=f"Subdomain '{tenant_data['subdomain']}' is already taken"
             )
 
-    db_tenant = Tenant(**tenant.model_dump())
+    db_tenant = Tenant(**tenant_data)
     db.add(db_tenant)
     db.commit()
     db.refresh(db_tenant)
@@ -132,17 +138,22 @@ def update_tenant(
             detail="Tenant not found"
         )
 
+    # Update fields and convert empty strings to None
+    update_data = tenant_update.model_dump(exclude_unset=True)
+    for field in ['subdomain', 'logo_url', 'custom_domain']:
+        if field in update_data and update_data[field] == '':
+            update_data[field] = None
+
     # Check if subdomain is being changed and if it's already taken
-    if tenant_update.subdomain and tenant_update.subdomain != db_tenant.subdomain:
-        existing = db.query(Tenant).filter(Tenant.subdomain == tenant_update.subdomain).first()
+    if update_data.get('subdomain') and update_data['subdomain'] != db_tenant.subdomain:
+        existing = db.query(Tenant).filter(Tenant.subdomain == update_data['subdomain']).first()
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Subdomain '{tenant_update.subdomain}' is already taken"
+                detail=f"Subdomain '{update_data['subdomain']}' is already taken"
             )
 
-    # Update fields
-    update_data = tenant_update.model_dump(exclude_unset=True)
+    # Apply updates
     for field, value in update_data.items():
         setattr(db_tenant, field, value)
 
