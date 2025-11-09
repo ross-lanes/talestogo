@@ -274,7 +274,7 @@ def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
     """
     Determine which tenant a user should belong to based on their email domain.
     Returns tenant_id or None if no match found (will use default tenant).
-    Creates "Tales" tenant if it doesn't exist.
+    Creates "RobotRachel" tenant if it doesn't exist.
     """
     email_domain = email.split('@')[-1].lower()
 
@@ -286,12 +286,12 @@ def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
 
     tenant_name = domain_to_tenant.get(email_domain)
     if not tenant_name:
-        # Default to "Tales" tenant - create if doesn't exist
-        tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == 'Tales').first()
+        # Default to "RobotRachel" tenant - create if doesn't exist
+        tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == 'RobotRachel').first()
         if not tenant:
             # Create default tenant
             tenant = models.Tenant(
-                tenant_name='Tales',
+                tenant_name='RobotRachel',
                 primary_color='#75C9C8',
                 secondary_color='#665775'
             )

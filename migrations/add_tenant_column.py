@@ -81,7 +81,7 @@ def run_migration():
             print()
             print("Next steps:")
             print("1. Run: python migrations/assign_existing_users_to_tenant.py")
-            print("   This will assign all existing users to the Tales tenant")
+            print("   This will assign all existing users to the RobotRachel tenant")
 
         except Exception as e:
             trans.rollback()
