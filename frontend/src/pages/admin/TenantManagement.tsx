@@ -57,6 +57,8 @@ const TenantManagement: React.FC = () => {
     secondary_color: '#665775',
     custom_domain: '',
   });
+  const [logoUploadMode, setLogoUploadMode] = useState<'url' | 'file'>('url');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (isAdmin) {
@@ -101,6 +103,8 @@ const TenantManagement: React.FC = () => {
         custom_domain: '',
       });
     }
+    setLogoFile(null);
+    setLogoUploadMode('url');
     setDialogOpen(true);
   };
 
@@ -115,6 +119,21 @@ const TenantManagement: React.FC = () => {
       secondary_color: '#665775',
       custom_domain: '',
     });
+    setLogoFile(null);
+    setLogoUploadMode('url');
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      // Create a preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, logo_url: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async () => {
@@ -355,14 +374,57 @@ const TenantManagement: React.FC = () => {
               helperText="e.g., 'companyx' for companyx.tales.com"
             />
 
-            <TextField
-              fullWidth
-              label="Logo URL (Optional)"
-              value={formData.logo_url}
-              onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
-              sx={{ mb: 2 }}
-              helperText="URL to the company logo image"
-            />
+            <Box sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                <Button
+                  size="small"
+                  variant={logoUploadMode === 'url' ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    setLogoUploadMode('url');
+                    setLogoFile(null);
+                  }}
+                >
+                  URL
+                </Button>
+                <Button
+                  size="small"
+                  variant={logoUploadMode === 'file' ? 'contained' : 'outlined'}
+                  onClick={() => setLogoUploadMode('file')}
+                >
+                  Upload File
+                </Button>
+              </Box>
+
+              {logoUploadMode === 'url' ? (
+                <TextField
+                  fullWidth
+                  label="Logo URL (Optional)"
+                  value={formData.logo_url}
+                  onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+                  helperText="URL to the company logo image"
+                />
+              ) : (
+                <Box>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    fullWidth
+                    sx={{ py: 1.5 }}
+                  >
+                    {logoFile ? logoFile.name : 'Choose Logo File'}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                    Supported formats: PNG, JPG, SVG
+                  </Typography>
+                </Box>
+              )}
+            </Box>
 
             {formData.logo_url && (
               <Box sx={{ mb: 2, textAlign: 'center' }}>
