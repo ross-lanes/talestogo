@@ -2,6 +2,33 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional, List
 import datetime
 
+# --- Tenant Schemas ---
+class TenantBase(BaseModel):
+    tenant_name: str
+    subdomain: Optional[str] = None
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = "#75C9C8"
+    secondary_color: Optional[str] = "#665775"
+    custom_domain: Optional[str] = None
+
+class TenantCreate(TenantBase):
+    pass
+
+class TenantUpdate(BaseModel):
+    tenant_name: Optional[str] = None
+    subdomain: Optional[str] = None
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    custom_domain: Optional[str] = None
+    model_config = ConfigDict(extra='forbid')
+
+class Tenant(TenantBase):
+    id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
 # --- Query Schemas ---
 class QueryBase(BaseModel):
     query_text: str
@@ -343,6 +370,7 @@ class User(UserBase):
     oauth_provider: Optional[str] = None
     picture_url: Optional[str] = None
     invitation_expires_at: Optional[datetime.datetime] = None
+    tenant_id: Optional[int] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
@@ -370,13 +398,14 @@ class InvitationCreate(BaseModel):
     """Schema for creating an invitation"""
     email: EmailStr
     full_name: str
+    organization: Optional[str] = None
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""
     email: EmailStr
     full_name: str
     invitation_token: str
-    expires_at: datetime.datetime
+    expires_at: Optional[datetime.datetime] = None
     invitation_url: str
 
 class InvitationValidate(BaseModel):

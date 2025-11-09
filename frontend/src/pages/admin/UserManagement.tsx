@@ -28,6 +28,8 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Folder as FolderIcon,
+  Delete as DeleteIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material';
 import { adminAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -59,12 +61,6 @@ const UserManagement: React.FC = () => {
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteOrganization, setInviteOrganization] = useState('');
 
-  // Invitation link dialog
-  const [inviteLinkDialogOpen, setInviteLinkDialogOpen] = useState(false);
-  const [invitationLink, setInvitationLink] = useState('');
-  const [invitedUserEmail, setInvitedUserEmail] = useState('');
-  const [invitedUserName, setInvitedUserName] = useState('');
-  const [linkCopied, setLinkCopied] = useState(false);
 
   // Edit dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -75,6 +71,11 @@ const UserManagement: React.FC = () => {
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [menuUser, setMenuUser] = useState<User | null>(null);
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
 
 
   useEffect(() => {
@@ -108,50 +109,42 @@ const UserManagement: React.FC = () => {
     }
 
     try {
-      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName);
+      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization);
 
-      // Show the invitation link dialog
-      setInvitationLink(response.invitation_url);
-      setInvitedUserEmail(inviteEmail);
-      setInvitedUserName(inviteFullName);
+      // Close the invite dialog
       setInviteDialogOpen(false);
-      setInviteLinkDialogOpen(true);
 
       // Reset form
       setInviteEmail('');
       setInviteFullName('');
       setInviteOrganization('');
 
-      loadUsers();
+      // Reload users to get the new user
+      await loadUsers();
+
+      // Find the newly created user by email and send invitation email
+      const users = await adminAPI.listUsers();
+      const newUser = users.find((u: User) => u.email === inviteEmail);
+
+      if (newUser) {
+        try {
+          await adminAPI.sendInvitationEmail(newUser.id);
+          setSuccess(`User ${inviteEmail} added and invitation email sent!`);
+        } catch (emailErr: any) {
+          console.error('Failed to send invitation email:', emailErr);
+          setSuccess(`User ${inviteEmail} added successfully`);
+          setError('Note: Invitation email failed to send. You can resend from the table.');
+        }
+      } else {
+        setSuccess(`User ${inviteEmail} added successfully`);
+      }
+
     } catch (err: any) {
       console.error('Failed to create invitation:', err);
       setError(err.response?.data?.detail || 'Failed to create invitation');
     }
   };
 
-  const handleCopyLink = () => {
-    const emailMessage = `Hi ${invitedUserName},
-
-You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand.
-
-To get started, simply visit:
-${invitationLink}
-
-And sign in with your Google account (${invitedUserEmail}).
-
-Best,
-The RobotRachel Team`;
-
-    navigator.clipboard.writeText(emailMessage);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 3000);
-  };
-
-  const handleCloseLinkDialog = () => {
-    setInviteLinkDialogOpen(false);
-    setInvitationLink('');
-    setLinkCopied(false);
-  };
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
@@ -215,6 +208,51 @@ The RobotRachel Team`;
     }
   };
 
+  const handleDeleteUser = () => {
+    if (!menuUser) return;
+    setUserToDelete(menuUser);
+    setDeleteDialogOpen(true);
+    handleCloseMenu();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+
+    setError('');
+    setSuccess('');
+
+    try {
+      await adminAPI.deleteUser(userToDelete.id);
+      setSuccess(`User ${userToDelete.email} deleted successfully`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      // Refresh user list
+      loadUsers();
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      setError(err.response?.data?.detail || 'Failed to delete user');
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setUserToDelete(null);
+  };
+
+  const handleSendInvitation = async (user: User) => {
+    setError('');
+    setSuccess('');
+
+    try {
+      await adminAPI.sendInvitationEmail(user.id);
+      setSuccess(`Invitation email sent to ${user.email}!`);
+    } catch (err: any) {
+      console.error('Failed to send invitation email:', err);
+      setError(err.response?.data?.detail || 'Failed to send invitation email');
+    }
+  };
+
 
   const columns: GridColDef[] = [
     {
@@ -261,11 +299,20 @@ The RobotRachel Team`;
         params.value ? <Chip label="Admin" color="primary" size="small" /> : null,
     },
     {
-      field: 'is_invited',
-      headerName: 'Invited',
-      width: 100,
-      renderCell: (params) =>
-        params.value ? <Chip label="Invited" color="info" size="small" /> : null,
+      field: 'invitation',
+      headerName: 'Invitation',
+      width: 120,
+      sortable: false,
+      renderCell: (params) => (
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<EmailIcon />}
+          onClick={() => handleSendInvitation(params.row as User)}
+        >
+          Send
+        </Button>
+      ),
     },
     {
       field: 'actions',
@@ -337,12 +384,12 @@ The RobotRachel Team`;
         <DialogTitle>Invite New User</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add a user's email address to the approved list. They can then sign in with their Google account.
+            Add a user's email address to the approved list. They can sign in with Google, Microsoft, or create a password.
           </Typography>
 
           <TextField
             fullWidth
-            label="Email (must be a Gmail address)"
+            label="Email Address"
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
@@ -414,57 +461,6 @@ The RobotRachel Team`;
         </DialogActions>
       </Dialog>
 
-      {/* Invitation Link Dialog */}
-      <Dialog open={inviteLinkDialogOpen} onClose={handleCloseLinkDialog} maxWidth="md" fullWidth>
-        <DialogTitle>User Added Successfully!</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {invitedUserEmail} has been added to the approved users list. Copy the email message below and send it to them:
-          </Typography>
-
-          <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-            <Button
-              variant="contained"
-              onClick={handleCopyLink}
-              fullWidth
-              size="large"
-            >
-              {linkCopied ? 'Copied!' : 'Copy Email Message'}
-            </Button>
-          </Box>
-
-          <Alert severity="info">
-            <Typography variant="body2" fontWeight="bold" gutterBottom>
-              Email Template:
-            </Typography>
-            <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.875rem' }}>
-{`Hi ${invitedUserName},
-
-You've been invited to join TALES - a platform for tracking and analyzing how AI language models depict your brand.
-
-To get started, simply visit:
-${invitationLink}
-
-And sign in with your Google account (${invitedUserEmail}).
-
-Best,
-The RobotRachel Team`}
-            </Typography>
-          </Alert>
-
-          {linkCopied && (
-            <Alert severity="success" sx={{ mt: 2 }}>
-              Link copied to clipboard! You can now paste it into your email.
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseLinkDialog} variant="contained">
-            Done
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Actions Menu */}
       <Menu
         anchorEl={menuAnchorEl}
@@ -477,7 +473,32 @@ The RobotRachel Team`}
           </ListItemIcon>
           <ListItemText>View Brands</ListItemText>
         </MenuItem>
+        <MenuItem onClick={handleDeleteUser}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText>Delete User</ListItemText>
+        </MenuItem>
       </Menu>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleCancelDelete}>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete user <strong>{userToDelete?.email}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            This will permanently delete the user and all their associated brands and data. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

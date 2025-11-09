@@ -142,13 +142,16 @@ def create_invitation(
         )
 
     # Create pre-approved user (active and ready for OAuth login)
+    # Assign to same tenant as the admin creating the invitation
     new_user = models.User(
         email=invitation.email,
         full_name=invitation.full_name,
+        organization=invitation.organization,
         is_invited=True,
         is_active=True,  # Pre-approved, will be activated on first Google login
         invitation_token=None,
-        invitation_expires_at=None
+        invitation_expires_at=None,
+        tenant_id=current_user.tenant_id  # Assign to admin's tenant
     )
     db.add(new_user)
     db.commit()
@@ -164,6 +167,84 @@ def create_invitation(
         expires_at=None,
         invitation_url=frontend_url  # Just send them to the main site
     )
+
+
+@admin_router.post("/{user_id}/send-invitation", status_code=200)
+async def send_invitation_email(
+    user_id: int,
+    current_user: models.User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Send invitation email to a user (admin only).
+    Generates domain-specific email content and sends via SMTP.
+    """
+    from ..email import send_email
+
+    # Get the user
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Determine email domain and type
+    domain = user.email.split('@')[1].lower()
+    production_url = 'https://tales.robotrachel.com'
+
+    # Generate email content based on domain
+    if domain == 'solsticehc.net':
+        subject = 'Welcome to Tales - Shape Your AI story'
+        body = f"""Hi {user.full_name or user.email},
+
+You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
+
+Your story starts at {production_url}.
+- Click "Sign in with Microsoft."
+- Log in with {user.email}.
+- Click on Customize and start adding information your brands!
+
+Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
+
+May your metrics be ever in your favor,
+Robot Rachel"""
+    elif domain == 'gmail.com':
+        subject = 'Welcome to Tales - Shape Your AI story'
+        body = f"""Hi {user.full_name or user.email},
+
+You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
+
+Your story starts at {production_url}.
+- Click "Sign in with Google."
+- Log in with {user.email}.
+- Click on Customize and start adding information your brands!
+
+Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
+
+May your metrics be ever in your favor,
+Robot Rachel"""
+    else:
+        subject = 'Welcome to Tales - Shape Your AI story'
+        body = f"""Hi {user.full_name or user.email},
+
+You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
+
+Your story starts at {production_url}.
+- Sign in with Google, Microsoft, or create a password for {user.email}.
+- Click on Customize and start adding information your brands!
+
+Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
+
+May your metrics be ever in your favor,
+Robot Rachel"""
+
+    # Send email
+    try:
+        await send_email(user.email, subject, body)
+        return {"message": f"Invitation email sent to {user.email}"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send email: {str(e)}"
+        )
 
 
 # --- Invitation Endpoints ---

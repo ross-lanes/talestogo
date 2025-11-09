@@ -165,10 +165,11 @@ export const adminAPI = {
     return response.data;
   },
 
-  createInvitation: async (email: string, full_name: string) => {
+  createInvitation: async (email: string, full_name: string, organization?: string) => {
     const response = await api.post('/admin/users/create-invite', {
       email,
       full_name,
+      organization,
     });
     return response.data;
   },
@@ -180,6 +181,11 @@ export const adminAPI = {
 
   deleteUser: async (userId: number) => {
     const response = await api.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  sendInvitationEmail: async (userId: number) => {
+    const response = await api.post(`/admin/users/${userId}/send-invitation`);
     return response.data;
   },
 
