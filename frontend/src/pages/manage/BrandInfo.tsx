@@ -204,13 +204,13 @@ const BrandInfo: React.FC = () => {
     setShowDialog(false);
 
     try {
-      // Call the backend API to generate queries, descriptors, and competitors
-      await api.post('/brand-info/generate');
-
-      // Switch to this brand to ensure the queries page shows the right data
+      // Switch to this brand FIRST so the generate API uses the correct brand
       if (brandId) {
         await switchBrand(brandId);
       }
+
+      // Call the backend API to generate queries, descriptors, and competitors
+      await api.post('/brand-info/generate');
 
       // Navigate to queries page
       navigate('/manage/queries');
