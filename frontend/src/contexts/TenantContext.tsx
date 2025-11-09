@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { api } from '../services/api';
 
 interface Tenant {
@@ -77,7 +78,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children, isAdmi
 
       // If there's an override, use that tenant
       if (overrideId !== null && tenants.length > 0) {
-        const overrideTenant = tenants.find(t => t.id === overrideId);
+        const overrideTenant = tenants.find((t: Tenant) => t.id === overrideId);
         setTenant(overrideTenant || myTenant);
       } else {
         setTenant(myTenant);

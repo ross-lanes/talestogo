@@ -1,4 +1,5 @@
-import React, { ReactNode, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { useTenant } from '../contexts/TenantContext';
 import { theme as baseTheme } from '../theme/theme';
