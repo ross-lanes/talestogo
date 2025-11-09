@@ -399,6 +399,7 @@ class InvitationCreate(BaseModel):
     email: EmailStr
     full_name: str
     organization: Optional[str] = None
+    tenant_id: Optional[int] = None  # Optional: assign to specific tenant, defaults to admin's tenant
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""

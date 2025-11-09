@@ -142,7 +142,9 @@ def create_invitation(
         )
 
     # Create pre-approved user (active and ready for OAuth login)
-    # Assign to same tenant as the admin creating the invitation
+    # Use specified tenant_id or default to admin's tenant
+    tenant_id = invitation.tenant_id if invitation.tenant_id is not None else current_user.tenant_id
+
     new_user = models.User(
         email=invitation.email,
         full_name=invitation.full_name,
@@ -151,7 +153,7 @@ def create_invitation(
         is_active=True,  # Pre-approved, will be activated on first Google login
         invitation_token=None,
         invitation_expires_at=None,
-        tenant_id=current_user.tenant_id  # Assign to admin's tenant
+        tenant_id=tenant_id  # Use specified tenant or admin's tenant
     )
     db.add(new_user)
     db.commit()

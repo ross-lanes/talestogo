@@ -165,11 +165,12 @@ export const adminAPI = {
     return response.data;
   },
 
-  createInvitation: async (email: string, full_name: string, organization?: string) => {
+  createInvitation: async (email: string, full_name: string, organization?: string, tenant_id?: number) => {
     const response = await api.post('/admin/users/create-invite', {
       email,
       full_name,
       organization,
+      tenant_id,
     });
     return response.data;
   },
@@ -298,6 +299,12 @@ export const adminAPI = {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  },
+
+  // Tenant management
+  listTenants: async () => {
+    const response = await api.get('/tenants');
     return response.data;
   },
 };
