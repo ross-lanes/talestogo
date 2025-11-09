@@ -204,7 +204,15 @@ const TenantManagement: React.FC = () => {
                   {/* Left: Logo and Name */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1 }}>
                     {tenant.logo_url ? (
-                      <Avatar src={tenant.logo_url} sx={{ width: 64, height: 64 }} />
+                      <Avatar
+                        src={tenant.logo_url}
+                        sx={{
+                          width: 64,
+                          height: 64,
+                          bgcolor: '#f5f5f5',
+                          border: '1px solid #e0e0e0'
+                        }}
+                      />
                     ) : (
                       <Avatar sx={{ width: 64, height: 64, bgcolor: tenant.primary_color }}>
                         <BusinessIcon fontSize="large" />
@@ -338,7 +346,13 @@ const TenantManagement: React.FC = () => {
                 </Typography>
                 <Avatar
                   src={formData.logo_url}
-                  sx={{ width: 80, height: 80, margin: '0 auto' }}
+                  sx={{
+                    width: 80,
+                    height: 80,
+                    margin: '0 auto',
+                    bgcolor: '#f5f5f5',
+                    border: '1px solid #e0e0e0'
+                  }}
                 />
               </Box>
             )}
