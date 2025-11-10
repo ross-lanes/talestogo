@@ -16,12 +16,13 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.abs
 
 database_url = os.getenv('DATABASE_URL')
 if database_url and database_url.startswith('postgresql'):
-    # Production: Use PostgreSQL as broker
-    # Convert postgresql:// to sqla+postgresql:// for broker
-    broker_url = database_url.replace('postgresql://', 'db+postgresql://')
+    # Production: Use PostgreSQL as broker and result backend
+    # Broker uses sqla+ prefix, result backend uses db+ prefix
+    broker_url = database_url.replace('postgresql://', 'sqla+postgresql://')
     result_backend_url = database_url.replace('postgresql://', 'db+postgresql://')
 else:
     # Development: Use SQLite
+    # Broker uses sqla+ prefix, result backend uses db+ prefix
     db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'celery.sqlite3')
     broker_url = f'sqla+sqlite:///{db_path}'
     result_backend_url = f'db+sqlite:///{db_path}'

@@ -131,7 +131,11 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const drawer = (
-    <Box sx={{ height: '100%', backgroundColor: tenant?.primary_color || '#665775' }}>
+    <Box sx={{
+      minHeight: '100%',
+      height: '100%',
+      backgroundColor: tenant?.primary_color || '#665775'
+    }}>
   <Toolbar
   sx={{
     display: 'flex',
@@ -220,13 +224,13 @@ export default function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh', height: '100vh' }}>
+    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh' }}>
       <CssBaseline />
 
       {/* Sidebar Navigation */}
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 }, height: '100vh' }}
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
         <Drawer
           variant="temporary"
@@ -252,11 +256,11 @@ export default function Layout({ children }: LayoutProps) {
           sx={{
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
-              position: 'fixed',
+              position: 'relative',
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              height: '100vh',
+              minHeight: '100vh',
             },
           }}
           open
@@ -271,11 +275,10 @@ export default function Layout({ children }: LayoutProps) {
         sx={{
           flexGrow: 1,
           width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
-          height: '100vh',
+          minHeight: '100vh',
           backgroundColor: 'white',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'auto',
         }}
       >
         {/* Top AppBar */}
