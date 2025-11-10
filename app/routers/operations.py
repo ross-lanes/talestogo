@@ -203,7 +203,7 @@ async def run_collection(
 
             # Run analysis script
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            analysis_script = os.path.join(project_root, "analyze_responses.py")
+            analysis_script = os.path.join(project_root, "scripts", "admin", "analyze_responses.py")
             analysis_cmd = [
                 "python3", analysis_script,
                 "--all",
@@ -375,7 +375,7 @@ async def run_analysis(
 
     # Get the project root directory (parent of app directory)
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    analysis_script = os.path.join(project_root, "analyze_responses.py")
+    analysis_script = os.path.join(project_root, "scripts", "admin", "analyze_responses.py")
     report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
 
     try:
@@ -578,7 +578,7 @@ async def rerun_analysis(
 
     # Get the project root directory (parent of app directory)
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    analysis_script = os.path.join(project_root, "analyze_responses.py")
+    analysis_script = os.path.join(project_root, "scripts", "admin", "analyze_responses.py")
     report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
 
     try:
