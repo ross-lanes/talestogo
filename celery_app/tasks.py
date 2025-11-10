@@ -29,7 +29,7 @@ def query_llm_platform_task(self, query_pk: int, platform: str):
         # Call the API service function
         raw_response_text = query_platform_api(query.query_text, platform)
 
-        # Use the CRUD function to create the response
+        # Use the CRUD function to create the response with proper user_id and brand_id
         response_schema = schemas.ResponseCreate(
             query_id=query.query_id,
             query_text=query.query_text,
@@ -37,8 +37,13 @@ def query_llm_platform_task(self, query_pk: int, platform: str):
             response_text=raw_response_text
             # The timestamp is now set by the model's default value
         )
-        db_response = crud.create_response(db, response=response_schema)
-        logger.info(f"Successfully saved response for {query.query_id} on {platform}")
+        db_response = crud.create_response(
+            db,
+            response=response_schema,
+            user_id=query.user_id,
+            brand_id=query.brand_id
+        )
+        logger.info(f"Successfully saved response for {query.query_id} (user={query.user_id}, brand={query.brand_id}) on {platform}")
         # Return the ID of the created response object for the chord
         return db_response.id
 
