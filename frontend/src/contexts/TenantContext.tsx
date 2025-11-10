@@ -38,8 +38,22 @@ interface TenantProviderProps {
   isAdmin: boolean;
 }
 
+// Helper function to load cached tenant from localStorage
+const getCachedTenant = (): Tenant | null => {
+  try {
+    const cached = localStorage.getItem('cached_tenant');
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (error) {
+    console.error('Failed to parse cached tenant:', error);
+  }
+  return null;
+};
+
 export const TenantProvider: React.FC<TenantProviderProps> = ({ children, isAdmin }) => {
-  const [tenant, setTenant] = useState<Tenant | null>(null);
+  // Initialize with cached tenant to prevent flash of default theme
+  const [tenant, setTenant] = useState<Tenant | null>(getCachedTenant());
   const [allTenants, setAllTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [overrideId, setOverrideId] = useState<number | null>(null);
@@ -76,12 +90,21 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children, isAdmi
       const tenants = await fetchAllTenants();
       setAllTenants(tenants);
 
-      // If there's an override, use that tenant
+      // Determine which tenant to use
+      let selectedTenant: Tenant | null;
       if (overrideId !== null && tenants.length > 0) {
         const overrideTenant = tenants.find((t: Tenant) => t.id === overrideId);
-        setTenant(overrideTenant || myTenant);
+        selectedTenant = overrideTenant || myTenant;
       } else {
-        setTenant(myTenant);
+        selectedTenant = myTenant;
+      }
+
+      // Update state
+      setTenant(selectedTenant);
+
+      // Cache the tenant in localStorage to prevent theme flash on reload
+      if (selectedTenant) {
+        localStorage.setItem('cached_tenant', JSON.stringify(selectedTenant));
       }
     } catch (error) {
       console.error('Error refreshing tenant:', error);
@@ -98,12 +121,20 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children, isAdmi
     // Update tenant immediately
     if (tenantId === null) {
       // Reset to user's actual tenant
-      fetchMyTenant().then(setTenant);
+      fetchMyTenant().then((myTenant) => {
+        setTenant(myTenant);
+        // Update cache
+        if (myTenant) {
+          localStorage.setItem('cached_tenant', JSON.stringify(myTenant));
+        }
+      });
     } else {
       // Use override tenant
       const overrideTenant = allTenants.find(t => t.id === tenantId);
       if (overrideTenant) {
         setTenant(overrideTenant);
+        // Update cache
+        localStorage.setItem('cached_tenant', JSON.stringify(overrideTenant));
       }
     }
 

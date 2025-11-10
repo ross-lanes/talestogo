@@ -12,25 +12,27 @@ export const TenantThemeProvider: React.FC<TenantThemeProviderProps> = ({ childr
   const { tenant, loading } = useTenant();
 
   const tenantTheme = useMemo(() => {
-    if (loading || !tenant) {
-      return baseTheme;
+    // If tenant exists (either from cache or API), use it immediately
+    // This prevents the flash of default theme on page load
+    if (tenant) {
+      return createTheme({
+        ...baseTheme,
+        palette: {
+          ...baseTheme.palette,
+          primary: {
+            main: tenant.primary_color || '#75C9C8',
+            contrastText: '#fff',
+          },
+          secondary: {
+            main: tenant.secondary_color || '#665775',
+            contrastText: '#fff',
+          },
+        },
+      });
     }
 
-    // Create a new theme based on tenant colors
-    return createTheme({
-      ...baseTheme,
-      palette: {
-        ...baseTheme.palette,
-        primary: {
-          main: tenant.primary_color || '#75C9C8',
-          contrastText: '#fff',
-        },
-        secondary: {
-          main: tenant.secondary_color || '#665775',
-          contrastText: '#fff',
-        },
-      },
-    });
+    // Only fall back to baseTheme if loading and no cached tenant
+    return baseTheme;
   }, [tenant, loading]);
 
   return <ThemeProvider theme={tenantTheme}>{children}</ThemeProvider>;

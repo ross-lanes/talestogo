@@ -220,13 +220,13 @@ export default function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh', height: '100vh' }}>
       <CssBaseline />
 
       {/* Sidebar Navigation */}
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 }, height: '100vh' }}
       >
         <Drawer
           variant="temporary"
@@ -241,6 +241,7 @@ export default function Layout({ children }: LayoutProps) {
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
+              height: '100vh',
             },
           }}
         >
@@ -251,11 +252,11 @@ export default function Layout({ children }: LayoutProps) {
           sx={{
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
-              position: 'relative',
+              position: 'fixed',
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              height: '100%',
+              height: '100vh',
             },
           }}
           open
@@ -270,10 +271,11 @@ export default function Layout({ children }: LayoutProps) {
         sx={{
           flexGrow: 1,
           width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
-          minHeight: '100vh',
+          height: '100vh',
           backgroundColor: 'white',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'auto',
         }}
       >
         {/* Top AppBar */}
@@ -281,12 +283,15 @@ export default function Layout({ children }: LayoutProps) {
           position="static"
           sx={{
             backgroundColor: 'primary.main',
+            width: '100%',
           }}
         >
           <Toolbar
             sx={{
               minHeight: { xs: 106, sm: 114 },
               height: { xs: 106, sm: 114 },
+              width: '100%',
+              pr: '10px !important', // Right padding 10px from edge
             }}
           >
             {/* Left: hamburger (mobile only) */}
