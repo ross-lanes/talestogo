@@ -13,6 +13,11 @@ import datetime
 import os
 import subprocess
 import threading
+
+# Use timezone-aware datetime to ensure proper timezone handling in frontend
+def utcnow():
+    """Returns current UTC time with timezone info (Python 3.11+ compatible)"""
+    return datetime.datetime.now(datetime.UTC)
 import signal
 
 from .. import models, schemas, crud
@@ -128,7 +133,7 @@ async def run_collection(
                 if task:
                     task.status = "failed"
                     task.error_message = f"Collection script failed: {stderr[-500:] if stderr else 'Unknown error'}"
-                    task.completed_at = datetime.datetime.utcnow()
+                    task.completed_at = utcnow()
                     db_thread.commit()
 
                 # Send email notification about collection failure
@@ -150,7 +155,7 @@ async def run_collection(
             ).first()
             if task:
                 task.status = "completed"
-                task.completed_at = datetime.datetime.utcnow()
+                task.completed_at = utcnow()
                 db_thread.commit()
 
             # Send email notification about collection success
@@ -227,7 +232,7 @@ async def run_collection(
                 if task:
                     task.status = "failed"
                     task.error_message = f"Analysis script failed: {stderr[-500:] if stderr else 'Unknown error'}"
-                    task.completed_at = datetime.datetime.utcnow()
+                    task.completed_at = utcnow()
                     db_thread.commit()
 
                 # Send email notification about analysis failure
@@ -248,7 +253,7 @@ async def run_collection(
             ).first()
             if task:
                 task.status = "completed"
-                task.completed_at = datetime.datetime.utcnow()
+                task.completed_at = utcnow()
                 db_thread.commit()
 
             # Send email notification about analysis success
@@ -269,7 +274,7 @@ async def run_collection(
             if task and task.status == "running":
                 task.status = "failed"
                 task.error_message = "Collection timed out after 1 hour"
-                task.completed_at = datetime.datetime.utcnow()
+                task.completed_at = utcnow()
                 db_thread.commit()
         except Exception as e:
             # General error
@@ -279,7 +284,7 @@ async def run_collection(
             if task and task.status == "running":
                 task.status = "failed"
                 task.error_message = str(e)
-                task.completed_at = datetime.datetime.utcnow()
+                task.completed_at = utcnow()
                 db_thread.commit()
         finally:
             db_thread.close()
@@ -550,7 +555,7 @@ async def rerun_analysis(
         total_items=len(all_responses),
         processed_items=0,
         message=message,
-        started_at=datetime.datetime.utcnow()
+        started_at=utcnow()
     )
     db.add(task_status)
     db.commit()
@@ -690,7 +695,7 @@ def get_task_status(
             # Analysis is complete, check if we're generating report
             # For simplicity, mark as completed if no unanalyzed responses
             task.status = "completed"
-            task.completed_at = datetime.datetime.utcnow()
+            task.completed_at = utcnow()
             task.message = "Analysis and report generation completed"
             db.commit()
             db.refresh(task)
@@ -727,7 +732,7 @@ def cancel_task(
         # Update task status
         task.status = "cancelled"
         task.message = "Task cancelled by user"
-        task.completed_at = datetime.datetime.utcnow()
+        task.completed_at = utcnow()
         db.commit()
 
         return {
@@ -738,7 +743,7 @@ def cancel_task(
         # Process doesn't exist anymore, just mark as cancelled
         task.status = "cancelled"
         task.message = "Task process not found (may have already completed)"
-        task.completed_at = datetime.datetime.utcnow()
+        task.completed_at = utcnow()
         db.commit()
 
         return {
