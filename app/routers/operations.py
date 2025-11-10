@@ -90,7 +90,11 @@ async def run_collection(
         db_thread = SessionLocal()
         try:
             # === RUN COLLECTION ===
-            script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "admin", "collect_responses.py")
+            # In Docker: /app/scripts/admin/collect_responses.py
+            # Locally: /path/to/tales_project/scripts/admin/collect_responses.py
+            # Get project root (parent of app directory)
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            script_path = os.path.join(project_root, "scripts", "admin", "collect_responses.py")
             cmd = [
                 "python3", script_path,
                 str(current_user.id),
@@ -187,7 +191,8 @@ async def run_collection(
             db_thread.refresh(analysis_task)
 
             # Run analysis script
-            analysis_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            analysis_script = os.path.join(project_root, "analyze_responses.py")
             analysis_cmd = [
                 "python3", analysis_script,
                 "--all",
@@ -352,12 +357,12 @@ async def run_analysis(
     db.commit()
     db.refresh(task_status)
 
-    analysis_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
-    report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
+    # Get the project root directory (parent of app directory)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    analysis_script = os.path.join(project_root, "analyze_responses.py")
+    report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
 
     try:
-        # Get the project root directory (where tales.db is located)
-        project_root = os.path.dirname(os.path.dirname(__file__))
 
         # Run analysis and report generation in sequence in the background with task-id
         # Use separate commands to capture which step fails
@@ -551,13 +556,12 @@ async def rerun_analysis(
     db.commit()
     db.refresh(task_status)
 
-    analysis_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
-    report_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "generate_report.py")
+    # Get the project root directory (parent of app directory)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    analysis_script = os.path.join(project_root, "analyze_responses.py")
+    report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
 
     try:
-        # Get the project root directory (where tales.db is located)
-        project_root = os.path.dirname(os.path.dirname(__file__))
-
         # Run analysis and report generation in sequence in the background
         # Use separate commands to capture which step fails
         # Pass specific response IDs instead of --all to only analyze date-filtered responses

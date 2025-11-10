@@ -20,7 +20,8 @@
       "Bash(python:*)",
       "Bash(nslookup:*)",
       "Bash(xargs:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
