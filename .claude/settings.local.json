@@ -21,7 +21,11 @@
       "Bash(nslookup:*)",
       "Bash(xargs:*)",
       "Bash(cat:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npm run dev:*)",
+      "Bash(celery -A celery_app.celery worker:*)",
+      "Bash(celery -A celery_app.celery beat:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

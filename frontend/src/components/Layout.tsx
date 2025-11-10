@@ -132,7 +132,6 @@ export default function Layout({ children }: LayoutProps) {
 
   const drawer = (
     <Box sx={{
-      minHeight: '100%',
       height: '100%',
       backgroundColor: tenant?.primary_color || '#665775'
     }}>
@@ -224,13 +223,17 @@ export default function Layout({ children }: LayoutProps) {
   );
 
   return (
-    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', backgroundColor: 'white', minHeight: '100vh', width: '100%' }}>
       <CssBaseline />
 
       {/* Sidebar Navigation */}
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{
+          width: { sm: drawerWidth },
+          flexShrink: { sm: 0 },
+          backgroundColor: { sm: tenant?.primary_color || '#665775' }
+        }}
       >
         <Drawer
           variant="temporary"
@@ -256,11 +259,11 @@ export default function Layout({ children }: LayoutProps) {
           sx={{
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
-              position: 'relative',
+              position: 'static',
               boxSizing: 'border-box',
               width: drawerWidth,
               borderRight: 'none',
-              minHeight: '100vh',
+              backgroundColor: 'transparent',
             },
           }}
           open
@@ -274,7 +277,8 @@ export default function Layout({ children }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
+          width: '100%',
+          minWidth: 0, // Allow flex item to shrink below content size
           minHeight: '100vh',
           backgroundColor: 'white',
           display: 'flex',
