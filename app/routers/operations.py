@@ -83,7 +83,8 @@ async def run_collection(
         status="running",
         total_items=query_count * 4,  # queries × 4 platforms
         processed_items=0,
-        message="Starting collection..."
+        message="Starting collection...",
+        started_at=utcnow()
     )
     db.add(collection_task)
     db.commit()
@@ -106,12 +107,16 @@ async def run_collection(
                 "--brand-id", str(brand_id),
                 "--task-id", str(collection_task.id)
             ]
+            # Add PYTHONPATH to subprocess environment so script can import from app module
+            env = os.environ.copy()
+            env['PYTHONPATH'] = project_root
             process = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                env=env
             )
             # Store the process ID
             task = db_thread.query(models.TaskStatus).filter(
@@ -189,7 +194,8 @@ async def run_collection(
                 status="running",
                 total_items=len(responses_to_analyze),
                 processed_items=0,
-                message=f"Analyzing {len(responses_to_analyze)} newly collected responses..."
+                message=f"Analyzing {len(responses_to_analyze)} newly collected responses...",
+                started_at=utcnow()
             )
             db_thread.add(analysis_task)
             db_thread.commit()
@@ -206,11 +212,15 @@ async def run_collection(
                 "--task-id", str(analysis_task.id)
             ]
 
+            # Add PYTHONPATH to subprocess environment so script can import from app module
+            env = os.environ.copy()
+            env['PYTHONPATH'] = project_root
             analysis_process = subprocess.Popen(
                 analysis_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                env=env
             )
 
             # Store the process ID
@@ -356,7 +366,8 @@ async def run_analysis(
         status="running",
         total_items=len(responses_to_analyze),
         processed_items=0,
-        message=f"Analyzing {len(responses_to_analyze)} responses from {latest_date.strftime('%Y-%m-%d')}..."
+        message=f"Analyzing {len(responses_to_analyze)} responses from {latest_date.strftime('%Y-%m-%d')}...",
+        started_at=utcnow()
     )
     db.add(task_status)
     db.commit()
@@ -380,13 +391,17 @@ async def run_analysis(
             db_task = SessionLocal()
             try:
                 # Run analysis script using Popen so we can track the PID
+                # Add PYTHONPATH to subprocess environment so script can import from app module
+                env = os.environ.copy()
+                env['PYTHONPATH'] = project_root
                 analysis_process = subprocess.Popen(
                     analysis_cmd,
                     shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    cwd=project_root
+                    cwd=project_root,
+                    env=env
                 )
 
                 # Store the process ID
@@ -580,6 +595,9 @@ async def rerun_analysis(
             db_task = SessionLocal()
             try:
                 # Run analysis script
+                # Add PYTHONPATH to subprocess environment so script can import from app module
+                env = os.environ.copy()
+                env['PYTHONPATH'] = project_root
                 analysis_process = subprocess.run(
                     analysis_cmd,
                     shell=True,
@@ -587,7 +605,8 @@ async def rerun_analysis(
                     stderr=subprocess.PIPE,
                     text=True,
                     cwd=project_root,
-                    timeout=3600  # 1 hour timeout
+                    timeout=3600,  # 1 hour timeout
+                    env=env
                 )
 
                 if analysis_process.returncode != 0:
