@@ -1,10 +1,11 @@
 """
-Generate realistic demo data for Virelyxa brand showing 8 months of improvement.
+Generate realistic demo data for Virelyxa brand showing 4 months of improvement.
 
 This script creates:
-- Collection batches (one per month for 8 months)
+- Collection batches (one per month for 4 months)
 - Responses with realistic AI model outputs
 - Batch analytics showing improving metrics over time
+- Monthly reports with insights and recommendations
 - Demonstrates the value of Tales with clear upward trends
 """
 import os
@@ -65,6 +66,7 @@ def generate_response_text(query: dict, month_index: int, platform: str, brand_p
     Generate realistic AI response text based on query, time period, and brand position.
     Early months: less favorable, fewer mentions
     Later months: more favorable, better positioning
+    Month 0 = oldest, Month 3 = most recent (4 months total)
     """
     query_text = query["text"]
     is_branded = query["branded"]
@@ -79,8 +81,8 @@ def generate_response_text(query: dict, month_index: int, platform: str, brand_p
     else:  # Perplexity
         intro = "Research indicates that"
 
-    # Early months (0-2): Minimal or no Virelyxa mention
-    if month_index <= 2:
+    # Month 0-1: Minimal or no Virelyxa mention
+    if month_index <= 1:
         if is_branded:
             # Branded queries still get answers, but brief
             return f"{intro} Virelyxa is a biotech company operating in the precision medicine space. They are working on various therapeutic approaches and conducting clinical research."
@@ -94,8 +96,8 @@ def generate_response_text(query: dict, month_index: int, platform: str, brand_p
                 competitors_list = random.sample(COMPETITORS, 2)
                 return f"{intro} several companies are making strides including {', '.join(competitors_list)}, and Virelyxa, among others."
 
-    # Middle months (3-5): Growing presence
-    elif month_index <= 5:
+    # Month 2: Growing presence
+    elif month_index == 2:
         if is_branded:
             descriptors = random.sample(TARGET_DESCRIPTORS, 2)
             return f"{intro} Virelyxa has been gaining recognition for its {descriptors[0]} approach to {descriptors[1]}. The company is establishing itself as a notable player in precision medicine with several promising clinical trials underway."
@@ -108,8 +110,8 @@ def generate_response_text(query: dict, month_index: int, platform: str, brand_p
                 competitors_list = random.sample(COMPETITORS, 3)
                 return f"{intro} key players include {', '.join(competitors_list[:2])}, Virelyxa, and {competitors_list[2]}."
 
-    # Later months (6-7): Strong presence and positive positioning
-    else:
+    # Month 3 (most recent): Strong presence and positive positioning
+    else:  # month_index == 3
         if is_branded:
             descriptors = random.sample(TARGET_DESCRIPTORS, 3)
             return f"{intro} Virelyxa has established itself as a {descriptors[0]} leader in precision medicine. The company is recognized for its {descriptors[1]} and {descriptors[2]}, with multiple breakthrough therapies in development. Industry experts frequently cite Virelyxa's patient-focused approach and clinical excellence as setting new standards in biotech research."
@@ -125,75 +127,80 @@ def generate_response_text(query: dict, month_index: int, platform: str, brand_p
 
 def calculate_brand_position(month_index: int, is_branded: bool) -> str:
     """
-    Determine brand position based on progress over time.
+    Determine brand position based on progress over time (4 months).
     Shows clear improvement from "Not Mentioned" to "Leader"
+    Month 0 = oldest, Month 3 = most recent
     """
     if is_branded:
         # Branded queries always mention the brand
-        if month_index <= 2:
+        if month_index <= 1:
             return "Featured"
-        elif month_index <= 5:
-            return "Leader"
         else:
             return "Leader"
     else:
-        # Unbranded queries show progression
-        if month_index <= 1:
-            # Very early: mostly not mentioned
+        # Unbranded queries show progression over 4 months
+        if month_index == 0:
+            # Month 1: mostly not mentioned
             return random.choice(["Not Mentioned", "Not Mentioned", "Not Mentioned", "Listed"])
-        elif month_index <= 3:
-            # Early: occasionally listed
-            return random.choice(["Not Mentioned", "Not Mentioned", "Listed", "Listed"])
-        elif month_index <= 5:
-            # Middle: more featured, occasional leader
-            return random.choice(["Listed", "Listed", "Featured", "Featured", "Leader"])
-        else:
-            # Late: frequently leader or featured
-            return random.choice(["Featured", "Featured", "Leader", "Leader", "Leader"])
+        elif month_index == 1:
+            # Month 2: occasionally listed
+            return random.choice(["Not Mentioned", "Listed", "Listed", "Featured"])
+        elif month_index == 2:
+            # Month 3: more featured, some leader
+            return random.choice(["Listed", "Featured", "Featured", "Leader"])
+        else:  # month_index == 3
+            # Month 4: frequently leader or featured
+            return random.choice(["Featured", "Leader", "Leader", "Leader"])
 
 
 def calculate_sentiment(month_index: int, brand_mentioned: str) -> str:
     """
-    Determine sentiment, improving over time.
+    Determine sentiment, improving over time (4 months).
     """
     if brand_mentioned == "No":
         return "Neutral"
 
-    if month_index <= 2:
+    if month_index == 0:
         return random.choice(["Neutral", "Neutral", "Positive"])
-    elif month_index <= 5:
-        return random.choice(["Neutral", "Positive", "Positive", "Very Positive"])
-    else:
-        return random.choice(["Positive", "Positive", "Very Positive", "Very Positive"])
+    elif month_index == 1:
+        return random.choice(["Neutral", "Positive", "Positive"])
+    elif month_index == 2:
+        return random.choice(["Positive", "Positive", "Very Positive"])
+    else:  # month_index == 3
+        return random.choice(["Positive", "Very Positive", "Very Positive", "Very Positive"])
 
 
 def get_descriptors(month_index: int, brand_mentioned: str) -> str:
     """
-    Return descriptors used for Virelyxa, improving over time.
+    Return descriptors used for Virelyxa, improving over time (4 months).
     """
     if brand_mentioned == "No":
         return ""
 
-    if month_index <= 2:
+    if month_index == 0:
         count = random.randint(0, 1)
-    elif month_index <= 5:
-        count = random.randint(1, 3)
-    else:
-        count = random.randint(2, 4)
+    elif month_index == 1:
+        count = random.randint(1, 2)
+    elif month_index == 2:
+        count = random.randint(2, 3)
+    else:  # month_index == 3
+        count = random.randint(3, 4)
 
     return ", ".join(random.sample(TARGET_DESCRIPTORS, min(count, len(TARGET_DESCRIPTORS))))
 
 
 def get_competitors_mentioned(month_index: int) -> str:
     """
-    Return competitors mentioned, slightly decreasing over time as Virelyxa gains dominance.
+    Return competitors mentioned, slightly decreasing over time as Virelyxa gains dominance (4 months).
     """
-    if month_index <= 2:
-        count = random.randint(2, 4)
-    elif month_index <= 5:
+    if month_index == 0:
+        count = random.randint(3, 4)
+    elif month_index == 1:
         count = random.randint(2, 3)
-    else:
-        count = random.randint(1, 3)
+    elif month_index == 2:
+        count = random.randint(2, 3)
+    else:  # month_index == 3
+        count = random.randint(1, 2)
 
     return ", ".join(random.sample(COMPETITORS, min(count, len(COMPETITORS))))
 
@@ -249,24 +256,27 @@ def create_collection_batch(db: Session, user_id: int, brand_id: int, month_offs
 
     for query in SAMPLE_QUERIES:
         for platform in PLATFORMS:
+            # Calculate month index (0 = oldest, 3 = newest for 4 months)
+            month_index = 3 - month_offset
+
             # Determine brand position
-            brand_position = calculate_brand_position(7 - month_offset, query["branded"])
+            brand_position = calculate_brand_position(month_index, query["branded"])
             brand_mentioned = "Yes" if brand_position != "Not Mentioned" else "No"
 
             # Generate response text
             response_text = generate_response_text(
                 query,
-                7 - month_offset,
+                month_index,
                 platform,
                 brand_position
             )
 
             # Determine sentiment
-            sentiment = calculate_sentiment(7 - month_offset, brand_mentioned)
+            sentiment = calculate_sentiment(month_index, brand_mentioned)
 
             # Get descriptors and competitors
-            descriptors = get_descriptors(7 - month_offset, brand_mentioned)
-            competitors = get_competitors_mentioned(7 - month_offset)
+            descriptors = get_descriptors(month_index, brand_mentioned)
+            competitors = get_competitors_mentioned(month_index)
 
             # Create response
             response = models.Response(
@@ -362,13 +372,136 @@ def create_collection_batch(db: Session, user_id: int, brand_id: int, month_offs
         computed_at=batch_date + timedelta(hours=3)
     )
     db.add(analytics)
+    db.flush()  # Ensure analytics is committed so we can query it
 
     print(f"  ✓ Created {total_responses} responses")
     print(f"  ✓ Mention rate: {mention_rate:.1f}%")
     print(f"  ✓ Leader positions: {leader_count}")
     print(f"  ✓ Featured positions: {featured_count}")
 
-    return batch
+    return batch, analytics
+
+
+def generate_monthly_report(db: Session, user_id: int, brand_id: int, batch: models.CollectionBatch, analytics: models.BatchAnalytics, month_index: int):
+    """
+    Generate a realistic monthly report based on the batch analytics.
+    Month 0 = oldest, Month 3 = most recent (4 months total)
+    """
+    month_name = batch.started_at.strftime("%B %Y")
+    mention_rate = analytics.mention_rate
+
+    # Generate insights based on month progression
+    if month_index == 0:
+        trend = "initial"
+        tone = "We're establishing baseline metrics and beginning to track AI visibility."
+        outlook = "As we implement strategic recommendations, we expect to see gradual improvement in mention rates and positioning."
+    elif month_index == 1:
+        trend = "emerging"
+        tone = "We're seeing early signs of improved visibility, with mention rates beginning to climb."
+        outlook = "Continue current strategies with focus on target descriptors. We expect further improvements in positioning next month."
+    elif month_index == 2:
+        trend = "growing"
+        tone = "Significant progress is evident, with Virelyxa appearing more frequently in leadership positions."
+        outlook = "Momentum is building. Maintain focus on owning target descriptors and we anticipate continued strong performance."
+    else:  # month_index == 3
+        trend = "strong"
+        tone = "Excellent results this month, with Virelyxa consistently appearing as a leader in AI responses."
+        outlook = "Continue current strategies to maintain and build upon this strong positioning. Consider expanding into adjacent market segments."
+
+    # Generate descriptors summary
+    descriptor_data = json.loads(analytics.sov_data) if analytics.sov_data else {}
+    top_descriptors = sorted(descriptor_data.items(), key=lambda x: x[1], reverse=True)[:3] if descriptor_data else []
+
+    # Create report content
+    report_content = f"""# Monthly AI Visibility Report - {month_name}
+
+## Executive Summary
+
+{tone}
+
+**Key Metrics:**
+- **Mention Rate:** {mention_rate:.1f}%
+- **Total Responses Analyzed:** {analytics.total_responses}
+- **Brand Mentions:** {analytics.mention_count}
+- **Leadership Positions:** {analytics.leader_count}
+- **Featured Positions:** {analytics.featured_count}
+
+---
+
+## Performance Overview
+
+### Brand Positioning
+
+This month, Virelyxa appeared in **{analytics.mention_count} of {analytics.total_responses} responses** ({mention_rate:.1f}% mention rate).
+
+**Position Breakdown:**
+- 🏆 Leader: {analytics.leader_count} responses
+- ⭐ Featured: {analytics.featured_count} responses
+- 📋 Listed: {analytics.listed_count} responses
+- ❌ Not Mentioned: {analytics.not_mentioned_count} responses
+
+### Sentiment Analysis
+
+When Virelyxa was mentioned, the sentiment breakdown was:
+- Very Positive: {analytics.very_positive_count}
+- Positive: {analytics.positive_count}
+- Neutral: {analytics.neutral_count}
+- Negative: {analytics.negative_count}
+
+**Overall sentiment is {"very strong" if analytics.very_positive_count > analytics.positive_count else "positive"}**, indicating that AI models associate Virelyxa with favorable characteristics.
+
+---
+
+## Strategic Recommendations
+
+### 1. Descriptor Ownership
+Continue emphasizing target descriptors in all communications:
+- Patient-focused care
+- Clinical excellence
+- Innovative research
+- Precision medicine leadership
+
+### 2. Content Strategy
+{"Focus on building foundational content that establishes expertise in precision medicine." if month_index <= 1 else ""}
+{"Amplify thought leadership content and case studies demonstrating clinical outcomes." if month_index == 2 else ""}
+{"Leverage current momentum with increased media outreach and industry participation." if month_index == 3 else ""}
+
+### 3. Competitive Positioning
+{"Differentiate from competitors by highlighting unique precision medicine approach and patient outcomes." if month_index <= 1 else ""}
+{"Maintain competitive advantage through continued focus on breakthrough therapies and clinical excellence." if month_index >= 2 else ""}
+
+---
+
+## Outlook
+
+{outlook}
+
+**Next Steps:**
+1. Monitor weekly trends in AI visibility
+2. Continue tracking competitor mentions and positioning
+3. Adjust messaging based on sentiment analysis
+4. {"Establish baseline content in key areas" if month_index == 0 else "Expand content in high-performing areas"}
+
+---
+
+*Report generated by TALES - Tracking AI LLM Engagement Strategies*
+"""
+
+    # Create report
+    report = models.Report(
+        user_id=user_id,
+        brand_id=brand_id,
+        title=f"Monthly AI Visibility Report - {month_name}",
+        report_content=report_content,
+        start_date=batch.started_at,
+        end_date=batch.completed_at,
+        total_responses=analytics.total_responses,
+        mention_rate=mention_rate,
+        created_at=batch.completed_at + timedelta(hours=4)
+    )
+    db.add(report)
+
+    return report
 
 
 def main():
@@ -415,27 +548,38 @@ def main():
 
         # Delete existing Virelyxa data to start fresh
         print("\nCleaning up existing Virelyxa data...")
+        db.query(models.Report).filter(models.Report.brand_id == brand.id).delete()
         db.query(models.BatchAnalytics).filter(models.BatchAnalytics.brand_id == brand.id).delete()
         db.query(models.Response).filter(models.Response.brand_id == brand.id).delete()
         db.query(models.CollectionBatch).filter(models.CollectionBatch.brand_id == brand.id).delete()
         db.commit()
         print("  ✓ Existing data cleaned")
 
-        # Create 8 months of historical data (most recent month = 0, oldest = 7)
-        print("\nGenerating 8 months of historical data...")
-        for month_offset in range(7, -1, -1):  # 7 months ago to current month
-            create_collection_batch(db, user.id, brand.id, month_offset)
+        # Create 4 months of historical data (most recent month = 0, oldest = 3)
+        print("\nGenerating 4 months of historical data with reports...")
+        for month_offset in range(3, -1, -1):  # 3 months ago to current month
+            month_index = 3 - month_offset
+            batch, analytics = create_collection_batch(db, user.id, brand.id, month_offset)
+
+            # Generate monthly report
+            report = generate_monthly_report(db, user.id, brand.id, batch, analytics, month_index)
+            print(f"  ✓ Monthly report generated")
+
             db.commit()
 
         print("\n" + "=" * 60)
         print("✓ Demo data generation complete!")
         print("=" * 60)
-        print("\nVirelyxa now has 8 months of realistic data showing:")
-        print("  • Increasing mention rates over time")
-        print("  • Improving brand positioning (Not Mentioned → Leader)")
-        print("  • Better sentiment scores")
-        print("  • Growing descriptor ownership")
-        print("  • Stronger share of voice")
+        print("\nVirelyxa now has 4 months of complete demo data:")
+        print("  • 4 collection batches with realistic AI responses")
+        print("  • Batch analytics showing improving metrics")
+        print("  • 4 monthly reports with insights and recommendations")
+        print("  • Clear upward trends in:")
+        print("    - Mention rates (improving over time)")
+        print("    - Brand positioning (Not Mentioned → Leader)")
+        print("    - Sentiment scores (Neutral → Very Positive)")
+        print("    - Descriptor ownership (0-1 → 3-4 descriptors)")
+        print("    - Share of voice")
         print("\nYou can now demo Tales to prospective users!")
 
     except Exception as e:
