@@ -21,8 +21,8 @@ import { useTaskStatus, type Task } from '../contexts/TaskStatusContext';
 import { formatDateEST } from '../utils/dateUtils';
 
 const TASK_TYPE_LABELS: Record<string, string> = {
-  collection: 'Data Collection',
-  analysis: 'Data Analysis',
+  collection: 'Collection',
+  analysis: 'Analysis',
   report_generation: 'Report Generation',
 };
 

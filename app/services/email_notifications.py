@@ -56,11 +56,13 @@ def send_task_completion_email(
     # Create email subject and body based on status
     if status == 'completed':
         subject = f"TALES: {task_name} Complete - {brand_name}"
+        logo_url = f"{os.getenv('FRONTEND_URL', 'https://tales.robotrachel.com')}/tales_logo.png"
         body = f"""
 <html>
 <body style="font-family: Arial, sans-serif; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #75c9c8; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <div style="background-color: #003e60; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <img src="{logo_url}" alt="TALES" style="max-width: 200px; height: auto; margin-bottom: 20px;" />
             <h1 style="color: white; margin: 0;">Task Complete!</h1>
         </div>
         <div style="background-color: #f9f9f9; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 8px 8px;">
@@ -72,12 +74,12 @@ def send_task_completion_email(
             </p>
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{os.getenv('FRONTEND_URL', 'http://localhost:5173')}"
-                   style="background-color: #665775; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                   style="background-color: #f04b25; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                     View Results
                 </a>
             </div>
             <p style="font-size: 14px; color: #666; margin-top: 30px;">
-                This is an automated notification from TALES. If you have questions, please contact support.
+                This is an automated notification from TALES. If you have questions, please contact admin@robotrachel.com.
             </p>
         </div>
     </div>
@@ -87,11 +89,13 @@ def send_task_completion_email(
     else:  # failed
         subject = f"TALES: {task_name} Failed - {brand_name}"
         error_details = error_message if error_message else "An unknown error occurred."
+        logo_url = f"{os.getenv('FRONTEND_URL', 'https://tales.robotrachel.com')}/tales_logo.png"
         body = f"""
 <html>
 <body style="font-family: Arial, sans-serif; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #EA4A4A; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <div style="background-color: #003e60; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <img src="{logo_url}" alt="TALES" style="max-width: 200px; height: auto; margin-bottom: 20px;" />
             <h1 style="color: white; margin: 0;">Task Failed</h1>
         </div>
         <div style="background-color: #f9f9f9; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 8px 8px;">
@@ -108,12 +112,12 @@ def send_task_completion_email(
             </p>
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{os.getenv('FRONTEND_URL', 'http://localhost:5173')}"
-                   style="background-color: #665775; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                   style="background-color: #f04b25; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                     Return to TALES
                 </a>
             </div>
             <p style="font-size: 14px; color: #666; margin-top: 30px;">
-                This is an automated notification from TALES. If you need help, please contact support.
+                This is an automated notification from TALES. If you have questions, please contact admin@robotrachel.com.
             </p>
         </div>
     </div>

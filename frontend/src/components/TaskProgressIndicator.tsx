@@ -75,7 +75,7 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
   const getTaskTypeLabel = (taskType: string) => {
     switch (taskType) {
       case 'collection':
-        return 'Data Collection';
+        return 'Collection';
       case 'analysis':
         return 'Analysis';
       case 'analysis_and_report':
