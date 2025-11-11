@@ -197,17 +197,6 @@ export default function SentimentAnalysis() {
         .filter(item => item.value > 0)  // Only show sentiments with data in chart
     : [];
 
-  // Prepare all sentiment data for insights (including 0%)
-  const allSentimentData = data
-    ? Object.entries(sentimentMap).map(([key, label]) => ({
-        name: label,
-        key: key,
-        value: (data[key] as number) || 0,
-        percentage: data.total > 0 ? Math.round(((data[key] as number || 0) / data.total) * 100) : 0,
-        insight: data.sentiment_insights?.[key] || 'No insight available.'
-      }))
-    : [];
-
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -293,31 +282,6 @@ export default function SentimentAnalysis() {
           <Alert severity="info">
             No sentiment data available yet. Run analysis to generate sentiment insights.
           </Alert>
-        )}
-      </Paper>
-
-      {/* Key Insights */}
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Key Insights
-        </Typography>
-        {allSentimentData.length > 0 ? (
-          <Box>
-            {allSentimentData.map((item, index) => (
-              <Box key={index} sx={{ mb: 4, pb: 3, borderBottom: index < allSentimentData.length - 1 ? '1px solid #e0e0e0' : 'none' }}>
-                <Typography variant="body1" sx={{ mb: 1, fontWeight: 'bold', color: COLORS[item.name as keyof typeof COLORS] || '#000' }}>
-                  {item.name}: {item.value} mentions ({item.percentage}%)
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-wrap' }}>
-                  {item.insight}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            No insights available yet.
-          </Typography>
         )}
       </Paper>
 
