@@ -454,21 +454,61 @@ When Virelyxa was mentioned, the sentiment breakdown was:
 
 ## 4. Strategic Recommendations
 
-### 1. Descriptor Ownership
-Continue emphasizing target descriptors in all communications:
-- Patient-focused care
-- Clinical excellence
-- Innovative research
-- Precision medicine leadership
+### Strengthen "Patient-Focused Care" and "Clinical Excellence" Association on ChatGPT and Claude
 
-### 2. Content Strategy
-{"Focus on building foundational content that establishes expertise in precision medicine." if month_index <= 1 else ""}
-{"Amplify thought leadership content and case studies demonstrating clinical outcomes." if month_index == 2 else ""}
-{"Leverage current momentum with increased media outreach and industry participation." if month_index == 3 else ""}
+**Strategic Rationale**
+Virelyxa is currently underrepresented in ChatGPT and Claude responses to queries about patient-focused biotech companies, despite this being a core brand differentiator. Competitors like BioGen Therapeutics and Novacure Biotech are frequently cited instead, capturing these valuable descriptors. The "patient-focused care" descriptor has only {analytics.descriptor_data.get('patient-focused care', 0) if analytics.descriptor_data else 0} associations, while "clinical excellence" appears {analytics.descriptor_data.get('clinical excellence', 0) if analytics.descriptor_data else 0} times—significantly lower than competitors. Without proactive content strategy, Virelyxa will continue to lose share of voice in these high-value search contexts.
 
-### 3. Competitive Positioning
-{"Differentiate from competitors by highlighting unique precision medicine approach and patient outcomes." if month_index <= 1 else ""}
-{"Maintain competitive advantage through continued focus on breakthrough therapies and clinical excellence." if month_index >= 2 else ""}
+**Key Actions**
+- Develop a series of patient success stories and case studies highlighting precision medicine outcomes, explicitly using "patient-focused care" and "clinical excellence" in titles and content
+- Publish these stories on the Virelyxa website, Medium, and LinkedIn, ensuring they are indexed by Google and accessible to LLM training pipelines
+- Pitch feature stories to BioPharm Insight, FierceBiotech, and MedCity News about Virelyxa's patient-centric approach to precision medicine
+- Submit posts to relevant Reddit communities (r/biotech, r/medicine) and Hacker News, emphasizing the patient outcomes and clinical rigor
+- Collaborate with patient advocacy groups to co-author content that reinforces Virelyxa's commitment to patient-focused innovation
+
+**Target:** Increase "patient-focused care" descriptor associations from {analytics.descriptor_data.get('patient-focused care', 0) if analytics.descriptor_data else 0} to 25+ and "clinical excellence" from {analytics.descriptor_data.get('clinical excellence', 0) if analytics.descriptor_data else 0} to 30+ by next quarter.
+
+### Claim "Innovative Research" and "Breakthrough Therapies" Positioning via High-Profile Research Publications
+
+**Strategic Rationale**
+Virelyxa is not strongly associated with "innovative research" (only {analytics.descriptor_data.get('innovative research', 0) if analytics.descriptor_data else 0} associations) or "breakthrough therapies" descriptors, while competitors frequently appear in LLM responses to queries about biotech innovation. Recent clinical trials and pipeline developments represent genuine breakthroughs in precision oncology, but these are not being surfaced in LLM outputs. Without proactive content distribution, competitors will continue to dominate the "innovative" and "breakthrough" narrative.
+
+**Key Actions**
+- Issue press releases for each major clinical trial milestone or FDA filing, explicitly using "innovative research" and "breakthrough therapy" language in headlines and body copy
+- Publish research summaries and white papers on arXiv, bioRxiv, and institutional repositories to ensure academic indexing
+- Secure speaking opportunities at major oncology and biotech conferences (ASCO, ASH, BIO International) to establish thought leadership
+- Encourage principal investigators to publish accessible blog posts and Twitter threads about trial results, linking back to official Virelyxa communications
+- Partner with science journalists to cover pipeline developments in Nature Biotechnology, Science Translational Medicine, and GenomeWeb
+
+**Target:** Achieve at least 20 LLM associations with "innovative research" and 15 with "breakthrough therapies" by Q3, as measured in sampled LLM outputs.
+
+### Expand "Precision Medicine Leadership" Presence in Wikipedia and Medical Reference Sources
+
+**Strategic Rationale**
+The "precision medicine" descriptor has only {analytics.descriptor_data.get('precision medicine', 0) if analytics.descriptor_data else 0} associations, despite this being Virelyxa's core focus. Competitors are more frequently cited as precision medicine leaders in Wikipedia, medical encyclopedias, and .edu sources—key references for ChatGPT and Claude. If Virelyxa does not improve its representation in these authoritative sources, it risks being overlooked in fundamental queries about precision oncology.
+
+**Key Actions**
+- Create or significantly expand a Wikipedia entry for Virelyxa, emphasizing precision medicine platform, clinical approach, and published outcomes
+- Collaborate with medical faculty and oncology departments to ensure Virelyxa is cited in course materials, grand rounds presentations, and continuing medical education (CME) programs
+- Submit comprehensive articles about Virelyxa's precision medicine approach to medical reference works and specialty encyclopedias
+- Ensure Virelyxa therapies are properly documented in clinical databases (ClinicalTrials.gov, DrugBank) with detailed mechanism of action and precision medicine categorization
+- Encourage citation in peer-reviewed review articles and meta-analyses in high-impact oncology journals
+
+**Target:** Triple "precision medicine" descriptor associations in LLM outputs by end of next quarter, with presence in at least 5 major medical reference sources.
+
+### Dominate "Trusted Biotech Partner" Positioning in Perplexity and Gemini
+
+**Strategic Rationale**
+While Virelyxa shows some traction on search-augmented LLMs like Perplexity and Gemini, the "trusted biotech partner" positioning (currently {analytics.descriptor_data.get('trusted biotech partner', 0) if analytics.descriptor_data else 0} associations) needs significant strengthening. Competitors are actively building trust through partnerships, industry collaborations, and thought leadership—creating a perception gap that affects business development opportunities and investor confidence.
+
+**Key Actions**
+- Announce and publicize strategic partnerships with academic medical centers, pharmaceutical companies, and patient advocacy organizations
+- Launch a "Virelyxa Insights" blog featuring expert commentary on precision medicine trends, regulatory developments, and clinical trial design
+- Secure placements in industry roundups and "companies to watch" lists in BioCentury, Endpoints News, and STAT News
+- Develop case studies and testimonials from clinical collaborators and research partners, distributed through LinkedIn and biotech community forums
+- Submit thought leadership articles to The New England Journal of Medicine Catalyst, JAMA Oncology, and other high-authority medical publications
+
+**Target:** Increase "trusted biotech partner" descriptor associations by 200% in Perplexity and Gemini outputs by next quarter, with at least 10 high-authority source citations.
 
 ---
 
