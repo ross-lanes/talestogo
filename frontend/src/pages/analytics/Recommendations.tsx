@@ -3,11 +3,9 @@ import { Lightbulb as LightbulbIcon, Refresh as RefreshIcon } from '@mui/icons-m
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import ReactMarkdown from 'react-markdown';
-import { useNavigate } from 'react-router-dom';
 import { formatDateEST } from '../../utils/dateUtils';
 
 export default function Recommendations() {
-  const navigate = useNavigate();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['recommendations'],
@@ -59,16 +57,9 @@ export default function Recommendations() {
 
       {!data?.has_recommendations ? (
         <Paper sx={{ p: 4 }}>
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info">
             {data?.message || 'No recommendations available yet.'}
           </Alert>
-          <Button
-            variant="contained"
-            sx={{ mt: 3 }}
-            onClick={() => navigate('/collect-analyze')}
-          >
-            Run Collection & Analysis
-          </Button>
         </Paper>
       ) : (
         <Paper sx={{ p: 4, mb: 4 }}>
