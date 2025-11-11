@@ -539,11 +539,17 @@ def main():
                 industry="Biotechnology / Pharmaceuticals",
                 description="A precision medicine company developing breakthrough therapies for oncology patients.",
                 strategic_messages="Patient-focused care, clinical excellence, innovative research, trusted biotech partner",
-                is_active=False
+                is_active=True
             )
             db.add(brand)
             db.commit()
             print(f"  ✓ Virelyxa brand created (ID: {brand.id})")
+        else:
+            # Update existing brand to be active
+            if not brand.is_active:
+                brand.is_active = True
+                db.commit()
+                print(f"  ✓ Virelyxa brand set to active")
         print(f"Brand: {brand.brand_name} (ID: {brand.id})")
 
         # Delete existing Virelyxa data to start fresh
