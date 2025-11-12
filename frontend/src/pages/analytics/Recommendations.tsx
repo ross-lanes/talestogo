@@ -74,8 +74,8 @@ export default function Recommendations() {
               '& h3': {
                 mt: 3,
                 mb: 2,
-                fontSize: '1.5rem',
-                fontWeight: 600,
+                fontSize: '1.75rem',
+                fontWeight: 700,
               },
               '& h4': {
                 mt: 2,

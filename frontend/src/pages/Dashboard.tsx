@@ -362,7 +362,7 @@ export default function Dashboard() {
               New to TALES?
             </Typography>
             <Typography>
-              Click on the <strong>Add Brand</strong> button on the upper right to begin!
+              Click on <strong>Customize</strong> on the left and start adding information about your brands!
             </Typography>
           </Paper>
         )}

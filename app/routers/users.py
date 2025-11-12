@@ -230,7 +230,7 @@ RobotRachel"""
 You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
 
 Your story starts at {production_url}.
-- Sign in with Google, Microsoft, or create a password for {user.email}.
+- Sign in with {user.email} using the Google or Microsoft login buttons.
 - Click on Customize and start adding information your brands!
 
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.

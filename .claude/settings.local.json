@@ -25,7 +25,9 @@
       "Bash(npm run dev:*)",
       "Bash(celery -A celery_app.celery worker:*)",
       "Bash(celery -A celery_app.celery beat:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(git init:*)",
+      "Bash(gh repo create:*)"
     ],
     "deny": [],
     "ask": []
