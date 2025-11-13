@@ -27,7 +27,8 @@
       "Bash(celery -A celery_app.celery beat:*)",
       "Bash(pip install:*)",
       "Bash(git init:*)",
-      "Bash(gh repo create:*)"
+      "Bash(gh repo create:*)",
+      "Bash(PYTHONPATH=/Users/rachelkremen/Documents/Code/tales_project python:*)"
     ],
     "deny": [],
     "ask": []
