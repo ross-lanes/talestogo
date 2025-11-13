@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button, Card, CardContent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { Download, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
@@ -10,8 +10,17 @@ import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 
 const BRAND_COLOR = '#665775';
 
+// Platform colors for consistency
+const PLATFORM_COLORS: Record<string, string> = {
+  'ChatGPT': '#10A37F',
+  'Claude': '#CC785C',
+  'Gemini': '#4285F4',
+  'Perplexity': '#1FB8CD'
+};
+
 export default function BrandMentions() {
   const trendChartRef = useRef<HTMLDivElement>(null);
+  const llmChartRef = useRef<HTMLDivElement>(null);
 
   // Fetch dashboard metrics - this is the single source of truth for current metrics
   const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
@@ -31,8 +40,17 @@ export default function BrandMentions() {
     },
   });
 
-  const isLoading = metricsLoading || trendLoading;
-  const error = metricsError || trendError;
+  // Fetch LLM breakdown data
+  const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
+    queryKey: ['brand-mentions-by-llm'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/brand-mentions-by-llm');
+      return response.data;
+    },
+  });
+
+  const isLoading = metricsLoading || trendLoading || llmLoading;
+  const error = metricsError || trendError || llmError;
 
   // Format change percentage for display
   const formatChange = (change: number | undefined) => {
@@ -60,6 +78,27 @@ export default function BrandMentions() {
       const dateStr = formatDateForFilename();
 
       link.download = `BrandMentionsTrend_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
+
+  // Download LLM chart as PNG
+  const handleDownloadLLMChart = async () => {
+    if (!llmChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(llmChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const dateStr = formatDateForFilename();
+
+      link.download = `BrandMentionsByLLM_${dateStr}.png`;
       link.href = canvas.toDataURL();
       link.click();
     } catch (error) {
@@ -197,6 +236,94 @@ export default function BrandMentions() {
           </Alert>
         )}
       </Paper>
+
+      {/* LLM Breakdown Chart */}
+      {llmData && llmData.length > 0 && (
+        <Paper sx={{ p: 4, mt: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6">
+                Brand Mention Rate by LLM Platform
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Comparison of mention rates across different AI platforms
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadLLMChart}
+              size="small"
+            >
+              Image
+            </Button>
+          </Box>
+
+          <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="platform" />
+                <YAxis
+                  label={{ value: 'Mention Rate (%)', angle: -90, position: 'insideLeft' }}
+                  domain={[0, 100]}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string) => {
+                    if (name === 'mention_rate') return [`${value}%`, 'Mention Rate'];
+                    return [value, name];
+                  }}
+                  labelFormatter={(label) => `Platform: ${label}`}
+                />
+                <Legend />
+                <Bar dataKey="mention_rate" name="Mention Rate" radius={[8, 8, 0, 0]}>
+                  {llmData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={PLATFORM_COLORS[entry.platform] || BRAND_COLOR} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+
+          {/* LLM Data Table */}
+          <Box sx={{ overflowX: 'auto', mt: 3 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                  <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold' }}>Platform</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mention Rate</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mentions</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Total Responses</th>
+                </tr>
+              </thead>
+              <tbody>
+                {llmData.map((item: any, index: number) => (
+                  <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '12px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            backgroundColor: PLATFORM_COLORS[item.platform] || BRAND_COLOR
+                          }}
+                        />
+                        {item.platform}
+                      </Box>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                      {item.mention_rate}%
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.mentions}</td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.total_responses}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Box>
+        </Paper>
+      )}
 
       {/* Data Table */}
       {formattedData.length > 0 && (

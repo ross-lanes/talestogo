@@ -6,9 +6,19 @@ import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
+import { formatDateForFilename } from '../../utils/dateUtils';
+
+// Platform colors for consistency
+const PLATFORM_COLORS: Record<string, string> = {
+  'ChatGPT': '#10A37F',
+  'Claude': '#CC785C',
+  'Gemini': '#4285F4',
+  'Perplexity': '#1FB8CD'
+};
 
 export default function DescriptorAnalysis() {
   const tableRef = useRef<HTMLDivElement>(null);
+  const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data: descriptors, isLoading, error } = useQuery({
@@ -24,6 +34,15 @@ export default function DescriptorAnalysis() {
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/responses/', { params });
+      return response.data;
+    },
+  });
+
+  // Fetch LLM breakdown data
+  const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
+    queryKey: ['descriptors-by-llm'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/descriptors-by-llm');
       return response.data;
     },
   });
@@ -219,6 +238,27 @@ export default function DescriptorAnalysis() {
     }
   };
 
+  // Download LLM chart as PNG
+  const handleDownloadLLMChart = async () => {
+    if (!llmChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(llmChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const dateStr = formatDateForFilename();
+
+      link.download = `DescriptorsByLLM_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -345,6 +385,77 @@ export default function DescriptorAnalysis() {
           </Alert>
         )}
       </Paper>
+
+      {/* LLM Breakdown - Top Descriptors by Platform */}
+      {llmData && llmData.length > 0 && (
+        <Paper sx={{ p: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6">
+                Top Descriptors by LLM Platform
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Most frequently used descriptors for your brand by each AI platform (Top 5)
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadLLMChart}
+              size="small"
+            >
+              Image
+            </Button>
+          </Box>
+
+          <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+            {llmData.map((platformData: any, index: number) => (
+              <Box key={index} sx={{ mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Box
+                    sx={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      backgroundColor: PLATFORM_COLORS[platformData.platform] || '#665775'
+                    }}
+                  />
+                  <Typography variant="h6">{platformData.platform}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                    ({platformData.total_mentions} total mentions)
+                  </Typography>
+                </Box>
+                {platformData.descriptors && platformData.descriptors.length > 0 ? (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell><strong>Rank</strong></TableCell>
+                          <TableCell><strong>Descriptor</strong></TableCell>
+                          <TableCell align="right"><strong>Count</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {platformData.descriptors.map((desc: any, descIndex: number) => (
+                          <TableRow key={descIndex}>
+                            <TableCell>{descIndex + 1}</TableCell>
+                            <TableCell>{desc.descriptor}</TableCell>
+                            <TableCell align="right">{desc.count}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No descriptors found for this platform
+                  </Typography>
+                )}
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
     </Box>
   );
 }

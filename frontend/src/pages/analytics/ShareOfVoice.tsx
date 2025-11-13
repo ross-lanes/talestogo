@@ -14,9 +14,18 @@ const COMPETITOR_COLORS = [
   '#9FA8DA', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
 ];
 
+// Platform colors for consistency
+const PLATFORM_COLORS: Record<string, string> = {
+  'ChatGPT': '#10A37F',
+  'Claude': '#CC785C',
+  'Gemini': '#4285F4',
+  'Perplexity': '#1FB8CD'
+};
+
 export default function ShareOfVoice() {
   const chartRef = useRef<HTMLDivElement>(null);
   const trendChartRef = useRef<HTMLDivElement>(null);
+  const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -32,6 +41,15 @@ export default function ShareOfVoice() {
     queryKey: ['sov-trends'],
     queryFn: async () => {
       const response = await api.get('/analytics/trends/share-of-voice');
+      return response.data;
+    },
+  });
+
+  // Fetch LLM breakdown data
+  const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
+    queryKey: ['share-of-voice-by-llm'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/share-of-voice-by-llm');
       return response.data;
     },
   });
@@ -200,6 +218,27 @@ export default function ShareOfVoice() {
     link.href = URL.createObjectURL(blob);
     link.click();
     URL.revokeObjectURL(link.href);
+  };
+
+  // Download LLM chart as PNG
+  const handleDownloadLLMChart = async () => {
+    if (!llmChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(llmChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const dateStr = formatDateForFilename();
+
+      link.download = `ShareOfVoiceByLLM_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
+    }
   };
 
 
@@ -441,6 +480,82 @@ export default function ShareOfVoice() {
           </Alert>
         )}
       </Paper>
+
+      {/* LLM Breakdown Chart */}
+      {llmData && llmData.length > 0 && (
+        <Paper sx={{ p: 4, mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6">
+                Share of Voice by LLM Platform
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Brand vs. Competitor mentions across different AI platforms
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleDownloadLLMChart}
+              size="small"
+            >
+              Image
+            </Button>
+          </Box>
+
+          <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="platform" />
+                <YAxis label={{ value: 'Number of Mentions', angle: -90, position: 'insideLeft' }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="brand" name="Your Brand" fill={BRAND_COLOR} />
+                <Bar dataKey="competitors" name="Competitors" fill="#80a1d4" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+
+          {/* LLM Data Table */}
+          <Box sx={{ overflowX: 'auto', mt: 3 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
+                  <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold' }}>Platform</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Your Brand</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Competitors</th>
+                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {llmData.map((item: any, index: number) => (
+                  <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '12px' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            backgroundColor: PLATFORM_COLORS[item.platform] || '#665775'
+                          }}
+                        />
+                        {item.platform}
+                      </Box>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.brand || 0}</td>
+                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.competitors || 0}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                      {(item.brand || 0) + (item.competitors || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Box>
+        </Paper>
+      )}
 
       {/* Share of Voice Over Time */}
       <Paper sx={{ p: 4 }}>

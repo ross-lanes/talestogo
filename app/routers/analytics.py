@@ -12,6 +12,7 @@ performance with large datasets. Default lookback is 180 days (configurable).
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import case
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from .. import analytics, models, config
@@ -452,3 +453,376 @@ def get_sentiment_over_time(
 
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return get_sentiment_trend_cached(db, owner_user_id, brand_id)
+
+
+@router.get("/brand-mentions-by-llm")
+def get_brand_mentions_by_llm(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get brand mention rates broken down by LLM platform.
+    Returns mention rate for each platform (ChatGPT, Claude, Gemini, Perplexity).
+    """
+    if not brand_id:
+        return []
+
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Query responses grouped by platform
+    from sqlalchemy import func, case
+
+    platform_stats = db.query(
+        models.Response.platform,
+        func.count(models.Response.id).label('total'),
+        func.sum(
+            case(
+                (models.Response.brand_mentioned == 'Yes', 1),
+                else_=0
+            )
+        ).label('mentioned')
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None)
+    ).group_by(
+        models.Response.platform
+    ).all()
+
+    # Calculate mention rate for each platform
+    results = []
+    for platform, total, mentioned in platform_stats:
+        mention_rate = (mentioned / total * 100) if total > 0 else 0
+        results.append({
+            'platform': platform,
+            'total_responses': total,
+            'mentions': mentioned,
+            'mention_rate': round(mention_rate, 1)
+        })
+
+    return results
+
+
+@router.get("/positioning-by-llm")
+def get_positioning_by_llm(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get brand positioning breakdown by LLM platform.
+    Returns positioning counts (Leader, Featured, Listed, Not Mentioned) for each platform.
+    """
+    if not brand_id:
+        return []
+
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Query responses grouped by platform and position
+    from sqlalchemy import func
+
+    platform_positioning = db.query(
+        models.Response.platform,
+        models.Response.brand_position,
+        func.count(models.Response.id).label('count')
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None),
+        models.Response.brand_position.isnot(None)
+    ).group_by(
+        models.Response.platform,
+        models.Response.brand_position
+    ).all()
+
+    # Organize data by platform
+    platforms = {}
+    for platform, position, count in platform_positioning:
+        if platform not in platforms:
+            platforms[platform] = {
+                'platform': platform,
+                'Leader': 0,
+                'Featured': 0,
+                'Listed': 0,
+                'Not Mentioned': 0,
+                'total': 0
+            }
+
+        # Map the position to our standard categories
+        if position in ['Leader', 'Featured', 'Listed', 'Not Mentioned']:
+            platforms[platform][position] = count
+            platforms[platform]['total'] += count
+
+    return list(platforms.values())
+
+
+@router.get("/sentiment-by-llm")
+def get_sentiment_by_llm(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get sentiment analysis breakdown by LLM platform.
+    Returns sentiment distribution (Very Positive, Positive, Neutral, Negative, Very Negative, Mixed) for each platform.
+    """
+    if not brand_id:
+        return []
+
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Query responses grouped by platform and sentiment
+    from sqlalchemy import func
+
+    platform_sentiment = db.query(
+        models.Response.platform,
+        models.Response.sentiment,
+        func.count(models.Response.id).label('count')
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None),
+        models.Response.sentiment.isnot(None),
+        models.Response.brand_mentioned == 'Yes'  # Only analyze sentiment where brand is mentioned
+    ).group_by(
+        models.Response.platform,
+        models.Response.sentiment
+    ).all()
+
+    # Organize data by platform
+    platforms = {}
+    for platform, sentiment, count in platform_sentiment:
+        if platform not in platforms:
+            platforms[platform] = {
+                'platform': platform,
+                'Very Positive': 0,
+                'Positive': 0,
+                'Neutral': 0,
+                'Negative': 0,
+                'Very Negative': 0,
+                'Mixed': 0,
+                'total': 0
+            }
+
+        # Map the sentiment to our standard categories
+        if sentiment in ['Very Positive', 'Positive', 'Neutral', 'Negative', 'Very Negative', 'Mixed']:
+            platforms[platform][sentiment] = count
+            platforms[platform]['total'] += count
+
+    return list(platforms.values())
+
+
+@router.get("/share-of-voice-by-llm")
+def get_share_of_voice_by_llm(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get share of voice breakdown by LLM platform.
+    Returns mention counts for brand and competitors by platform.
+    """
+    if not brand_id:
+        return []
+
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Get brand name
+    brand = db.query(models.BrandInfo).filter(
+        models.BrandInfo.user_id == owner_user_id,
+        models.BrandInfo.id == brand_id
+    ).first()
+
+    if not brand:
+        return []
+
+    brand_name = brand.brand_name
+
+    # Get all responses grouped by platform
+    from sqlalchemy import func, case
+
+    # Count brand mentions by platform
+    brand_mentions = db.query(
+        models.Response.platform,
+        func.count(models.Response.id).label('brand_mentions')
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None),
+        models.Response.brand_mentioned == 'Yes'
+    ).group_by(
+        models.Response.platform
+    ).all()
+
+    # Count competitor mentions by platform
+    competitor_mentions = db.query(
+        models.Response.platform,
+        func.count(models.Response.id).label('competitor_mentions')
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None),
+        models.Response.competitors_mentioned.isnot(None),
+        models.Response.competitors_mentioned != ''
+    ).group_by(
+        models.Response.platform
+    ).all()
+
+    # Combine the data
+    platforms = {}
+
+    # Add brand mentions
+    for platform, count in brand_mentions:
+        if platform not in platforms:
+            platforms[platform] = {
+                'platform': platform,
+                'brand': 0,
+                'competitors': 0
+            }
+        platforms[platform]['brand'] = count
+
+    # Add competitor mentions
+    for platform, count in competitor_mentions:
+        if platform not in platforms:
+            platforms[platform] = {
+                'platform': platform,
+                'brand': 0,
+                'competitors': 0
+            }
+        platforms[platform]['competitors'] = count
+
+    return list(platforms.values())
+
+
+@router.get("/descriptors-by-llm")
+def get_descriptors_by_llm(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get top descriptors breakdown by LLM platform.
+    Returns the most common descriptors used by each platform.
+    """
+    if not brand_id:
+        return []
+
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Get all descriptors by platform
+    responses = db.query(
+        models.Response.platform,
+        models.Response.descriptors
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None),
+        models.Response.descriptors.isnot(None),
+        models.Response.descriptors != ''
+    ).all()
+
+    # Process descriptors by platform
+    platform_descriptors = {}
+
+    for platform, descriptors_str in responses:
+        if platform not in platform_descriptors:
+            platform_descriptors[platform] = {}
+
+        # Split descriptors by comma and count
+        if descriptors_str:
+            descriptors = [d.strip() for d in descriptors_str.split(',') if d.strip()]
+            for descriptor in descriptors:
+                if descriptor not in platform_descriptors[platform]:
+                    platform_descriptors[platform][descriptor] = 0
+                platform_descriptors[platform][descriptor] += 1
+
+    # Format results - get top 5 descriptors per platform
+    results = []
+    for platform, descriptors in platform_descriptors.items():
+        # Sort by count and get top 5
+        top_descriptors = sorted(descriptors.items(), key=lambda x: x[1], reverse=True)[:5]
+
+        results.append({
+            'platform': platform,
+            'descriptors': [{'descriptor': d, 'count': c} for d, c in top_descriptors],
+            'total_mentions': sum(descriptors.values())
+        })
+
+    return results
+
+
+@router.get("/threats-by-llm")
+def get_threats_by_llm(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Get competitor threat analysis breakdown by LLM platform.
+    Returns top competitors mentioned by each platform.
+    """
+    if not brand_id:
+        return []
+
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Get all responses with competitors by platform
+    responses = db.query(
+        models.Response.platform,
+        models.Response.competitors_mentioned,
+        models.Response.sentiment
+    ).filter(
+        models.Response.user_id == owner_user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.platform.isnot(None),
+        models.Response.competitors_mentioned.isnot(None),
+        models.Response.competitors_mentioned != ''
+    ).all()
+
+    # Process competitors by platform
+    platform_competitors = {}
+
+    for platform, competitors_str, sentiment in responses:
+        if platform not in platform_competitors:
+            platform_competitors[platform] = {}
+
+        # Split competitors by comma and count
+        if competitors_str:
+            competitors = [c.strip() for c in competitors_str.split(',') if c.strip()]
+            for competitor in competitors:
+                if competitor not in platform_competitors[platform]:
+                    platform_competitors[platform][competitor] = {
+                        'count': 0,
+                        'negative_overlap': 0
+                    }
+                platform_competitors[platform][competitor]['count'] += 1
+
+                # Track negative overlap
+                if sentiment in ['Negative', 'Very Negative']:
+                    platform_competitors[platform][competitor]['negative_overlap'] += 1
+
+    # Format results - get top 5 competitors per platform
+    results = []
+    for platform, competitors in platform_competitors.items():
+        # Sort by count and get top 5
+        top_competitors = sorted(
+            competitors.items(),
+            key=lambda x: (x[1]['count'], x[1]['negative_overlap']),
+            reverse=True
+        )[:5]
+
+        results.append({
+            'platform': platform,
+            'competitors': [
+                {
+                    'name': name,
+                    'mentions': data['count'],
+                    'negative_overlap': data['negative_overlap']
+                }
+                for name, data in top_competitors
+            ],
+            'total_competitor_mentions': sum(c['count'] for c in competitors.values())
+        })
+
+    return results

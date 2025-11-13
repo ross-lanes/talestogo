@@ -7,9 +7,19 @@ import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import { competitorsInclude } from '../../utils/organizationNormalizer';
 import BatchSelector from '../../components/BatchSelector';
+import { formatDateForFilename } from '../../utils/dateUtils';
+
+// Platform colors for consistency
+const PLATFORM_COLORS: Record<string, string> = {
+  'ChatGPT': '#10A37F',
+  'Claude': '#CC785C',
+  'Gemini': '#4285F4',
+  'Perplexity': '#1FB8CD'
+};
 
 export default function CompetitorThreats() {
   const tableRef = useRef<HTMLDivElement>(null);
+  const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
 
   // Fetch competitor threats from API (includes all calculations)
@@ -27,6 +37,15 @@ export default function CompetitorThreats() {
     queryKey: ['responses-threats'],
     queryFn: async () => {
       const response = await api.get('/responses/');
+      return response.data;
+    },
+  });
+
+  // Fetch LLM breakdown data
+  const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
+    queryKey: ['threats-by-llm'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/threats-by-llm');
       return response.data;
     },
   });
@@ -129,6 +148,27 @@ export default function CompetitorThreats() {
       rowsToHide.forEach(row => {
         row.style.display = '';
       });
+    }
+  };
+
+  // Download LLM chart as PNG
+  const handleDownloadLLMChart = async () => {
+    if (!llmChartRef.current) return;
+
+    try {
+      const canvas = await html2canvas(llmChartRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      });
+
+      const link = document.createElement('a');
+      const dateStr = formatDateForFilename();
+
+      link.download = `ThreatsByLLM_${dateStr}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    } catch (error) {
+      console.error('Error downloading chart:', error);
     }
   };
 
@@ -292,6 +332,79 @@ export default function CompetitorThreats() {
           </Alert>
         )}
       </Paper>
+
+      {/* LLM Breakdown - Top Competitors by Platform */}
+      {llmData && llmData.length > 0 && (
+        <Paper sx={{ p: 4, mt: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6">
+                Top Competitor Threats by LLM Platform
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Most frequently mentioned competitors by each AI platform (Top 5)
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadLLMChart}
+              size="small"
+            >
+              Image
+            </Button>
+          </Box>
+
+          <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
+            {llmData.map((platformData: any, index: number) => (
+              <Box key={index} sx={{ mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Box
+                    sx={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      backgroundColor: PLATFORM_COLORS[platformData.platform] || '#665775'
+                    }}
+                  />
+                  <Typography variant="h6">{platformData.platform}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                    ({platformData.total_competitor_mentions} total competitor mentions)
+                  </Typography>
+                </Box>
+                {platformData.competitors && platformData.competitors.length > 0 ? (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell><strong>Rank</strong></TableCell>
+                          <TableCell><strong>Competitor</strong></TableCell>
+                          <TableCell align="right"><strong>Mentions</strong></TableCell>
+                          <TableCell align="right"><strong>Negative Overlap</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {platformData.competitors.map((comp: any, compIndex: number) => (
+                          <TableRow key={compIndex}>
+                            <TableCell>{compIndex + 1}</TableCell>
+                            <TableCell>{comp.name}</TableCell>
+                            <TableCell align="right">{comp.mentions}</TableCell>
+                            <TableCell align="right">{comp.negative_overlap}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No competitors found for this platform
+                  </Typography>
+                )}
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
 
     </Box>
   );
