@@ -245,7 +245,7 @@ def get_recommendations(
     report_content = latest_report.report_content
     recommendations_text = ""
 
-    # Try to find recommendations in different formats (newer reports use ### 6., older use ## 4.)
+    # Try to find recommendations in different formats (newer reports use ### 7., older use ### 6., even older use ## 4.)
     if "## 4. Strategic Recommendations" in report_content:
         # Split by ## sections to find the right one
         sections = report_content.split("\n## ")
@@ -269,8 +269,36 @@ def get_recommendations(
                     recommendations_text = recommendations_text[:-3].rstrip()
 
                 break
+    elif "### 7. Recommendations" in report_content:
+        # Newest format: ### 7. Recommendations (with LLM breakdown section)
+        sections = report_content.split("\n### ")
+        for section in sections:
+            if section.startswith("7. Recommendations"):
+                # Get everything until the next ## or ### section or end
+                recommendations_text = section
+                # Look for next section (could be ## or ###)
+                next_section_pos = min(
+                    [pos for pos in [
+                        recommendations_text.find("\n## ", 3),
+                        recommendations_text.find("\n### ", 3)
+                    ] if pos > 0] or [len(recommendations_text)]
+                )
+                if next_section_pos < len(recommendations_text):
+                    recommendations_text = recommendations_text[:next_section_pos]
+
+                # Remove the numbered header
+                recommendations_text = recommendations_text.replace("7. Recommendations\n\n", "", 1)
+                recommendations_text = recommendations_text.replace("7. Recommendations\n", "", 1)
+                recommendations_text = recommendations_text.replace("7. Recommendations", "", 1)
+
+                # Remove the trailing horizontal rule (---) if present at the end
+                recommendations_text = recommendations_text.rstrip()
+                if recommendations_text.endswith("---"):
+                    recommendations_text = recommendations_text[:-3].rstrip()
+
+                break
     elif "### 6. Recommendations" in report_content:
-        # Newer format: ### 6. Recommendations
+        # Old format: ### 6. Recommendations (without LLM breakdown section)
         sections = report_content.split("\n### ")
         for section in sections:
             if section.startswith("6. Recommendations"):

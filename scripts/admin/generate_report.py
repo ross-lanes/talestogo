@@ -94,6 +94,232 @@ def get_brand_info(db, brand_id: int) -> Optional[BrandInfo]:
     return db.query(BrandInfo).filter(BrandInfo.id == brand_id).first()
 
 
+# ==================== LLM BREAKDOWN DATA COLLECTION ====================
+
+def get_llm_breakdown_data(db, user_id: int, brand_id: int, brand_name: str) -> Dict[str, Any]:
+    """
+    Collect all LLM-specific breakdown data for the report.
+    This mirrors the analytics endpoints used in the UI.
+    """
+    from sqlalchemy import func, case
+
+    llm_data = {
+        'brand_mentions': [],
+        'positioning': [],
+        'sentiment': [],
+        'share_of_voice': [],
+        'descriptors': [],
+        'threats': []
+    }
+
+    # 1. Brand Mentions by LLM
+    platform_stats = db.query(
+        Response.platform,
+        func.count(Response.id).label('total'),
+        func.sum(
+            case(
+                (Response.brand_mentioned == 'Yes', 1),
+                else_=0
+            )
+        ).label('mentioned')
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None)
+    ).group_by(
+        Response.platform
+    ).all()
+
+    for platform, total, mentioned in platform_stats:
+        mention_rate = (mentioned / total * 100) if total > 0 else 0
+        llm_data['brand_mentions'].append({
+            'platform': platform,
+            'total_responses': total,
+            'mentions': mentioned,
+            'mention_rate': round(mention_rate, 1)
+        })
+
+    # 2. Positioning by LLM
+    platform_positioning = db.query(
+        Response.platform,
+        Response.brand_position,
+        func.count(Response.id).label('count')
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None),
+        Response.brand_position.isnot(None)
+    ).group_by(
+        Response.platform,
+        Response.brand_position
+    ).all()
+
+    platforms_positioning = {}
+    for platform, position, count in platform_positioning:
+        if platform not in platforms_positioning:
+            platforms_positioning[platform] = {
+                'platform': platform,
+                'Leader': 0,
+                'Featured': 0,
+                'Listed': 0,
+                'Not Mentioned': 0,
+                'total': 0
+            }
+        if position in ['Leader', 'Featured', 'Listed', 'Not Mentioned']:
+            platforms_positioning[platform][position] = count
+            platforms_positioning[platform]['total'] += count
+
+    llm_data['positioning'] = list(platforms_positioning.values())
+
+    # 3. Sentiment by LLM
+    platform_sentiment = db.query(
+        Response.platform,
+        Response.sentiment,
+        func.count(Response.id).label('count')
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None),
+        Response.sentiment.isnot(None),
+        Response.brand_mentioned == 'Yes'
+    ).group_by(
+        Response.platform,
+        Response.sentiment
+    ).all()
+
+    platforms_sentiment = {}
+    for platform, sentiment, count in platform_sentiment:
+        if platform not in platforms_sentiment:
+            platforms_sentiment[platform] = {
+                'platform': platform,
+                'Very Positive': 0,
+                'Positive': 0,
+                'Neutral': 0,
+                'Negative': 0,
+                'Very Negative': 0,
+                'Mixed': 0,
+                'total': 0
+            }
+        if sentiment in ['Very Positive', 'Positive', 'Neutral', 'Negative', 'Very Negative', 'Mixed']:
+            platforms_sentiment[platform][sentiment] = count
+            platforms_sentiment[platform]['total'] += count
+
+    llm_data['sentiment'] = list(platforms_sentiment.values())
+
+    # 4. Share of Voice by LLM
+    brand_mentions = db.query(
+        Response.platform,
+        func.count(Response.id).label('brand_mentions')
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None),
+        Response.brand_mentioned == 'Yes'
+    ).group_by(
+        Response.platform
+    ).all()
+
+    competitor_mentions = db.query(
+        Response.platform,
+        func.count(Response.id).label('competitor_mentions')
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None),
+        Response.competitors_mentioned.isnot(None),
+        Response.competitors_mentioned != ''
+    ).group_by(
+        Response.platform
+    ).all()
+
+    platforms_sov = {}
+    for platform, count in brand_mentions:
+        if platform not in platforms_sov:
+            platforms_sov[platform] = {'platform': platform, 'brand': 0, 'competitors': 0}
+        platforms_sov[platform]['brand'] = count
+
+    for platform, count in competitor_mentions:
+        if platform not in platforms_sov:
+            platforms_sov[platform] = {'platform': platform, 'brand': 0, 'competitors': 0}
+        platforms_sov[platform]['competitors'] = count
+
+    llm_data['share_of_voice'] = list(platforms_sov.values())
+
+    # 5. Descriptors by LLM
+    responses_descriptors = db.query(
+        Response.platform,
+        Response.descriptors
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None),
+        Response.descriptors.isnot(None),
+        Response.descriptors != ''
+    ).all()
+
+    platform_descriptors = {}
+    for platform, descriptors_str in responses_descriptors:
+        if platform not in platform_descriptors:
+            platform_descriptors[platform] = {}
+        if descriptors_str:
+            descriptors = [d.strip() for d in descriptors_str.split(',') if d.strip()]
+            for descriptor in descriptors:
+                if descriptor not in platform_descriptors[platform]:
+                    platform_descriptors[platform][descriptor] = 0
+                platform_descriptors[platform][descriptor] += 1
+
+    for platform, descriptors in platform_descriptors.items():
+        top_descriptors = sorted(descriptors.items(), key=lambda x: x[1], reverse=True)[:5]
+        llm_data['descriptors'].append({
+            'platform': platform,
+            'descriptors': [{'descriptor': d, 'count': c} for d, c in top_descriptors],
+            'total_mentions': sum(descriptors.values())
+        })
+
+    # 6. Competitor Threats by LLM
+    responses_threats = db.query(
+        Response.platform,
+        Response.competitors_mentioned,
+        Response.sentiment
+    ).filter(
+        Response.user_id == user_id,
+        Response.brand_id == brand_id,
+        Response.platform.isnot(None),
+        Response.competitors_mentioned.isnot(None),
+        Response.competitors_mentioned != ''
+    ).all()
+
+    platform_competitors = {}
+    for platform, competitors_str, sentiment in responses_threats:
+        if platform not in platform_competitors:
+            platform_competitors[platform] = {}
+        if competitors_str:
+            competitors = [c.strip() for c in competitors_str.split(',') if c.strip()]
+            for competitor in competitors:
+                if competitor not in platform_competitors[platform]:
+                    platform_competitors[platform][competitor] = {'count': 0, 'negative_overlap': 0}
+                platform_competitors[platform][competitor]['count'] += 1
+                if sentiment in ['Negative', 'Very Negative']:
+                    platform_competitors[platform][competitor]['negative_overlap'] += 1
+
+    for platform, competitors in platform_competitors.items():
+        top_competitors = sorted(
+            competitors.items(),
+            key=lambda x: (x[1]['count'], x[1]['negative_overlap']),
+            reverse=True
+        )[:5]
+        llm_data['threats'].append({
+            'platform': platform,
+            'competitors': [
+                {'name': name, 'mentions': data['count'], 'negative_overlap': data['negative_overlap']}
+                for name, data in top_competitors
+            ],
+            'total_competitor_mentions': sum(c['count'] for c in competitors.values())
+        })
+
+    return llm_data
+
+
 # ==================== METRIC CALCULATIONS ====================
 # All metric calculation functions have been moved to app/services/metrics.py
 # for single source of truth across dashboard, analytics pages, and reports.
@@ -789,6 +1015,7 @@ def generate_markdown_report(
     descriptors: List[Any] = None,
     competitors: List[Any] = None,
     competitor_threats_data: List[Dict[str, Any]] = None,
+    llm_breakdown_data: Dict[str, Any] = None,
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
@@ -919,7 +1146,91 @@ def generate_markdown_report(
     report += """
 ---
 
-### 5. Threat Analysis
+### 5. LLM Platform Analysis
+
+This section breaks down brand performance by individual LLM platforms (ChatGPT, Claude, Gemini, Perplexity) to identify platform-specific strengths and opportunities.
+
+"""
+
+    # Add LLM breakdown sections if data is available
+    if llm_breakdown_data:
+        # Sort platforms alphabetically for consistency
+        platforms_order = ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
+
+        # 5.1 Brand Mentions by LLM
+        report += "#### 5.1 Brand Mention Rates by LLM Platform\n\n"
+        report += "| Platform | Total Responses | Brand Mentions | Mention Rate |\n"
+        report += "|----------|----------------|----------------|-------------|\n"
+
+        mentions_by_platform = {item['platform']: item for item in llm_breakdown_data.get('brand_mentions', [])}
+        for platform in platforms_order:
+            if platform in mentions_by_platform:
+                data = mentions_by_platform[platform]
+                report += f"| {data['platform']} | {data['total_responses']} | {data['mentions']} | {data['mention_rate']}% |\n"
+
+        # 5.2 Positioning by LLM
+        report += "\n#### 5.2 Brand Positioning by LLM Platform\n\n"
+        report += "| Platform | Leader | Featured | Listed | Not Mentioned | Total |\n"
+        report += "|----------|--------|----------|--------|---------------|-------|\n"
+
+        positioning_by_platform = {item['platform']: item for item in llm_breakdown_data.get('positioning', [])}
+        for platform in platforms_order:
+            if platform in positioning_by_platform:
+                data = positioning_by_platform[platform]
+                report += f"| {data['platform']} | {data['Leader']} | {data['Featured']} | {data['Listed']} | {data['Not Mentioned']} | {data['total']} |\n"
+
+        # 5.3 Sentiment by LLM
+        report += "\n#### 5.3 Sentiment Distribution by LLM Platform\n\n"
+        report += "*For responses where brand was mentioned*\n\n"
+        report += "| Platform | Very Positive | Positive | Neutral | Negative | Very Negative | Mixed | Total |\n"
+        report += "|----------|---------------|----------|---------|----------|---------------|-------|-------|\n"
+
+        sentiment_by_platform = {item['platform']: item for item in llm_breakdown_data.get('sentiment', [])}
+        for platform in platforms_order:
+            if platform in sentiment_by_platform:
+                data = sentiment_by_platform[platform]
+                report += f"| {data['platform']} | {data['Very Positive']} | {data['Positive']} | {data['Neutral']} | {data['Negative']} | {data['Very Negative']} | {data['Mixed']} | {data['total']} |\n"
+
+        # 5.4 Share of Voice by LLM
+        report += "\n#### 5.4 Share of Voice by LLM Platform\n\n"
+        report += "| Platform | Brand Mentions | Competitor Mentions |\n"
+        report += "|----------|----------------|--------------------|\n"
+
+        sov_by_platform = {item['platform']: item for item in llm_breakdown_data.get('share_of_voice', [])}
+        for platform in platforms_order:
+            if platform in sov_by_platform:
+                data = sov_by_platform[platform]
+                report += f"| {data['platform']} | {data['brand']} | {data['competitors']} |\n"
+
+        # 5.5 Top Descriptors by LLM
+        report += "\n#### 5.5 Top Descriptors by LLM Platform\n\n"
+
+        descriptors_by_platform = {item['platform']: item for item in llm_breakdown_data.get('descriptors', [])}
+        for platform in platforms_order:
+            if platform in descriptors_by_platform:
+                data = descriptors_by_platform[platform]
+                report += f"\n**{data['platform']}** (Total descriptor mentions: {data['total_mentions']})\n\n"
+                for desc in data['descriptors']:
+                    report += f"- **{desc['descriptor']}**: {desc['count']} mentions\n"
+
+        # 5.6 Top Competitor Threats by LLM
+        report += "\n#### 5.6 Competitor Mentions by LLM Platform\n\n"
+
+        threats_by_platform = {item['platform']: item for item in llm_breakdown_data.get('threats', [])}
+        for platform in platforms_order:
+            if platform in threats_by_platform:
+                data = threats_by_platform[platform]
+                report += f"\n**{data['platform']}** (Total competitor mentions: {data['total_competitor_mentions']})\n\n"
+                report += "| Competitor | Mentions | Negative Overlap |\n"
+                report += "|-----------|----------|------------------|\n"
+                for comp in data['competitors']:
+                    report += f"| {comp['name']} | {comp['mentions']} | {comp['negative_overlap']} |\n"
+
+    report += """
+
+---
+
+### 6. Threat Analysis
 
 **Competitor Threat Summary:**
 
@@ -942,7 +1253,7 @@ Threats are calculated based on three factors: mention frequency (weight: 0.7), 
 
 ---
 
-### 6. Recommendations
+### 7. Recommendations
 """
     report += strategic_priorities
 
@@ -1157,6 +1468,16 @@ def generate_report_main(user_id: int, brand_id: int):
 
         print("Section insights generated")
 
+        # Step 4c: Collect LLM breakdown data
+        print("\nCollecting LLM platform breakdown data...")
+        llm_breakdown_data = get_llm_breakdown_data(db, user_id, brand_id, brand_name)
+        print(f"  - Brand mention data for {len(llm_breakdown_data['brand_mentions'])} platforms")
+        print(f"  - Positioning data for {len(llm_breakdown_data['positioning'])} platforms")
+        print(f"  - Sentiment data for {len(llm_breakdown_data['sentiment'])} platforms")
+        print(f"  - Share of voice data for {len(llm_breakdown_data['share_of_voice'])} platforms")
+        print(f"  - Descriptor data for {len(llm_breakdown_data['descriptors'])} platforms")
+        print(f"  - Threat data for {len(llm_breakdown_data['threats'])} platforms")
+
         # Step 5: Collect trend data for charts
         print("\nCollecting trend data for visualization...")
         trend_data = None
@@ -1246,6 +1567,7 @@ def generate_report_main(user_id: int, brand_id: int):
             descriptors=descriptors,
             competitors=competitors,
             competitor_threats_data=competitor_threats_data,
+            llm_breakdown_data=llm_breakdown_data,
         )
 
         # Step 5: Save to database
