@@ -986,6 +986,18 @@ ONLY provide the paragraph analysis - nothing else after your analysis."""
 
 # ==================== REPORT GENERATION ====================
 
+def embed_chart_as_base64(chart_path: str) -> str:
+    """Convert a chart image to base64 for embedding in Markdown."""
+    import base64
+    try:
+        with open(chart_path, 'rb') as image_file:
+            encoded = base64.b64encode(image_file.read()).decode('utf-8')
+            return f"data:image/png;base64,{encoded}"
+    except Exception as e:
+        print(f"Warning: Could not embed chart {chart_path}: {e}")
+        return ""
+
+
 def generate_markdown_report(
     mention_metrics: Dict[str, Any],
     positioning_metrics: Dict[str, Any],
@@ -1019,6 +1031,60 @@ def generate_markdown_report(
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
+    # Add HTML/CSS styling for better font rendering
+    style_block = """<style>
+body {
+    font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-top: 24px;
+    margin-bottom: 16px;
+}
+h1 { font-size: 2.5em; font-weight: 600; }
+h2 { font-size: 2em; border-bottom: 2px solid #e1e4e8; padding-bottom: 8px; }
+h3 { font-size: 1.5em; }
+h4 { font-size: 1.25em; }
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+}
+th {
+    background-color: #f6f8fa;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px;
+    border: 1px solid #d0d7de;
+}
+td {
+    padding: 10px 12px;
+    border: 1px solid #d0d7de;
+}
+tr:nth-child(even) {
+    background-color: #f6f8fa;
+}
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 20px auto;
+}
+p {
+    margin: 12px 0;
+}
+</style>
+
+"""
+
     # Build brand header with context
     brand_header = f"## {brand_name}"
     if brand_info and brand_info.industry:
@@ -1026,18 +1092,26 @@ def generate_markdown_report(
     else:
         brand_header += " - AI Reputation Analysis Report"
 
-    report = f"""## Executive Summary
+    report = style_block + f"""## Executive Summary
 
 {executive_summary}
 
 """
 
-    # Add Key Metrics charts after Executive Summary
+    # Add Key Metrics charts after Executive Summary (embedded as base64)
     if chart_paths and 'mention_rate' in chart_paths:
-        report += f"\n![Key Metrics Dashboard]({chart_paths['mention_rate']})\n\n"
+        base64_data = embed_chart_as_base64(chart_paths['mention_rate'])
+        if base64_data:
+            report += f'\n<img src="{base64_data}" alt="Key Metrics Dashboard" style="max-width: 800px; margin: 20px auto;" />\n\n'
+        else:
+            report += f"\n![Key Metrics Dashboard]({chart_paths['mention_rate']})\n\n"
 
     if chart_paths and 'share_of_voice' in chart_paths:
-        report += f"\n![Share of Voice]({chart_paths['share_of_voice']})\n\n"
+        base64_data = embed_chart_as_base64(chart_paths['share_of_voice'])
+        if base64_data:
+            report += f'\n<img src="{base64_data}" alt="Share of Voice" style="max-width: 800px; margin: 20px auto;" />\n\n'
+        else:
+            report += f"\n![Share of Voice]({chart_paths['share_of_voice']})\n\n"
 
     report += f"""
 ---
@@ -1056,9 +1130,13 @@ def generate_markdown_report(
 **Average Positioning Score:** {positioning_average} out of 5.0
 """
 
-    # Add positioning chart
+    # Add positioning chart (embedded as base64)
     if chart_paths and 'positioning' in chart_paths:
-        report += f"\n![Positioning Distribution]({chart_paths['positioning']})\n"
+        base64_data = embed_chart_as_base64(chart_paths['positioning'])
+        if base64_data:
+            report += f'\n<img src="{base64_data}" alt="Positioning Distribution" style="max-width: 800px; margin: 20px auto;" />\n'
+        else:
+            report += f"\n![Positioning Distribution]({chart_paths['positioning']})\n"
 
     # Add positioning insights
     report += f"\n**Insights:**\n\n{positioning_insights}\n"
@@ -1086,9 +1164,13 @@ def generate_markdown_report(
     else:
         report += "\n| No data | - | - |"
 
-    # Add share of voice chart
+    # Add share of voice chart (embedded as base64)
     if chart_paths and 'share_of_voice' in chart_paths:
-        report += f"\n\n![Share of Voice]({chart_paths['share_of_voice']})\n"
+        base64_data = embed_chart_as_base64(chart_paths['share_of_voice'])
+        if base64_data:
+            report += f'\n\n<img src="{base64_data}" alt="Share of Voice" style="max-width: 800px; margin: 20px auto;" />\n'
+        else:
+            report += f"\n\n![Share of Voice]({chart_paths['share_of_voice']})\n"
 
     # Add SOV insights
     report += f"\n**Insights:**\n\n{sov_insights}\n"
@@ -1113,9 +1195,13 @@ def generate_markdown_report(
     else:
         report += "\n- No data available"
 
-    # Add descriptor performance chart
+    # Add descriptor performance chart (embedded as base64)
     if chart_paths and 'descriptor_performance' in chart_paths:
-        report += f"\n\n![Descriptor Performance]({chart_paths['descriptor_performance']})\n"
+        base64_data = embed_chart_as_base64(chart_paths['descriptor_performance'])
+        if base64_data:
+            report += f'\n\n<img src="{base64_data}" alt="Descriptor Performance" style="max-width: 800px; margin: 20px auto;" />\n'
+        else:
+            report += f"\n\n![Descriptor Performance]({chart_paths['descriptor_performance']})\n"
 
     # Add descriptor insights
     report += f"\n**Insights:**\n\n{descriptor_insights}\n"
@@ -1136,9 +1222,13 @@ def generate_markdown_report(
 **Combined Positive Rate:** {positive_sentiment_rate}%
 """
 
-    # Add sentiment chart
+    # Add sentiment chart (embedded as base64)
     if chart_paths and 'sentiment' in chart_paths:
-        report += f"\n![Sentiment Distribution]({chart_paths['sentiment']})\n"
+        base64_data = embed_chart_as_base64(chart_paths['sentiment'])
+        if base64_data:
+            report += f'\n<img src="{base64_data}" alt="Sentiment Distribution" style="max-width: 800px; margin: 20px auto;" />\n'
+        else:
+            report += f"\n![Sentiment Distribution]({chart_paths['sentiment']})\n"
 
     # Add sentiment insights
     report += f"\n**Insights:**\n\n{sentiment_insights}\n"
