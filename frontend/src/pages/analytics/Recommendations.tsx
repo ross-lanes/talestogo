@@ -74,14 +74,18 @@ export default function Recommendations() {
               '& h3': {
                 mt: 3,
                 mb: 2,
-                fontSize: '2rem',
-                fontWeight: 700,
+                fontSize: '2.5rem',
+                fontWeight: 800,
+                fontFamily: 'Montserrat, sans-serif',
+                color: '#003F62',
               },
               '& h4': {
                 mt: 2,
                 mb: 1,
-                fontSize: '1.25rem',
-                fontWeight: 500,
+                fontSize: '1.75rem',
+                fontWeight: 700,
+                fontFamily: 'Montserrat, sans-serif',
+                color: '#003F62',
               },
               '& p': {
                 mb: 2,
