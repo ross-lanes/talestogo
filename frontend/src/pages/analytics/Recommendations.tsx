@@ -90,7 +90,11 @@ export default function Recommendations() {
 
                     // Check if this line is a subsection heading (Strategic Rationale, Key Actions, etc.)
                     // Match with or without colon, and handle common variations
-                    const isSubsectionHeading = /^(Strategic Rationale|Key Actions|Expected Impact|Implementation Timeline|Success Metrics|Next Steps|Rationale|Actions|Impact|Timeline|Metrics)/i.test(cleanedLine);
+                    const isSubsectionHeading = /^(Strategic Rationale|Key Actions|Expected Impact|Implementation Timeline|Success Metrics|Next Steps|Rationale|Actions|Impact|Timeline|Metrics|References)/i.test(cleanedLine);
+
+                    // Check if line contains a URL
+                    const urlRegex = /(https?:\/\/[^\s]+)/g;
+                    const hasUrl = urlRegex.test(cleanedLine);
 
                     if (isNumberedTitle) {
                       return (
@@ -119,6 +123,37 @@ export default function Recommendations() {
                           sx={{ mb: 1, mt: 2, lineHeight: 1.7, fontWeight: 'bold' }}
                         >
                           {cleanedLine}
+                        </Typography>
+                      );
+                    }
+
+                    // If line contains URL, convert to clickable link
+                    if (hasUrl) {
+                      const parts = cleanedLine.split(urlRegex);
+                      const urls = cleanedLine.match(urlRegex) || [];
+
+                      return (
+                        <Typography
+                          key={lineIndex}
+                          variant="body1"
+                          sx={{ mb: 1, lineHeight: 1.7 }}
+                        >
+                          {parts.map((part, i) => {
+                            if (urls.includes(part)) {
+                              return (
+                                <a
+                                  key={i}
+                                  href={part}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#1976d2', textDecoration: 'underline' }}
+                                >
+                                  {part}
+                                </a>
+                              );
+                            }
+                            return part;
+                          })}
                         </Typography>
                       );
                     }
