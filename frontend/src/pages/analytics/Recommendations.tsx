@@ -82,13 +82,15 @@ export default function Recommendations() {
                   )}
                   {lines.map((line: string, lineIndex: number) => {
                     const trimmedLine = line.trim();
+                    // Strip markdown bold syntax (**text**)
+                    const cleanedLine = trimmedLine.replace(/\*\*/g, '');
 
                     // Check if this line is a numbered recommendation title (e.g., "Recommendation 1:", "1.", etc.)
-                    const isNumberedTitle = /^(Recommendation\s+\d+|^\d+[\.:)])/i.test(trimmedLine);
+                    const isNumberedTitle = /^(Recommendation\s+\d+|^\d+[\.:)])/i.test(cleanedLine);
 
                     // Check if this line is a subsection heading (Strategic Rationale, Key Actions, etc.)
                     // Match with or without colon, and handle common variations
-                    const isSubsectionHeading = /^(Strategic Rationale|Key Actions|Expected Impact|Implementation Timeline|Success Metrics|Next Steps|Rationale|Actions|Impact|Timeline|Metrics)/i.test(trimmedLine);
+                    const isSubsectionHeading = /^(Strategic Rationale|Key Actions|Expected Impact|Implementation Timeline|Success Metrics|Next Steps|Rationale|Actions|Impact|Timeline|Metrics)/i.test(cleanedLine);
 
                     if (isNumberedTitle) {
                       return (
@@ -104,7 +106,7 @@ export default function Recommendations() {
                             color: 'inherit'
                           }}
                         >
-                          {trimmedLine}
+                          {cleanedLine}
                         </Typography>
                       );
                     }
@@ -116,7 +118,7 @@ export default function Recommendations() {
                           variant="body1"
                           sx={{ mb: 1, mt: 2, lineHeight: 1.7, fontWeight: 'bold' }}
                         >
-                          {trimmedLine}
+                          {cleanedLine}
                         </Typography>
                       );
                     }
@@ -128,7 +130,7 @@ export default function Recommendations() {
                         variant="body1"
                         sx={{ mb: 1, lineHeight: 1.7 }}
                       >
-                        {trimmedLine}
+                        {cleanedLine}
                       </Typography>
                     );
                   })}
