@@ -226,8 +226,8 @@ def get_llm_breakdown_data(db, user_id: int, brand_id: int, brand_name: str) -> 
         Response.user_id == user_id,
         Response.brand_id == brand_id,
         Response.platform.isnot(None),
-        Response.competitors_mentioned.isnot(None),
-        Response.competitors_mentioned != ''
+        Response.competitors.isnot(None),
+        Response.competitors != ''
     ).group_by(
         Response.platform
     ).all()
@@ -279,14 +279,14 @@ def get_llm_breakdown_data(db, user_id: int, brand_id: int, brand_name: str) -> 
     # 6. Competitor Threats by LLM
     responses_threats = db.query(
         Response.platform,
-        Response.competitors_mentioned,
+        Response.competitors,
         Response.sentiment
     ).filter(
         Response.user_id == user_id,
         Response.brand_id == brand_id,
         Response.platform.isnot(None),
-        Response.competitors_mentioned.isnot(None),
-        Response.competitors_mentioned != ''
+        Response.competitors.isnot(None),
+        Response.competitors != ''
     ).all()
 
     platform_competitors = {}
@@ -1031,68 +1031,12 @@ def generate_markdown_report(
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
-    # Add HTML/CSS styling for better font rendering
-    style_block = """<style>
-body {
-    font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-}
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Roboto', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-    font-weight: 500;
-    color: #1a1a1a;
-    margin-top: 24px;
-    margin-bottom: 16px;
-}
-h1 { font-size: 2.5em; font-weight: 600; }
-h2 { font-size: 2em; border-bottom: 2px solid #e1e4e8; padding-bottom: 8px; }
-h3 { font-size: 1.5em; }
-h4 { font-size: 1.25em; }
-table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 16px 0;
-    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
-}
-th {
-    background-color: #f6f8fa;
-    font-weight: 600;
-    text-align: left;
-    padding: 12px;
-    border: 1px solid #d0d7de;
-}
-td {
-    padding: 10px 12px;
-    border: 1px solid #d0d7de;
-}
-tr:nth-child(even) {
-    background-color: #f6f8fa;
-}
-img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 20px auto;
-}
-p {
-    margin: 12px 0;
-}
-</style>
-
-"""
-
     # Build brand header with context
-    brand_header = f"## {brand_name}"
-    if brand_info and brand_info.industry:
-        brand_header += f" - AI Reputation Analysis Report"
-    else:
-        brand_header += " - AI Reputation Analysis Report"
+    brand_header = f"# {brand_name} - AI Reputation Analysis Report"
 
-    report = style_block + f"""## Executive Summary
+    report = f"""{brand_header}
+
+## Executive Summary
 
 {executive_summary}
 
