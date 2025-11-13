@@ -92,10 +92,6 @@ export default function Recommendations() {
                     // Match with or without colon, and handle common variations
                     const isSubsectionHeading = /^(Strategic Rationale|Key Actions|Expected Impact|Implementation Timeline|Success Metrics|Next Steps|Rationale|Actions|Impact|Timeline|Metrics|References)/i.test(cleanedLine);
 
-                    // Check if line contains a URL
-                    const urlRegex = /(https?:\/\/[^\s]+)/g;
-                    const hasUrl = urlRegex.test(cleanedLine);
-
                     if (isNumberedTitle) {
                       return (
                         <Typography
@@ -127,10 +123,13 @@ export default function Recommendations() {
                       );
                     }
 
+                    // Check if line contains a URL
+                    const urlRegex = /(https?:\/\/[^\s]+)/g;
+                    const urls = cleanedLine.match(urlRegex);
+
                     // If line contains URL, convert to clickable link
-                    if (hasUrl) {
+                    if (urls && urls.length > 0) {
                       const parts = cleanedLine.split(urlRegex);
-                      const urls = cleanedLine.match(urlRegex) || [];
 
                       return (
                         <Typography
