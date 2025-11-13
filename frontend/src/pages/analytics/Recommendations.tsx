@@ -1,8 +1,7 @@
-import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
+import { Box, Typography, Paper, CircularProgress, Alert, Button, Divider } from '@mui/material';
 import { Lightbulb as LightbulbIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import ReactMarkdown from 'react-markdown';
 import { formatDateEST } from '../../utils/dateUtils';
 
 export default function Recommendations() {
@@ -69,52 +68,74 @@ export default function Recommendations() {
             </Typography>
           )}
 
-          <Box
-            sx={{
-              '& h3': {
-                mt: 3,
-                mb: 2,
-                fontSize: '2.5rem',
-                fontWeight: 800,
-                fontFamily: 'Montserrat, sans-serif',
-                color: '#003F62',
-              },
-              '& h4': {
-                mt: 2,
-                mb: 1,
-                fontSize: '1.75rem',
-                fontWeight: 700,
-                fontFamily: 'Montserrat, sans-serif',
-                color: '#003F62',
-              },
-              '& p': {
-                mb: 2,
-                lineHeight: 1.7,
-              },
-              '& ul, & ol': {
-                mb: 2,
-                pl: 3,
-              },
-              '& li': {
-                mb: 1,
-                lineHeight: 1.7,
-              },
-              '& strong': {
-                fontWeight: 600,
-              },
-              '& em': {
-                fontStyle: 'italic',
-              },
-              '& code': {
-                backgroundColor: '#f5f5f5',
-                padding: '2px 6px',
-                borderRadius: 1,
-                fontFamily: 'monospace',
-              },
-            }}
-          >
-            <ReactMarkdown>{data.recommendations}</ReactMarkdown>
-          </Box>
+          {(() => {
+            // Split content and render with proper styling for numbered recommendations
+            const sections = data.recommendations.split(/###\s+/).filter((s: string) => s.trim());
+
+            return sections.map((section: string, sectionIndex: number) => {
+              const lines = section.split('\n').filter((line: string) => line.trim());
+
+              return (
+                <Box key={sectionIndex}>
+                  {sectionIndex > 0 && (
+                    <Divider sx={{ my: 4, borderColor: '#80A1D4', borderWidth: 2 }} />
+                  )}
+                  {lines.map((line: string, lineIndex: number) => {
+                    const trimmedLine = line.trim();
+
+                    // Check if this line is a numbered recommendation title (e.g., "Recommendation 1:", "1.", etc.)
+                    const isNumberedTitle = /^(Recommendation\s+\d+|^\d+[\.:)])/i.test(trimmedLine);
+
+                    // Check if this line is a subsection heading (Strategic Rationale, Key Actions, etc.)
+                    // Match with or without colon, and handle common variations
+                    const isSubsectionHeading = /^(Strategic Rationale|Key Actions|Expected Impact|Implementation Timeline|Success Metrics|Next Steps|Rationale|Actions|Impact|Timeline|Metrics)/i.test(trimmedLine);
+
+                    if (isNumberedTitle) {
+                      return (
+                        <Typography
+                          key={lineIndex}
+                          variant="h5"
+                          component="h3"
+                          sx={{
+                            mb: 2,
+                            mt: lineIndex > 0 ? 3 : 0,
+                            fontWeight: 'bold',
+                            fontSize: '1.5rem',
+                            color: 'inherit'
+                          }}
+                        >
+                          {trimmedLine}
+                        </Typography>
+                      );
+                    }
+
+                    if (isSubsectionHeading) {
+                      return (
+                        <Typography
+                          key={lineIndex}
+                          variant="body1"
+                          sx={{ mb: 1, mt: 2, lineHeight: 1.7, fontWeight: 'bold' }}
+                        >
+                          {trimmedLine}
+                        </Typography>
+                      );
+                    }
+
+                    // Regular content
+                    return (
+                      <Typography
+                        key={lineIndex}
+                        variant="body1"
+                        sx={{ mb: 1, lineHeight: 1.7 }}
+                      >
+                        {trimmedLine}
+                      </Typography>
+                    );
+                  })}
+                </Box>
+              );
+            });
+          })()}
         </Paper>
       )}
     </Box>
