@@ -40,16 +40,24 @@ def main():
 
         # Step 1: Find the brand
         print("Step 1: Finding 'Physics of Plasmas' brand...")
+
+        # Try exact match first
         brand = db.query(BrandInfo).filter(
             BrandInfo.brand_name == "Physics of Plasmas"
         ).first()
+
+        # If not found, try with LIKE to handle trailing spaces
+        if not brand:
+            brand = db.query(BrandInfo).filter(
+                BrandInfo.brand_name.like("Physics of Plasmas%")
+            ).first()
 
         if not brand:
             print("ERROR: Brand 'Physics of Plasmas' not found in database!")
             print("\nAvailable brands:")
             brands = db.query(BrandInfo).all()
             for b in brands:
-                print(f"  - {b.brand_name} (ID: {b.id})")
+                print(f"  - '{b.brand_name}' (ID: {b.id})")
             return
 
         print(f"✓ Found brand: {brand.brand_name} (ID: {brand.id})")
