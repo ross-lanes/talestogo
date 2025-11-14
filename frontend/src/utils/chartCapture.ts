@@ -74,3 +74,76 @@ export const base64ToBlob = (base64: string): Blob => {
 
   return new Blob([uInt8Array], { type: contentType });
 };
+
+/**
+ * Capture and upload dashboard charts for report generation
+ * This is automatically called after data collection completes
+ * @param chartContainerIds - Map of chart names to their container element IDs
+ * @param api - API instance for making requests
+ * @returns Promise with upload result
+ */
+export const captureAndUploadCharts = async (
+  chartContainerIds: Record<string, string>,
+  api: any
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('📸 Capturing charts for report generation...');
+
+    const chartImages: Record<string, string> = {};
+    const timestamp = new Date().toISOString();
+
+    // Capture each chart
+    for (const [chartName, elementId] of Object.entries(chartContainerIds)) {
+      try {
+        const base64Image = await captureChart(elementId, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
+
+        if (base64Image) {
+          chartImages[chartName] = base64Image;
+          console.log(`  ✓ Captured ${chartName} chart`);
+        } else {
+          console.warn(`  ⚠ Failed to capture ${chartName} chart`);
+        }
+      } catch (error) {
+        console.error(`  ✗ Error capturing ${chartName}:`, error);
+      }
+    }
+
+    // Upload to backend
+    if (Object.keys(chartImages).length > 0) {
+      const formData = new FormData();
+      formData.append('timestamp', timestamp);
+
+      // Add each chart image to form data
+      for (const [chartName, base64Image] of Object.entries(chartImages)) {
+        formData.append(chartName, base64Image);
+      }
+
+      const response = await api.post('/reports/upload-charts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log(`✅ Uploaded ${Object.keys(chartImages).length} charts successfully`);
+      return {
+        success: true,
+        message: response.data.message || 'Charts uploaded successfully',
+      };
+    } else {
+      return {
+        success: false,
+        message: 'No charts were captured',
+      };
+    }
+  } catch (error: any) {
+    console.error('❌ Error uploading charts:', error);
+    return {
+      success: false,
+      message: error.response?.data?.detail || error.message || 'Failed to upload charts',
+    };
+  }
+};

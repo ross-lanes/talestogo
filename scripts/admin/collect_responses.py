@@ -266,14 +266,20 @@ class ResponseCollector:
 
         # Create a new collection batch
         platforms_list = platforms or ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
-        batch_name = f"Collection {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+        # Use session-based naming to ensure uniqueness and prevent midnight-crossing issues
+        # The batch name includes both date and time to create a unique session identifier
+        # Frontend will display this by start date in EST for user-friendly identification
+        batch_start_time = datetime.utcnow()
+        batch_name = f"Collection {batch_start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+
         batch = models.CollectionBatch(
             user_id=self.user_id,
             brand_id=self.brand_id,
             batch_name=batch_name,
             description=f"Automated collection of {len(queries)} queries across {len(platforms_list)} platforms",
             platforms=', '.join(platforms_list),
-            started_at=datetime.utcnow(),
+            started_at=batch_start_time,
             status='in_progress',
             total_queries=0,
             total_responses=0

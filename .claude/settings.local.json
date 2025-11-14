@@ -28,7 +28,8 @@
       "Bash(pip install:*)",
       "Bash(git init:*)",
       "Bash(gh repo create:*)",
-      "Bash(PYTHONPATH=/Users/rachelkremen/Documents/Code/tales_project python:*)"
+      "Bash(PYTHONPATH=/Users/rachelkremen/Documents/Code/tales_project python:*)",
+      "Bash(npx playwright install)"
     ],
     "deny": [],
     "ask": []

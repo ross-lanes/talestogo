@@ -52,12 +52,21 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    // Display collection start date and time in EST for clear identification
+    // This helps distinguish between multiple collections on the same day
+    const dateStr = date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       timeZone: 'America/New_York'
     });
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'America/New_York'
+    });
+    return `${dateStr} at ${timeStr}`;
   };
 
   // Sort batches by started_at descending (most recent first)

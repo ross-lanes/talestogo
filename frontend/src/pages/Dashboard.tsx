@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 import BatchSelector from '../components/BatchSelector';
+import { captureAndUploadCharts } from '../utils/chartCapture';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -227,16 +228,40 @@ export default function Dashboard() {
       const response = await api.post('/tasks/run-analysis/');
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setSnackbar({
         open: true,
         message: data.message + ' ' + (data.note || ''),
         severity: 'info',
       });
-      setTimeout(() => {
+
+      // Wait for charts to render
+      setTimeout(async () => {
         queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
         queryClient.invalidateQueries({ queryKey: ['responses'] });
-      }, 2000);
+
+        // Automatically capture and upload charts for report generation
+        try {
+          console.log('📸 Auto-capturing charts after analysis...');
+          const result = await captureAndUploadCharts(
+            {
+              dashboard: 'dashboard-main',
+              sentiment: 'dashboard-sentiment-chart',
+              positioning: 'dashboard-positioning-chart',
+            },
+            api
+          );
+
+          if (result.success) {
+            console.log('✅ Charts captured and uploaded for reports');
+          } else {
+            console.warn('⚠️ Chart capture incomplete:', result.message);
+          }
+        } catch (error) {
+          console.error('❌ Error auto-capturing charts:', error);
+          // Don't show error to user - this is a background process
+        }
+      }, 3000); // Wait 3 seconds for charts to fully render
     },
     onError: (error: any) => {
       setSnackbar({
@@ -354,7 +379,7 @@ export default function Dashboard() {
       )}
 
       {/* Dashboard Content Wrapper for Screenshot */}
-      <Box ref={dashboardRef} sx={{ p: 2 }}>
+      <Box ref={dashboardRef} id="dashboard-main" sx={{ p: 2 }}>
         {/* Show message if no data */}
         {metrics.total_responses === 0 && (
           <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
@@ -464,7 +489,7 @@ export default function Dashboard() {
       {/* Charts Section */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Paper id="dashboard-sentiment-chart" sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Sentiment Breakdown
             </Typography>
@@ -517,7 +542,7 @@ export default function Dashboard() {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Paper id="dashboard-positioning-chart" sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Positioning Distribution
             </Typography>
