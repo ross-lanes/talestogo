@@ -202,7 +202,7 @@ You've been invited to Tales, where AI meets brand intelligence. Now you have th
 Your story starts at {production_url}.
 - Click "Sign in with Microsoft."
 - Log in with {user.email}.
-- Click on Customize and start adding information your brands!
+- Click on Customize and start adding information about your brands!
 
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
 
@@ -217,7 +217,7 @@ You've been invited to Tales, where AI meets brand intelligence. Now you have th
 Your story starts at {production_url}.
 - Click "Sign in with Google."
 - Log in with {user.email}.
-- Click on Customize and start adding information your brands!
+- Click on Customize and start adding information about your brands!
 
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
 
@@ -231,7 +231,7 @@ You've been invited to Tales, where AI meets brand intelligence. Now you have th
 
 Your story starts at {production_url}.
 - Sign in with {user.email} using the Google or Microsoft login buttons.
-- Click on Customize and start adding information your brands!
+- Click on Customize and start adding information about your brands!
 
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
 
