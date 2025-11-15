@@ -98,6 +98,11 @@ export default function Layout({ children }: LayoutProps) {
     handleUserMenuClose();
   };
 
+  const handleSchedulerDashboard = () => {
+    navigate('/admin/scheduler');
+    handleUserMenuClose();
+  };
+
   const handleHowTalesWorks = () => {
     navigate('/how-tales-works');
     handleUserMenuClose();
@@ -394,6 +399,12 @@ export default function Layout({ children }: LayoutProps) {
                   <BusinessIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Tenant Management</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleSchedulerDashboard}>
+                <ListItemIcon>
+                  <ScheduleIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Scheduler Dashboard</ListItemText>
               </MenuItem>
             </>
           )}

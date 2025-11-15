@@ -12,6 +12,7 @@ import Settings from '../pages/Settings';
 import UserManagement from '../pages/admin/UserManagement';
 import TenantManagement from '../pages/admin/TenantManagement';
 import UserBrandData from '../pages/admin/UserBrandData';
+import AdminSchedulerDashboard from '../pages/AdminSchedulerDashboard';
 import SentimentAnalysis from '../pages/analytics/SentimentAnalysis';
 import PositioningAnalysis from '../pages/analytics/PositioningAnalysis';
 import ShareOfVoice from '../pages/analytics/ShareOfVoice';
@@ -264,6 +265,16 @@ export const AppContent: React.FC = () => {
               <ProtectedRoute requireAdmin>
                 <Layout>
                   <UserBrandData />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/scheduler"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Layout>
+                  <AdminSchedulerDashboard />
                 </Layout>
               </ProtectedRoute>
             }

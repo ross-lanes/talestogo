@@ -7,7 +7,9 @@ across all users for support and troubleshooting purposes.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy import and_, or_, func
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
 from .. import crud, models, schemas
 from ..auth import get_current_admin_user
 from ..database import get_db
@@ -281,3 +283,180 @@ def delete_user_competitor(
     if not deleted:
         raise HTTPException(status_code=404, detail="Competitor not found")
     return {"message": "Competitor deleted successfully"}
+
+
+# === Scheduler Monitoring ===
+
+@router.get("/scheduler/dashboard")
+def get_scheduler_dashboard(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Get comprehensive scheduler dashboard data.
+    Shows recent activity, active schedules, and health status.
+    """
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+    # Get recent task history
+    recent_history = db.query(models.ScheduledTaskHistory).filter(
+        models.ScheduledTaskHistory.started_at >= cutoff_date
+    ).order_by(models.ScheduledTaskHistory.started_at.desc()).all()
+
+    # Get all active scheduled tasks
+    active_schedules = db.query(models.ScheduledTask).filter(
+        models.ScheduledTask.is_enabled == True
+    ).all()
+
+    # Get all scheduled tasks (including disabled)
+    all_schedules = db.query(models.ScheduledTask).all()
+
+    # Build history data with user/brand info
+    history_data = []
+    for history in recent_history:
+        user = db.query(models.User).filter_by(id=history.user_id).first()
+        brand = db.query(models.BrandInfo).filter_by(id=history.brand_id).first()
+        schedule = db.query(models.ScheduledTask).filter_by(id=history.scheduled_task_id).first()
+
+        duration = None
+        if history.completed_at and history.started_at:
+            duration = (history.completed_at - history.started_at).total_seconds()
+
+        history_data.append({
+            "id": history.id,
+            "scheduled_task_id": history.scheduled_task_id,
+            "status": history.status,
+            "user_email": user.email if user else None,
+            "user_name": user.full_name if user else None,
+            "brand_name": brand.brand_name if brand else None,
+            "brand_id": history.brand_id,
+            "started_at": history.started_at.isoformat() if history.started_at else None,
+            "completed_at": history.completed_at.isoformat() if history.completed_at else None,
+            "duration_seconds": duration,
+            "collection_responses": history.collection_responses,
+            "analysis_responses": history.analysis_responses,
+            "error_message": history.error_message,
+            "schedule_type": schedule.schedule_type if schedule else None
+        })
+
+    # Build active schedules data
+    schedules_data = []
+    for schedule in all_schedules:
+        user = db.query(models.User).filter_by(id=schedule.user_id).first()
+        brand = db.query(models.BrandInfo).filter_by(id=schedule.brand_id).first()
+
+        # Get latest history for this schedule
+        latest_run = db.query(models.ScheduledTaskHistory).filter(
+            models.ScheduledTaskHistory.scheduled_task_id == schedule.id
+        ).order_by(models.ScheduledTaskHistory.started_at.desc()).first()
+
+        # Check if overdue
+        is_overdue = False
+        if schedule.is_enabled and schedule.next_run_at:
+            is_overdue = schedule.next_run_at < datetime.utcnow()
+
+        schedules_data.append({
+            "id": schedule.id,
+            "user_email": user.email if user else None,
+            "user_name": user.full_name if user else None,
+            "user_id": schedule.user_id,
+            "brand_name": brand.brand_name if brand else None,
+            "brand_id": schedule.brand_id,
+            "schedule_type": schedule.schedule_type,
+            "is_enabled": schedule.is_enabled,
+            "next_run_at": schedule.next_run_at.isoformat() if schedule.next_run_at else None,
+            "last_run_at": schedule.last_run_at.isoformat() if schedule.last_run_at else None,
+            "last_status": latest_run.status if latest_run else None,
+            "send_email_notification": schedule.send_email_notification,
+            "notification_email": schedule.notification_email,
+            "timezone": schedule.timezone,
+            "is_overdue": is_overdue
+        })
+
+    # Calculate summary statistics
+    total_runs = len(recent_history)
+    success_count = len([h for h in recent_history if h.status == 'success'])
+    failed_count = len([h for h in recent_history if h.status == 'failed'])
+    partial_count = len([h for h in recent_history if h.status == 'partial'])
+    running_count = len([h for h in recent_history if h.status == 'running'])
+
+    # Identify issues
+    failed_tasks = [h for h in history_data if h['status'] in ['failed', 'partial']]
+    overdue_tasks = [s for s in schedules_data if s['is_overdue']]
+    stalled_tasks = [h for h in history_data if h['status'] == 'running' and h['started_at']]
+
+    # Check for stalled (running for > 2 hours)
+    stalled_threshold = datetime.utcnow() - timedelta(hours=2)
+    actual_stalled = []
+    for task in stalled_tasks:
+        if task['started_at']:
+            started = datetime.fromisoformat(task['started_at'])
+            if started < stalled_threshold:
+                actual_stalled.append(task)
+
+    return {
+        "summary": {
+            "total_runs_last_{}_days".format(days): total_runs,
+            "success": success_count,
+            "failed": failed_count,
+            "partial": partial_count,
+            "running": running_count,
+            "success_rate": round((success_count / total_runs * 100) if total_runs > 0 else 0, 1),
+            "total_active_schedules": len([s for s in schedules_data if s['is_enabled']]),
+            "total_schedules": len(schedules_data)
+        },
+        "recent_activity": history_data,
+        "active_schedules": [s for s in schedules_data if s['is_enabled']],
+        "all_schedules": schedules_data,
+        "health": {
+            "failed_tasks": failed_tasks,
+            "overdue_tasks": overdue_tasks,
+            "stalled_tasks": actual_stalled,
+            "has_issues": len(failed_tasks) > 0 or len(overdue_tasks) > 0 or len(actual_stalled) > 0
+        }
+    }
+
+
+@router.get("/scheduler/history")
+def get_scheduler_history(
+    days: int = 7,
+    status: Optional[str] = None,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> List[Dict[str, Any]]:
+    """Get detailed scheduler history with filtering options."""
+    cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+    query = db.query(models.ScheduledTaskHistory).filter(
+        models.ScheduledTaskHistory.started_at >= cutoff_date
+    )
+
+    if status:
+        query = query.filter(models.ScheduledTaskHistory.status == status)
+
+    if user_id:
+        query = query.filter(models.ScheduledTaskHistory.user_id == user_id)
+
+    history = query.order_by(models.ScheduledTaskHistory.started_at.desc()).all()
+
+    result = []
+    for h in history:
+        user = db.query(models.User).filter_by(id=h.user_id).first()
+        brand = db.query(models.BrandInfo).filter_by(id=h.brand_id).first()
+
+        result.append({
+            "id": h.id,
+            "scheduled_task_id": h.scheduled_task_id,
+            "status": h.status,
+            "user_email": user.email if user else None,
+            "brand_name": brand.brand_name if brand else None,
+            "started_at": h.started_at.isoformat() if h.started_at else None,
+            "completed_at": h.completed_at.isoformat() if h.completed_at else None,
+            "collection_responses": h.collection_responses,
+            "analysis_responses": h.analysis_responses,
+            "error_message": h.error_message
+        })
+
+    return result
