@@ -313,8 +313,18 @@ def check_and_schedule_tasks():
 
         for task in tasks:
             logger.info(f"Found task {task.id} ready for execution (next_run: {task.next_run_at})")
-            # Schedule the task execution
-            asyncio.create_task(execute_scheduled_task(task.id))
+            # Schedule the task execution - use asyncio.run since we're in a sync context
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If loop is running, schedule the coroutine
+                    loop.create_task(execute_scheduled_task(task.id))
+                else:
+                    # If no loop is running, create a new one
+                    asyncio.run(execute_scheduled_task(task.id))
+            except RuntimeError:
+                # No event loop in current thread, create and run in new loop
+                asyncio.run(execute_scheduled_task(task.id))
 
     except Exception as e:
         logger.error(f"Error checking scheduled tasks: {str(e)}")
