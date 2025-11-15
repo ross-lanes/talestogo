@@ -140,6 +140,21 @@ export default function AdminSchedulerDashboard() {
     return date.toLocaleString();
   };
 
+  const handleRunNow = async (userId: number, brandId: number, userEmail: string | null, brandName: string | null) => {
+    if (!window.confirm(`Run collection & analysis now for ${userEmail} - ${brandName}?`)) {
+      return;
+    }
+
+    try {
+      const response = await api.post(`/admin/run-collection-for-user?user_id=${userId}&brand_id=${brandId}`);
+      alert(response.data.message);
+      // Refresh dashboard to show the new task
+      fetchDashboard();
+    } catch (err: any) {
+      alert(`Error: ${err.response?.data?.detail || 'Failed to start collection'}`);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
     const date = new Date(dateString);
@@ -424,6 +439,7 @@ export default function AdminSchedulerDashboard() {
                         <TableCell>Next Run</TableCell>
                         <TableCell>Last Run</TableCell>
                         <TableCell>Last Status</TableCell>
+                        <TableCell align="center">Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -452,6 +468,15 @@ export default function AdminSchedulerDashboard() {
                           <TableCell>{formatDate(schedule.last_run_at)}</TableCell>
                           <TableCell>
                             {schedule.last_status ? getStatusChip(schedule.last_status) : <Typography variant="body2" color="text.secondary">Never run</Typography>}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleRunNow(schedule.user_id, schedule.brand_id, schedule.user_email, schedule.brand_name)}
+                            >
+                              Run Now
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

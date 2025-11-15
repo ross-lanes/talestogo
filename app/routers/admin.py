@@ -460,3 +460,130 @@ def get_scheduler_history(
         })
 
     return result
+
+
+@router.post("/run-collection-for-user")
+def admin_run_collection_for_user(
+    user_id: int,
+    brand_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Admin endpoint to manually trigger collection & analysis for any user/brand.
+    Uses the same working code path as the manual "Run Collection & Analysis" button.
+    """
+    import subprocess
+    import os
+    import threading
+    from datetime import datetime as dt
+
+    # Verify user and brand exist
+    user = db.query(models.User).filter_by(id=user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    brand = db.query(models.BrandInfo).filter_by(id=brand_id, user_id=user_id).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"Brand {brand_id} not found for user {user_id}")
+
+    # Check for active queries
+    query_count = db.query(models.Query).filter(
+        models.Query.user_id == user_id,
+        models.Query.brand_id == brand_id,
+        models.Query.active == True
+    ).count()
+
+    if query_count == 0:
+        raise HTTPException(status_code=400, detail=f"No active queries found for {user.email} - {brand.brand_name}")
+
+    # Create task status
+    task = models.TaskStatus(
+        user_id=user_id,
+        brand_id=brand_id,
+        task_type="collection",
+        status="running",
+        total_items=query_count * 4,
+        processed_items=0,
+        message="Admin-initiated collection starting...",
+        started_at=dt.utcnow()
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+
+    # Run collection in background thread (same as manual button)
+    def run_collection_then_analysis():
+        from ..database import SessionLocal
+        db_thread = SessionLocal()
+        try:
+            # Get project root
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            script_path = os.path.join(project_root, "scripts", "admin", "collect_responses.py")
+
+            cmd = [
+                "python3", script_path,
+                str(user_id),
+                "--brand-id", str(brand_id),
+                "--task-id", str(task.id)
+            ]
+
+            # Set PYTHONPATH
+            env = os.environ.copy()
+            env['PYTHONPATH'] = project_root
+
+            # Run collection (same as manual button)
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env
+            )
+
+            # Send "1\n" to stdin like manual button does
+            stdout, stderr = process.communicate(input="1\n", timeout=3600)
+
+            if process.returncode != 0:
+                print(f"Collection failed: {stderr}")
+                return
+
+            # Run analysis
+            analysis_script = os.path.join(project_root, "analyze_responses.py")
+            analysis_cmd = [
+                "python3", analysis_script,
+                str(user_id),
+                "--brand-id", str(brand_id),
+                "--task-id", "0",
+                "--auto-generate-report"
+            ]
+
+            analysis_process = subprocess.Popen(
+                analysis_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env
+            )
+
+            analysis_stdout, analysis_stderr = analysis_process.communicate(input="1\n1\n", timeout=3600)
+
+            if analysis_process.returncode != 0:
+                print(f"Analysis failed: {analysis_stderr}")
+
+        finally:
+            db_thread.close()
+
+    # Start background thread
+    thread = threading.Thread(target=run_collection_then_analysis, daemon=True)
+    thread.start()
+
+    return {
+        "message": f"Collection started for {user.email} - {brand.brand_name}",
+        "user_email": user.email,
+        "brand_name": brand.brand_name,
+        "query_count": query_count,
+        "task_id": task.id
+    }
