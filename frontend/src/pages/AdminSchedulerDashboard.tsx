@@ -1,5 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import {
+  Box,
+  Container,
+  Typography,
+  Paper,
+  Grid,
+  Card,
+  CardContent,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  Tab,
+  Alert,
+  AlertTitle,
+  Select,
+  MenuItem,
+  Button,
+  FormControl,
+  InputLabel,
+  Stack,
+} from '@mui/material';
+import {
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon,
+  Schedule as ScheduleIcon,
+  Refresh as RefreshIcon,
+} from '@mui/icons-material';
 
 interface SchedulerDashboardData {
   summary: {
@@ -63,7 +96,7 @@ export default function AdminSchedulerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'schedules' | 'health'>('overview');
+  const [activeTab, setActiveTab] = useState(0);
 
   const fetchDashboard = async () => {
     try {
@@ -82,14 +115,15 @@ export default function AdminSchedulerDashboard() {
     fetchDashboard();
   }, [days]);
 
-  const getStatusBadge = (status: string) => {
-    const statusColors: { [key: string]: string } = {
-      success: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
-      partial: 'bg-yellow-100 text-yellow-800',
-      running: 'bg-blue-100 text-blue-800',
+  const getStatusChip = (status: string) => {
+    const statusConfig: { [key: string]: { color: any; icon: React.ReactElement } } = {
+      success: { color: 'success', icon: <CheckCircleIcon fontSize="small" /> },
+      failed: { color: 'error', icon: <ErrorIcon fontSize="small" /> },
+      partial: { color: 'warning', icon: <WarningIcon fontSize="small" /> },
+      running: { color: 'info', icon: <ScheduleIcon fontSize="small" /> },
     };
-    return statusColors[status] || 'bg-gray-100 text-gray-800';
+    const config = statusConfig[status] || { color: 'default', icon: null };
+    return <Chip label={status} color={config.color} size="small" icon={config.icon} />;
   };
 
   const formatDuration = (seconds: number | null) => {
@@ -114,17 +148,19 @@ export default function AdminSchedulerDashboard() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-gray-600">Loading dashboard...</div>
-      </div>
+      <Container maxWidth="xl" sx={{ mt: 4 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <Typography color="text.secondary">Loading dashboard...</Typography>
+        </Box>
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        {error}
-      </div>
+      <Container maxWidth="xl" sx={{ mt: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
     );
   }
 
@@ -134,371 +170,417 @@ export default function AdminSchedulerDashboard() {
   const totalRunsKey = summaryKeys.find(k => k.startsWith('total_runs_last')) || 'total_runs';
 
   return (
-    <div className="space-y-6">
+    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Scheduler Dashboard</h1>
-        <div className="flex items-center gap-4">
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="border border-gray-300 rounded-md px-3 py-2"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={14}>Last 14 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
-          <button
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" component="h1" fontWeight="bold">
+          Scheduler Dashboard
+        </Typography>
+        <Stack direction="row" spacing={2}>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Time Range</InputLabel>
+            <Select
+              value={days}
+              label="Time Range"
+              onChange={(e) => setDays(Number(e.target.value))}
+            >
+              <MenuItem value={7}>Last 7 days</MenuItem>
+              <MenuItem value={14}>Last 14 days</MenuItem>
+              <MenuItem value={30}>Last 30 days</MenuItem>
+              <MenuItem value={90}>Last 90 days</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            variant="contained"
+            startIcon={<RefreshIcon />}
             onClick={fetchDashboard}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Refresh
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Box>
 
       {/* Health Alert */}
       {dashboardData.health.has_issues && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Issues Detected</h3>
-              <div className="mt-2 text-sm text-red-700">
-                <ul className="list-disc pl-5 space-y-1">
-                  {dashboardData.health.failed_tasks.length > 0 && (
-                    <li>{dashboardData.health.failed_tasks.length} failed/partial task(s)</li>
-                  )}
-                  {dashboardData.health.overdue_tasks.length > 0 && (
-                    <li>{dashboardData.health.overdue_tasks.length} overdue schedule(s)</li>
-                  )}
-                  {dashboardData.health.stalled_tasks.length > 0 && (
-                    <li>{dashboardData.health.stalled_tasks.length} stalled task(s)</li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <AlertTitle>Issues Detected</AlertTitle>
+          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+            {dashboardData.health.failed_tasks.length > 0 && (
+              <li>{dashboardData.health.failed_tasks.length} failed/partial task(s)</li>
+            )}
+            {dashboardData.health.overdue_tasks.length > 0 && (
+              <li>{dashboardData.health.overdue_tasks.length} overdue schedule(s)</li>
+            )}
+            {dashboardData.health.stalled_tasks.length > 0 && (
+              <li>{dashboardData.health.stalled_tasks.length} stalled task(s) (running &gt; 2 hours)</li>
+            )}
+          </Box>
+        </Alert>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm font-medium text-gray-500">Total Runs</div>
-          <div className="mt-2 text-3xl font-semibold text-gray-900">
-            {dashboardData.summary[totalRunsKey]}
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm font-medium text-gray-500">Success Rate</div>
-          <div className="mt-2 text-3xl font-semibold text-green-600">
-            {dashboardData.summary.success_rate}%
-          </div>
-          <div className="mt-1 text-sm text-gray-500">
-            {dashboardData.summary.success} successful
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm font-medium text-gray-500">Active Schedules</div>
-          <div className="mt-2 text-3xl font-semibold text-blue-600">
-            {dashboardData.summary.total_active_schedules}
-          </div>
-          <div className="mt-1 text-sm text-gray-500">
-            of {dashboardData.summary.total_schedules} total
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="text-sm font-medium text-gray-500">Failed/Issues</div>
-          <div className="mt-2 text-3xl font-semibold text-red-600">
-            {dashboardData.summary.failed + dashboardData.summary.partial}
-          </div>
-          <div className="mt-1 text-sm text-gray-500">
-            {dashboardData.summary.failed} failed, {dashboardData.summary.partial} partial
-          </div>
-        </div>
-      </div>
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom variant="body2">
+                Total Runs
+              </Typography>
+              <Typography variant="h3" component="div" fontWeight="bold">
+                {dashboardData.summary[totalRunsKey]}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom variant="body2">
+                Success Rate
+              </Typography>
+              <Typography variant="h3" component="div" fontWeight="bold" color="success.main">
+                {dashboardData.summary.success_rate}%
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {dashboardData.summary.success} successful
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom variant="body2">
+                Active Schedules
+              </Typography>
+              <Typography variant="h3" component="div" fontWeight="bold" color="primary.main">
+                {dashboardData.summary.total_active_schedules}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                of {dashboardData.summary.total_schedules} total
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom variant="body2">
+                Failed/Issues
+              </Typography>
+              <Typography variant="h3" component="div" fontWeight="bold" color="error.main">
+                {dashboardData.summary.failed + dashboardData.summary.partial}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {dashboardData.summary.failed} failed, {dashboardData.summary.partial} partial
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {(['overview', 'activity', 'schedules', 'health'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`
-                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
-                ${activeTab === tab
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
-              `}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Paper sx={{ mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, val) => setActiveTab(val)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tab label="Overview" />
+          <Tab label="Recent Activity" />
+          <Tab label="Schedules" />
+          <Tab label="Health" />
+        </Tabs>
 
-      {/* Tab Content */}
-      <div className="bg-white shadow rounded-lg p-6">
-        {activeTab === 'overview' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Overview</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h3 className="font-medium mb-2">Status Breakdown</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Success:</span>
-                    <span className="font-semibold text-green-600">{dashboardData.summary.success}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Failed:</span>
-                    <span className="font-semibold text-red-600">{dashboardData.summary.failed}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Partial:</span>
-                    <span className="font-semibold text-yellow-600">{dashboardData.summary.partial}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Running:</span>
-                    <span className="font-semibold text-blue-600">{dashboardData.summary.running}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2">Active Schedules</h3>
-                <div className="text-sm text-gray-600">
-                  {dashboardData.active_schedules.length === 0 ? (
-                    <p>No active schedules</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {dashboardData.active_schedules.slice(0, 5).map((schedule) => (
-                        <li key={schedule.id}>
+        <Box sx={{ p: 3 }}>
+          {/* Overview Tab */}
+          {activeTab === 0 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom fontWeight="medium">
+                  Status Breakdown
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>Success</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold" color="success.main">
+                            {dashboardData.summary.success}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Failed</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold" color="error.main">
+                            {dashboardData.summary.failed}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Partial</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold" color="warning.main">
+                            {dashboardData.summary.partial}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Running</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="bold" color="info.main">
+                            {dashboardData.summary.running}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom fontWeight="medium">
+                  Active Schedules
+                </Typography>
+                {dashboardData.active_schedules.length === 0 ? (
+                  <Typography color="text.secondary">No active schedules</Typography>
+                ) : (
+                  <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                    {dashboardData.active_schedules.slice(0, 5).map((schedule) => (
+                      <li key={schedule.id}>
+                        <Typography variant="body2">
                           {schedule.user_email} - {schedule.brand_name}
-                        </li>
-                      ))}
-                      {dashboardData.active_schedules.length > 5 && (
-                        <li className="text-gray-500">
+                        </Typography>
+                      </li>
+                    ))}
+                    {dashboardData.active_schedules.length > 5 && (
+                      <li>
+                        <Typography variant="body2" color="text.secondary">
                           ... and {dashboardData.active_schedules.length - 5} more
-                        </li>
-                      )}
-                    </ul>
+                        </Typography>
+                      </li>
+                    )}
+                  </Box>
+                )}
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Activity Tab */}
+          {activeTab === 1 && (
+            <>
+              <Typography variant="h6" gutterBottom fontWeight="medium">
+                Recent Activity
+              </Typography>
+              {dashboardData.recent_activity.length === 0 ? (
+                <Typography color="text.secondary">No recent activity</Typography>
+              ) : (
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Status</TableCell>
+                        <TableCell>User</TableCell>
+                        <TableCell>Brand</TableCell>
+                        <TableCell>Started</TableCell>
+                        <TableCell>Duration</TableCell>
+                        <TableCell align="right">Collected</TableCell>
+                        <TableCell align="right">Analyzed</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {dashboardData.recent_activity.map((item) => (
+                        <TableRow key={item.id} hover>
+                          <TableCell>{getStatusChip(item.status)}</TableCell>
+                          <TableCell>{item.user_email || 'Unknown'}</TableCell>
+                          <TableCell>{item.brand_name || 'Unknown'}</TableCell>
+                          <TableCell>{formatDate(item.started_at)}</TableCell>
+                          <TableCell>{formatDuration(item.duration_seconds)}</TableCell>
+                          <TableCell align="right">{item.collection_responses || 0}</TableCell>
+                          <TableCell align="right">{item.analysis_responses || 0}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
+          )}
+
+          {/* Schedules Tab */}
+          {activeTab === 2 && (
+            <>
+              <Typography variant="h6" gutterBottom fontWeight="medium">
+                All Scheduled Tasks
+              </Typography>
+              {dashboardData.all_schedules.length === 0 ? (
+                <Typography color="text.secondary">No schedules found</Typography>
+              ) : (
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Status</TableCell>
+                        <TableCell>User</TableCell>
+                        <TableCell>Brand</TableCell>
+                        <TableCell>Type</TableCell>
+                        <TableCell>Next Run</TableCell>
+                        <TableCell>Last Run</TableCell>
+                        <TableCell>Last Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {dashboardData.all_schedules.map((schedule) => (
+                        <TableRow
+                          key={schedule.id}
+                          hover
+                          sx={{
+                            backgroundColor: schedule.is_overdue ? 'error.50' : 'inherit'
+                          }}
+                        >
+                          <TableCell>
+                            <Chip
+                              label={schedule.is_enabled ? 'Enabled' : 'Disabled'}
+                              color={schedule.is_enabled ? 'success' : 'default'}
+                              size="small"
+                            />
+                            {schedule.is_overdue && (
+                              <Chip label="Overdue" color="error" size="small" sx={{ ml: 1 }} />
+                            )}
+                          </TableCell>
+                          <TableCell>{schedule.user_email || 'Unknown'}</TableCell>
+                          <TableCell>{schedule.brand_name || 'Unknown'}</TableCell>
+                          <TableCell>{schedule.schedule_type}</TableCell>
+                          <TableCell>{formatDate(schedule.next_run_at)}</TableCell>
+                          <TableCell>{formatDate(schedule.last_run_at)}</TableCell>
+                          <TableCell>
+                            {schedule.last_status ? getStatusChip(schedule.last_status) : <Typography variant="body2" color="text.secondary">Never run</Typography>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
+          )}
+
+          {/* Health Tab */}
+          {activeTab === 3 && (
+            <Box>
+              <Typography variant="h6" gutterBottom fontWeight="medium">
+                System Health
+              </Typography>
+
+              {!dashboardData.health.has_issues ? (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  <AlertTitle>All Systems Healthy</AlertTitle>
+                  No issues detected with scheduled tasks.
+                </Alert>
+              ) : (
+                <Stack spacing={3} sx={{ mt: 2 }}>
+                  {/* Stalled Tasks */}
+                  {dashboardData.health.stalled_tasks.length > 0 && (
+                    <Box>
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        <AlertTitle>Stalled Tasks (Running &gt; 2 hours)</AlertTitle>
+                        {dashboardData.health.stalled_tasks.length} task(s) appear to be stuck
+                      </Alert>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>User</TableCell>
+                              <TableCell>Brand</TableCell>
+                              <TableCell>Started</TableCell>
+                              <TableCell>Collected</TableCell>
+                              <TableCell>Analyzed</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {dashboardData.health.stalled_tasks.map((task) => (
+                              <TableRow key={task.id}>
+                                <TableCell>{task.user_email}</TableCell>
+                                <TableCell>{task.brand_name}</TableCell>
+                                <TableCell>{formatDate(task.started_at)}</TableCell>
+                                <TableCell>{task.collection_responses || 0}</TableCell>
+                                <TableCell>{task.analysis_responses || 0}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
                   )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {activeTab === 'activity' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">Recent Activity</h2>
-            {dashboardData.recent_activity.length === 0 ? (
-              <p className="text-gray-500">No recent activity</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Brand</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Started</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Collected</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Analyzed</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {dashboardData.recent_activity.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(item.status)}`}>
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.user_email || 'Unknown'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.brand_name || 'Unknown'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(item.started_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDuration(item.duration_seconds)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.collection_responses || 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.analysis_responses || 0}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+                  {/* Failed Tasks */}
+                  {dashboardData.health.failed_tasks.length > 0 && (
+                    <Box>
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        <AlertTitle>Failed/Partial Tasks</AlertTitle>
+                        {dashboardData.health.failed_tasks.length} task(s) did not complete successfully
+                      </Alert>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Status</TableCell>
+                              <TableCell>User</TableCell>
+                              <TableCell>Brand</TableCell>
+                              <TableCell>Started</TableCell>
+                              <TableCell>Error</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {dashboardData.health.failed_tasks.map((task) => (
+                              <TableRow key={task.id}>
+                                <TableCell>{getStatusChip(task.status)}</TableCell>
+                                <TableCell>{task.user_email}</TableCell>
+                                <TableCell>{task.brand_name}</TableCell>
+                                <TableCell>{formatDate(task.started_at)}</TableCell>
+                                <TableCell>{task.error_message || 'No error message'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
 
-        {activeTab === 'schedules' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">All Schedules</h2>
-            {dashboardData.all_schedules.length === 0 ? (
-              <p className="text-gray-500">No schedules configured</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Brand</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next Run</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Run</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {dashboardData.all_schedules.map((schedule) => (
-                      <tr key={schedule.id} className={schedule.is_overdue ? 'bg-red-50' : 'hover:bg-gray-50'}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            schedule.is_enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {schedule.is_enabled ? 'Active' : 'Disabled'}
-                          </span>
-                          {schedule.is_overdue && (
-                            <span className="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                              Overdue
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {schedule.user_email || 'Unknown'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {schedule.brand_name || 'Unknown'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {schedule.schedule_type}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(schedule.next_run_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(schedule.last_run_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {schedule.last_status && (
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(schedule.last_status)}`}>
-                              {schedule.last_status}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'health' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold">Health Monitoring</h2>
-
-            {/* Failed Tasks */}
-            <div>
-              <h3 className="text-lg font-semibold text-red-600 mb-2">
-                Failed/Partial Tasks ({dashboardData.health.failed_tasks.length})
-              </h3>
-              {dashboardData.health.failed_tasks.length === 0 ? (
-                <p className="text-gray-500">No failed tasks</p>
-              ) : (
-                <div className="space-y-2">
-                  {dashboardData.health.failed_tasks.map((task) => (
-                    <div key={task.id} className="border border-red-200 rounded p-3 bg-red-50">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium">{task.user_email} - {task.brand_name}</div>
-                          <div className="text-sm text-gray-600">{formatDateTime(task.started_at)}</div>
-                          {task.error_message && (
-                            <div className="text-sm text-red-600 mt-1">{task.error_message}</div>
-                          )}
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-semibold rounded ${getStatusBadge(task.status)}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                  {/* Overdue Schedules */}
+                  {dashboardData.health.overdue_tasks.length > 0 && (
+                    <Box>
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        <AlertTitle>Overdue Schedules</AlertTitle>
+                        {dashboardData.health.overdue_tasks.length} schedule(s) missed their run time
+                      </Alert>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>User</TableCell>
+                              <TableCell>Brand</TableCell>
+                              <TableCell>Type</TableCell>
+                              <TableCell>Next Run (Missed)</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {dashboardData.health.overdue_tasks.map((schedule) => (
+                              <TableRow key={schedule.id}>
+                                <TableCell>{schedule.user_email}</TableCell>
+                                <TableCell>{schedule.brand_name}</TableCell>
+                                <TableCell>{schedule.schedule_type}</TableCell>
+                                <TableCell>{formatDate(schedule.next_run_at)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
+                </Stack>
               )}
-            </div>
-
-            {/* Overdue Tasks */}
-            <div>
-              <h3 className="text-lg font-semibold text-orange-600 mb-2">
-                Overdue Schedules ({dashboardData.health.overdue_tasks.length})
-              </h3>
-              {dashboardData.health.overdue_tasks.length === 0 ? (
-                <p className="text-gray-500">No overdue schedules</p>
-              ) : (
-                <div className="space-y-2">
-                  {dashboardData.health.overdue_tasks.map((schedule) => (
-                    <div key={schedule.id} className="border border-orange-200 rounded p-3 bg-orange-50">
-                      <div className="font-medium">{schedule.user_email} - {schedule.brand_name}</div>
-                      <div className="text-sm text-gray-600">
-                        Should have run: {formatDateTime(schedule.next_run_at)}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Last run: {formatDateTime(schedule.last_run_at)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Stalled Tasks */}
-            <div>
-              <h3 className="text-lg font-semibold text-yellow-600 mb-2">
-                Stalled Tasks (Running &gt; 2 hours) ({dashboardData.health.stalled_tasks.length})
-              </h3>
-              {dashboardData.health.stalled_tasks.length === 0 ? (
-                <p className="text-gray-500">No stalled tasks</p>
-              ) : (
-                <div className="space-y-2">
-                  {dashboardData.health.stalled_tasks.map((task) => (
-                    <div key={task.id} className="border border-yellow-200 rounded p-3 bg-yellow-50">
-                      <div className="font-medium">{task.user_email} - {task.brand_name}</div>
-                      <div className="text-sm text-gray-600">
-                        Started: {formatDateTime(task.started_at)}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Collected: {task.collection_responses || 0}, Analyzed: {task.analysis_responses || 0}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            </Box>
+          )}
+        </Box>
+      </Paper>
+    </Container>
   );
 }

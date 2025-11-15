@@ -475,19 +475,24 @@ def main():
 
         print(f"Found {query_count} active queries\n")
 
-        # Prompt for what to do
-        print("Options:")
-        print("  1. Collect responses for ALL queries (recommended for first run)")
-        print("  2. Test with first 3 queries only")
-        print("  3. Custom number of queries")
-
-        choice = input("\nEnter choice (1-3) [1]: ").strip() or "1"
-
+        # If running in automated mode (with task_id), skip interactive prompts
         limit = None
-        if choice == "2":
-            limit = 3
-        elif choice == "3":
-            limit = int(input("How many queries? "))
+        if args.task_id:
+            # Automated mode - always collect all queries
+            print("Running in automated mode - collecting ALL queries")
+        else:
+            # Interactive mode - prompt for what to do
+            print("Options:")
+            print("  1. Collect responses for ALL queries (recommended for first run)")
+            print("  2. Test with first 3 queries only")
+            print("  3. Custom number of queries")
+
+            choice = input("\nEnter choice (1-3) [1]: ").strip() or "1"
+
+            if choice == "2":
+                limit = 3
+            elif choice == "3":
+                limit = int(input("How many queries? "))
 
         # Collect responses
         stats = collector.collect_all(limit=limit)
