@@ -78,6 +78,24 @@ async def execute_scheduled_task(schedule_id: int):
             text=True
         )
 
+        # Log the process start
+        logger.info(f"Started collection subprocess with PID {process.pid}")
+
+        # Give the process a moment to start
+        await asyncio.sleep(2)
+
+        # Check if process crashed immediately
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            logger.error(f"Collection process exited immediately with code {process.returncode}")
+            logger.error(f"STDOUT: {stdout}")
+            logger.error(f"STDERR: {stderr}")
+            history.status = 'failed'
+            history.error_message = f'Collection script crashed: {stderr[:500]}'
+            history.completed_at = datetime.utcnow()
+            db.commit()
+            return
+
         # Wait for collection to complete (with timeout)
         collection_success = await wait_for_task_completion(
             schedule.user_id,
