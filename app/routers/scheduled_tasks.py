@@ -81,33 +81,33 @@ def calculate_next_run(schedule_type: str, timezone_str: str) -> datetime:
     now = datetime.now(tz)
 
     if schedule_type == 'first_day':
-        # Next first day of month at 2 AM
-        if now.day == 1 and now.hour < 2:
-            next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
+        # Next first day of month at 3:30 AM
+        if now.day == 1 and (now.hour < 3 or (now.hour == 3 and now.minute < 30)):
+            next_run = now.replace(hour=3, minute=30, second=0, microsecond=0)
         else:
             # Go to next month
             if now.month == 12:
-                next_run = now.replace(year=now.year + 1, month=1, day=1, hour=2, minute=0, second=0, microsecond=0)
+                next_run = now.replace(year=now.year + 1, month=1, day=1, hour=3, minute=30, second=0, microsecond=0)
             else:
-                next_run = now.replace(month=now.month + 1, day=1, hour=2, minute=0, second=0, microsecond=0)
+                next_run = now.replace(month=now.month + 1, day=1, hour=3, minute=30, second=0, microsecond=0)
 
     elif schedule_type == 'middle':
-        # 15th of month at 2 AM
-        if now.day < 15 or (now.day == 15 and now.hour < 2):
-            next_run = now.replace(day=15, hour=2, minute=0, second=0, microsecond=0)
+        # 15th of month at 3:30 AM
+        if now.day < 15 or (now.day == 15 and (now.hour < 3 or (now.hour == 3 and now.minute < 30))):
+            next_run = now.replace(day=15, hour=3, minute=30, second=0, microsecond=0)
         else:
             # Go to 15th of next month
             if now.month == 12:
-                next_run = now.replace(year=now.year + 1, month=1, day=15, hour=2, minute=0, second=0, microsecond=0)
+                next_run = now.replace(year=now.year + 1, month=1, day=15, hour=3, minute=30, second=0, microsecond=0)
             else:
-                next_run = now.replace(month=now.month + 1, day=15, hour=2, minute=0, second=0, microsecond=0)
+                next_run = now.replace(month=now.month + 1, day=15, hour=3, minute=30, second=0, microsecond=0)
 
     elif schedule_type == 'last_day':
-        # Last day of month at 2 AM
+        # Last day of month at 3:30 AM
         last_day = calendar.monthrange(now.year, now.month)[1]
 
-        if now.day < last_day or (now.day == last_day and now.hour < 2):
-            next_run = now.replace(day=last_day, hour=2, minute=0, second=0, microsecond=0)
+        if now.day < last_day or (now.day == last_day and (now.hour < 3 or (now.hour == 3 and now.minute < 30))):
+            next_run = now.replace(day=last_day, hour=3, minute=30, second=0, microsecond=0)
         else:
             # Go to last day of next month
             if now.month == 12:
@@ -118,7 +118,7 @@ def calculate_next_run(schedule_type: str, timezone_str: str) -> datetime:
                 next_month = now.month + 1
 
             last_day = calendar.monthrange(next_year, next_month)[1]
-            next_run = now.replace(year=next_year, month=next_month, day=last_day, hour=2, minute=0, second=0, microsecond=0)
+            next_run = now.replace(year=next_year, month=next_month, day=last_day, hour=3, minute=30, second=0, microsecond=0)
 
     else:
         raise ValueError(f"Invalid schedule_type: {schedule_type}")

@@ -72,16 +72,11 @@ async def execute_scheduled_task(schedule_id: int):
 
         process = subprocess.Popen(
             cmd,
-            stdin=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,  # No stdin needed in automated mode
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
-
-        # Send "1" to auto-select run all queries
-        process.stdin.write("1\n")
-        process.stdin.flush()
-        process.stdin.close()
 
         # Wait for collection to complete (with timeout)
         collection_success = await wait_for_task_completion(
@@ -138,16 +133,11 @@ async def execute_scheduled_task(schedule_id: int):
 
         analysis_process = subprocess.Popen(
             analysis_cmd,
-            stdin=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,  # No stdin needed with --auto-generate-report flag
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
-
-        # Auto-select options for analysis (1 = analyze latest, 1 = generate report)
-        analysis_process.stdin.write("1\n1\n")
-        analysis_process.stdin.flush()
-        analysis_process.stdin.close()
 
         # Wait for analysis to complete (with timeout)
         analysis_success = await wait_for_task_completion(
