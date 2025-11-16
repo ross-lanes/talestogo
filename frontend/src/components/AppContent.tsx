@@ -25,17 +25,23 @@ import Help from '../pages/Help';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import InviteAccept from '../pages/auth/InviteAccept';
+// Heads - Persona Intelligence Platform pages
+import HeadsDashboard from '../pages/heads/Dashboard';
+import GeneratePersonas from '../pages/heads/GeneratePersonas';
+import Generations from '../pages/heads/Generations';
 import { useAuth } from '../contexts/AuthContext';
-import { TenantProvider } from '../contexts/TenantContext';
+import { TenantProvider, useTenant } from '../contexts/TenantContext';
+import { ProductProvider } from '../contexts/ProductContext';
 import { TenantThemeProvider } from './TenantThemeProvider';
 import { TaskStatusBanner } from './TaskStatusBanner';
 import ProtectedRoute from './ProtectedRoute';
 
-export const AppContent: React.FC = () => {
-  const { user } = useAuth();
+// Inner component that has access to TenantContext
+const AppRoutes: React.FC = () => {
+  const { tenant } = useTenant();
 
   return (
-    <TenantProvider isAdmin={user?.is_admin || false}>
+    <ProductProvider tenantName={tenant?.tenant_name}>
       <TenantThemeProvider>
         <TaskStatusBanner />
         <Routes>
@@ -280,10 +286,52 @@ export const AppContent: React.FC = () => {
             }
           />
 
+          {/* Heads - Persona Intelligence Platform Routes */}
+          <Route
+            path="/heads"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HeadsDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generate"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GeneratePersonas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generations"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Generations />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Catch-all redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </TenantThemeProvider>
+    </ProductProvider>
+  );
+};
+
+export const AppContent: React.FC = () => {
+  const { user } = useAuth();
+
+  return (
+    <TenantProvider isAdmin={user?.is_admin || false}>
+      <AppRoutes />
     </TenantProvider>
   );
 };

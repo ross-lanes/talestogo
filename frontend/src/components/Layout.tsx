@@ -47,11 +47,23 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTenant } from '../contexts/TenantContext';
+import { useProduct } from '../contexts/ProductContext';
 import BrandSwitcher from './BrandSwitcher';
 import TenantSwitcher from './TenantSwitcher';
+import ProductSwitcher from './ProductSwitcher';
 import talesWhite from './tales_white.png';
 
 const drawerWidth = 240;
+
+// Product taglines
+const PRODUCT_TAGLINES: Record<string, string> = {
+  tales: 'Shape your AI story.',
+  heads: 'Know your audience.',
+  vision: 'See the market clearly.',
+  pulse: 'Measure what matters.',
+  voice: 'Optimize every word.',
+  guardian: 'Ensure compliance.',
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -64,6 +76,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { user, logout, isAdmin } = useAuth();
   const { tenant } = useTenant();
+  const { currentProduct } = useProduct();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -175,7 +188,7 @@ export default function Layout({ children }: LayoutProps) {
   >
     <img
       src={talesWhite}
-      alt="Tales"
+      alt={currentProduct.name}
       style={{
         width: 120,
         maxWidth: '100%',
@@ -183,7 +196,7 @@ export default function Layout({ children }: LayoutProps) {
         margin: '0 auto',
       }}
     />
-    Shape your AI story.
+    {PRODUCT_TAGLINES[currentProduct.id] || 'Solstice AI Suite'}
   </Typography>
 </Toolbar>
 
@@ -346,6 +359,7 @@ export default function Layout({ children }: LayoutProps) {
                   '& *': { color: 'common.white' },
                 }}
               >
+                <ProductSwitcher />
                 <BrandSwitcher />
                 <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>

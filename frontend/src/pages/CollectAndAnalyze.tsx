@@ -255,9 +255,14 @@ export default function CollectAndAnalyze() {
             <Typography variant="h5" gutterBottom>
               Manually Run Collection & Analysis
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Click the button below to gather responses from AI platforms and automatically analyze them to populate insights across all analytics pages. This process will take some time. You will receive an email when the process is complete.
             </Typography>
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Note:</strong> By default, this will analyze only the latest collected data. For longer-term analysis (quarterly, annual, or custom date ranges), please contact <a href="mailto:admin@robotrachel.com" style={{ color: 'inherit' }}>admin@robotrachel.com</a>.
+              </Typography>
+            </Alert>
 
             <Button
               variant="contained"

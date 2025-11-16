@@ -685,3 +685,80 @@ def admin_update_user(db: Session, user_id: int, user_update: schemas.UserAdminU
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+# ============================================================================
+# HEADS - PERSONA GENERATION CRUD
+# ============================================================================
+
+def create_persona_generation(
+    db: Session, generation: schemas.PersonaGenerationCreate, user_id: int, brand_id: int, tenant_id: int
+) -> models.PersonaGeneration:
+    """Create a new persona generation request"""
+    db_generation = models.PersonaGeneration(
+        **generation.dict(),
+        user_id=user_id,
+        brand_id=brand_id,
+        tenant_id=tenant_id,
+        status="pending"
+    )
+    db.add(db_generation)
+    db.commit()
+    db.refresh(db_generation)
+    return db_generation
+
+
+def get_persona_generation(db: Session, generation_id: int) -> Optional[models.PersonaGeneration]:
+    """Get persona generation by ID"""
+    return db.query(models.PersonaGeneration).filter(models.PersonaGeneration.id == generation_id).first()
+
+
+def get_user_persona_generations(
+    db: Session, user_id: int, brand_id: Optional[int] = None
+) -> List[models.PersonaGeneration]:
+    """Get all persona generations for a user"""
+    query = db.query(models.PersonaGeneration).filter(models.PersonaGeneration.user_id == user_id)
+    if brand_id:
+        query = query.filter(models.PersonaGeneration.brand_id == brand_id)
+    return query.order_by(models.PersonaGeneration.created_at.desc()).all()
+
+
+def update_persona_generation(
+    db: Session, generation_id: int, status: str, error_message: Optional[str] = None,
+    deck_url: Optional[str] = None
+) -> Optional[models.PersonaGeneration]:
+    """Update persona generation status"""
+    db_generation = get_persona_generation(db, generation_id)
+    if not db_generation:
+        return None
+    db_generation.status = status
+    if error_message:
+        db_generation.error_message = error_message
+    if deck_url:
+        db_generation.deck_url = deck_url
+    if status == "completed":
+        from datetime import datetime
+        db_generation.completed_at = datetime.utcnow()
+    db.commit()
+    db.refresh(db_generation)
+    return db_generation
+
+
+# ============================================================================
+# HEADS - PERSONA CRUD
+# ============================================================================
+
+def create_persona(db: Session, persona: schemas.PersonaCreate) -> models.Persona:
+    """Create a new persona"""
+    db_persona = models.Persona(**persona.dict())
+    db.add(db_persona)
+    db.commit()
+    db.refresh(db_persona)
+    return db_persona
+
+
+def get_generation_personas(db: Session, generation_id: int) -> List[models.Persona]:
+    """Get all personas for a generation"""
+    return db.query(models.Persona).filter(
+        models.Persona.generation_id == generation_id
+    ).order_by(models.Persona.order_index).all()

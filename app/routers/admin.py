@@ -471,119 +471,139 @@ def admin_run_collection_for_user(
 ) -> Dict[str, Any]:
     """
     Admin endpoint to manually trigger collection & analysis for any user/brand.
-    Uses the same working code path as the manual "Run Collection & Analysis" button.
+    Uses the shared data pipeline service.
     """
-    import subprocess
-    import os
-    import threading
-    from datetime import datetime as dt
+    # Use shared data pipeline service
+    from app.services.data_pipeline import run_collection_analysis_report
 
-    # Verify user and brand exist
-    user = db.query(models.User).filter_by(id=user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
-
-    brand = db.query(models.BrandInfo).filter_by(id=brand_id, user_id=user_id).first()
-    if not brand:
-        raise HTTPException(status_code=404, detail=f"Brand {brand_id} not found for user {user_id}")
-
-    # Check for active queries
-    query_count = db.query(models.Query).filter(
-        models.Query.user_id == user_id,
-        models.Query.brand_id == brand_id,
-        models.Query.active == True
-    ).count()
-
-    if query_count == 0:
-        raise HTTPException(status_code=400, detail=f"No active queries found for {user.email} - {brand.brand_name}")
-
-    # Create task status
-    task = models.TaskStatus(
+    result = run_collection_analysis_report(
         user_id=user_id,
         brand_id=brand_id,
-        task_type="collection",
-        status="running",
-        total_items=query_count * 4,
-        processed_items=0,
-        message="Admin-initiated collection starting...",
-        started_at=dt.utcnow()
+        triggered_by="admin"
     )
-    db.add(task)
-    db.commit()
-    db.refresh(task)
 
-    # Run collection in background thread (same as manual button)
-    def run_collection_then_analysis():
-        from ..database import SessionLocal
-        db_thread = SessionLocal()
-        try:
-            # Get project root
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            script_path = os.path.join(project_root, "scripts", "admin", "collect_responses.py")
-
-            cmd = [
-                "python3", script_path,
-                str(user_id),
-                "--brand-id", str(brand_id),
-                "--task-id", str(task.id)
-            ]
-
-            # Set PYTHONPATH
-            env = os.environ.copy()
-            env['PYTHONPATH'] = project_root
-
-            # Run collection (same as manual button)
-            process = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env
-            )
-
-            # Send "1\n" to stdin like manual button does
-            stdout, stderr = process.communicate(input="1\n", timeout=3600)
-
-            if process.returncode != 0:
-                print(f"Collection failed: {stderr}")
-                return
-
-            # Run analysis
-            analysis_script = os.path.join(project_root, "analyze_responses.py")
-            analysis_cmd = [
-                "python3", analysis_script,
-                str(user_id),
-                "--brand-id", str(brand_id),
-                "--task-id", "0",
-                "--auto-generate-report"
-            ]
-
-            analysis_process = subprocess.Popen(
-                analysis_cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env
-            )
-
-            analysis_stdout, analysis_stderr = analysis_process.communicate(input="1\n1\n", timeout=3600)
-
-            if analysis_process.returncode != 0:
-                print(f"Analysis failed: {analysis_stderr}")
-
-        finally:
-            db_thread.close()
-
-    # Start background thread
-    thread = threading.Thread(target=run_collection_then_analysis, daemon=True)
-    thread.start()
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
 
     return {
-        "message": f"Collection started for {user.email} - {brand.brand_name}",
-        "user_email": user.email,
-        "brand_name": brand.brand_name,
-        "query_count": query_count,
-        "task_id": task.id
+        "message": result["message"],
+        "task_id": result["task_id"]
+    }
+
+
+@router.post("/login-as-user/{user_id}")
+def admin_login_as_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Admin endpoint to generate a JWT token for any user.
+    This allows admins to "log in as" another user to troubleshoot issues.
+
+    Returns a token that can be used to authenticate as the target user.
+    """
+    from ..auth import create_access_token
+
+    # Verify target user exists
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Generate JWT token for the target user
+    access_token = create_access_token(data={"sub": target_user.id})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_email": target_user.email,
+        "user_name": target_user.full_name
+    }
+
+
+@router.get("/active-users")
+def get_active_users(
+    minutes: int = 15,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Get users who have been active in the last N minutes.
+    Activity is determined by running tasks or recent data operations.
+
+    Returns count and list of active users (excluding the current admin).
+    """
+    from datetime import datetime, timedelta
+
+    cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
+
+    # Find users with recent task activity
+    active_user_ids = set()
+
+    # Check for running or recently completed tasks
+    recent_tasks = db.query(models.TaskStatus).filter(
+        models.TaskStatus.started_at >= cutoff_time
+    ).all()
+
+    for task in recent_tasks:
+        active_user_ids.add(task.user_id)
+
+    # Check for recent collection batches
+    recent_batches = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.started_at >= cutoff_time
+    ).all()
+
+    for batch in recent_batches:
+        active_user_ids.add(batch.user_id)
+
+    # Exclude current admin from the list
+    active_user_ids.discard(current_admin.id)
+
+    # Get user details
+    active_users = []
+    for user_id in active_user_ids:
+        user = db.query(models.User).filter_by(id=user_id).first()
+        if user:
+            # Get most recent activity
+            latest_task = db.query(models.TaskStatus).filter(
+                models.TaskStatus.user_id == user_id
+            ).order_by(models.TaskStatus.started_at.desc()).first()
+
+            latest_batch = db.query(models.CollectionBatch).filter(
+                models.CollectionBatch.user_id == user_id
+            ).order_by(models.CollectionBatch.started_at.desc()).first()
+
+            last_activity = None
+            activity_type = None
+
+            if latest_task and latest_batch:
+                if latest_task.started_at > latest_batch.started_at:
+                    last_activity = latest_task.started_at
+                    activity_type = f"{latest_task.task_type} ({latest_task.status})"
+                else:
+                    last_activity = latest_batch.started_at
+                    activity_type = "collection"
+            elif latest_task:
+                last_activity = latest_task.started_at
+                activity_type = f"{latest_task.task_type} ({latest_task.status})"
+            elif latest_batch:
+                last_activity = latest_batch.started_at
+                activity_type = "collection"
+
+            active_users.append({
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "last_activity": last_activity.isoformat() if last_activity else None,
+                "activity_type": activity_type
+            })
+
+    # Sort by most recent activity
+    active_users.sort(key=lambda x: x["last_activity"] or "", reverse=True)
+
+    return {
+        "count": len(active_users),
+        "active_users": active_users,
+        "minutes_threshold": minutes,
+        "current_admin_id": current_admin.id
     }

@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional, List
 import datetime
+from app.models import PersonaType
 
 # --- Tenant Schemas ---
 class TenantBase(BaseModel):
@@ -437,4 +438,111 @@ class TaskStatus(BaseModel):
     completed_at: Optional[datetime.datetime] = None
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# HEADS - PERSONA GENERATION SCHEMAS
+# ============================================================================
+
+class PersonaGenerationCreate(BaseModel):
+    # Patient persona inputs
+    patient_occupation: Optional[str] = None
+    patient_clinical_scenario: Optional[str] = None
+    patient_gender: Optional[str] = None
+    patient_symptoms: Optional[str] = None
+    patient_age_range: Optional[str] = None
+
+    # HCP persona inputs
+    hcp_doctor_type: Optional[str] = None
+    hcp_disease: Optional[str] = None
+    hcp_location: Optional[str] = None
+
+
+class PersonaGenerationUpdate(BaseModel):
+    status: Optional[str] = None
+    error_message: Optional[str] = None
+    deck_url: Optional[str] = None
+
+
+class PersonaGeneration(BaseModel):
+    id: int
+    user_id: int
+    brand_id: int
+    tenant_id: int
+    patient_occupation: Optional[str] = None
+    patient_clinical_scenario: Optional[str] = None
+    patient_gender: Optional[str] = None
+    patient_symptoms: Optional[str] = None
+    patient_age_range: Optional[str] = None
+    hcp_doctor_type: Optional[str] = None
+    hcp_disease: Optional[str] = None
+    hcp_location: Optional[str] = None
+    status: str
+    error_message: Optional[str] = None
+    llm_provider: Optional[str] = None
+    deck_url: Optional[str] = None
+    created_at: datetime.datetime
+    completed_at: Optional[datetime.datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# HEADS - PERSONA SCHEMAS
+# ============================================================================
+
+class PersonaBase(BaseModel):
+    persona_type: PersonaType
+    order_index: int = 0
+    name: str
+    age: Optional[int] = None
+    location: Optional[str] = None
+    quote: Optional[str] = None
+    about: Optional[str] = None
+    goals: Optional[str] = None
+    fears: Optional[str] = None
+    pain_points: Optional[str] = None
+
+    # Patient-specific
+    family_status: Optional[str] = None
+    occupation: Optional[str] = None
+    tech_savviness: Optional[str] = None
+    clinical_scenario: Optional[str] = None
+    recent_diagnosis: Optional[str] = None
+    mindset: Optional[str] = None
+    symptoms: Optional[str] = None
+    information_channels: Optional[str] = None
+    key_question_for_doctor: Optional[str] = None
+    marketing_message: Optional[str] = None
+    marketing_tone: Optional[str] = None
+    call_to_action: Optional[str] = None
+    how_they_view_brand: Optional[str] = None
+
+    # HCP-specific
+    job_title: Optional[str] = None
+    practice_type: Optional[str] = None
+    specialty: Optional[str] = None
+    motivations: Optional[str] = None
+    frustrations: Optional[str] = None
+    marketing_channels: Optional[str] = None
+    marketing_messaging: Optional[str] = None
+    marketing_tactics: Optional[str] = None
+
+    personality_traits: Optional[str] = None
+
+
+class PersonaCreate(PersonaBase):
+    generation_id: int
+
+
+class Persona(PersonaBase):
+    id: int
+    generation_id: int
+    created_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaGenerationWithPersonas(PersonaGeneration):
+    personas: List[Persona] = []
 

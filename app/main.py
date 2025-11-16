@@ -24,7 +24,8 @@ from app.routers import (
     reports,
     brands,
     operations,
-    tenants
+    tenants,
+    personas  # Heads - Persona Intelligence Platform
 )
 
 # This line ensures tables are created if they don't exist when the app starts.
@@ -68,6 +69,9 @@ app.include_router(brands.router_brand_info)
 app.include_router(reports.router)
 app.include_router(reports.how_tales_works_router)
 app.include_router(operations.router)
+
+# Heads - Persona Intelligence Platform
+app.include_router(personas.router)
 
 # Analytics and admin routers
 app.include_router(analytics.router)

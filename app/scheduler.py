@@ -23,7 +23,7 @@ scheduler = AsyncIOScheduler()
 
 
 async def execute_scheduled_task(schedule_id: int):
-    """Execute a scheduled collection + analysis"""
+    """Execute a scheduled collection + analysis using shared data pipeline"""
     db = SessionLocal()
 
     try:
@@ -46,67 +46,19 @@ async def execute_scheduled_task(schedule_id: int):
         db.commit()
         db.refresh(history)
 
-        # === Run Collection ===
-        logger.info(f"Starting data collection for schedule {schedule_id}")
+        # Use the shared data pipeline service
+        from app.services.data_pipeline import run_collection_analysis_report
 
-        # Create task status for collection
-        collection_task = TaskStatus(
+        result = run_collection_analysis_report(
             user_id=schedule.user_id,
             brand_id=schedule.brand_id,
-            task_type="collection",
-            status="running",
-            message="Starting automated collection..."
-        )
-        db.add(collection_task)
-        db.commit()
-        db.refresh(collection_task)
-
-        # Run collection script
-        script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "admin", "collect_responses.py")
-        cmd = [
-            "python3", script_path,
-            str(schedule.user_id),
-            "--brand-id", str(schedule.brand_id),
-            "--task-id", str(collection_task.id)
-        ]
-
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,  # No stdin needed in automated mode
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            triggered_by="scheduled"
         )
 
-        # Log the process start
-        logger.info(f"Started collection subprocess with PID {process.pid}")
-
-        # Give the process a moment to start
-        await asyncio.sleep(2)
-
-        # Check if process crashed immediately
-        if process.poll() is not None:
-            stdout, stderr = process.communicate()
-            logger.error(f"Collection process exited immediately with code {process.returncode}")
-            logger.error(f"STDOUT: {stdout}")
-            logger.error(f"STDERR: {stderr}")
+        if not result["success"]:
+            # Pipeline failed to start
             history.status = 'failed'
-            history.error_message = f'Collection script crashed: {stderr[:500]}'
-            history.completed_at = datetime.utcnow()
-            db.commit()
-            return
-
-        # Wait for collection to complete (with timeout)
-        collection_success = await wait_for_task_completion(
-            schedule.user_id,
-            'collection',
-            db,
-            timeout=3600  # 1 hour timeout
-        )
-
-        if not collection_success:
-            history.status = 'failed'
-            history.error_message = 'Collection failed or timed out'
+            history.error_message = result.get("error", "Failed to start pipeline")
             history.completed_at = datetime.utcnow()
             db.commit()
 
@@ -116,73 +68,36 @@ async def execute_scheduled_task(schedule_id: int):
 
             return
 
-        # Get collection results
-        final_collection_task = db.query(TaskStatus).filter_by(id=collection_task.id).first()
-        if final_collection_task:
-            history.collection_responses = final_collection_task.processed_items or 0
-            history.batch_id = final_collection_task.brand_id  # Assuming batch_id tracking
+        task_id = result["task_id"]
+        logger.info(f"Started data pipeline with task_id {task_id}")
 
-        logger.info(f"Collection completed for schedule {schedule_id}, collected {history.collection_responses} responses")
-
-        # === Run Analysis ===
-        logger.info(f"Starting data analysis for schedule {schedule_id}")
-
-        # Create task status for analysis
-        analysis_task = TaskStatus(
-            user_id=schedule.user_id,
-            brand_id=schedule.brand_id,
-            task_type="analysis_and_report",
-            status="running",
-            message="Starting automated analysis..."
-        )
-        db.add(analysis_task)
-        db.commit()
-        db.refresh(analysis_task)
-
-        # Run analysis script
-        analysis_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analyze_responses.py")
-        analysis_cmd = [
-            "python3", analysis_script_path,
-            str(schedule.user_id),
-            "--brand-id", str(schedule.brand_id),
-            "--task-id", str(analysis_task.id),
-            "--auto-generate-report"
-        ]
-
-        analysis_process = subprocess.Popen(
-            analysis_cmd,
-            stdin=subprocess.DEVNULL,  # No stdin needed with --auto-generate-report flag
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-
-        # Wait for analysis to complete (with timeout)
-        analysis_success = await wait_for_task_completion(
+        # Wait for the complete pipeline to finish (collection → analysis → report)
+        # The shared service handles all three steps internally
+        pipeline_success = await wait_for_task_completion(
             schedule.user_id,
-            'analysis_and_report',
+            'collection',  # Wait for collection task to complete
             db,
-            timeout=3600  # 1 hour timeout
+            timeout=7200  # 2 hour timeout for full pipeline
         )
 
-        if not analysis_success:
-            history.status = 'partial'
-            history.error_message = 'Analysis failed or timed out after successful collection'
-        else:
-            # Get analysis results
-            final_analysis_task = db.query(TaskStatus).filter_by(id=analysis_task.id).first()
-            if final_analysis_task:
-                history.analysis_responses = final_analysis_task.processed_items or 0
+        if pipeline_success:
+            # Get final task results
+            final_task = db.query(TaskStatus).filter_by(id=task_id).first()
+            if final_task:
+                history.collection_responses = final_task.processed_items or 0
+                history.analysis_responses = final_task.processed_items or 0
 
             history.status = 'success'
-            logger.info(f"Analysis completed for schedule {schedule_id}, analyzed {history.analysis_responses} responses")
+            logger.info(f"Pipeline completed successfully for schedule {schedule_id}")
+        else:
+            history.status = 'failed'
+            history.error_message = 'Pipeline failed or timed out'
+            logger.warning(f"Pipeline failed for schedule {schedule_id}")
 
         history.completed_at = datetime.utcnow()
 
         # Update schedule
         schedule.last_run_at = datetime.utcnow()
-        if history.batch_id:
-            schedule.last_batch_id = history.batch_id
 
         # Calculate next run time
         from .routers.scheduled_tasks import calculate_next_run
@@ -193,9 +108,8 @@ async def execute_scheduled_task(schedule_id: int):
 
         db.commit()
 
-        # Send notification if enabled
-        if schedule.send_email_notification:
-            await send_completion_email(schedule, history, db)
+        # Note: Email is now sent by the shared pipeline service automatically
+        # No need to send it here again
 
         logger.info(f"Completed scheduled task {schedule_id} with status {history.status}")
         logger.info(f"Next run scheduled for: {schedule.next_run_at}")
@@ -207,10 +121,6 @@ async def execute_scheduled_task(schedule_id: int):
             history.error_message = str(e)
             history.completed_at = datetime.utcnow()
             db.commit()
-
-            # Send failure notification
-            if schedule and schedule.send_email_notification:
-                await send_completion_email(schedule, history, db)
 
     finally:
         db.close()

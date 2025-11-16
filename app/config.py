@@ -38,3 +38,25 @@ DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 """Maximum overflow connections beyond pool size."""
+
+# LLM API Settings (for Heads persona generation)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+"""OpenAI API key for LLM-powered features."""
+
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+"""Anthropic API key for LLM-powered features."""
+
+DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+"""Default LLM provider: 'openai' or 'anthropic'."""
+
+
+# Create a settings object for compatibility with Heads services
+class _Settings:
+    """Minimal settings object for Heads integration"""
+    def __init__(self):
+        self.OPENAI_API_KEY = OPENAI_API_KEY
+        self.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY
+        self.DEFAULT_LLM_PROVIDER = DEFAULT_LLM_PROVIDER
+
+
+settings = _Settings()

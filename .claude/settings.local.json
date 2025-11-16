@@ -29,7 +29,15 @@
       "Bash(git init:*)",
       "Bash(gh repo create:*)",
       "Bash(PYTHONPATH=/Users/rachelkremen/Documents/Code/tales_project python:*)",
-      "Bash(npx playwright install)"
+      "Bash(npx playwright install)",
+      "Bash(claude --version:*)",
+      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3\" PYTHONPATH=/Users/rachelkremen/Documents/Code/tales_project python:*)",
+      "Bash(tee:*)",
+      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3\" PYTHONPATH=/Users/rachelkremen/Documents/Code/tales_project python3:*)",
+      "Bash(sqlite3:*)",
+      "Bash(alembic revision:*)",
+      "Bash(echo:*)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []

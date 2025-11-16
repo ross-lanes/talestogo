@@ -4,7 +4,8 @@ import axios from 'axios';
 // Auto-detect based on hostname and protocol
 const API_BASE_URL = (() => {
   // If running on production domain, always use HTTPS
-  if (window.location.hostname === 'tales.robotrachel.com') {
+  if (window.location.hostname === 'tales.robotrachel.com' ||
+      window.location.hostname === 'solsticehc.robotrachel.com') {
     return 'https://api.tales.robotrachel.com';
   }
   // For localhost, use HTTP
@@ -342,6 +343,35 @@ export const adminAPI = {
 
   deleteTenant: async (tenantId: number) => {
     const response = await api.delete(`/tenants/${tenantId}`);
+    return response.data;
+  },
+};
+
+// Heads - Persona Intelligence Platform API functions
+export const headsAPI = {
+  // Get all generations for the current user/brand
+  getGenerations: async (brandId?: number) => {
+    const params = brandId ? { brand_id: brandId } : {};
+    const response = await api.get('/personas/generations', { params });
+    return response.data;
+  },
+
+  // Get a specific generation with personas
+  getGeneration: async (generationId: number) => {
+    const response = await api.get(`/personas/generations/${generationId}`);
+    return response.data;
+  },
+
+  // Create a new persona generation
+  generatePersonas: async (data: any, brandId?: number) => {
+    const params = brandId ? { brand_id: brandId } : {};
+    const response = await api.post('/personas/generate', data, { params });
+    return response.data;
+  },
+
+  // Get personas for a specific generation
+  getPersonas: async (generationId: number) => {
+    const response = await api.get(`/personas/generations/${generationId}/personas`);
     return response.data;
   },
 };

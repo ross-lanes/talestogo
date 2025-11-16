@@ -33,8 +33,10 @@ import {
   Folder as FolderIcon,
   Delete as DeleteIcon,
   Email as EmailIcon,
+  Login as LoginIcon,
+  FiberManualRecord as ActiveIcon,
 } from '@mui/icons-material';
-import { adminAPI } from '../../services/api';
+import { adminAPI, api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface User {
@@ -57,11 +59,27 @@ interface Tenant {
   secondary_color: string;
 }
 
+interface ActiveUser {
+  id: number;
+  email: string;
+  full_name: string | null;
+  last_activity: string | null;
+  activity_type: string | null;
+}
+
+interface ActiveUsersData {
+  count: number;
+  active_users: ActiveUser[];
+  minutes_threshold: number;
+  current_admin_id: number;
+}
+
 const UserManagement: React.FC = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<User[]>([]);
+  const [activeUsers, setActiveUsers] = useState<ActiveUsersData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -97,7 +115,17 @@ const UserManagement: React.FC = () => {
     if (isAdmin) {
       loadUsers();
       loadTenants();
+      loadActiveUsers();
     }
+
+    // Auto-refresh active users every 30 seconds
+    const interval = setInterval(() => {
+      if (isAdmin) {
+        loadActiveUsers();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [isAdmin]);
 
   const loadTenants = async () => {
@@ -122,6 +150,32 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadActiveUsers = async () => {
+    try {
+      const response = await api.get('/admin/active-users?minutes=15');
+      setActiveUsers(response.data);
+    } catch (err: any) {
+      console.error('Failed to load active users:', err);
+    }
+  };
+
+  const isUserActive = (userId: number) => {
+    return activeUsers?.active_users.some(u => u.id === userId) || false;
+  };
+
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleString();
   };
 
   const handleInviteUser = async () => {
@@ -280,6 +334,49 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleLoginAsUser = async () => {
+    if (!menuUser) return;
+
+    if (!window.confirm(`Log in as ${menuUser.email}? This will open a new tab where you'll be logged in as this user.`)) {
+      handleCloseMenu();
+      return;
+    }
+
+    try {
+      const response = await api.post(`/admin/login-as-user/${menuUser.id}`);
+      const { access_token } = response.data;
+
+      // Fetch user data with the new token
+      const userResponse = await api.get('/auth/me', {
+        headers: { Authorization: `Bearer ${access_token}` }
+      });
+      const userData = userResponse.data;
+
+      // Store the impersonation data in sessionStorage (not localStorage) on the parent tab
+      // This way it won't interfere with your admin session
+      const impersonationData = {
+        token: access_token,
+        user: userData,
+        timestamp: Date.now()
+      };
+
+      // Use sessionStorage with a unique key
+      sessionStorage.setItem('tales_impersonation', JSON.stringify(impersonationData));
+
+      // Open new tab and pass the impersonation key
+      const newTab = window.open(`${window.location.origin}/?impersonate=${Date.now()}`, '_blank');
+
+      if (!newTab) {
+        setError('Please allow popups to use the "Login As" feature');
+      }
+
+      handleCloseMenu();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to generate login token');
+      handleCloseMenu();
+    }
+  };
+
 
   const columns: GridColDef[] = [
     {
@@ -287,6 +384,17 @@ const UserManagement: React.FC = () => {
       headerName: 'Email',
       flex: 1,
       minWidth: 200,
+      renderCell: (params) => {
+        const user = params.row as User;
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {isUserActive(user.id) && (
+              <ActiveIcon sx={{ fontSize: 12, color: 'success.main' }} />
+            )}
+            {user.email}
+          </Box>
+        );
+      },
     },
     {
       field: 'full_name',
@@ -394,6 +502,35 @@ const UserManagement: React.FC = () => {
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
           {success}
+        </Alert>
+      )}
+
+      {/* Active Users Alert */}
+      {activeUsers && activeUsers.count > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }} icon={<ActiveIcon />}>
+          <Typography variant="body1" fontWeight="bold">
+            {activeUsers.count} user{activeUsers.count !== 1 ? 's' : ''} currently active (last {activeUsers.minutes_threshold} minutes)
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            Consider waiting before deploying if users are actively working.
+          </Typography>
+          <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+            {activeUsers.active_users.map((user) => (
+              <li key={user.id}>
+                <Typography variant="caption">
+                  {user.email} - {user.activity_type} ({formatDateTime(user.last_activity)})
+                </Typography>
+              </li>
+            ))}
+          </Box>
+        </Alert>
+      )}
+
+      {activeUsers && activeUsers.count === 0 && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          <Typography variant="body1" fontWeight="bold">
+            No other users currently active - Safe to deploy
+          </Typography>
         </Alert>
       )}
 
@@ -523,6 +660,12 @@ const UserManagement: React.FC = () => {
         open={Boolean(menuAnchorEl)}
         onClose={handleCloseMenu}
       >
+        <MenuItem onClick={handleLoginAsUser}>
+          <ListItemIcon>
+            <LoginIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Login As User</ListItemText>
+        </MenuItem>
         <MenuItem onClick={handleViewBrands}>
           <ListItemIcon>
             <FolderIcon fontSize="small" />
