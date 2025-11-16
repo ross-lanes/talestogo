@@ -429,7 +429,15 @@ def get_analysis_histories(db: Session, user_id: int, skip: int = 0, limit: int 
 # === BrandInfo CRUD Functions (Multi-Brand Support) ===
 
 def user_has_brand_access(db: Session, brand_id: int, user_id: int) -> bool:
-    """Checks if a user has access to a brand (owns it or has it shared with them)."""
+    """
+    Checks if a user has access to a brand (owns it, has it shared with them, or is an admin).
+    Admins have universal access to all brands.
+    """
+    # Check if user is admin (admins have access to all brands)
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user and user.is_admin:
+        return True
+
     # Check if user owns the brand
     owns_brand = db.query(models.BrandInfo).filter(
         models.BrandInfo.id == brand_id,

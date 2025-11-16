@@ -10,6 +10,7 @@ import datetime
 from ..database import get_db
 from ..models import User, CollectionBatch, Response
 from ..auth import get_current_user
+from ..utils.brand_access import get_data_owner_user_id
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -55,10 +56,14 @@ async def list_batches(
     brand_id: Optional[int] = None
 ):
     """
-    List all collection batches for the current user.
+    List all collection batches for the current user or brand owner.
+    Supports shared brands - returns brand owner's batches when viewing a shared brand.
     Optionally filter by brand_id.
     """
-    query = db.query(CollectionBatch).filter_by(user_id=current_user.id)
+    # Get the data owner's user_id (handles shared brands)
+    data_owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    query = db.query(CollectionBatch).filter_by(user_id=data_owner_user_id)
 
     if brand_id:
         query = query.filter_by(brand_id=brand_id)
@@ -76,14 +81,23 @@ async def get_batch(
 ):
     """
     Get details of a specific batch.
+    Supports shared brands - allows access to brand owner's batches.
     """
-    batch = db.query(CollectionBatch).filter_by(
-        id=batch_id,
-        user_id=current_user.id
-    ).first()
+    batch = db.query(CollectionBatch).filter_by(id=batch_id).first()
 
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Validate user has access to this batch's brand
+    if batch.brand_id:
+        data_owner_user_id = get_data_owner_user_id(db, batch.brand_id, current_user.id)
+        # Verify the batch belongs to the data owner
+        if batch.user_id != data_owner_user_id:
+            raise HTTPException(status_code=404, detail="Batch not found")
+    else:
+        # No brand_id - must be current user's batch
+        if batch.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Batch not found")
 
     return batch
 
@@ -250,14 +264,22 @@ async def get_batch_stats(
 ):
     """
     Get detailed statistics for a specific batch.
+    Supports shared brands - allows access to brand owner's batches.
     """
-    batch = db.query(CollectionBatch).filter_by(
-        id=batch_id,
-        user_id=current_user.id
-    ).first()
+    batch = db.query(CollectionBatch).filter_by(id=batch_id).first()
 
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Validate user has access to this batch's brand
+    if batch.brand_id:
+        data_owner_user_id = get_data_owner_user_id(db, batch.brand_id, current_user.id)
+        if batch.user_id != data_owner_user_id:
+            raise HTTPException(status_code=404, detail="Batch not found")
+    else:
+        # No brand_id - must be current user's batch
+        if batch.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Batch not found")
 
     # Get response breakdown by platform
     platform_stats = db.query(
