@@ -82,6 +82,15 @@ export const base64ToBlob = (base64: string): Blob => {
  * @param api - API instance for making requests
  * @returns Promise with upload result
  */
+/**
+ * Capture and upload all analytics charts to the backend for report/slideshow generation.
+ * This function captures screenshots of chart elements and uploads them with a timestamp
+ * that matches the filename format users see when downloading charts.
+ *
+ * @param chartContainerIds - Map of chart names to DOM element IDs (e.g., { 'mention_rate': 'mention-rate-chart' })
+ * @param api - Axios API instance
+ * @returns Promise with success status and message
+ */
 export const captureAndUploadCharts = async (
   chartContainerIds: Record<string, string>,
   api: any
@@ -90,7 +99,16 @@ export const captureAndUploadCharts = async (
     console.log('📸 Capturing charts for report generation...');
 
     const chartImages: Record<string, string> = {};
-    const timestamp = new Date().toISOString();
+
+    // Create timestamp in format YYYYMMDD_HHMMSS to match website download format
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${year}${month}${day}_${hours}${minutes}${seconds}`;
 
     // Capture each chart
     for (const [chartName, elementId] of Object.entries(chartContainerIds)) {

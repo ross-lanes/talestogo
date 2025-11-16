@@ -2,7 +2,7 @@
 Report CRUD and Export API Endpoints
 Provides endpoints for creating, reading, updating, deleting reports and exporting them in various formats.
 """
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -119,66 +119,76 @@ def delete_report(
 
 @router.post("/upload-charts")
 async def upload_chart_images(
-    dashboard: Optional[str] = Form(None),
-    sentiment: Optional[str] = Form(None),
-    positioning: Optional[str] = Form(None),
-    share_of_voice: Optional[str] = Form(None),
-    timestamp: str = Form(...),
+    request: Request,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
     """
-    Upload chart images (as base64 strings) and save them to disk with a predictable naming pattern.
-    These will be used by report generation if available.
+    Upload chart images (as base64 strings) and save them to disk.
+    Accepts any number of chart images as form data.
+
+    Format: {brand_name}_{chart_type}_{timestamp}.png
+    This matches the format users see when downloading images from the website.
     """
     if not brand_id:
         raise HTTPException(status_code=400, detail="No active brand found")
+
+    # Get brand name
+    brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+
+    # Format brand name for filename (spaces to underscores, remove special chars)
+    brand_name_formatted = brand.brand_name.replace(' ', '_').replace('-', '_')
+    brand_name_formatted = ''.join(c for c in brand_name_formatted if c.isalnum() or c == '_')
 
     # Create report_charts directory if it doesn't exist
     charts_dir = Path("frontend/public/report_charts")
     charts_dir.mkdir(parents=True, exist_ok=True)
 
+    # Parse form data
+    form_data = await request.form()
+
     chart_paths = {}
+    timestamp = form_data.get('timestamp', '')
 
-    # Process each chart image with predictable naming
-    charts_data = {
-        'dashboard': dashboard,
-        'sentiment': sentiment,
-        'positioning': positioning,
-        'share_of_voice': share_of_voice
-    }
+    # Process each chart image
+    for field_name, value in form_data.items():
+        if field_name == 'timestamp':
+            continue
 
-    for chart_name, base64_data in charts_data.items():
-        if base64_data:
-            try:
-                # Remove the data:image/png;base64, prefix if present
-                if ',' in base64_data:
-                    base64_data = base64_data.split(',')[1]
+        try:
+            base64_data = str(value)
 
-                # Decode base64 to binary
-                image_data = base64.b64decode(base64_data)
+            # Remove the data:image/png;base64, prefix if present
+            if ',' in base64_data:
+                base64_data = base64_data.split(',')[1]
 
-                # Create filename with predictable pattern that report generation can find
-                # Format: {user_id}_{brand_id}_latest_{chart_name}.png
-                filename = f"{current_user.id}_{brand_id}_latest_{chart_name}.png"
-                filepath = charts_dir / filename
+            # Decode base64 to binary
+            image_data = base64.b64decode(base64_data)
 
-                # Write file
-                with open(filepath, 'wb') as f:
-                    f.write(image_data)
+            # Create filename matching website download format
+            # Format: {BrandName}_{chart_type}_{timestamp}.png
+            filename = f"{brand_name_formatted}_{field_name}_{timestamp}.png"
+            filepath = charts_dir / filename
 
-                # Store relative path for markdown
-                chart_paths[chart_name] = f"report_charts/{filename}"
+            # Write file
+            with open(filepath, 'wb') as f:
+                f.write(image_data)
 
-            except Exception as e:
-                print(f"Error saving {chart_name} chart: {e}")
-                continue
+            # Store relative path
+            chart_paths[field_name] = f"report_charts/{filename}"
+
+        except Exception as e:
+            print(f"Error saving {field_name} chart: {e}")
+            continue
 
     return {
         "success": True,
         "chart_paths": chart_paths,
-        "message": f"Uploaded {len(chart_paths)} chart(s) for report generation"
+        "message": f"Uploaded {len(chart_paths)} chart(s) for report generation",
+        "brand_name": brand.brand_name
     }
 
 

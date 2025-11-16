@@ -66,12 +66,12 @@ def generate_slideshow(
         _create_text_slide(prs, "Executive Summary", exec_summary, BRAND_BLUE)
 
     # === Slide 3: Dashboard Image (Key Metrics) ===
-    dashboard_path = _find_dashboard_image(user_id, brand_id)
+    dashboard_path = _find_dashboard_image(user_id, brand_id, brand_name)
     if dashboard_path and os.path.exists(dashboard_path):
         _create_image_slide(prs, "Key Metrics Dashboard", dashboard_path, BRAND_BLUE)
 
     # === Analytics Charts Slides ===
-    analytics_charts = _find_all_analytics_charts(markdown_content, user_id, brand_id)
+    analytics_charts = _find_all_analytics_charts(brand_name)
     for chart_title, chart_path in analytics_charts:
         if os.path.exists(chart_path):
             _create_image_slide(prs, chart_title, chart_path, BRAND_BLUE)
@@ -124,7 +124,12 @@ def _create_title_slide(prs: Presentation, title: str, brand_name: str, color: R
 
 
 def _create_image_slide(prs: Presentation, title: str, image_path: str, color: RGBColor):
-    """Create a slide with a title and full-width image."""
+    """
+    Create a slide with a title and properly sized/centered image.
+    Maintains aspect ratio and ensures image fits within available space.
+    """
+    from PIL import Image
+
     blank_layout = prs.slide_layouts[6]
     slide = prs.slides.add_slide(blank_layout)
 
@@ -137,12 +142,46 @@ def _create_image_slide(prs: Presentation, title: str, image_path: str, color: R
     title_para.font.bold = True
     title_para.font.color.rgb = color
 
-    # Add image (centered, large)
+    # Add image with proper sizing
     try:
-        left = Inches(1)
-        top = Inches(1.2)
-        width = Inches(8)
-        slide.shapes.add_picture(image_path, left, top, width=width)
+        # Get image dimensions
+        img = Image.open(image_path)
+        img_width, img_height = img.size
+        img_aspect = img_width / img_height
+
+        # Define available space on slide
+        # Slide is 10" wide x 7.5" tall
+        # Title takes up 0.3" + 0.7" = 1" from top
+        # Leave 0.5" margins on sides and 0.5" at bottom
+        available_width = Inches(9)   # 10 - 0.5 (left) - 0.5 (right)
+        available_height = Inches(6)  # 7.5 - 1 (title) - 0.5 (bottom margin)
+        available_top = Inches(1.2)
+        available_left = Inches(0.5)
+
+        # Calculate dimensions that fit within available space while maintaining aspect ratio
+        available_aspect = available_width / available_height
+
+        if img_aspect > available_aspect:
+            # Image is wider than available space - constrain by width
+            final_width = available_width
+            final_height = available_width / img_aspect
+        else:
+            # Image is taller than available space - constrain by height
+            final_height = available_height
+            final_width = available_height * img_aspect
+
+        # Center the image horizontally
+        left = available_left + (available_width - final_width) / 2
+
+        # Add the image
+        slide.shapes.add_picture(
+            image_path,
+            left,
+            available_top,
+            width=final_width,
+            height=final_height
+        )
+
     except Exception as e:
         print(f"Error adding image {image_path}: {e}")
 
@@ -328,84 +367,107 @@ def _extract_recommendations(markdown_content: str) -> List[Tuple[str, List[str]
     return recommendations
 
 
-def _find_dashboard_image(user_id: int, brand_id: Optional[int]) -> Optional[str]:
+def _find_dashboard_image(user_id: int, brand_id: Optional[int], brand_name: str) -> Optional[str]:
     """
-    Find the Dashboard/Key Metrics image.
-    The Dashboard page exports an image with format: KeyMetrics_{brand}_{date}.png
-    We need to look in the charts directory for the most recent dashboard export.
+    Find the Dashboard/Key Metrics image from the report_charts directory.
+    The Dashboard download feature saves files as: KeyMetrics_{BrandName}_{date}.png
+
+    NOTE: Dashboard images are currently saved locally by users, not uploaded to server.
+    This function will return None until we add Dashboard upload functionality.
     """
-    from app.services.chart_generator import ensure_charts_directory
-
-    charts_dir = ensure_charts_directory()
-
-    # Look for dashboard/key metrics charts
-    # Pattern: dashboard_*.png or KeyMetrics_*.png
     import glob
-    patterns = [
-        os.path.join(charts_dir, f"dashboard_{user_id}_{brand_id}*.png"),
-        os.path.join(charts_dir, f"KeyMetrics_*_{user_id}_{brand_id}.png"),
-    ]
 
-    for pattern in patterns:
-        files = glob.glob(pattern)
-        if files:
-            # Return the most recent file
-            return max(files, key=os.path.getmtime)
+    charts_dir = os.path.join('frontend', 'public', 'report_charts')
+    if not os.path.exists(charts_dir):
+        return None
+
+    # Format brand name for filename matching (spaces to underscores, no special chars)
+    brand_name_formatted = brand_name.replace(' ', '_').replace('-', '_')
+
+    # Look for KeyMetrics files for this brand
+    pattern = os.path.join(charts_dir, f"KeyMetrics_{brand_name_formatted}_*.png")
+    files = glob.glob(pattern)
+
+    if files:
+        # Return the most recent file
+        return max(files, key=os.path.getmtime)
 
     return None
 
 
-def _find_all_analytics_charts(markdown_content: str, user_id: int, brand_id: Optional[int]) -> List[Tuple[str, str]]:
+def _find_all_analytics_charts(brand_name: str) -> List[Tuple[str, str]]:
     """
-    Find all analytics charts from the markdown content and filesystem.
+    Find all analytics charts from the report_charts directory for a specific brand.
+    These are the actual website screenshots saved when users click "Download as Image".
     Returns list of (title, path) tuples in the correct order.
+
+    Args:
+        brand_name: Brand name to match in filenames (e.g., "Princeton Engineering")
+
+    Returns:
+        List of (chart_title, chart_path) tuples
     """
+    import glob
+    import re
+
     charts = []
+    found_charts = {}
 
     # Chart titles mapping (in display order)
     chart_order = [
         ('mention_rate', 'Brand Mention Rate'),
         ('brand_mentions_trend', 'Brand Mentions Trend'),
-        ('llm_brand_mentions', 'Brand Mentions by LLM Platform'),
+        ('platform_comparison', 'Platform Comparison'),
         ('positioning', 'Brand Positioning'),
         ('positioning_trend', 'Positioning Trend'),
-        ('llm_positioning', 'Positioning by LLM Platform'),
         ('sentiment', 'Sentiment Distribution'),
         ('sentiment_trend', 'Sentiment Trend'),
-        ('llm_sentiment', 'Sentiment by LLM Platform'),
         ('share_of_voice', 'Share of Voice'),
         ('share_of_voice_trend', 'Share of Voice Trend'),
-        ('llm_share_of_voice', 'Share of Voice by LLM Platform'),
         ('descriptor_performance', 'Top Descriptors'),
-        ('llm_descriptors', 'Top Descriptors by LLM Platform'),
         ('competitor_threats', 'Competitive Threats'),
-        ('llm_competitors', 'Competitor Mentions by LLM Platform'),
     ]
 
-    # Extract chart images from markdown
-    images = re.findall(r'!\[(.*?)\]\((.*?)\)', markdown_content)
-    found_charts = {}
+    # Search for all chart files in the report_charts directory
+    charts_dir = os.path.join('frontend', 'public', 'report_charts')
+    if not os.path.exists(charts_dir):
+        return charts
 
-    for alt_text, image_path in images:
-        # Convert web path to filesystem path
-        if image_path.startswith('report_charts/'):
-            full_path = os.path.join('frontend', 'public', image_path)
-        elif os.path.exists(image_path):
-            full_path = image_path
-        else:
-            continue
+    # Format brand name for filename matching (spaces to underscores)
+    brand_name_formatted = brand_name.replace(' ', '_').replace('-', '_')
 
-        if not os.path.exists(full_path):
-            continue
+    # Get all PNG files for this brand
+    all_brand_files = glob.glob(os.path.join(charts_dir, f"{brand_name_formatted}_*.png"))
 
-        # Match to chart order
+    # Group files by chart type and find the most recent for each
+    chart_files_by_type = {}
+    for chart_path in all_brand_files:
+        filename = os.path.basename(chart_path)
+
+        # Match to chart types
         for key, title in chart_order:
-            if key in image_path.lower():
-                found_charts[key] = (title, full_path)
+            if key in filename.lower():
+                # Extract timestamp from filename (last part before .png)
+                # Format: BrandName_charttype_YYYYMMDD_HHMMSS.png
+                timestamp_match = re.search(r'_(\d{8}_\d{6})\.png$', filename)
+                if timestamp_match:
+                    timestamp = timestamp_match.group(1)
+
+                    # Keep track of all files for this chart type
+                    if key not in chart_files_by_type:
+                        chart_files_by_type[key] = []
+                    chart_files_by_type[key].append((timestamp, chart_path, title))
                 break
 
+    # For each chart type, select the most recent file
+    for key, files in chart_files_by_type.items():
+        # Sort by timestamp (most recent first)
+        files.sort(key=lambda x: x[0], reverse=True)
+        most_recent = files[0]
+        found_charts[key] = (most_recent[2], most_recent[1])  # (title, path)
+
     # Return charts in the specified order
-    for key, title in chart_order:
+    for key, _ in chart_order:
         if key in found_charts:
             charts.append(found_charts[key])
 
