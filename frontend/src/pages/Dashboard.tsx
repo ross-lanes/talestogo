@@ -514,7 +514,7 @@ export default function Dashboard() {
                   ))}
                 </Box>
                 {/* Pie chart on the right */}
-                <ChartContainer width="100%" height={240}>
+                <ChartContainer width="100%" height={240} showLogo={false}>
                   <PieChart>
                     <Pie
                       data={[
