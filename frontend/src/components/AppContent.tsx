@@ -34,6 +34,7 @@ import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
 import { TenantThemeProvider } from './TenantThemeProvider';
 import { TaskStatusBanner } from './TaskStatusBanner';
+import { ImpersonationBanner } from './ImpersonationBanner';
 import ProtectedRoute from './ProtectedRoute';
 
 // Inner component that has access to TenantContext
@@ -43,6 +44,7 @@ const AppRoutes: React.FC = () => {
   return (
     <ProductProvider tenantName={tenant?.tenant_name}>
       <TenantThemeProvider>
+        <ImpersonationBanner />
         <TaskStatusBanner />
         <Routes>
           {/* Public Routes */}

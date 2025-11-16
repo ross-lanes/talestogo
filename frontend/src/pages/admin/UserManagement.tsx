@@ -35,9 +35,11 @@ import {
   Email as EmailIcon,
   Login as LoginIcon,
   FiberManualRecord as ActiveIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { adminAPI, api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useImpersonation } from '../../contexts/ImpersonationContext';
 
 interface User {
   id: number;
@@ -76,6 +78,7 @@ interface ActiveUsersData {
 
 const UserManagement: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { setImpersonatedUser } = useImpersonation();
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<User[]>([]);
@@ -377,6 +380,22 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleViewAsUser = () => {
+    if (!menuUser) return;
+
+    // Set the impersonated user in context
+    setImpersonatedUser({
+      id: menuUser.id,
+      email: menuUser.email,
+      full_name: menuUser.full_name,
+    });
+
+    handleCloseMenu();
+
+    // Navigate to dashboard
+    navigate('/');
+  };
+
 
   const columns: GridColDef[] = [
     {
@@ -660,6 +679,12 @@ const UserManagement: React.FC = () => {
         open={Boolean(menuAnchorEl)}
         onClose={handleCloseMenu}
       >
+        <MenuItem onClick={handleViewAsUser}>
+          <ListItemIcon>
+            <VisibilityIcon fontSize="small" color="primary" />
+          </ListItemIcon>
+          <ListItemText>View As User</ListItemText>
+        </MenuItem>
         <MenuItem onClick={handleLoginAsUser}>
           <ListItemIcon>
             <LoginIcon fontSize="small" />

@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './contexts/AuthContext';
 import { BrandProvider } from './contexts/BrandContext';
 import { TaskStatusProvider } from './contexts/TaskStatusContext';
+import { ImpersonationProvider } from './contexts/ImpersonationContext';
 import { AppContent } from './components/AppContent';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -62,11 +63,13 @@ function App() {
         <Router>
           <ImpersonationHandler>
             <AuthProvider>
-              <BrandProvider>
-                <TaskStatusProvider>
-                  <AppContent />
-                </TaskStatusProvider>
-              </BrandProvider>
+              <ImpersonationProvider>
+                <BrandProvider>
+                  <TaskStatusProvider>
+                    <AppContent />
+                  </TaskStatusProvider>
+                </BrandProvider>
+              </ImpersonationProvider>
             </AuthProvider>
           </ImpersonationHandler>
         </Router>

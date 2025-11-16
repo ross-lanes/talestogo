@@ -24,13 +24,31 @@ export const api = axios.create({
   withCredentials: true,  // Required for CORS with credentials
 });
 
-// Request interceptor to add JWT token to all requests
+// Request interceptor to add JWT token and impersonation parameter to all requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add impersonation parameter if active
+    const impersonationData = sessionStorage.getItem('tales_impersonation');
+    if (impersonationData) {
+      try {
+        const { id } = JSON.parse(impersonationData);
+        if (id) {
+          // Add impersonate_user_id as query parameter
+          config.params = {
+            ...config.params,
+            impersonate_user_id: id
+          };
+        }
+      } catch (error) {
+        console.error('Failed to parse impersonation data:', error);
+      }
+    }
+
     return config;
   },
   (error) => {
