@@ -46,8 +46,14 @@ def read_reports(
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a list of reports for the current user's active brand."""
-    return crud.get_reports(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
+    """Retrieve a list of reports for the current user's active brand (including shared brands)."""
+    # Import brand_access utility
+    from app.utils.brand_access import get_data_owner_user_id
+
+    # Get the data owner user_id (for shared brands, this is the brand owner's ID)
+    data_owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    return crud.get_reports(db, user_id=data_owner_user_id, brand_id=brand_id, skip=skip, limit=limit)
 
 
 @router.get("/{report_id}", response_model=schemas.Report)
