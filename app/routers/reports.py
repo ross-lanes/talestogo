@@ -56,17 +56,33 @@ def read_reports(
     return crud.get_reports(db, user_id=data_owner_user_id, brand_id=brand_id, skip=skip, limit=limit)
 
 
+def get_report_with_brand_access(db: Session, report_id: int, current_user_id: int, brand_id: Optional[int]) -> models.Report:
+    """
+    Helper function to get a report with brand access validation.
+    Works for both owned and shared brands.
+    """
+    from app.utils.brand_access import get_data_owner_user_id
+
+    # Get the data owner user_id (for shared brands, this is the brand owner's ID)
+    data_owner_user_id = get_data_owner_user_id(db, brand_id, current_user_id)
+
+    # Get the report using the data owner's user_id
+    db_report = crud.get_report(db, report_id=report_id, user_id=data_owner_user_id)
+    if db_report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return db_report
+
+
 @router.get("/{report_id}", response_model=schemas.Report)
 def read_report(
     report_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Retrieve a single report by its ID for the current user."""
-    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
-    if db_report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return db_report
+    """Retrieve a single report by its ID (supports shared brands)."""
+    return get_report_with_brand_access(db, report_id, current_user.id, brand_id)
 
 
 @router.put("/{report_id}", response_model=schemas.Report)
@@ -173,13 +189,11 @@ def export_report_to_word(
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Export a report to Word document format with embedded charts."""
+    """Export a report to Word document format with embedded charts (supports shared brands)."""
     from app.services.report_export import export_to_word_with_charts
 
-    # Get the report
-    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
-    if db_report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
+    # Get the report with brand access validation
+    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
 
     # Generate Word document with charts
     word_file = export_to_word_with_charts(
@@ -205,15 +219,14 @@ def export_report_to_word(
 def export_report_to_pdf(
     report_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Export a report to PDF format."""
+    """Export a report to PDF format (supports shared brands)."""
     from app.services.report_export import export_to_pdf
 
-    # Get the report
-    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
-    if db_report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
+    # Get the report with brand access validation
+    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
 
     # Generate PDF
     pdf_file = export_to_pdf(db_report.report_content, db_report.title)
@@ -236,12 +249,11 @@ def export_report_to_html(
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Export a report to interactive HTML with embedded Chart.js visualizations."""
+    """Export a report to interactive HTML with embedded Chart.js visualizations (supports shared brands)."""
     from app.services.report_html import generate_html_report_with_charts
 
-    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
-    if db_report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
+    # Get the report with brand access validation
+    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
 
     # Generate HTML with charts
     html_content = generate_html_report_with_charts(
