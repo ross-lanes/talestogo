@@ -124,7 +124,7 @@ export default function ReportsPage() {
 
   const handleDownloadSlideshow = async (report: Report) => {
     try {
-      const response = await api.get(`/reports/${report.id}/export/slideshow`, {
+      const response = await api.get(`/reports/${report.id}/export/pptx`, {
         responseType: 'blob',
       });
       const url = URL.createObjectURL(response.data);
@@ -187,12 +187,6 @@ export default function ReportsPage() {
           icon={<WordIcon />}
           label="Word"
           onClick={() => handleDownloadWord(params.row)}
-        />,
-        <GridActionsCellItem
-          key="html"
-          icon={<DownloadIcon />}
-          label="HTML"
-          onClick={() => handleDownloadHTML(params.row)}
         />,
         <GridActionsCellItem
           key="delete"
@@ -270,14 +264,6 @@ export default function ReportsPage() {
                     size="small"
                   >
                     Word
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => handleDownloadHTML(latestReport)}
-                    size="small"
-                  >
-                    HTML
                   </Button>
                   <Button
                     variant="contained"

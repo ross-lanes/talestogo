@@ -282,12 +282,11 @@ def export_report_to_pptx(
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Export a report to PowerPoint slideshow with embedded PNG charts."""
+    """Export a report to PowerPoint slideshow with embedded PNG charts (supports shared brands)."""
     from app.services.report_slideshow import generate_slideshow
 
-    db_report = crud.get_report(db, report_id=report_id, user_id=current_user.id)
-    if db_report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
+    # Get the report with brand access validation
+    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
 
     # Generate PowerPoint slideshow
     pptx_file = generate_slideshow(
