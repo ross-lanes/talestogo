@@ -260,7 +260,7 @@ export default function Layout({ children }: LayoutProps) {
         }}
       >
         <img
-          src="/logos/robotrachel-white-logo.png"
+          src="/logos/robotrachel2-white-logo.png"
           alt="RobotRachel"
           style={{
             width: '120px',

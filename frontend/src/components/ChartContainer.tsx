@@ -25,18 +25,18 @@ interface ChartContainerProps {
  * @param children - Recharts components (BarChart, LineChart, PieChart, etc.)
  * @param width - Chart width (default: "100%")
  * @param height - Chart height (default: 400)
- * @param logoOpacity - Logo opacity 0-1 (default: 0.4)
+ * @param logoOpacity - Logo opacity 0-1 (default: 1.0)
  * @param logoPosition - Logo corner placement (default: "bottom-right")
- * @param logoSize - Logo width in pixels (default: 50)
+ * @param logoSize - Logo width in pixels (default: 75)
  * @param showLogo - Whether to display logo (default: true)
  */
 export const ChartContainer: React.FC<ChartContainerProps> = ({
   children,
   width = '100%',
   height = 400,
-  logoOpacity = 0.4,
+  logoOpacity = 1.0,
   logoPosition = 'bottom-right',
-  logoSize = 50,
+  logoSize = 75,
   showLogo = true,
 }) => {
   // Calculate logo positioning based on logoPosition prop
