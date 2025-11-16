@@ -21,7 +21,6 @@ import {
   Download as DownloadIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
-  Slideshow as SlideshowIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -119,25 +118,6 @@ export default function ReportsPage() {
     } catch (error: any) {
       console.error('Error downloading HTML:', error);
       alert(`Failed to download HTML: ${error.response?.data?.detail || error.message}`);
-    }
-  };
-
-  const handleDownloadSlideshow = async (report: Report) => {
-    try {
-      const response = await api.get(`/reports/${report.id}/export/pptx`, {
-        responseType: 'blob',
-      });
-      const url = URL.createObjectURL(response.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.pptx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Error downloading slideshow:', error);
-      alert(`Failed to download slideshow: ${error.response?.data?.detail || error.message}`);
     }
   };
 
@@ -258,20 +238,12 @@ export default function ReportsPage() {
                 <Divider />
                 <CardActions sx={{ justifyContent: 'flex-end', p: 2, gap: 1 }}>
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     startIcon={<WordIcon />}
                     onClick={() => handleDownloadWord(latestReport)}
                     size="small"
                   >
                     Word
-                  </Button>
-                  <Button
-                    variant="contained"
-                    startIcon={<SlideshowIcon />}
-                    onClick={() => handleDownloadSlideshow(latestReport)}
-                    size="small"
-                  >
-                    Slideshow
                   </Button>
                 </CardActions>
               </Card>
