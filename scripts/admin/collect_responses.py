@@ -14,8 +14,9 @@ import time
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add project root to path for imports
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
