@@ -1,12 +1,15 @@
 """
 PowerPoint Slideshow Export Service
-Generates PowerPoint presentations with embedded PNG charts
+Generates PowerPoint presentations with:
+- Dashboard image (Key Metrics)
+- All sub-analysis charts from Analytics pages
+- Recommendations as formatted text slides
 """
 
 import os
 import io
 import re
-from typing import Optional
+from typing import Optional, List, Tuple
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
@@ -22,7 +25,7 @@ def generate_slideshow(
     brand_id: Optional[int] = None
 ) -> io.BytesIO:
     """
-    Generate a PowerPoint slideshow with embedded charts.
+    Generate a PowerPoint slideshow with dashboard, analytics charts, and recommendations.
 
     Args:
         markdown_content: The markdown report content
@@ -35,6 +38,7 @@ def generate_slideshow(
         BytesIO object containing the PowerPoint file
     """
     from app import models
+    from app.services.chart_generator import ensure_charts_directory
 
     # Create presentation
     prs = Presentation()
@@ -48,25 +52,59 @@ def generate_slideshow(
         if brand:
             brand_name = brand.brand_name
 
-    # TALES brand colors
-    TALES_PURPLE = RGBColor(102, 87, 117)  # #665775
-    TALES_BLUE = RGBColor(128, 161, 212)   # #80a1d4
-    TALES_TEAL = RGBColor(117, 201, 200)   # #75c9c8
+    # RobotRachel brand colors
+    BRAND_BLUE = RGBColor(128, 161, 212)    # #80a1d4 - Primary blue
+    BRAND_PURPLE = RGBColor(102, 87, 117)   # #665775 - Secondary purple
+    BRAND_TEAL = RGBColor(117, 201, 200)    # #75c9c8 - Accent teal
 
     # === Slide 1: Title Slide ===
+    _create_title_slide(prs, title, brand_name, BRAND_BLUE)
+
+    # === Slide 2: Executive Summary ===
+    exec_summary = _extract_executive_summary(markdown_content)
+    if exec_summary:
+        _create_text_slide(prs, "Executive Summary", exec_summary, BRAND_BLUE)
+
+    # === Slide 3: Dashboard Image (Key Metrics) ===
+    dashboard_path = _find_dashboard_image(user_id, brand_id)
+    if dashboard_path and os.path.exists(dashboard_path):
+        _create_image_slide(prs, "Key Metrics Dashboard", dashboard_path, BRAND_BLUE)
+
+    # === Analytics Charts Slides ===
+    analytics_charts = _find_all_analytics_charts(markdown_content, user_id, brand_id)
+    for chart_title, chart_path in analytics_charts:
+        if os.path.exists(chart_path):
+            _create_image_slide(prs, chart_title, chart_path, BRAND_BLUE)
+
+    # === Recommendations Slides ===
+    recommendations = _extract_recommendations(markdown_content)
+    for rec_title, rec_bullets in recommendations:
+        _create_recommendations_slide(prs, rec_title, rec_bullets, BRAND_BLUE)
+
+    # === Final Slide: Questions ===
+    _create_final_slide(prs, BRAND_TEAL)
+
+    # Save to BytesIO
+    output = io.BytesIO()
+    prs.save(output)
+    output.seek(0)
+
+    return output
+
+
+def _create_title_slide(prs: Presentation, title: str, brand_name: str, color: RGBColor):
+    """Create the title slide with blue background."""
     title_slide_layout = prs.slide_layouts[6]  # Blank layout
     slide = prs.slides.add_slide(title_slide_layout)
 
-    # Add purple background
+    # Add blue background
     background = slide.background
     fill = background.fill
     fill.solid()
-    fill.fore_color.rgb = TALES_PURPLE
+    fill.fore_color.rgb = color
 
     # Add title
-    title_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(2.5), Inches(9), Inches(2)
-    )
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(9), Inches(2))
     title_frame = title_box.text_frame
     title_frame.text = title
     title_para = title_frame.paragraphs[0]
@@ -76,9 +114,7 @@ def generate_slideshow(
     title_para.alignment = PP_ALIGN.CENTER
 
     # Add subtitle
-    subtitle_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(4.5), Inches(9), Inches(1)
-    )
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(9), Inches(1))
     subtitle_frame = subtitle_box.text_frame
     subtitle_frame.text = f"AI Reputation Analysis for {brand_name}"
     subtitle_para = subtitle_frame.paragraphs[0]
@@ -86,144 +122,269 @@ def generate_slideshow(
     subtitle_para.font.color.rgb = RGBColor(255, 255, 255)
     subtitle_para.alignment = PP_ALIGN.CENTER
 
-    # === Extract Executive Summary ===
-    exec_summary_match = re.search(r'## Executive Summary\n\n(.*?)(?=\n\n!|\n\n##|\Z)', markdown_content, re.DOTALL)
+
+def _create_image_slide(prs: Presentation, title: str, image_path: str, color: RGBColor):
+    """Create a slide with a title and full-width image."""
+    blank_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Add title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.7))
+    title_frame = title_box.text_frame
+    title_frame.text = title
+    title_para = title_frame.paragraphs[0]
+    title_para.font.size = Pt(32)
+    title_para.font.bold = True
+    title_para.font.color.rgb = color
+
+    # Add image (centered, large)
+    try:
+        left = Inches(1)
+        top = Inches(1.2)
+        width = Inches(8)
+        slide.shapes.add_picture(image_path, left, top, width=width)
+    except Exception as e:
+        print(f"Error adding image {image_path}: {e}")
+
+
+def _create_text_slide(prs: Presentation, title: str, content: str, color: RGBColor):
+    """Create a slide with title and bulleted text content."""
+    blank_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Add title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(0.8))
+    title_frame = title_box.text_frame
+    title_frame.text = title
+    title_para = title_frame.paragraphs[0]
+    title_para.font.size = Pt(32)
+    title_para.font.bold = True
+    title_para.font.color.rgb = color
+
+    # Add bulleted content
+    text_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5.5))
+    text_frame = text_box.text_frame
+    text_frame.word_wrap = True
+
+    # Remove markdown formatting
+    clean_content = re.sub(r'\*\*(.*?)\*\*', r'\1', content)
+
+    # Split into sentences and create bullets
+    sentences = [s.strip() + '.' for s in clean_content.split('.') if s.strip() and len(s.strip()) > 20]
+
+    # Take first 6 key points
+    key_points = sentences[:6]
+
+    for i, point in enumerate(key_points):
+        if i == 0:
+            p = text_frame.paragraphs[0]
+        else:
+            p = text_frame.add_paragraph()
+
+        p.text = f"• {point.strip()}"
+        p.font.size = Pt(16)
+        p.font.color.rgb = RGBColor(51, 51, 51)
+        p.space_before = Pt(8)
+        p.space_after = Pt(8)
+        p.level = 0
+
+
+def _create_recommendations_slide(prs: Presentation, title: str, bullets: List[str], color: RGBColor):
+    """Create a slide with recommendation title and bulleted actions."""
+    blank_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Add title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(0.8))
+    title_frame = title_box.text_frame
+    title_frame.text = title
+    title_para = title_frame.paragraphs[0]
+    title_para.font.size = Pt(28)
+    title_para.font.bold = True
+    title_para.font.color.rgb = color
+
+    # Add bulleted recommendations
+    text_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5.5))
+    text_frame = text_box.text_frame
+    text_frame.word_wrap = True
+
+    for i, bullet in enumerate(bullets):
+        if i == 0:
+            p = text_frame.paragraphs[0]
+        else:
+            p = text_frame.add_paragraph()
+
+        p.text = f"• {bullet.strip()}"
+        p.font.size = Pt(14)
+        p.font.color.rgb = RGBColor(51, 51, 51)
+        p.space_before = Pt(6)
+        p.space_after = Pt(6)
+        p.level = 0
+
+
+def _create_final_slide(prs: Presentation, color: RGBColor):
+    """Create the final 'Questions?' slide."""
+    final_slide_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(final_slide_layout)
+
+    # Add teal background
+    background = slide.background
+    fill = background.fill
+    fill.solid()
+    fill.fore_color.rgb = color
+
+    # Add thank you text
+    thank_you_box = slide.shapes.add_textbox(Inches(0.5), Inches(3), Inches(9), Inches(2))
+    thank_you_frame = thank_you_box.text_frame
+    thank_you_frame.text = "Questions?"
+    thank_you_para = thank_you_frame.paragraphs[0]
+    thank_you_para.font.size = Pt(48)
+    thank_you_para.font.bold = True
+    thank_you_para.font.color.rgb = RGBColor(255, 255, 255)
+    thank_you_para.alignment = PP_ALIGN.CENTER
+
+
+def _extract_executive_summary(markdown_content: str) -> Optional[str]:
+    """Extract executive summary from markdown content."""
+    exec_summary_match = re.search(
+        r'## Executive Summary\n\n(.*?)(?=\n\n!|\n\n##|\Z)',
+        markdown_content,
+        re.DOTALL
+    )
     if exec_summary_match:
-        exec_summary = exec_summary_match.group(1).strip()
+        return exec_summary_match.group(1).strip()
+    return None
 
-        # Create Executive Summary slide
-        blank_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(blank_layout)
 
-        # Add title
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(0.8))
-        title_frame = title_box.text_frame
-        title_frame.text = "Executive Summary"
-        title_para = title_frame.paragraphs[0]
-        title_para.font.size = Pt(32)
-        title_para.font.bold = True
-        title_para.font.color.rgb = TALES_PURPLE
+def _extract_recommendations(markdown_content: str) -> List[Tuple[str, List[str]]]:
+    """
+    Extract recommendations section and parse into individual recommendation slides.
+    Returns list of (title, bullet_points) tuples.
+    """
+    recommendations = []
 
-        # Add summary text as bullets
-        text_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(5.5))
-        text_frame = text_box.text_frame
-        text_frame.word_wrap = True
-
-        # Remove markdown formatting and split into sentences
-        clean_summary = re.sub(r'\*\*(.*?)\*\*', r'\1', exec_summary)
-
-        # Split into sentences and create bullets (limit to key points)
-        sentences = [s.strip() for s in clean_summary.split('.') if s.strip() and len(s.strip()) > 20]
-
-        # Take first 5-6 most important sentences as bullets
-        key_points = sentences[:6]
-
-        for i, point in enumerate(key_points):
-            if i == 0:
-                p = text_frame.paragraphs[0]
-            else:
-                p = text_frame.add_paragraph()
-
-            p.text = f"• {point.strip()}"
-            p.font.size = Pt(16)
-            p.font.color.rgb = RGBColor(51, 51, 51)
-            p.space_before = Pt(8)
-            p.space_after = Pt(8)
-            p.level = 0
-
-    # === Generate chart slides for all analytics sections ===
-    from app.services.chart_generator import (
-        ensure_charts_directory,
-        generate_mention_rate_pie_chart,
-        generate_sentiment_pie_chart,
-        generate_positioning_bar_chart,
-        generate_share_of_voice_chart
+    # Find the Recommendations section
+    rec_match = re.search(
+        r'### 7\. Recommendations\n\n(.*?)(?=\n\n##|\Z)',
+        markdown_content,
+        re.DOTALL
     )
-    from app.analytics import (
-        get_dashboard_metrics,
-        get_sentiment_breakdown,
-        get_positioning_breakdown,
-        get_share_of_voice
-    )
+
+    if not rec_match:
+        return recommendations
+
+    rec_content = rec_match.group(1).strip()
+
+    # Split by paragraphs to get individual recommendations
+    # Each recommendation typically starts with a number or bullet
+    paragraphs = [p.strip() for p in rec_content.split('\n\n') if p.strip()]
+
+    current_rec_bullets = []
+    for para in paragraphs:
+        # Check if this is a numbered recommendation (starts with digit)
+        if re.match(r'^\d+\.', para):
+            # Save previous recommendation if it exists
+            if current_rec_bullets:
+                # Take first line as title, rest as bullets
+                first_line = current_rec_bullets[0]
+                # Extract title from "1. **Title**: description" format
+                title_match = re.match(r'^\d+\.\s*\*\*(.*?)\*\*:', first_line)
+                if title_match:
+                    title = title_match.group(1)
+                    # Get rest of first line as first bullet
+                    rest_of_line = re.sub(r'^\d+\.\s*\*\*.*?\*\*:\s*', '', first_line)
+                    bullets = [rest_of_line] + current_rec_bullets[1:]
+                    recommendations.append((title, bullets[:6]))  # Limit to 6 bullets
+                else:
+                    # Fallback: use first line as title
+                    title = re.sub(r'^\d+\.\s*', '', first_line)
+                    recommendations.append((title, current_rec_bullets[1:][:6]))
+
+            # Start new recommendation
+            current_rec_bullets = [para]
+        else:
+            # Add to current recommendation
+            if current_rec_bullets:
+                # Split by lines starting with "- " or "* "
+                lines = para.split('\n')
+                for line in lines:
+                    if line.strip().startswith(('- ', '* ', '• ')):
+                        clean_line = re.sub(r'^[-*•]\s*', '', line.strip())
+                        current_rec_bullets.append(clean_line)
+
+    # Don't forget the last recommendation
+    if current_rec_bullets:
+        first_line = current_rec_bullets[0]
+        title_match = re.match(r'^\d+\.\s*\*\*(.*?)\*\*:', first_line)
+        if title_match:
+            title = title_match.group(1)
+            rest_of_line = re.sub(r'^\d+\.\s*\*\*.*?\*\*:\s*', '', first_line)
+            bullets = [rest_of_line] + current_rec_bullets[1:]
+            recommendations.append((title, bullets[:6]))
+        else:
+            title = re.sub(r'^\d+\.\s*', '', first_line)
+            recommendations.append((title, current_rec_bullets[1:][:6]))
+
+    return recommendations
+
+
+def _find_dashboard_image(user_id: int, brand_id: Optional[int]) -> Optional[str]:
+    """
+    Find the Dashboard/Key Metrics image.
+    The Dashboard page exports an image with format: KeyMetrics_{brand}_{date}.png
+    We need to look in the charts directory for the most recent dashboard export.
+    """
+    from app.services.chart_generator import ensure_charts_directory
 
     charts_dir = ensure_charts_directory()
-    generated_charts = []
 
-    try:
-        # Generate Dashboard/Brand Mentions chart
-        dashboard_metrics = get_dashboard_metrics(db, user_id, brand_id)
-        if dashboard_metrics and dashboard_metrics.get('mention_rate') is not None:
-            chart_path = os.path.join(charts_dir, f"slideshow_mention_rate_{user_id}_{brand_id}.png")
-            generate_mention_rate_pie_chart(dashboard_metrics, brand_name, chart_path)
-            generated_charts.append(("Brand Mention Rate", chart_path))
+    # Look for dashboard/key metrics charts
+    # Pattern: dashboard_*.png or KeyMetrics_*.png
+    import glob
+    patterns = [
+        os.path.join(charts_dir, f"dashboard_{user_id}_{brand_id}*.png"),
+        os.path.join(charts_dir, f"KeyMetrics_*_{user_id}_{brand_id}.png"),
+    ]
 
-        # Generate Sentiment chart
-        sentiment_data = get_sentiment_breakdown(db, user_id, brand_id)
-        if sentiment_data and sentiment_data.get('total', 0) > 0:
-            chart_path = os.path.join(charts_dir, f"slideshow_sentiment_{user_id}_{brand_id}.png")
-            generate_sentiment_pie_chart(sentiment_data, brand_name, chart_path)
-            generated_charts.append(("Sentiment Distribution", chart_path))
+    for pattern in patterns:
+        files = glob.glob(pattern)
+        if files:
+            # Return the most recent file
+            return max(files, key=os.path.getmtime)
 
-        # Generate Positioning chart
-        positioning_data = get_positioning_breakdown(db, user_id, brand_id)
-        if positioning_data and positioning_data.get('total', 0) > 0:
-            chart_path = os.path.join(charts_dir, f"slideshow_positioning_{user_id}_{brand_id}.png")
-            generate_positioning_bar_chart(positioning_data, brand_name, chart_path)
-            generated_charts.append(("Brand Positioning", chart_path))
+    return None
 
-        # Generate Share of Voice chart
-        sov_data = get_share_of_voice(db, user_id, brand_id)
-        if sov_data and len(sov_data) > 0:
-            chart_path = os.path.join(charts_dir, f"slideshow_share_of_voice_{user_id}_{brand_id}.png")
-            generate_share_of_voice_chart(sov_data, brand_name, chart_path)
-            generated_charts.append(("Share of Voice", chart_path))
 
-    except Exception as e:
-        print(f"Error generating charts: {e}")
+def _find_all_analytics_charts(markdown_content: str, user_id: int, brand_id: Optional[int]) -> List[Tuple[str, str]]:
+    """
+    Find all analytics charts from the markdown content and filesystem.
+    Returns list of (title, path) tuples in the correct order.
+    """
+    charts = []
 
-    # Add slides for generated charts
-    for chart_title, chart_path in generated_charts:
-        if not os.path.exists(chart_path):
-            continue
+    # Chart titles mapping (in display order)
+    chart_order = [
+        ('mention_rate', 'Brand Mention Rate'),
+        ('brand_mentions_trend', 'Brand Mentions Trend'),
+        ('llm_brand_mentions', 'Brand Mentions by LLM Platform'),
+        ('positioning', 'Brand Positioning'),
+        ('positioning_trend', 'Positioning Trend'),
+        ('llm_positioning', 'Positioning by LLM Platform'),
+        ('sentiment', 'Sentiment Distribution'),
+        ('sentiment_trend', 'Sentiment Trend'),
+        ('llm_sentiment', 'Sentiment by LLM Platform'),
+        ('share_of_voice', 'Share of Voice'),
+        ('share_of_voice_trend', 'Share of Voice Trend'),
+        ('llm_share_of_voice', 'Share of Voice by LLM Platform'),
+        ('descriptor_performance', 'Top Descriptors'),
+        ('llm_descriptors', 'Top Descriptors by LLM Platform'),
+        ('competitor_threats', 'Competitive Threats'),
+        ('llm_competitors', 'Competitor Mentions by LLM Platform'),
+    ]
 
-        # Create slide for this chart
-        blank_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(blank_layout)
-
-        # Add title
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.7))
-        title_frame = title_box.text_frame
-        title_frame.text = chart_title
-        title_para = title_frame.paragraphs[0]
-        title_para.font.size = Pt(32)
-        title_para.font.bold = True
-        title_para.font.color.rgb = TALES_PURPLE
-
-        # Add chart image (centered, large)
-        try:
-            left = Inches(1)
-            top = Inches(1.2)
-            width = Inches(8)
-            slide.shapes.add_picture(chart_path, left, top, width=width)
-        except Exception as e:
-            print(f"Error adding chart {chart_path}: {e}")
-
-    # === Extract and add chart images from markdown (if any exist) ===
+    # Extract chart images from markdown
     images = re.findall(r'!\[(.*?)\]\((.*?)\)', markdown_content)
-
-    chart_titles = {
-        'mention_rate': 'Brand Mention Rate',
-        'share_of_voice': 'Share of Voice',
-        'positioning': 'Brand Positioning',
-        'sentiment': 'Sentiment Distribution',
-        'descriptor_performance': 'Top Descriptors',
-        'platform_comparison': 'Platform Performance',
-        'competitor_threats': 'Competitive Threats',
-        'brand_mentions_trend': 'Mention Rate Trend',
-        'positioning_trend': 'Positioning Trend',
-        'sentiment_trend': 'Sentiment Trend',
-        'share_of_voice_trend': 'Share of Voice Trend'
-    }
+    found_charts = {}
 
     for alt_text, image_path in images:
         # Convert web path to filesystem path
@@ -235,63 +396,17 @@ def generate_slideshow(
             continue
 
         if not os.path.exists(full_path):
-            print(f"Warning: Chart not found at {full_path}")
             continue
 
-        # Determine chart title
-        chart_title = alt_text
-        for key, title in chart_titles.items():
+        # Match to chart order
+        for key, title in chart_order:
             if key in image_path.lower():
-                chart_title = title
+                found_charts[key] = (title, full_path)
                 break
 
-        # Create slide for this chart
-        blank_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(blank_layout)
+    # Return charts in the specified order
+    for key, title in chart_order:
+        if key in found_charts:
+            charts.append(found_charts[key])
 
-        # Add title
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.7))
-        title_frame = title_box.text_frame
-        title_frame.text = chart_title
-        title_para = title_frame.paragraphs[0]
-        title_para.font.size = Pt(32)
-        title_para.font.bold = True
-        title_para.font.color.rgb = TALES_PURPLE
-
-        # Add chart image (centered, large)
-        try:
-            left = Inches(1)
-            top = Inches(1.2)
-            width = Inches(8)
-            slide.shapes.add_picture(full_path, left, top, width=width)
-        except Exception as e:
-            print(f"Error adding image {full_path}: {e}")
-
-    # === Final Slide: Thank You ===
-    final_slide_layout = prs.slide_layouts[6]
-    slide = prs.slides.add_slide(final_slide_layout)
-
-    # Add teal background
-    background = slide.background
-    fill = background.fill
-    fill.solid()
-    fill.fore_color.rgb = TALES_TEAL
-
-    # Add thank you text
-    thank_you_box = slide.shapes.add_textbox(
-        Inches(0.5), Inches(3), Inches(9), Inches(2)
-    )
-    thank_you_frame = thank_you_box.text_frame
-    thank_you_frame.text = "Questions?"
-    thank_you_para = thank_you_frame.paragraphs[0]
-    thank_you_para.font.size = Pt(48)
-    thank_you_para.font.bold = True
-    thank_you_para.font.color.rgb = RGBColor(255, 255, 255)
-    thank_you_para.alignment = PP_ALIGN.CENTER
-
-    # Save to BytesIO
-    output = io.BytesIO()
-    prs.save(output)
-    output.seek(0)
-
-    return output
+    return charts
