@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import { useImpersonation } from './ImpersonationContext';
 
 interface BrandInfo {
   id: number;
@@ -43,19 +44,20 @@ interface BrandProviderProps {
 
 export const BrandProvider: React.FC<BrandProviderProps> = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const { impersonatedUser } = useImpersonation();
   const [activeBrand, setActiveBrand] = useState<BrandInfo | null>(null);
   const [brands, setBrands] = useState<BrandInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch all brands and active brand when user is authenticated
+  // Fetch all brands and active brand when user is authenticated or impersonation changes
   useEffect(() => {
     if (isAuthenticated) {
       refreshBrands();
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, impersonatedUser?.id]);
 
   const refreshBrands = async () => {
     setLoading(true);
