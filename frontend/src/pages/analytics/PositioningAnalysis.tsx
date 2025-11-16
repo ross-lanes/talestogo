@@ -1,12 +1,13 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList, LineChart, Line, Legend, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, LineChart, Line, Legend, AreaChart, Area } from 'recharts';
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import ChartContainer from '../../components/ChartContainer';
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
@@ -232,7 +233,7 @@ export default function PositioningAnalysis() {
 
         {chartData.length > 0 ? (
           <Box ref={positioningChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={500}>
+            <ChartContainer width="100%" height={500}>
             <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 100, left: 120, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
@@ -269,7 +270,7 @@ export default function PositioningAnalysis() {
                 />
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
           </Box>
         ) : (
           <Alert severity="info">
@@ -334,7 +335,7 @@ export default function PositioningAnalysis() {
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
               <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="platform" />
@@ -346,7 +347,7 @@ export default function PositioningAnalysis() {
                 <Bar dataKey="Listed" fill="#80a1d4" stackId="a" />
                 <Bar dataKey="Not Mentioned" fill="#665775" stackId="a" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </Box>
 
           {/* LLM Data Table */}
@@ -429,7 +430,7 @@ export default function PositioningAnalysis() {
 
               return (
                 <Box ref={positioningTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                  <ResponsiveContainer width="100%" height={400}>
+                  <ChartContainer width="100%" height={400}>
                   <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
@@ -480,7 +481,7 @@ export default function PositioningAnalysis() {
                       name="Not Mentioned"
                     />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ChartContainer>
                 </Box>
               );
             })()}

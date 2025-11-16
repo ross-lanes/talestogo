@@ -1,11 +1,12 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button, Card, CardContent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { Download, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef } from 'react';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import ChartContainer from '../../components/ChartContainer';
 
 
 const BRAND_COLOR = '#665775';
@@ -199,7 +200,7 @@ export default function BrandMentions() {
 
         {formattedData.length > 0 ? (
           <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
             <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
@@ -228,7 +229,7 @@ export default function BrandMentions() {
                 connectNulls={true}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartContainer>
           </Box>
         ) : (
           <Alert severity="info">
@@ -260,7 +261,7 @@ export default function BrandMentions() {
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
               <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="platform" />
@@ -282,7 +283,7 @@ export default function BrandMentions() {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </Box>
 
           {/* LLM Data Table */}

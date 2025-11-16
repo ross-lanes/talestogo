@@ -1,12 +1,13 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, LineChart, Line } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, TrendingFlat, Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import ChartContainer from '../../components/ChartContainer';
 
 const BRAND_COLOR = '#665775';
 const COMPETITOR_COLORS = [
@@ -323,7 +324,7 @@ export default function ShareOfVoice() {
             Comparison of share of voice for the top 10 organizations{!brandInTop10 && brandData ? ' (including your brand)' : ''}.
           </Typography>
           <Box ref={chartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0' }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
               <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
@@ -367,7 +368,7 @@ export default function ShareOfVoice() {
                   />
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </Box>
         </Paper>
       )}
@@ -399,7 +400,7 @@ export default function ShareOfVoice() {
           <>
             {/* Show pie chart only if 5 or fewer total entities (brand + competitors) */}
             {pieData.length <= 5 ? (
-              <ResponsiveContainer width="100%" height={500}>
+              <ChartContainer width="100%" height={500}>
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -427,7 +428,7 @@ export default function ShareOfVoice() {
                   />
                   <Legend />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             ) : (
               /* Show table when more than 5 entities */
               <TableContainer>
@@ -504,7 +505,7 @@ export default function ShareOfVoice() {
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
               <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="platform" />
@@ -514,7 +515,7 @@ export default function ShareOfVoice() {
                 <Bar dataKey="brand" name="Your Brand" fill={BRAND_COLOR} />
                 <Bar dataKey="competitors" name="Competitors" fill="#80a1d4" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </Box>
 
           {/* LLM Data Table */}
@@ -610,7 +611,7 @@ export default function ShareOfVoice() {
 
               return (
                 <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                <ResponsiveContainer width="100%" height={400}>
+                <ChartContainer width="100%" height={400}>
                   <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
@@ -642,7 +643,7 @@ export default function ShareOfVoice() {
                       />
                     ))}
                   </LineChart>
-                </ResponsiveContainer>
+                </ChartContainer>
                 </Box>
               );
             })()}

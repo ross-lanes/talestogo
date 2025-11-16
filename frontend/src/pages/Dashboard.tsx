@@ -12,12 +12,13 @@ import {
 } from '@mui/icons-material';
 import html2canvas from 'html2canvas';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 import BatchSelector from '../components/BatchSelector';
 import { captureAndUploadCharts } from '../utils/chartCapture';
+import ChartContainer from '../components/ChartContainer';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -513,7 +514,7 @@ export default function Dashboard() {
                   ))}
                 </Box>
                 {/* Pie chart on the right */}
-                <ResponsiveContainer width="100%" height={240}>
+                <ChartContainer width="100%" height={240}>
                   <PieChart>
                     <Pie
                       data={[
@@ -531,7 +532,7 @@ export default function Dashboard() {
                     </Pie>
                     <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
                   </PieChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               </Box>
             ) : (
               <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -573,7 +574,7 @@ export default function Dashboard() {
                   }
                 }
                 return (
-              <ResponsiveContainer width="100%" height={240}>
+              <ChartContainer width="100%" height={240}>
                 <BarChart
                   data={[
                     { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
@@ -604,7 +605,7 @@ export default function Dashboard() {
                     <LabelList dataKey="count" position="top" />
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
                 );
               })()
             ) : (

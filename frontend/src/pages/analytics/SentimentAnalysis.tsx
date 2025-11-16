@@ -1,12 +1,13 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, Legend, Tooltip, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import ChartContainer from '../../components/ChartContainer';
 
 const COLORS = {
   'Very Positive': '#116C29',  // Bright highlighter green
@@ -291,7 +292,7 @@ export default function SentimentAnalysis() {
 
         {chartData.length > 0 ? (
           <Box ref={sentimentChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={chartData}
@@ -315,7 +316,7 @@ export default function SentimentAnalysis() {
               />
               <Legend />
             </PieChart>
-          </ResponsiveContainer>
+          </ChartContainer>
           </Box>
         ) : (
           <Alert severity="info">
@@ -387,7 +388,7 @@ export default function SentimentAnalysis() {
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ResponsiveContainer width="100%" height={400}>
+            <ChartContainer width="100%" height={400}>
               <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="platform" />
@@ -401,7 +402,7 @@ export default function SentimentAnalysis() {
                 <Bar dataKey="Very Negative" fill={COLORS['Very Negative']} stackId="a" />
                 <Bar dataKey="Mixed" fill="#808080" stackId="a" />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </Box>
 
           {/* LLM Data Table */}
@@ -498,7 +499,7 @@ export default function SentimentAnalysis() {
 
               return (
                 <Box ref={sentimentTrendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                  <ResponsiveContainer width="100%" height={400}>
+                  <ChartContainer width="100%" height={400}>
                   <AreaChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
@@ -557,7 +558,7 @@ export default function SentimentAnalysis() {
                       name="Very Negative"
                     />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ChartContainer>
                 </Box>
               );
             })()}

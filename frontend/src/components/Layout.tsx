@@ -151,7 +151,9 @@ export default function Layout({ children }: LayoutProps) {
   const drawer = (
     <Box sx={{
       height: '100%',
-      backgroundColor: tenant?.primary_color || '#665775'
+      backgroundColor: tenant?.primary_color || '#665775',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
   <Toolbar
   sx={{
@@ -205,7 +207,7 @@ export default function Layout({ children }: LayoutProps) {
         <TenantSwitcher />
       </Box>
       <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.12)' }} />
-      <List>
+      <List sx={{ flexGrow: 1 }}>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
@@ -237,6 +239,36 @@ export default function Layout({ children }: LayoutProps) {
           </ListItem>
         ))}
       </List>
+
+      {/* RobotRachel Logo at Bottom */}
+      <Box
+        component="a"
+        href="http://www.robotrachel.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          p: 2,
+          mt: 'auto',
+          textDecoration: 'none',
+          transition: 'opacity 0.2s',
+          '&:hover': {
+            opacity: 0.8,
+          },
+        }}
+      >
+        <img
+          src="/logos/robotrachel-white-logo.png"
+          alt="RobotRachel"
+          style={{
+            width: '120px',
+            maxWidth: '100%',
+            height: 'auto',
+          }}
+        />
+      </Box>
     </Box>
   );
 

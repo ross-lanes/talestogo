@@ -1,6 +1,6 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { TrendingUp as ThreatIcon, Download as DownloadIcon, Image as ImageIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import { competitorsInclude } from '../../utils/organizationNormalizer';
 import BatchSelector from '../../components/BatchSelector';
 import { formatDateForFilename } from '../../utils/dateUtils';
+import ChartContainer from '../../components/ChartContainer';
 
 // Platform colors for consistency
 const PLATFORM_COLORS: Record<string, string> = {
