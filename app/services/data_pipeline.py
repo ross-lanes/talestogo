@@ -50,13 +50,24 @@ def run_collection_analysis_report(
         if not user:
             return {"success": False, "error": f"User {user_id} not found"}
 
-        brand = db.query(models.BrandInfo).filter_by(id=brand_id, user_id=user_id).first()
+        # Import crud here to access user_has_brand_access
+        from app import crud
+
+        # Check if user has access to brand (owns it or has it shared)
+        if not crud.user_has_brand_access(db, brand_id, user_id):
+            return {"success": False, "error": f"Brand {brand_id} not found"}
+
+        # Get the brand (we know it exists from the access check)
+        brand = db.query(models.BrandInfo).filter_by(id=brand_id).first()
         if not brand:
             return {"success": False, "error": f"Brand {brand_id} not found"}
 
-        # Check for active queries
+        # Get the brand owner's user_id (for shared brands, we need the owner's data)
+        data_owner_user_id = brand.user_id
+
+        # Check for active queries (use data owner's user_id for shared brands)
         query_count = db.query(models.Query).filter(
-            models.Query.user_id == user_id,
+            models.Query.user_id == data_owner_user_id,
             models.Query.brand_id == brand_id,
             models.Query.active == True
         ).count()
@@ -103,9 +114,10 @@ def run_collection_analysis_report(
 
             # === STEP 1: COLLECTION ===
             script_path = os.path.join(project_root, "scripts", "admin", "collect_responses.py")
+            # Use data_owner_user_id for shared brands (data belongs to the brand owner)
             cmd = [
                 "python3", script_path,
-                str(user_id),
+                str(data_owner_user_id),
                 "--brand-id", str(brand_id),
                 "--task-id", str(task_id)
             ]
@@ -158,9 +170,9 @@ def run_collection_analysis_report(
                 db_thread.commit()
 
             # === STEP 2: ANALYSIS ===
-            # Get the latest collection batch
+            # Get the latest collection batch (use data owner for shared brands)
             latest_batch = db_thread.query(models.CollectionBatch).filter(
-                models.CollectionBatch.user_id == user_id,
+                models.CollectionBatch.user_id == data_owner_user_id,
                 models.CollectionBatch.brand_id == brand_id
             ).order_by(models.CollectionBatch.started_at.desc()).first()
 
@@ -170,7 +182,7 @@ def run_collection_analysis_report(
 
             # Only analyze responses from the latest batch that haven't been analyzed yet
             responses_to_analyze = db_thread.query(models.Response).filter(
-                models.Response.user_id == user_id,
+                models.Response.user_id == data_owner_user_id,
                 models.Response.brand_id == brand_id,
                 models.Response.batch_id == latest_batch.id,
                 models.Response.analyzed_at.is_(None)
@@ -195,12 +207,12 @@ def run_collection_analysis_report(
             db_thread.commit()
             db_thread.refresh(analysis_task)
 
-            # Run analysis script
+            # Run analysis script (use data owner for shared brands)
             analysis_script = os.path.join(project_root, "scripts", "admin", "analyze_responses.py")
             analysis_cmd = [
                 "python3", analysis_script,
                 "--all",
-                "--user-id", str(user_id),
+                "--user-id", str(data_owner_user_id),
                 "--brand-id", str(brand_id),
                 "--task-id", str(analysis_task.id)
             ]
@@ -254,7 +266,7 @@ def run_collection_analysis_report(
             report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
             report_cmd = [
                 "python3", report_script,
-                "--user-id", str(user_id),
+                "--user-id", str(data_owner_user_id),
                 "--brand-id", str(brand_id)
             ]
 
