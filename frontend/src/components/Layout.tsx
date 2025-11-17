@@ -242,32 +242,50 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* RobotRachel Logo at Bottom */}
       <Box
-        component="a"
-        href="http://www.robotrachel.com"
-        target="_blank"
-        rel="noopener noreferrer"
         sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          p: 2,
           mt: 'auto',
-          textDecoration: 'none',
-          transition: 'opacity 0.2s',
-          '&:hover': {
-            opacity: 0.8,
-          },
+          textAlign: 'center',
         }}
       >
-        <img
-          src="/logos/robotrachel2-white-logo.png"
-          alt="RobotRachel"
-          style={{
-            width: '132px',
-            maxWidth: '100%',
-            height: 'auto',
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'common.white',
+            display: 'block',
+            mb: 0.5,
+            fontSize: '0.75rem',
           }}
-        />
+        >
+          Made by
+        </Typography>
+        <Box
+          component="a"
+          href="http://www.robotrachel.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            px: 2,
+            pb: 2,
+            textDecoration: 'none',
+            transition: 'opacity 0.2s',
+            '&:hover': {
+              opacity: 0.8,
+            },
+          }}
+        >
+          <img
+            src="/logos/robotrachel2-white-logo.png"
+            alt="RobotRachel"
+            style={{
+              width: '132px',
+              maxWidth: '100%',
+              height: 'auto',
+            }}
+          />
+        </Box>
       </Box>
     </Box>
   );
