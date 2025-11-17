@@ -16,11 +16,13 @@ import {
   Check as CheckIcon,
   Lock as LockIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useProduct } from '../contexts/ProductContext';
 
 const ProductSwitcher: React.FC = () => {
   const { currentProduct, availableProducts, switchProduct, isSolsticeHC } = useProduct();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const navigate = useNavigate();
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -33,8 +35,19 @@ const ProductSwitcher: React.FC = () => {
   const handleSwitchProduct = (productId: string) => {
     switchProduct(productId as any);
     handleClose();
-    // Optionally navigate to product home page
-    // window.location.href = '/'; // Force reload to load product-specific routes
+
+    // Navigate to product-specific home page
+    switch (productId) {
+      case 'heads':
+        navigate('/heads');
+        break;
+      case 'tales':
+        navigate('/');
+        break;
+      // Add other products as they become available
+      default:
+        navigate('/');
+    }
   };
 
   // Filter available products
