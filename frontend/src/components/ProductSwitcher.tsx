@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Box,
-  Button,
+  IconButton,
   Menu,
   MenuItem,
   Typography,
@@ -12,7 +12,6 @@ import {
 } from '@mui/material';
 import {
   Apps as ProductIcon,
-  KeyboardArrowDown,
   Check as CheckIcon,
   Lock as LockIcon,
 } from '@mui/icons-material';
@@ -61,30 +60,17 @@ const ProductSwitcher: React.FC = () => {
 
   return (
     <Box>
-      <Button
+      <IconButton
         onClick={handleClick}
-        startIcon={<ProductIcon />}
-        endIcon={<KeyboardArrowDown />}
         sx={{
-          color: 'text.primary',
-          textTransform: 'none',
-          px: 2,
-          py: 1,
-          borderRadius: 1,
+          color: 'common.white',
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
           },
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', ml: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-            Product
-          </Typography>
-          <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2 }}>
-            {currentProduct.name}
-          </Typography>
-        </Box>
-      </Button>
+        <ProductIcon />
+      </IconButton>
 
       <Menu
         anchorEl={anchorEl}
