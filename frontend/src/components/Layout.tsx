@@ -409,8 +409,8 @@ export default function Layout({ children }: LayoutProps) {
                   '& *': { color: 'common.white' },
                 }}
               >
-                <ProductSwitcher />
                 <BrandSwitcher />
+                <ProductSwitcher />
                 <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>
                     {user.email.charAt(0).toUpperCase()}
