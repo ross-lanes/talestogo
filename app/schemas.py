@@ -444,15 +444,34 @@ class TaskStatus(BaseModel):
 # HEADS - PERSONA GENERATION SCHEMAS
 # ============================================================================
 
-class PersonaGenerationCreate(BaseModel):
-    # Patient persona inputs
+class PersonaInput(BaseModel):
+    """Single persona input for manual generation"""
+    # Patient fields
     patient_occupation: Optional[str] = None
     patient_clinical_scenario: Optional[str] = None
     patient_gender: Optional[str] = None
     patient_symptoms: Optional[str] = None
     patient_age_range: Optional[str] = None
 
-    # HCP persona inputs
+    # HCP fields
+    hcp_doctor_type: Optional[str] = None
+    hcp_disease: Optional[str] = None
+    hcp_location: Optional[str] = None
+
+
+class PersonaGenerationCreate(BaseModel):
+    # New fields for AI/manual distinction
+    persona_type: str  # 'patient' or 'hcp'
+    ai_generation: bool = False  # True for AI, False for manual
+    count: Optional[int] = None  # Number of personas for AI generation (1-10)
+    personas: Optional[List[PersonaInput]] = None  # Manual persona inputs
+
+    # Legacy fields for backward compatibility
+    patient_occupation: Optional[str] = None
+    patient_clinical_scenario: Optional[str] = None
+    patient_gender: Optional[str] = None
+    patient_symptoms: Optional[str] = None
+    patient_age_range: Optional[str] = None
     hcp_doctor_type: Optional[str] = None
     hcp_disease: Optional[str] = None
     hcp_location: Optional[str] = None

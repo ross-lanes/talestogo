@@ -28,7 +28,8 @@ router = APIRouter(prefix="/personas", tags=["personas"])
 
 async def generate_personas_task(
     generation_id: int,
-    db: Session
+    db: Session,
+    request_data: dict = None
 ):
     """Background task to generate personas"""
     try:
@@ -79,14 +80,51 @@ async def generate_personas_task(
             "hcp_location": generation.hcp_location,
         }
 
-        # Generate personas
+        # Generate personas based on request type
         generator = PersonaGenerator(provider=settings.DEFAULT_LLM_PROVIDER)
 
-        # Generate patient personas
-        patient_personas = await generator.generate_patient_personas(brand_info, patient_inputs)
+        # Determine generation method from request_data
+        persona_type = request_data.get("persona_type", "both") if request_data else "both"
+        ai_generation = request_data.get("ai_generation", False) if request_data else False
+        count = request_data.get("count", 4) if request_data else 4
+        persona_inputs_list = request_data.get("personas", []) if request_data else []
 
-        # Generate HCP personas
-        hcp_personas = await generator.generate_hcp_personas(brand_info, hcp_inputs)
+        patient_personas = []
+        hcp_personas = []
+
+        if persona_type in ["patient", "both"]:
+            if ai_generation:
+                # AI-powered generation
+                patient_personas = await generator.generate_ai_patient_personas(brand_info, count)
+            elif persona_inputs_list:
+                # Manual form-based generation
+                patient_personas = await generator.generate_manual_patient_personas(brand_info, persona_inputs_list)
+            else:
+                # Legacy method - use generation object fields
+                patient_inputs = {
+                    "patient_occupation": generation.patient_occupation,
+                    "patient_clinical_scenario": generation.patient_clinical_scenario,
+                    "patient_gender": generation.patient_gender,
+                    "patient_symptoms": generation.patient_symptoms,
+                    "patient_age_range": generation.patient_age_range,
+                }
+                patient_personas = await generator.generate_patient_personas(brand_info, patient_inputs)
+
+        if persona_type in ["hcp", "both"]:
+            if ai_generation:
+                # AI-powered generation
+                hcp_personas = await generator.generate_ai_hcp_personas(brand_info, count)
+            elif persona_inputs_list:
+                # Manual form-based generation
+                hcp_personas = await generator.generate_manual_hcp_personas(brand_info, persona_inputs_list)
+            else:
+                # Legacy method - use generation object fields
+                hcp_inputs = {
+                    "hcp_doctor_type": generation.hcp_doctor_type,
+                    "hcp_disease": generation.hcp_disease,
+                    "hcp_location": generation.hcp_location,
+                }
+                hcp_personas = await generator.generate_hcp_personas(brand_info, hcp_inputs)
 
         # Save personas to database
         all_personas = []
@@ -218,8 +256,16 @@ async def generate_personas(
         db, request, current_user.id, brand.id, current_user.tenant_id
     )
 
+    # Prepare request data for background task
+    request_data = {
+        "persona_type": request.persona_type if hasattr(request, 'persona_type') else "both",
+        "ai_generation": request.ai_generation if hasattr(request, 'ai_generation') else False,
+        "count": request.count if hasattr(request, 'count') else 4,
+        "personas": [p.dict() for p in request.personas] if hasattr(request, 'personas') and request.personas else []
+    }
+
     # Start background task
-    background_tasks.add_task(generate_personas_task, generation.id, db)
+    background_tasks.add_task(generate_personas_task, generation.id, db, request_data)
 
     return generation
 

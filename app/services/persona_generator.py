@@ -277,3 +277,151 @@ Ensure the personas are diverse, realistic, and professionally written from a ph
 
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")
+
+    async def generate_ai_patient_personas(
+        self,
+        brand_info: Dict[str, Any],
+        count: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate patient personas using AI research via Perplexity
+
+        Args:
+            brand_info: Brand information dictionary
+            count: Number of personas to generate (1-10)
+
+        Returns:
+            List of patient persona dictionaries
+        """
+        from app.services.perplexity_service import PerplexityService
+
+        perplexity = PerplexityService()
+
+        # Step 1: Research disease demographics
+        demographics_data = await perplexity.research_disease_demographics(
+            brand_name=brand_info.get("brand_name", ""),
+            therapeutic_area=brand_info.get("therapeutic_area", ""),
+            indication=brand_info.get("indication", ""),
+            persona_type="patient"
+        )
+
+        # Step 2: Generate individual personas based on research
+        personas = []
+        for i in range(count):
+            persona_data = await perplexity.generate_persona_details(
+                demographics_data=demographics_data,
+                brand_info=brand_info,
+                persona_number=i + 1,
+                persona_type="patient"
+            )
+            personas.append(persona_data)
+
+        return personas
+
+    async def generate_ai_hcp_personas(
+        self,
+        brand_info: Dict[str, Any],
+        count: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate HCP personas using AI research via Perplexity
+
+        Args:
+            brand_info: Brand information dictionary
+            count: Number of personas to generate (1-10)
+
+        Returns:
+            List of HCP persona dictionaries
+        """
+        from app.services.perplexity_service import PerplexityService
+
+        perplexity = PerplexityService()
+
+        # Step 1: Research HCP demographics
+        demographics_data = await perplexity.research_disease_demographics(
+            brand_name=brand_info.get("brand_name", ""),
+            therapeutic_area=brand_info.get("therapeutic_area", ""),
+            indication=brand_info.get("indication", ""),
+            persona_type="hcp"
+        )
+
+        # Step 2: Generate individual personas based on research
+        personas = []
+        for i in range(count):
+            persona_data = await perplexity.generate_persona_details(
+                demographics_data=demographics_data,
+                brand_info=brand_info,
+                persona_number=i + 1,
+                persona_type="hcp"
+            )
+            personas.append(persona_data)
+
+        return personas
+
+    async def generate_manual_patient_personas(
+        self,
+        brand_info: Dict[str, Any],
+        persona_inputs: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate patient personas from manual form inputs
+
+        Args:
+            brand_info: Brand information dictionary
+            persona_inputs: List of persona input dictionaries from frontend forms
+
+        Returns:
+            List of patient persona dictionaries
+        """
+        personas = []
+
+        for i, inputs in enumerate(persona_inputs):
+            # Use existing generation method with single persona inputs
+            prompt = self._get_patient_prompt(brand_info, inputs)
+
+            if self.provider == "openai":
+                result_personas = await self._generate_with_openai(prompt)
+            elif self.provider == "anthropic":
+                result_personas = await self._generate_with_anthropic(prompt)
+            else:
+                raise ValueError(f"Unknown LLM provider: {self.provider}")
+
+            # Take first persona from result (we asked for 1)
+            if result_personas and len(result_personas) > 0:
+                personas.append(result_personas[0])
+
+        return personas
+
+    async def generate_manual_hcp_personas(
+        self,
+        brand_info: Dict[str, Any],
+        persona_inputs: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate HCP personas from manual form inputs
+
+        Args:
+            brand_info: Brand information dictionary
+            persona_inputs: List of persona input dictionaries from frontend forms
+
+        Returns:
+            List of HCP persona dictionaries
+        """
+        personas = []
+
+        for i, inputs in enumerate(persona_inputs):
+            # Use existing generation method with single persona inputs
+            prompt = self._get_hcp_prompt(brand_info, inputs)
+
+            if self.provider == "openai":
+                result_personas = await self._generate_with_openai(prompt)
+            elif self.provider == "anthropic":
+                result_personas = await self._generate_with_anthropic(prompt)
+            else:
+                raise ValueError(f"Unknown LLM provider: {self.provider}")
+
+            # Take first persona from result (we asked for 1)
+            if result_personas and len(result_personas) > 0:
+                personas.append(result_personas[0])
+
+        return personas
