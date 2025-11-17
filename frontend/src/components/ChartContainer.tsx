@@ -28,7 +28,7 @@ interface ChartContainerProps {
  * @param logoOpacity - Logo opacity 0-1 (default: 1.0)
  * @param logoPosition - Logo corner placement (default: "bottom-right")
  * @param logoSize - Logo width in pixels (default: 86)
- * @param showLogo - Whether to display logo (default: true)
+ * @param showLogo - Whether to display logo (default: false)
  */
 export const ChartContainer: React.FC<ChartContainerProps> = ({
   children,
@@ -37,7 +37,7 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
   logoOpacity = 1.0,
   logoPosition = 'bottom-right',
   logoSize = 86,
-  showLogo = true,
+  showLogo = false,
 }) => {
   // Calculate logo positioning based on logoPosition prop
   const getLogoPosition = () => {
