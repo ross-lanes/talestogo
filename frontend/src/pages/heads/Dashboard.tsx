@@ -11,7 +11,6 @@ import {
   Alert,
 } from '@mui/material';
 import {
-  Business as BusinessIcon,
   Create as CreateIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
@@ -24,13 +23,6 @@ export default function Dashboard() {
   const { brands, activeBrand } = useBrand();
 
   const dashboardCards = [
-    {
-      title: 'Manage Brands',
-      description: 'Create and manage pharmaceutical brands',
-      icon: <BusinessIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
-      action: () => navigate('/manage/brand-info'),
-      buttonText: 'Go to Brands',
-    },
     {
       title: 'Generate Personas',
       description: 'Create patient and HCP personas for your active brand',
