@@ -11,7 +11,8 @@ import {
   Alert,
 } from '@mui/material';
 import {
-  Create as CreateIcon,
+  PersonAdd as PatientIcon,
+  MedicalServices as HCPIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
 import { useBrand } from '../../contexts/BrandContext';
@@ -24,11 +25,19 @@ export default function Dashboard() {
 
   const dashboardCards = [
     {
-      title: 'Generate Personas',
-      description: 'Create patient and HCP personas for your active brand',
-      icon: <CreateIcon sx={{ fontSize: 48, color: 'secondary.main' }} />,
-      action: () => navigate('/heads/generate'),
-      buttonText: 'Generate Now',
+      title: 'Generate Patient Personas',
+      description: 'Create patient personas for your active brand',
+      icon: <PatientIcon sx={{ fontSize: 48, color: 'secondary.main' }} />,
+      action: () => navigate('/heads/generate/patient'),
+      buttonText: 'Generate Patients',
+      disabled: !activeBrand,
+    },
+    {
+      title: 'Generate HCP Personas',
+      description: 'Create healthcare professional personas for your active brand',
+      icon: <HCPIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
+      action: () => navigate('/heads/generate/hcp'),
+      buttonText: 'Generate HCPs',
       disabled: !activeBrand,
     },
     {

@@ -28,6 +28,8 @@ import InviteAccept from '../pages/auth/InviteAccept';
 // Heads - Persona Intelligence Platform pages
 import HeadsDashboard from '../pages/heads/Dashboard';
 import GeneratePersonas from '../pages/heads/GeneratePersonas';
+import GeneratePatientPersonas from '../pages/heads/GeneratePatientPersonas';
+import GenerateHCPPersonas from '../pages/heads/GenerateHCPPersonas';
 import Generations from '../pages/heads/Generations';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
@@ -305,6 +307,26 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <GeneratePersonas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generate/patient"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GeneratePatientPersonas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generate/hcp"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GenerateHCPPersonas />
                 </Layout>
               </ProtectedRoute>
             }
