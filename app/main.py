@@ -46,8 +46,8 @@ app.add_middleware(
         "http://localhost:5173",  # Local development
         "https://tales-frontend.onrender.com",  # Production frontend (legacy)
         "https://tales.robotrachel.com",  # Production frontend (custom domain)
+        "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain
         "https://api.tales.robotrachel.com",  # API subdomain
-        "https://*.robotrachel.com"  # All robotrachel.com subdomains
     ],
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
