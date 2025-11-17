@@ -39,6 +39,37 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# Import for exception handling
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+
+# Add exception handler to ensure CORS headers on all responses
+@app.exception_handler(FastAPIHTTPException)
+async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
+    """Add CORS headers to error responses"""
+    origin = request.headers.get("origin")
+
+    # List of allowed origins (must match CORS config)
+    allowed_origins = [
+        "http://localhost:5173",
+        "https://tales-frontend.onrender.com",
+        "https://tales.robotrachel.com",
+        "https://solsticehc.robotrachel.com",
+        "https://api.tales.robotrachel.com",
+    ]
+
+    headers = {}
+    if origin in allowed_origins:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=headers
+    )
+
 # Configure CORS to allow frontend to access backend
 app.add_middleware(
     CORSMiddleware,
