@@ -135,7 +135,7 @@ const Login: React.FC = () => {
             variant="h5"
             component="h1"
             gutterBottom
-            sx={{ color: '#665775', fontWeight: 700, lineHeight: 1.4 }}
+            sx={{ color: '#003e60', fontWeight: 700, lineHeight: 1.4 }}
           >
             Welcome to Tales!
           </Typography>
@@ -177,8 +177,8 @@ const Login: React.FC = () => {
             disabled={loading || !msalInitialized}
             fullWidth
             sx={{
-              borderColor: '#665775',
-              color: '#665775',
+              borderColor: '#003e60',
+              color: '#003e60',
               '&:hover': {
                 borderColor: '#54475f',
                 backgroundColor: 'rgba(102, 87, 117, 0.04)',

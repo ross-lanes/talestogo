@@ -105,7 +105,7 @@ export default function InviteAccept() {
     return (
       <Box
         sx={{
-          backgroundColor: '#665775',
+          backgroundColor: '#003e60',
           minHeight: '100vh',
           width: '100vw',
           display: 'flex',
@@ -127,7 +127,7 @@ export default function InviteAccept() {
     return (
       <Box
         sx={{
-          backgroundColor: '#665775',
+          backgroundColor: '#003e60',
           minHeight: '100vh',
           width: '100vw',
           display: 'flex',
@@ -151,7 +151,7 @@ export default function InviteAccept() {
             backgroundColor: '#fff',
           }}
         >
-          <Typography variant="h4" gutterBottom sx={{ color: '#665775', fontWeight: 700 }}>
+          <Typography variant="h4" gutterBottom sx={{ color: '#003e60', fontWeight: 700 }}>
             Invalid Invitation
           </Typography>
           <Alert severity="error" sx={{ mt: 2 }}>
@@ -160,7 +160,7 @@ export default function InviteAccept() {
           <Button
             variant="contained"
             fullWidth
-            sx={{ mt: 3, backgroundColor: '#665775', '&:hover': { backgroundColor: '#54475f' } }}
+            sx={{ mt: 3, backgroundColor: '#003e60', '&:hover': { backgroundColor: '#54475f' } }}
             onClick={() => navigate('/login')}
           >
             Go to Login
@@ -173,7 +173,7 @@ export default function InviteAccept() {
   return (
     <Box
       sx={{
-        backgroundColor: '#665775',
+        backgroundColor: '#003e60',
         minHeight: '100vh',
         width: '100vw',
         display: 'flex',
@@ -201,7 +201,7 @@ export default function InviteAccept() {
         <Typography
           variant="h4"
           gutterBottom
-          sx={{ color: '#665775', fontWeight: 700, lineHeight: 1.4 }}
+          sx={{ color: '#003e60', fontWeight: 700, lineHeight: 1.4 }}
         >
           Welcome to TALES!
         </Typography>
@@ -264,7 +264,7 @@ export default function InviteAccept() {
                 disabled={validating}
                 sx={{
                   mt: 3,
-                  backgroundColor: '#665775',
+                  backgroundColor: '#003e60',
                   '&:hover': { backgroundColor: '#54475f' },
                 }}
               >

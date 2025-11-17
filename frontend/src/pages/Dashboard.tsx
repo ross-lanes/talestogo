@@ -410,7 +410,7 @@ export default function Dashboard() {
                 </Box>
                 <TrendingUpIcon sx={{
                   fontSize: 48,
-                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#665775'
+                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#003e60'
                 }} />
               </Box>
             </CardContent>
@@ -480,7 +480,7 @@ export default function Dashboard() {
                     })()}
                   </Typography>
                 </Box>
-                <VisibilityIcon sx={{ fontSize: 48, color: '#665775' }} />
+                <VisibilityIcon sx={{ fontSize: 48, color: '#003e60' }} />
               </Box>
             </CardContent>
           </Card>
@@ -580,7 +580,7 @@ export default function Dashboard() {
                     { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
                     { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                     { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                    { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
+                    { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
                   ]}
                   margin={{ top: 5, right: 30, left: 20, bottom: 40 }}
                 >
@@ -598,7 +598,7 @@ export default function Dashboard() {
                       { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
                       { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
                       { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                      { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#665775' },
+                      { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
                     ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}

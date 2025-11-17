@@ -161,7 +161,7 @@ export default function StrategicPriorities() {
       </Typography>
 
       {/* Summary */}
-      <Paper sx={{ p: 4, mb: 4, backgroundColor: '#665775', color: 'white' }}>
+      <Paper sx={{ p: 4, mb: 4, backgroundColor: '#003e60', color: 'white' }}>
         <Typography variant="body1">
           TALES has identified {priorities.length} strategic priorities to improve your brand's AI visibility and sentiment.
         </Typography>

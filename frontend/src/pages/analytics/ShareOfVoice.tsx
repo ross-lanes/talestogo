@@ -9,7 +9,7 @@ import BatchSelector from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 
-const BRAND_COLOR = '#665775';
+const BRAND_COLOR = '#003e60';
 const COMPETITOR_COLORS = [
   '#80a1d4', '#75c9c8', '#44809C',  // TALES colors (removed #c0b9dd and #ded9e2)
   '#9FA8DA', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
@@ -539,7 +539,7 @@ export default function ShareOfVoice() {
                             width: 12,
                             height: 12,
                             borderRadius: '50%',
-                            backgroundColor: PLATFORM_COLORS[item.platform] || '#665775'
+                            backgroundColor: PLATFORM_COLORS[item.platform] || '#003e60'
                           }}
                         />
                         {item.platform}

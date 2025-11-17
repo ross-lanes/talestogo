@@ -430,7 +430,7 @@ export default function SentimentAnalysis() {
                             width: 12,
                             height: 12,
                             borderRadius: '50%',
-                            backgroundColor: PLATFORM_COLORS[item.platform] || '#665775'
+                            backgroundColor: PLATFORM_COLORS[item.platform] || '#003e60'
                           }}
                         />
                         {item.platform}

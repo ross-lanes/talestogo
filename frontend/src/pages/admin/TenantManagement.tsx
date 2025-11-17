@@ -54,7 +54,7 @@ const TenantManagement: React.FC = () => {
     subdomain: '',
     logo_url: '',
     primary_color: '#75C9C8',
-    secondary_color: '#665775',
+    secondary_color: '#003e60',
     custom_domain: '',
   });
   const [logoUploadMode, setLogoUploadMode] = useState<'url' | 'file'>('url');
@@ -99,7 +99,7 @@ const TenantManagement: React.FC = () => {
         subdomain: '',
         logo_url: '',
         primary_color: '#75C9C8',
-        secondary_color: '#665775',
+        secondary_color: '#003e60',
         custom_domain: '',
       });
     }
@@ -116,7 +116,7 @@ const TenantManagement: React.FC = () => {
       subdomain: '',
       logo_url: '',
       primary_color: '#75C9C8',
-      secondary_color: '#665775',
+      secondary_color: '#003e60',
       custom_domain: '',
     });
     setLogoFile(null);

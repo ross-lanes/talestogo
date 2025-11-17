@@ -377,7 +377,7 @@ export default function DataAnalysis() {
                           size="small"
                           startIcon={<DownloadIcon />}
                           onClick={() => handleDownloadWord(report)}
-                          sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
+                          sx={{ bgcolor: '#003e60', '&:hover': { bgcolor: '#80a1d4' } }}
                         >
                           Word
                         </Button>
@@ -467,7 +467,7 @@ export default function DataAnalysis() {
           <Button
             onClick={() => handleDownloadWord(selectedReport!)}
             variant="contained"
-            sx={{ bgcolor: '#665775', color: 'white', '&:hover': { bgcolor: '#80a1d4' } }}
+            sx={{ bgcolor: '#003e60', color: 'white', '&:hover': { bgcolor: '#80a1d4' } }}
           >
             Word
           </Button>

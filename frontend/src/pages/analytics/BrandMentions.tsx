@@ -9,7 +9,7 @@ import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 
 
-const BRAND_COLOR = '#665775';
+const BRAND_COLOR = '#003e60';
 
 // Platform colors for consistency
 const PLATFORM_COLORS: Record<string, string> = {
@@ -163,7 +163,7 @@ export default function BrandMentions() {
                 </Box>
                 <TrendingUpIcon sx={{
                   fontSize: 48,
-                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#665775'
+                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#003e60'
                 }} />
               </Box>
             </CardContent>

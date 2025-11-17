@@ -41,7 +41,7 @@ export default function Manage() {
             startIcon={<QueryIcon />}
             onClick={() => navigate('/manage/queries')}
             sx={{
-              backgroundColor: '#665775',
+              backgroundColor: '#003e60',
               '&:hover': {
                 backgroundColor: '#554863',
               },

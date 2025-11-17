@@ -1,11 +1,11 @@
 import { createTheme } from '@mui/material/styles';
 
 // Custom Brand Colors
-// Palette: #665775, #80a1d4, #75c9c8 (removed #c0b9dd and #ded9e2 - too light for charts)
+// Palette: #003e60, #80a1d4, #75c9c8 (removed #c0b9dd and #ded9e2 - too light for charts)
 export const theme = createTheme({
   palette: {
     primary: {
-      main: '#665775', // Deep purple - primary base color
+      main: '#003e60', // Deep purple - primary base color
       light: '#8876a3',
       dark: '#4a3d52',
       contrastText: '#ffffff',

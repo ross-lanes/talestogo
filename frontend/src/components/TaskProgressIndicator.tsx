@@ -132,7 +132,7 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
             <Button
               onClick={handleCloseSuccessDialog}
               variant="contained"
-              sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
+              sx={{ bgcolor: '#003e60', '&:hover': { bgcolor: '#80a1d4' } }}
             >
               Got it!
             </Button>
@@ -237,7 +237,7 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
           <Button
             onClick={handleCloseSuccessDialog}
             variant="contained"
-            sx={{ bgcolor: '#665775', '&:hover': { bgcolor: '#80a1d4' } }}
+            sx={{ bgcolor: '#003e60', '&:hover': { bgcolor: '#80a1d4' } }}
           >
             Got it!
           </Button>

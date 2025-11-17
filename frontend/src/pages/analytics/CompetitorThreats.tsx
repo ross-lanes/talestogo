@@ -68,7 +68,7 @@ export default function CompetitorThreats() {
     switch(level) {
       case 'High': return '#75C9C8';   // High - TALES teal
       case 'Medium': return '#80A1D4'; // Medium - TALES blue
-      case 'Low': return '#665775';    // Low - TALES purple
+      case 'Low': return '#003e60';    // Low - TALES purple
       default: return '#80a1d4';       // TALES blue for unknown
     }
   };
@@ -216,7 +216,7 @@ export default function CompetitorThreats() {
           <Typography variant="caption" color="text.secondary">Monitor closely</Typography>
         </Paper>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" sx={{ color: '#665775' }}>
+          <Typography variant="h4" sx={{ color: '#003e60' }}>
             {threats.filter((c: any) => c.threat_level === 'Low').length}
           </Typography>
           <Typography variant="body1">Low Threat</Typography>
@@ -365,7 +365,7 @@ export default function CompetitorThreats() {
                       width: 16,
                       height: 16,
                       borderRadius: '50%',
-                      backgroundColor: PLATFORM_COLORS[platformData.platform] || '#665775'
+                      backgroundColor: PLATFORM_COLORS[platformData.platform] || '#003e60'
                     }}
                   />
                   <Typography variant="h6">{platformData.platform}</Typography>

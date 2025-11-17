@@ -24,7 +24,7 @@ export const TenantThemeProvider: React.FC<TenantThemeProviderProps> = ({ childr
             contrastText: '#fff',
           },
           secondary: {
-            main: tenant.secondary_color || '#665775',
+            main: tenant.secondary_color || '#003e60',
             contrastText: '#fff',
           },
         },

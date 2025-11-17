@@ -11,7 +11,7 @@ import ChartContainer from '../../components/ChartContainer';
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
-  '#665775', '#80a1d4', '#75c9c8', '#44809C',  // TALES colors
+  '#003e60', '#80a1d4', '#75c9c8', '#44809C',  // TALES colors
   '#9FA8DA', '#4A55EA', '#58A13B', '#EA4A4A'   // Extended palette
 ];
 
@@ -163,7 +163,7 @@ export default function PositioningAnalysis() {
   // Transform data for horizontal bar chart
   // API returns: { leader: 3, top_3: 10, featured: 9, listed: 10, not_mentioned: 43, total: 88, ... }
   const positionOrder = [
-    { key: 'not_mentioned', label: 'Not mentioned', color: '#665775' },
+    { key: 'not_mentioned', label: 'Not mentioned', color: '#003e60' },
     { key: 'listed', label: 'Listed', color: '#80a1d4' },
     { key: 'featured', label: 'Featured', color: '#75c9c8' },
     { key: 'leader', label: 'Leader', color: '#116C29' }  // Bright highlighter green
@@ -286,7 +286,7 @@ export default function PositioningAnalysis() {
         </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 3, mt: 2 }}>
           <Box>
-            <Typography variant="h6" sx={{ color: '#665775', mb: 1 }}>Not mentioned (Score: 1)</Typography>
+            <Typography variant="h6" sx={{ color: '#003e60', mb: 1 }}>Not mentioned (Score: 1)</Typography>
             <Typography variant="body1" color="text.secondary">
               Your brand was not mentioned in the response
             </Typography>
@@ -345,7 +345,7 @@ export default function PositioningAnalysis() {
                 <Bar dataKey="Leader" fill="#116C29" stackId="a" />
                 <Bar dataKey="Featured" fill="#75c9c8" stackId="a" />
                 <Bar dataKey="Listed" fill="#80a1d4" stackId="a" />
-                <Bar dataKey="Not Mentioned" fill="#665775" stackId="a" />
+                <Bar dataKey="Not Mentioned" fill="#003e60" stackId="a" />
               </BarChart>
             </ChartContainer>
           </Box>
@@ -373,7 +373,7 @@ export default function PositioningAnalysis() {
                             width: 12,
                             height: 12,
                             borderRadius: '50%',
-                            backgroundColor: PLATFORM_COLORS[item.platform] || '#665775'
+                            backgroundColor: PLATFORM_COLORS[item.platform] || '#003e60'
                           }}
                         />
                         {item.platform}
@@ -476,8 +476,8 @@ export default function PositioningAnalysis() {
                       type="monotone"
                       dataKey="not_mentioned"
                       stackId="1"
-                      stroke="#665775"
-                      fill="#665775"
+                      stroke="#003e60"
+                      fill="#003e60"
                       name="Not Mentioned"
                     />
                   </AreaChart>

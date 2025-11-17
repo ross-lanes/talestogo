@@ -28,7 +28,7 @@ const TASK_TYPE_LABELS: Record<string, string> = {
 
 const TASK_TYPE_COLORS: Record<string, string> = {
   collection: '#75c9c8',  // Teal
-  analysis: '#665775',    // Purple
+  analysis: '#003e60',    // Purple
   report_generation: '#80a1d4',  // Blue
 };
 
@@ -41,7 +41,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onDismiss }) => {
   const [expanded, setExpanded] = useState(false);
 
   const taskLabel = TASK_TYPE_LABELS[task.task_type] || task.task_type;
-  const taskColor = TASK_TYPE_COLORS[task.task_type] || '#665775';
+  const taskColor = TASK_TYPE_COLORS[task.task_type] || '#003e60';
 
   // Auto-dismiss completed tasks after 30 seconds
   useEffect(() => {

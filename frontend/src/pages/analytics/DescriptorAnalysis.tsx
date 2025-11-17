@@ -336,7 +336,7 @@ export default function DescriptorAnalysis() {
                   } else if (status === 'Moderate') {
                     statusColor = '#80A1D4'; // Medium - TALES blue
                   } else if (status === 'Weak') {
-                    statusColor = '#665775'; // Low - TALES purple
+                    statusColor = '#003e60'; // Low - TALES purple
                   }
 
                   return (
@@ -418,7 +418,7 @@ export default function DescriptorAnalysis() {
                       width: 16,
                       height: 16,
                       borderRadius: '50%',
-                      backgroundColor: PLATFORM_COLORS[platformData.platform] || '#665775'
+                      backgroundColor: PLATFORM_COLORS[platformData.platform] || '#003e60'
                     }}
                   />
                   <Typography variant="h6">{platformData.platform}</Typography>

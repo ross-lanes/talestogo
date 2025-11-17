@@ -236,7 +236,7 @@ export default function Data() {
             onClick={() => analysisMutation.mutate()}
             disabled={analysisMutation.isPending || !responses || responses.length === 0}
             sx={{
-              backgroundColor: '#665775',
+              backgroundColor: '#003e60',
               '&:hover': {
                 backgroundColor: '#554866',
               },
