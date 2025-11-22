@@ -28,7 +28,7 @@ const PRODUCTS: ProductInfo[] = [
     name: 'Heads',
     description: 'Persona Intelligence Platform',
     logoPath: '/heads_white.png',
-    enabled: true, // Enabled for Solstice HC only
+    enabled: false, // Coming soon - still in development
     requiredTenants: ['Solstice HC'], // Only Solstice HC can access
   },
   {
