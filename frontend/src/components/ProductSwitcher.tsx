@@ -19,7 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProduct } from '../contexts/ProductContext';
 
 const ProductSwitcher: React.FC = () => {
-  const { currentProduct, availableProducts, switchProduct, isSolsticeHC } = useProduct();
+  const { currentProduct, availableProducts, upcomingProducts, switchProduct, isSolsticeHC } = useProduct();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
 
@@ -49,12 +49,15 @@ const ProductSwitcher: React.FC = () => {
     }
   };
 
-  // Filter available products
-  const enabledProducts = availableProducts.filter(p => p.enabled);
-  const upcomingProducts = availableProducts.filter(p => !p.enabled);
+  // Debug logging
+  console.log('ProductSwitcher render check:', {
+    availableProducts: availableProducts.length,
+    upcomingProducts: upcomingProducts.length,
+    shouldShow: !(availableProducts.length <= 1 && upcomingProducts.length === 0)
+  });
 
   // Don't show ProductSwitcher if only one product is available
-  if (enabledProducts.length <= 1 && upcomingProducts.length === 0) {
+  if (availableProducts.length <= 1 && upcomingProducts.length === 0) {
     return null;
   }
 
@@ -105,7 +108,7 @@ const ProductSwitcher: React.FC = () => {
             Available Products
           </Typography>
         </Box>
-        {enabledProducts.map((product) => (
+        {availableProducts.map((product) => (
           <MenuItem
             key={product.id}
             onClick={() => handleSwitchProduct(product.id)}
@@ -127,14 +130,9 @@ const ProductSwitcher: React.FC = () => {
             </ListItemIcon>
             <ListItemText
               primary={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" fontWeight={product.id === currentProduct.id ? 600 : 400}>
-                    {product.name}
-                  </Typography>
-                  {product.id === currentProduct.id && (
-                    <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
-                  )}
-                </Box>
+                <Typography variant="body2" fontWeight={product.id === currentProduct.id ? 600 : 400}>
+                  {product.name}
+                </Typography>
               }
               secondary={product.description}
               secondaryTypographyProps={{
@@ -169,20 +167,9 @@ const ProductSwitcher: React.FC = () => {
                 </ListItemIcon>
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">
-                        {product.name}
-                      </Typography>
-                      <Chip
-                        label="Soon"
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: '0.7rem',
-                          backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                        }}
-                      />
-                    </Box>
+                    <Typography variant="body2">
+                      {product.name}
+                    </Typography>
                   }
                   secondary={product.description}
                   secondaryTypographyProps={{

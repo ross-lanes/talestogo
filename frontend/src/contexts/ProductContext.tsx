@@ -90,6 +90,9 @@ interface ProductProviderProps {
 }
 
 export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName }) => {
+  // Debug logging
+  console.log('ProductProvider initialized with tenant:', tenantName);
+
   // Check if user is in Solstice HC tenant
   const isSolsticeHC = tenantName === 'Solstice HC';
 
@@ -117,6 +120,13 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
     if (p.enabled) return false;
     // Show only if tenant would have access when enabled
     return isProductAccessible(p);
+  });
+
+  // Debug logging for products
+  console.log('ProductProvider products:', {
+    isSolsticeHC,
+    availableProducts: availableProducts.map(p => p.id),
+    upcomingProducts: upcomingProducts.map(p => p.id)
   });
 
   // Initialize from localStorage or default to first available
