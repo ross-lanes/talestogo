@@ -56,10 +56,11 @@ const ProductSwitcher: React.FC = () => {
     shouldShow: !(availableProducts.length <= 1 && upcomingProducts.length === 0)
   });
 
-  // Don't show ProductSwitcher if only one product is available
-  if (availableProducts.length <= 1 && upcomingProducts.length === 0) {
-    return null;
-  }
+  // TEMPORARY: Always show for debugging
+  // TODO: Restore hiding logic after debugging
+  // if (availableProducts.length <= 1 && upcomingProducts.length === 0) {
+  //   return null;
+  // }
 
   return (
     <Box>
