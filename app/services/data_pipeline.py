@@ -138,9 +138,9 @@ def run_collection_analysis_report(
                 db_thread.commit()
 
             # Wait for collection (send "1" to auto-select all queries)
-            # Timeout after 30 minutes for collection (20 queries * 4 platforms * ~30s + buffer)
+            # Timeout after 90 minutes for collection (20 queries * 4 platforms * ~30s + buffer)
             try:
-                stdout, stderr = process.communicate(input="1\n", timeout=1800)
+                stdout, stderr = process.communicate(input="1\n", timeout=5400)
             except subprocess.TimeoutExpired:
                 # Kill the process if it times out
                 process.kill()
@@ -148,7 +148,7 @@ def run_collection_analysis_report(
                 task = db_thread.query(models.TaskStatus).filter_by(id=task_id).first()
                 if task:
                     task.status = "failed"
-                    task.error_message = f"Collection timed out after 30 minutes. This usually indicates API timeouts or rate limits. Check error_message for specific platform errors."
+                    task.error_message = f"Collection timed out after 90 minutes. This usually indicates API timeouts or rate limits. Check error_message for specific platform errors."
                     task.completed_at = utcnow()
                     db_thread.commit()
 
@@ -257,9 +257,9 @@ def run_collection_analysis_report(
                 task.process_id = analysis_process.pid
                 db_thread.commit()
 
-            # Wait for analysis (timeout after 20 minutes)
+            # Wait for analysis (timeout after 60 minutes)
             try:
-                stdout, stderr = analysis_process.communicate(timeout=1200)
+                stdout, stderr = analysis_process.communicate(timeout=3600)
             except subprocess.TimeoutExpired:
                 # Kill the process if it times out
                 analysis_process.kill()
@@ -267,7 +267,7 @@ def run_collection_analysis_report(
                 task = db_thread.query(models.TaskStatus).filter_by(id=analysis_task.id).first()
                 if task:
                     task.status = "failed"
-                    task.error_message = f"Analysis timed out after 20 minutes. This usually indicates API timeouts or processing errors."
+                    task.error_message = f"Analysis timed out after 60 minutes. This usually indicates API timeouts or processing errors."
                     task.completed_at = utcnow()
                     db_thread.commit()
 
