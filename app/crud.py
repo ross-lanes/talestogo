@@ -658,20 +658,43 @@ def transfer_brand_ownership(db: Session, brand_id: int, current_owner_id: int, 
     db.refresh(db_brand)
     return db_brand
 
-def delete_brand_info(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
+def delete_brand_info(db: Session, brand_id: int, user_id: int, admin_override: bool = False) -> Optional[models.BrandInfo]:
     """Deletes a specific brand and all associated data."""
-    db_brand = get_brand_by_id(db, brand_id, user_id)
+    if admin_override:
+        # Admin can delete any brand - skip ownership check
+        db_brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+    else:
+        # Regular users can only delete brands they own
+        db_brand = get_brand_by_id(db, brand_id, user_id)
+
     if not db_brand:
         return None
 
-    # Delete associated data
-    db.query(models.Query).filter(models.Query.brand_id == brand_id).delete()
+    # Delete associated data in proper order (respecting foreign key constraints)
+    # Delete data that references other tables first
+    db.query(models.CitedSource).filter(models.CitedSource.brand_id == brand_id).delete()
+    db.query(models.Report).filter(models.Report.brand_id == brand_id).delete()
+    db.query(models.Campaign).filter(models.Campaign.brand_id == brand_id).delete()
     db.query(models.Response).filter(models.Response.brand_id == brand_id).delete()
+    db.query(models.Query).filter(models.Query.brand_id == brand_id).delete()
     db.query(models.TargetDescriptor).filter(models.TargetDescriptor.brand_id == brand_id).delete()
     db.query(models.Competitor).filter(models.Competitor.brand_id == brand_id).delete()
-    db.query(models.Campaign).filter(models.Campaign.brand_id == brand_id).delete()
-    db.query(models.Report).filter(models.Report.brand_id == brand_id).delete()
-    db.query(models.CitedSource).filter(models.CitedSource.brand_id == brand_id).delete()
+
+    # Delete batch-related data
+    db.query(models.BatchAnalytics).filter(models.BatchAnalytics.brand_id == brand_id).delete()
+    db.query(models.CollectionBatch).filter(models.CollectionBatch.brand_id == brand_id).delete()
+
+    # Delete task-related data
+    db.query(models.TaskStatus).filter(models.TaskStatus.brand_id == brand_id).delete()
+    db.query(models.ScheduledTask).filter(models.ScheduledTask.brand_id == brand_id).delete()
+    db.query(models.ScheduledTaskHistory).filter(models.ScheduledTaskHistory.brand_id == brand_id).delete()
+
+    # Delete Heads (Persona) data
+    db.query(models.Persona).filter(models.Persona.brand_id == brand_id).delete()
+    db.query(models.PersonaGeneration).filter(models.PersonaGeneration.brand_id == brand_id).delete()
+
+    # Delete brand shares
+    db.query(models.BrandShare).filter(models.BrandShare.brand_id == brand_id).delete()
 
     # Delete brand
     db.delete(db_brand)

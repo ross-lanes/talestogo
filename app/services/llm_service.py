@@ -121,11 +121,11 @@ def analyze_raw_response(
     descriptors: List[str]
 ) -> Dict[str, Any]:
     """
-    Uses an LLM (Gemini by default) to analyze a raw response and extract structured data.
+    Uses Perplexity to analyze a raw response and extract structured data.
     """
-    if not GEMINI_API_KEY:
-        print("ERROR: Gemini API key is required for analysis but is not configured.")
-        return {"error": "Gemini API key not configured for analysis."}
+    if not perplexity_client:
+        print("ERROR: Perplexity API key is required for analysis but is not configured.")
+        return {"error": "Perplexity API key not configured for analysis."}
 
     competitor_list_str = ", ".join(f'"{c}"' for c in competitors)
     descriptor_list_str = ", ".join(f'"{d}"' for d in descriptors)
@@ -135,7 +135,7 @@ def analyze_raw_response(
         "objectively based on a provided query. Respond ONLY with a valid JSON object, with no other text "
         "or explanations. All fields in the JSON must be populated."
     )
-    
+
     user_prompt = f"""
     Analyze the following AI response based on the original query and the provided context.
 
@@ -176,18 +176,26 @@ def analyze_raw_response(
     Now, analyze the provided AI Response and return the JSON object.
     """
 
-    print(f"Analyzing response for query: '{query_text[:50]}...'")
-    model = genai.GenerativeModel(
-        'gemini-2.5-pro',
-        system_instruction=system_prompt,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    response = model.generate_content(user_prompt)
-    
+    print(f"Analyzing response with Perplexity for query: '{query_text[:50]}...'")
+
     try:
-        analysis_json = json.loads(response.text)
+        response = perplexity_client.chat.completions.create(
+            model="llama-3-sonar-large-32k-online",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+
+        response_text = response.choices[0].message.content
+
+        # Parse the JSON response
+        analysis_json = json.loads(response_text)
         return analysis_json
-    except (json.JSONDecodeError, KeyError) as e:
-        print(f"ERROR: Could not parse JSON from analysis response. Error: {e}")
-        print(f"Raw analysis response: {response.text}")
-        return {"error": "Failed to parse analysis from LLM."}
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Could not parse JSON from Perplexity analysis response. Error: {e}")
+        print(f"Raw analysis response: {response_text if 'response_text' in locals() else 'No response'}")
+        return {"error": "Failed to parse analysis from Perplexity."}
+    except Exception as e:
+        print(f"ERROR: Perplexity analysis failed. Error: {e}")
+        return {"error": f"Perplexity analysis failed: {str(e)}"}

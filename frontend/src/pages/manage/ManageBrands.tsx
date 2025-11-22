@@ -36,9 +36,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBrand } from '../../contexts/BrandContext';
 import { brandsAPI } from '../../services/api';
 
-interface Brand {
+interface BrandInfo {
   id: number;
-  user_id: number;
+  user_id?: number;
   brand_name: string;
   website_url: string | null;
   industry: string | null;
@@ -52,8 +52,8 @@ const ManageBrands: React.FC = () => {
   const { switchBrand, activeBrand } = useBrand();
   const navigate = useNavigate();
 
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { brands, loading: brandsLoading, refreshBrands } = useBrand();
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -78,24 +78,7 @@ const ManageBrands: React.FC = () => {
 
   const isAdmin = user?.email === 'robotrachel@gmail.com';
 
-  useEffect(() => {
-    loadBrands();
-  }, []);
-
-  const loadBrands = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const data = await brandsAPI.getAllBrands();
-      setBrands(data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load brands');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTransferClick = (brand: Brand) => {
+  const handleTransferClick = (brand: BrandInfo) => {
     setTransferBrandId(brand.id);
     setTransferBrandName(brand.brand_name);
     setTransferEmail('');
@@ -111,7 +94,7 @@ const ManageBrands: React.FC = () => {
       const result = await brandsAPI.transferBrand(transferBrandId, transferEmail);
       setSuccess(result.message);
       setTransferDialogOpen(false);
-      loadBrands(); // Reload to remove transferred brand
+      await refreshBrands(); // Reload to remove transferred brand
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to transfer brand');
     } finally {
@@ -119,7 +102,7 @@ const ManageBrands: React.FC = () => {
     }
   };
 
-  const handleRemoveClick = (brand: Brand) => {
+  const handleRemoveClick = (brand: BrandInfo) => {
     setRemoveBrandId(brand.id);
     setRemoveBrandName(brand.brand_name);
     setRemoveDialogOpen(true);
@@ -134,7 +117,7 @@ const ManageBrands: React.FC = () => {
       const result = await brandsAPI.removeBrand(removeBrandId);
       setSuccess(result.message);
       setRemoveDialogOpen(false);
-      loadBrands(); // Reload to remove brand from list
+      await refreshBrands(); // Reload to remove brand from list
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to remove brand');
     } finally {
@@ -142,7 +125,7 @@ const ManageBrands: React.FC = () => {
     }
   };
 
-  const handleDeleteClick = (brand: Brand) => {
+  const handleDeleteClick = (brand: BrandInfo) => {
     setDeleteBrandId(brand.id);
     setDeleteBrandName(brand.brand_name);
     setDeleteDialogOpen(true);
@@ -157,7 +140,7 @@ const ManageBrands: React.FC = () => {
       await brandsAPI.deleteBrand(deleteBrandId);
       setSuccess(`Brand "${deleteBrandName}" permanently deleted`);
       setDeleteDialogOpen(false);
-      loadBrands(); // Reload to remove deleted brand
+      await refreshBrands(); // Reload to remove deleted brand
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete brand');
     } finally {
@@ -165,16 +148,16 @@ const ManageBrands: React.FC = () => {
     }
   };
 
-  const handleActivate = async (brand: Brand) => {
+  const handleActivate = async (brand: BrandInfo) => {
     try {
       await switchBrand(brand.id);
-      loadBrands(); // Reload to update active status
+      // No need to reload - switchBrand already updates the context
     } catch (err: any) {
       setError('Failed to activate brand');
     }
   };
 
-  if (loading) {
+  if (brandsLoading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
         <CircularProgress />
@@ -291,7 +274,7 @@ const ManageBrands: React.FC = () => {
                         color="warning"
                         disabled={isAdmin}
                       >
-                        <RemoveCircleOutline />
+                        <Delete />
                       </IconButton>
                     </Tooltip>
                     {isAdmin && (
@@ -301,7 +284,7 @@ const ManageBrands: React.FC = () => {
                           onClick={() => handleDeleteClick(brand)}
                           color="error"
                         >
-                          <Delete />
+                          <RemoveCircleOutline />
                         </IconButton>
                       </Tooltip>
                     )}

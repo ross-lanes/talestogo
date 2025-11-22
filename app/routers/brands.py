@@ -126,7 +126,7 @@ def delete_brand_endpoint(
             detail="Only admin can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
         )
 
-    deleted_brand = crud.delete_brand_info(db, brand_id=brand_id, user_id=current_user.id)
+    deleted_brand = crud.delete_brand_info(db, brand_id=brand_id, user_id=current_user.id, admin_override=True)
     if not deleted_brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     return deleted_brand
@@ -420,7 +420,7 @@ def delete_brand_info_endpoint(
     active_brand = crud.get_active_brand(db, user_id=current_user.id)
     if not active_brand:
         raise HTTPException(status_code=404, detail="No active brand found")
-    deleted_brand = crud.delete_brand_info(db, brand_id=active_brand.id, user_id=current_user.id)
+    deleted_brand = crud.delete_brand_info(db, brand_id=active_brand.id, user_id=current_user.id, admin_override=True)
     if not deleted_brand:
         raise HTTPException(status_code=404, detail="Brand info not found")
     return deleted_brand
