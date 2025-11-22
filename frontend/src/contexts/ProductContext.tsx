@@ -26,7 +26,7 @@ const PRODUCTS: ProductInfo[] = [
     name: 'Heads',
     description: 'Persona Intelligence Platform',
     logoPath: '/heads_white.png',
-    enabled: true,
+    enabled: false, // Coming soon
   },
   {
     id: 'vision',
