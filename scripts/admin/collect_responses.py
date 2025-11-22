@@ -99,14 +99,14 @@ class ResponseCollector:
             if perplexity_key:
                 # Import httpx for custom timeout
                 import httpx
-                # Perplexity needs longer timeout (30s) as it searches the web
-                http_client = httpx.Client(timeout=30.0)
+                # Perplexity needs longer timeout (4min) as it searches the web
+                http_client = httpx.Client(timeout=240.0)
                 self.perplexity_client = openai.OpenAI(
                     api_key=perplexity_key,
                     base_url="https://api.perplexity.ai",
                     http_client=http_client
                 )
-                print("✓ Perplexity configured (with extended timeout for web search)")
+                print("✓ Perplexity configured (with 4-minute timeout for web search)")
             else:
                 print("⚠️  PERPLEXITY_API_KEY not found in environment")
 
@@ -169,11 +169,11 @@ class ResponseCollector:
                 ],
                 max_tokens=1000,
                 temperature=0.7,
-                timeout=30.0  # 30 second timeout
+                timeout=240.0  # 4 minute timeout
             )
             return response.choices[0].message.content
         except openai.APITimeoutError as e:
-            error_msg = f"ChatGPT timeout after 30s: {str(e)}"
+            error_msg = f"ChatGPT timeout after 4min: {str(e)}"
             print(f"  ✗ {error_msg}")
             self.log_platform_error("ChatGPT", error_msg, query_text)
             return None
@@ -205,11 +205,11 @@ class ResponseCollector:
                 messages=[
                     {"role": "user", "content": query_text}
                 ],
-                timeout=30.0  # 30 second timeout
+                timeout=240.0  # 4 minute timeout
             )
             return response.content[0].text
         except anthropic.APITimeoutError as e:
-            error_msg = f"Claude timeout after 30s: {str(e)}"
+            error_msg = f"Claude timeout after 4min: {str(e)}"
             print(f"  ✗ {error_msg}")
             self.log_platform_error("Claude", error_msg, query_text)
             return None
@@ -238,14 +238,14 @@ class ResponseCollector:
             # Gemini API has built-in timeout but we can catch specific errors
             response = self.google_model.generate_content(
                 query_text,
-                request_options={'timeout': 30}
+                request_options={'timeout': 240}
             )
             return response.text
         except Exception as e:
             # Google API doesn't have specific exception types, so parse the message
             error_str = str(e).lower()
             if 'timeout' in error_str or 'deadline' in error_str:
-                error_msg = f"Gemini timeout after 30s: {str(e)}"
+                error_msg = f"Gemini timeout after 4min: {str(e)}"
             elif 'quota' in error_str or 'rate' in error_str:
                 error_msg = f"Gemini rate limit exceeded: {str(e)}"
             else:
@@ -267,11 +267,11 @@ class ResponseCollector:
                     {"role": "user", "content": query_text}
                 ],
                 max_tokens=1000,
-                timeout=30.0  # 30 second timeout (already set in http_client but explicit here)
+                timeout=240.0  # 4 minute timeout
             )
             return response.choices[0].message.content
         except openai.APITimeoutError as e:
-            error_msg = f"Perplexity timeout after 30s: {str(e)}"
+            error_msg = f"Perplexity timeout after 4min: {str(e)}"
             print(f"  ✗ {error_msg}")
             self.log_platform_error("Perplexity", error_msg, query_text)
             return None
