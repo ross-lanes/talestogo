@@ -348,6 +348,45 @@ export const adminAPI = {
   },
 };
 
+// Brand Management API functions
+export const brandsAPI = {
+  // Get all brands for current user
+  getAllBrands: async () => {
+    const response = await api.get('/brands/');
+    return response.data;
+  },
+
+  // Get a specific brand by ID
+  getBrand: async (brandId: number) => {
+    const response = await api.get(`/brands/${brandId}`);
+    return response.data;
+  },
+
+  // Transfer brand to another user
+  transferBrand: async (brandId: number, email: string) => {
+    const response = await api.post(`/brands/${brandId}/transfer`, { email });
+    return response.data;
+  },
+
+  // Remove brand (transfer to admin)
+  removeBrand: async (brandId: number) => {
+    const response = await api.post(`/brands/${brandId}/remove`);
+    return response.data;
+  },
+
+  // Delete brand (admin only)
+  deleteBrand: async (brandId: number) => {
+    const response = await api.delete(`/brands/${brandId}`);
+    return response.data;
+  },
+
+  // Get users brand is shared with
+  getBrandShares: async (brandId: number) => {
+    const response = await api.get(`/brands/${brandId}/shares`);
+    return response.data;
+  },
+};
+
 // Heads - Persona Intelligence Platform API functions
 export const headsAPI = {
   // Get all generations for the current user/brand

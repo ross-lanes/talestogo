@@ -53,6 +53,7 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
     # List of allowed origins (must match CORS config)
     allowed_origins = [
         "http://localhost:5173",
+        "http://localhost:5177",  # Alternate Vite dev server port
         "https://tales-frontend.onrender.com",
         "https://tales.robotrachel.com",
         "https://solsticehc.robotrachel.com",
@@ -74,7 +75,8 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Local development
+        "http://localhost:5173",  # Local development (default Vite port)
+        "http://localhost:5177",  # Local development (alternate Vite port)
         "https://tales-frontend.onrender.com",  # Production frontend (legacy)
         "https://tales.robotrachel.com",  # Production frontend (custom domain)
         "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain

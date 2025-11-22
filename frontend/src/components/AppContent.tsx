@@ -6,6 +6,7 @@ import Queries from '../pages/manage/Queries';
 import Competitors from '../pages/manage/Competitors';
 import Descriptors from '../pages/manage/Descriptors';
 import BrandInfo from '../pages/manage/BrandInfo';
+import ManageBrands from '../pages/manage/ManageBrands';
 import ReportsPage from '../pages/ReportsPage';
 import CollectAndAnalyze from '../pages/CollectAndAnalyze';
 import Settings from '../pages/Settings';
@@ -139,9 +140,19 @@ const AppRoutes: React.FC = () => {
           />
 
           {/* Manage Route - redirect to brand-info */}
-          <Route path="/manage" element={<Navigate to="/manage/brand-info" replace />} />
+          <Route path="/manage" element={<Navigate to="/manage/brands" replace />} />
 
           {/* Data Management Routes */}
+          <Route
+            path="/manage/brands"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ManageBrands />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/manage/queries"
             element={
