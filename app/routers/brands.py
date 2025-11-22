@@ -111,7 +111,21 @@ def delete_brand_endpoint(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a brand and all associated data."""
+    """
+    Permanently delete a brand and all associated data.
+
+    ADMIN ONLY: Only robotrachel@gmail.com can permanently delete brands.
+    Regular users should use POST /brands/{brand_id}/remove to transfer to admin instead.
+
+    WARNING: This permanently deletes all data with no recovery option.
+    """
+    # Restrict hard delete to admin only
+    if current_user.email != "robotrachel@gmail.com":
+        raise HTTPException(
+            status_code=403,
+            detail="Only admin can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
+        )
+
     deleted_brand = crud.delete_brand_info(db, brand_id=brand_id, user_id=current_user.id)
     if not deleted_brand:
         raise HTTPException(status_code=404, detail="Brand not found")
@@ -390,7 +404,19 @@ def delete_brand_info_endpoint(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete active brand info (legacy endpoint)."""
+    """
+    Delete active brand info (legacy endpoint - ADMIN ONLY).
+
+    Only robotrachel@gmail.com can permanently delete brands.
+    Regular users should use POST /brands/{brand_id}/remove instead.
+    """
+    # Restrict hard delete to admin only
+    if current_user.email != "robotrachel@gmail.com":
+        raise HTTPException(
+            status_code=403,
+            detail="Only admin can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
+        )
+
     active_brand = crud.get_active_brand(db, user_id=current_user.id)
     if not active_brand:
         raise HTTPException(status_code=404, detail="No active brand found")
