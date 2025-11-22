@@ -334,6 +334,18 @@ class BrandShareWithUser(BaseModel):
     permission_level: str
     created_at: datetime.datetime
 
+class BrandTransferRequest(BaseModel):
+    """Request to transfer brand to another user"""
+    email: EmailStr  # Email of user to transfer to
+
+class BrandTransferResponse(BaseModel):
+    """Response after transferring brand"""
+    message: str
+    brand_id: int
+    brand_name: str
+    new_owner_email: str
+    new_owner_full_name: Optional[str] = None
+
 # --- User/Auth Schemas ---
 class UserBase(BaseModel):
     email: EmailStr

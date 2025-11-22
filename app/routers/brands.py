@@ -230,6 +230,118 @@ def remove_brand_share_endpoint(
     return {"message": "Share removed successfully"}
 
 
+# ==================== BRAND TRANSFER ENDPOINTS ====================
+
+@router_brands.post("/{brand_id}/transfer", response_model=schemas.BrandTransferResponse)
+def transfer_brand_endpoint(
+    brand_id: int,
+    transfer_request: schemas.BrandTransferRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Transfer brand ownership to another user.
+
+    Only the brand owner can transfer. This operation:
+    - Transfers brand ownership to the specified user
+    - Transfers all associated data (queries, responses, etc.)
+    - Removes the brand from current owner's view
+    - Sets brand as inactive for new owner (they must activate it)
+    """
+    # Verify user OWNS this brand (not just has access)
+    brand = get_user_owned_brand_or_403(db, brand_id, current_user.id)
+
+    # Find the user to transfer to by email
+    new_owner = db.query(models.User).filter(models.User.email == transfer_request.email).first()
+
+    if not new_owner:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No user found with email {transfer_request.email}. User must have a TALES account."
+        )
+
+    if new_owner.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot transfer a brand to yourself")
+
+    # Ensure both users are in the same tenant (if applicable)
+    if current_user.tenant_id and new_owner.tenant_id:
+        if current_user.tenant_id != new_owner.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only transfer brands to users in your organization"
+            )
+
+    # Perform the transfer
+    transferred_brand = crud.transfer_brand_ownership(
+        db,
+        brand_id=brand_id,
+        current_owner_id=current_user.id,
+        new_owner_id=new_owner.id
+    )
+
+    if not transferred_brand:
+        raise HTTPException(status_code=500, detail="Failed to transfer brand")
+
+    return schemas.BrandTransferResponse(
+        message=f"Brand '{brand.brand_name}' successfully transferred to {new_owner.email}",
+        brand_id=brand_id,
+        brand_name=brand.brand_name,
+        new_owner_email=new_owner.email,
+        new_owner_full_name=new_owner.full_name
+    )
+
+
+@router_brands.post("/{brand_id}/remove", response_model=schemas.BrandTransferResponse)
+def remove_brand_endpoint(
+    brand_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove brand from your account by transferring it to admin.
+
+    This preserves all data by transferring ownership to robotrachel@gmail.com.
+    Only the brand owner can remove. You will no longer see this brand.
+    """
+    # Verify user OWNS this brand (not just has access)
+    brand = get_user_owned_brand_or_403(db, brand_id, current_user.id)
+
+    # Prevent admin from removing brands (admin can only hard delete)
+    if current_user.email == "robotrachel@gmail.com":
+        raise HTTPException(
+            status_code=400,
+            detail="Admin cannot remove brands. Use delete endpoint instead."
+        )
+
+    # Find admin user
+    admin = db.query(models.User).filter(models.User.email == "robotrachel@gmail.com").first()
+
+    if not admin:
+        raise HTTPException(
+            status_code=500,
+            detail="Admin user not found. Cannot remove brand."
+        )
+
+    # Transfer to admin
+    transferred_brand = crud.transfer_brand_ownership(
+        db,
+        brand_id=brand_id,
+        current_owner_id=current_user.id,
+        new_owner_id=admin.id
+    )
+
+    if not transferred_brand:
+        raise HTTPException(status_code=500, detail="Failed to remove brand")
+
+    return schemas.BrandTransferResponse(
+        message=f"Brand '{brand.brand_name}' removed from your account. Data preserved for admin.",
+        brand_id=brand_id,
+        brand_name=brand.brand_name,
+        new_owner_email=admin.email,
+        new_owner_full_name=admin.full_name
+    )
+
+
 # ==================== LEGACY ENDPOINTS FOR BACKWARD COMPATIBILITY ====================
 
 @router_brand_info.get("/", response_model=schemas.BrandInfo)

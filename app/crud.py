@@ -586,6 +586,78 @@ def activate_brand(db: Session, brand_id: int, user_id: int) -> Optional[models.
     db.refresh(db_brand)
     return db_brand
 
+def transfer_brand_ownership(db: Session, brand_id: int, current_owner_id: int, new_owner_id: int) -> Optional[models.BrandInfo]:
+    """
+    Transfer brand ownership from current owner to new owner.
+
+    This transfers:
+    - Brand ownership (BrandInfo.user_id)
+    - All associated data (queries, responses, competitors, etc.)
+    - Removes any brand shares with the old owner
+    - Deactivates brand for old owner
+    - Sets brand as inactive for new owner (they can activate it if they want)
+
+    Args:
+        db: Database session
+        brand_id: ID of brand to transfer
+        current_owner_id: Current owner's user ID
+        new_owner_id: New owner's user ID
+
+    Returns:
+        Updated BrandInfo object if successful, None if brand not found or not owned by current_owner
+    """
+    # Verify current owner actually owns this brand
+    db_brand = db.query(models.BrandInfo).filter(
+        models.BrandInfo.id == brand_id,
+        models.BrandInfo.user_id == current_owner_id
+    ).first()
+
+    if not db_brand:
+        return None
+
+    # Verify new owner exists
+    new_owner = db.query(models.User).filter(models.User.id == new_owner_id).first()
+    if not new_owner:
+        return None
+
+    # Transfer brand ownership
+    db_brand.user_id = new_owner_id
+    db_brand.is_active = False  # New owner must manually activate it
+
+    # Transfer all associated data to new owner
+    db.query(models.Query).filter(models.Query.brand_id == brand_id).update({models.Query.user_id: new_owner_id})
+    db.query(models.Response).filter(models.Response.brand_id == brand_id).update({models.Response.user_id: new_owner_id})
+    db.query(models.TargetDescriptor).filter(models.TargetDescriptor.brand_id == brand_id).update({models.TargetDescriptor.user_id: new_owner_id})
+    db.query(models.Competitor).filter(models.Competitor.brand_id == brand_id).update({models.Competitor.user_id: new_owner_id})
+    db.query(models.Campaign).filter(models.Campaign.brand_id == brand_id).update({models.Campaign.user_id: new_owner_id})
+    db.query(models.Report).filter(models.Report.brand_id == brand_id).update({models.Report.user_id: new_owner_id})
+    db.query(models.CitedSource).filter(models.CitedSource.brand_id == brand_id).update({models.CitedSource.user_id: new_owner_id})
+    db.query(models.CollectionBatch).filter(models.CollectionBatch.brand_id == brand_id).update({models.CollectionBatch.user_id: new_owner_id})
+    db.query(models.BatchAnalytics).filter(models.BatchAnalytics.brand_id == brand_id).update({models.BatchAnalytics.user_id: new_owner_id})
+    db.query(models.TaskStatus).filter(models.TaskStatus.brand_id == brand_id).update({models.TaskStatus.user_id: new_owner_id})
+    db.query(models.ScheduledTask).filter(models.ScheduledTask.brand_id == brand_id).update({models.ScheduledTask.user_id: new_owner_id})
+    db.query(models.ScheduledTaskHistory).filter(models.ScheduledTaskHistory.brand_id == brand_id).update({models.ScheduledTaskHistory.user_id: new_owner_id})
+
+    # Transfer Heads personas
+    db.query(models.PersonaGeneration).filter(models.PersonaGeneration.brand_id == brand_id).update({models.PersonaGeneration.user_id: new_owner_id})
+    db.query(models.Persona).filter(models.Persona.brand_id == brand_id).update({models.Persona.user_id: new_owner_id})
+
+    # Remove any BrandShare records where old owner was shared with
+    db.query(models.BrandShare).filter(
+        models.BrandShare.brand_id == brand_id,
+        models.BrandShare.user_id == current_owner_id
+    ).delete()
+
+    # Remove any BrandShare records where old owner shared the brand
+    db.query(models.BrandShare).filter(
+        models.BrandShare.brand_id == brand_id,
+        models.BrandShare.shared_by_user_id == current_owner_id
+    ).delete()
+
+    db.commit()
+    db.refresh(db_brand)
+    return db_brand
+
 def delete_brand_info(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
     """Deletes a specific brand and all associated data."""
     db_brand = get_brand_by_id(db, brand_id, user_id)
