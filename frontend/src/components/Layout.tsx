@@ -280,7 +280,7 @@ export default function Layout({ children }: LayoutProps) {
             src="/logos/robotrachel2-white-logo.png"
             alt="RobotRachel"
             style={{
-              width: '132px',
+              width: '182px',
               maxWidth: '100%',
               height: 'auto',
             }}
