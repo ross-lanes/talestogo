@@ -31,27 +31,8 @@ router = APIRouter(
 )
 
 
-# --- Celery Task Trigger for the main weekly run ---
-from celery_app.tasks import run_weekly_queries_task
-@router.post("/trigger-weekly-run/", status_code=202)
-async def trigger_weekly_run_endpoint():
-    """Manually trigger the weekly query and analysis process."""
-    task = run_weekly_queries_task.delay()
-    return {"message": "Weekly run triggered.", "task_id": task.id}
-
-@router.post("/trigger-analysis/", status_code=202)
-async def trigger_analysis_on_unanalyzed(db: Session = Depends(get_db)):
-    """Manually trigger analysis on all unanalyzed responses."""
-    from celery_app.tasks import analyze_responses_batch_task
-    unanalyzed_responses = crud.get_unanalyzed_responses(db, limit=1000)
-    if not unanalyzed_responses:
-        raise HTTPException(status_code=404, detail="No unanalyzed responses found.")
-
-    response_ids = [resp.id for resp in unanalyzed_responses]
-    task = analyze_responses_batch_task.delay(response_ids)
-    return {"message": f"Analysis triggered for {len(response_ids)} responses.", "task_id": task.id}
-
-# --- Direct Collection and Analysis Triggers (without Celery) ---
+# --- Collection and Analysis Triggers ---
+# Note: Celery has been removed. All tasks now use APScheduler + threading model.
 @router.post("/run-collection/", status_code=202)
 async def run_collection(
     current_user: models.User = Depends(get_current_user),

@@ -7,9 +7,12 @@ FIXED ISSUES:
 - Adds safety guards: duplicate run prevention, minimum 1-hour gap
 - Better error handling and logging
 - No "catch-up" runs for missed schedules
+- Thread pool limits concurrent scheduled runs (max 50)
+- Fixed lambda closure bug
 """
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
@@ -25,6 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Global scheduler instance
 scheduler = AsyncIOScheduler()
+
+# Thread pool for scheduled tasks (limits concurrent runs to prevent overload)
+_executor = ThreadPoolExecutor(max_workers=50, thread_name_prefix="scheduled_task_")
 
 # Track currently running schedules to prevent duplicates
 _running_schedules = set()
@@ -309,14 +315,14 @@ def check_and_schedule_tasks():
 
             logger.info(f"Found task {task.id} ready for execution (next_run: {task.next_run_at})")
 
-            # Execute the task in a background thread
-            import threading
-            thread = threading.Thread(
-                target=lambda: asyncio.run(execute_scheduled_task(task.id)),
-                daemon=True
-            )
-            thread.start()
-            logger.info(f"Started background thread for task {task.id}")
+            # Execute the task in thread pool (FIXED: pass task_id explicitly to avoid closure issues)
+            def run_scheduled_task(schedule_id):
+                """Wrapper to run scheduled task in thread pool"""
+                asyncio.run(execute_scheduled_task(schedule_id))
+
+            # Submit to thread pool (max 50 concurrent tasks)
+            _executor.submit(run_scheduled_task, task.id)
+            logger.info(f"Submitted task {task.id} to thread pool")
 
     except Exception as e:
         logger.error(f"Error checking scheduled tasks: {str(e)}", exc_info=True)

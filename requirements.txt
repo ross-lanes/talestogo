@@ -7,8 +7,6 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
-celery
-redis
 pytest
 httpx
 authlib
