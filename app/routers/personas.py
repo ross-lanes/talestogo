@@ -11,6 +11,7 @@ from app.schemas import (
     Persona as PersonaSchema
 )
 from app.auth import get_current_user
+from app.dependencies import check_product_access
 from app.crud import (
     create_persona_generation, get_persona_generation,
     get_user_persona_generations, get_generation_personas,
@@ -23,7 +24,11 @@ from app.config import settings
 import os
 from datetime import datetime
 
-router = APIRouter(prefix="/personas", tags=["personas"])
+router = APIRouter(
+    prefix="/personas",
+    tags=["personas"],
+    dependencies=[Depends(check_product_access("heads"))]
+)
 
 
 async def generate_personas_task(

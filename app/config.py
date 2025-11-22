@@ -5,7 +5,7 @@ This module contains configurable parameters for the analytics system,
 including performance optimizations and default values.
 """
 import os
-from typing import Optional
+from typing import Optional, List, Dict
 
 
 # Analytics Performance Settings
@@ -60,3 +60,47 @@ class _Settings:
 
 
 settings = _Settings()
+
+
+# Tenant Product Access Configuration
+class TenantConfig:
+    """Configuration for tenant-specific product access"""
+
+    # Map tenant names to allowed products
+    TENANT_PRODUCTS: Dict[str, List[str]] = {
+        "Solstice HC": ["tales", "heads", "vision", "pulse", "voice", "guardian"],
+        "Princeton University": ["tales"],  # Tales only
+        # Default for any other tenant
+        "default": ["tales"]
+    }
+
+    @staticmethod
+    def get_tenant_products(tenant_name: str) -> List[str]:
+        """
+        Get list of products enabled for a tenant
+
+        Args:
+            tenant_name: The name of the tenant
+
+        Returns:
+            List of product IDs that the tenant can access
+        """
+        return TenantConfig.TENANT_PRODUCTS.get(
+            tenant_name,
+            TenantConfig.TENANT_PRODUCTS["default"]
+        )
+
+    @staticmethod
+    def is_product_enabled_for_tenant(tenant_name: str, product: str) -> bool:
+        """
+        Check if a product is enabled for a specific tenant
+
+        Args:
+            tenant_name: The name of the tenant
+            product: The product ID to check (e.g., "tales", "heads")
+
+        Returns:
+            True if the tenant has access to the product, False otherwise
+        """
+        allowed_products = TenantConfig.get_tenant_products(tenant_name)
+        return product in allowed_products
