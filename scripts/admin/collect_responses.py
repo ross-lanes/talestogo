@@ -130,6 +130,32 @@ class ResponseCollector:
         except Exception as e:
             print(f"  Warning: Could not update task progress: {e}")
 
+    def log_platform_error(self, platform: str, error_msg: str, query_text: str = ""):
+        """Log platform API error to task status for debugging."""
+        if not self.task_status_id:
+            return
+
+        try:
+            task = self.db.query(models.TaskStatus).filter(
+                models.TaskStatus.id == self.task_status_id
+            ).first()
+
+            if task:
+                # Append error to existing error_message
+                timestamp = datetime.utcnow().strftime("%H:%M:%S")
+                new_error = f"[{timestamp}] {platform}: {error_msg}"
+                if query_text:
+                    new_error += f" (Query: {query_text[:50]}...)"
+
+                if task.error_message:
+                    task.error_message += f"\n{new_error}"
+                else:
+                    task.error_message = new_error
+
+                self.db.commit()
+        except Exception as e:
+            print(f"  Warning: Could not log platform error: {e}")
+
     def query_chatgpt(self, query_text: str) -> Optional[str]:
         """Query OpenAI ChatGPT."""
         if not self.openai_client:
@@ -142,11 +168,29 @@ class ResponseCollector:
                     {"role": "user", "content": query_text}
                 ],
                 max_tokens=1000,
-                temperature=0.7
+                temperature=0.7,
+                timeout=30.0  # 30 second timeout
             )
             return response.choices[0].message.content
+        except openai.APITimeoutError as e:
+            error_msg = f"ChatGPT timeout after 30s: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
+        except openai.RateLimitError as e:
+            error_msg = f"ChatGPT rate limit exceeded: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
+        except openai.APIError as e:
+            error_msg = f"ChatGPT API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
         except Exception as e:
-            print(f"  ✗ ChatGPT error: {e}")
+            error_msg = f"ChatGPT unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
             return None
 
     def query_claude(self, query_text: str) -> Optional[str]:
@@ -160,11 +204,29 @@ class ResponseCollector:
                 max_tokens=1000,
                 messages=[
                     {"role": "user", "content": query_text}
-                ]
+                ],
+                timeout=30.0  # 30 second timeout
             )
             return response.content[0].text
+        except anthropic.APITimeoutError as e:
+            error_msg = f"Claude timeout after 30s: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
+        except anthropic.RateLimitError as e:
+            error_msg = f"Claude rate limit exceeded: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
+        except anthropic.APIError as e:
+            error_msg = f"Claude API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
         except Exception as e:
-            print(f"  ✗ Claude error: {e}")
+            error_msg = f"Claude unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
             return None
 
     def query_gemini(self, query_text: str) -> Optional[str]:
@@ -173,10 +235,24 @@ class ResponseCollector:
             return None
 
         try:
-            response = self.google_model.generate_content(query_text)
+            # Gemini API has built-in timeout but we can catch specific errors
+            response = self.google_model.generate_content(
+                query_text,
+                request_options={'timeout': 30}
+            )
             return response.text
         except Exception as e:
-            print(f"  ✗ Gemini error: {e}")
+            # Google API doesn't have specific exception types, so parse the message
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'deadline' in error_str:
+                error_msg = f"Gemini timeout after 30s: {str(e)}"
+            elif 'quota' in error_str or 'rate' in error_str:
+                error_msg = f"Gemini rate limit exceeded: {str(e)}"
+            else:
+                error_msg = f"Gemini error: {str(e)}"
+
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Gemini", error_msg, query_text)
             return None
 
     def query_perplexity(self, query_text: str) -> Optional[str]:
@@ -190,11 +266,29 @@ class ResponseCollector:
                 messages=[
                     {"role": "user", "content": query_text}
                 ],
-                max_tokens=1000
+                max_tokens=1000,
+                timeout=30.0  # 30 second timeout (already set in http_client but explicit here)
             )
             return response.choices[0].message.content
+        except openai.APITimeoutError as e:
+            error_msg = f"Perplexity timeout after 30s: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
+        except openai.RateLimitError as e:
+            error_msg = f"Perplexity rate limit exceeded: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
+        except openai.APIError as e:
+            error_msg = f"Perplexity API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
         except Exception as e:
-            print(f"  ✗ Perplexity error: {e}")
+            error_msg = f"Perplexity unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
             return None
 
     def save_response(self, query_id: str, query_text: str, platform: str,

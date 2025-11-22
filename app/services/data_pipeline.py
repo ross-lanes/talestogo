@@ -138,14 +138,40 @@ def run_collection_analysis_report(
                 db_thread.commit()
 
             # Wait for collection (send "1" to auto-select all queries)
-            stdout, stderr = process.communicate(input="1\n", timeout=3600)
+            # Timeout after 30 minutes for collection (20 queries * 4 platforms * ~30s + buffer)
+            try:
+                stdout, stderr = process.communicate(input="1\n", timeout=1800)
+            except subprocess.TimeoutExpired:
+                # Kill the process if it times out
+                process.kill()
+                stdout, stderr = process.communicate()
+                task = db_thread.query(models.TaskStatus).filter_by(id=task_id).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Collection timed out after 30 minutes. This usually indicates API timeouts or rate limits. Check error_message for specific platform errors."
+                    task.completed_at = utcnow()
+                    db_thread.commit()
+
+                # Send failure email
+                from app.services.email_notifications import send_task_completion_email
+                send_task_completion_email(
+                    db=db_thread,
+                    user_id=user_id,
+                    task_type='collection',
+                    task_id=task_id,
+                    status='failed',
+                    brand_id=brand_id,
+                    error_message=task.error_message if task else "Collection timed out"
+                )
+                return
 
             if process.returncode != 0:
                 # Collection failed
                 task = db_thread.query(models.TaskStatus).filter_by(id=task_id).first()
                 if task:
                     task.status = "failed"
-                    task.error_message = f"Collection script failed: {stderr[-500:] if stderr else 'Unknown error'}"
+                    error_preview = stderr[-500:] if stderr else 'Unknown error'
+                    task.error_message = f"Collection script failed with exit code {process.returncode}: {error_preview}"
                     task.completed_at = utcnow()
                     db_thread.commit()
 
@@ -231,15 +257,39 @@ def run_collection_analysis_report(
                 task.process_id = analysis_process.pid
                 db_thread.commit()
 
-            # Wait for analysis
-            stdout, stderr = analysis_process.communicate(timeout=3600)
+            # Wait for analysis (timeout after 20 minutes)
+            try:
+                stdout, stderr = analysis_process.communicate(timeout=1200)
+            except subprocess.TimeoutExpired:
+                # Kill the process if it times out
+                analysis_process.kill()
+                stdout, stderr = analysis_process.communicate()
+                task = db_thread.query(models.TaskStatus).filter_by(id=analysis_task.id).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Analysis timed out after 20 minutes. This usually indicates API timeouts or processing errors."
+                    task.completed_at = utcnow()
+                    db_thread.commit()
+
+                # Send failure email
+                send_task_completion_email(
+                    db=db_thread,
+                    user_id=user_id,
+                    task_type='analysis',
+                    task_id=analysis_task.id,
+                    status='failed',
+                    brand_id=brand_id,
+                    error_message=task.error_message if task else "Analysis timed out"
+                )
+                return
 
             if analysis_process.returncode != 0:
                 # Analysis failed
                 task = db_thread.query(models.TaskStatus).filter_by(id=analysis_task.id).first()
                 if task:
                     task.status = "failed"
-                    task.error_message = f"Analysis script failed: {stderr[-500:] if stderr else 'Unknown error'}"
+                    error_preview = stderr[-500:] if stderr else 'Unknown error'
+                    task.error_message = f"Analysis script failed with exit code {analysis_process.returncode}: {error_preview}"
                     task.completed_at = utcnow()
                     db_thread.commit()
 
@@ -314,22 +364,50 @@ RobotRachel"""
             # Send the email
             asyncio.run(send_email(user_obj.email, subject, body))
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
             # Timeout - mark task as failed
             task = db_thread.query(models.TaskStatus).filter_by(id=task_id).first()
             if task and task.status == "running":
                 task.status = "failed"
-                task.error_message = "Process timed out after 1 hour"
+                task.error_message = f"Process timed out. Check individual platform errors in error log. Timeout details: {str(e)}"
                 task.completed_at = utcnow()
                 db_thread.commit()
+
+            # Send failure email
+            from app.services.email_notifications import send_task_completion_email
+            send_task_completion_email(
+                db=db_thread,
+                user_id=user_id,
+                task_type='collection',
+                task_id=task_id,
+                status='failed',
+                brand_id=brand_id,
+                error_message=task.error_message if task else "Process timed out"
+            )
         except Exception as e:
-            # General error
+            # General error - log full exception details
+            import traceback
+            error_trace = traceback.format_exc()
+
             task = db_thread.query(models.TaskStatus).filter_by(id=task_id).first()
             if task and task.status == "running":
                 task.status = "failed"
-                task.error_message = str(e)
+                # Include exception type and traceback for debugging
+                task.error_message = f"{type(e).__name__}: {str(e)}\n\nTraceback:\n{error_trace[-1000:]}"
                 task.completed_at = utcnow()
                 db_thread.commit()
+
+            # Send failure email
+            from app.services.email_notifications import send_task_completion_email
+            send_task_completion_email(
+                db=db_thread,
+                user_id=user_id,
+                task_type='collection',
+                task_id=task_id,
+                status='failed',
+                brand_id=brand_id,
+                error_message=f"{type(e).__name__}: {str(e)}"
+            )
         finally:
             db_thread.close()
 
