@@ -119,7 +119,56 @@ from app.scheduler import start_scheduler, stop_scheduler
 
 @app.on_event("startup")
 async def startup_event():
-    """Start the background scheduler when the app starts"""
+    """
+    Start the background scheduler when the app starts.
+    Also clean up any tasks that were left in 'running' state from previous server instance.
+    """
+    # Clean up stale running tasks from previous deployment
+    from app.database import SessionLocal
+    from datetime import datetime
+
+    db = SessionLocal()
+    try:
+        # Find all tasks still marked as "running"
+        running_tasks = db.query(models.TaskStatus).filter(
+            models.TaskStatus.status == "running"
+        ).all()
+
+        if running_tasks:
+            print(f"\n🔧 Startup cleanup: Found {len(running_tasks)} tasks stuck in 'running' state")
+
+            for task in running_tasks:
+                # Calculate how long the task has been running
+                if task.started_at:
+                    runtime = datetime.utcnow() - task.started_at
+                    runtime_hours = runtime.total_seconds() / 3600
+
+                    # Mark as failed with explanation
+                    task.status = "failed"
+                    task.completed_at = datetime.utcnow()
+
+                    # Preserve any existing error messages and add deployment info
+                    deployment_msg = f"Server restarted during task execution (task was running for {runtime_hours:.1f} hours). This typically happens during deployments."
+
+                    if task.error_message:
+                        task.error_message = f"{task.error_message}\n\n{deployment_msg}"
+                    else:
+                        task.error_message = deployment_msg
+
+                    print(f"   • Task #{task.id} ({task.task_type}) - marked as failed (was running for {runtime_hours:.1f}h)")
+
+            db.commit()
+            print(f"✅ Cleanup complete: {len(running_tasks)} stale tasks marked as failed\n")
+        else:
+            print("✅ No stale running tasks found on startup\n")
+
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to clean up stale tasks on startup: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+    # Start the scheduler
     start_scheduler()
 
 @app.on_event("shutdown")
