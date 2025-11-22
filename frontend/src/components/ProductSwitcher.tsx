@@ -49,18 +49,15 @@ const ProductSwitcher: React.FC = () => {
     }
   };
 
-  // Debug logging
-  console.log('ProductSwitcher render check:', {
-    availableProducts: availableProducts.length,
-    upcomingProducts: upcomingProducts.length,
-    shouldShow: !(availableProducts.length <= 1 && upcomingProducts.length === 0)
-  });
+  // Show ProductSwitcher if there are multiple products OR upcoming products
+  // Note: We show it even with 1 available + 0 upcoming for Solstice HC users
+  // because upcoming products might not load immediately on page load
+  const hasMultipleProducts = availableProducts.length > 1 || upcomingProducts.length > 0;
+  const isSolsticeUser = isSolsticeHC; // Solstice HC always sees switcher (for upcoming products)
 
-  // TEMPORARY: Always show for debugging
-  // TODO: Restore hiding logic after debugging
-  // if (availableProducts.length <= 1 && upcomingProducts.length === 0) {
-  //   return null;
-  // }
+  if (!hasMultipleProducts && !isSolsticeUser) {
+    return null;
+  }
 
   return (
     <Box>
