@@ -9,7 +9,7 @@ const API_BASE_URL = (() => {
     return 'https://apps.robotrachel.com';
   }
   if (window.location.hostname === 'tales.robotrachel.com') {
-    return 'https://api.tales.robotrachel.com';
+    return 'https://tales.robotrachel.com';
   }
   if (window.location.hostname === 'solsticehc.robotrachel.com') {
     return 'https://api.tales.robotrachel.com';
