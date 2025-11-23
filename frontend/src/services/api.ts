@@ -4,9 +4,13 @@ import axios from 'axios';
 // Auto-detect based on hostname and protocol
 const API_BASE_URL = (() => {
   // If running on production domain, always use HTTPS
-  if (window.location.hostname === 'tales.robotrachel.com' ||
-      window.location.hostname === 'apps.robotrachel.com' ||
-      window.location.hostname === 'solsticehc.robotrachel.com') {
+  if (window.location.hostname === 'tales.robotrachel.com') {
+    return 'https://api.tales.robotrachel.com';
+  }
+  if (window.location.hostname === 'apps.robotrachel.com') {
+    return 'https://apps.robotrachel.com/api';
+  }
+  if (window.location.hostname === 'solsticehc.robotrachel.com') {
     return 'https://api.tales.robotrachel.com';
   }
   // For localhost, use HTTP
