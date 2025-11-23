@@ -4,6 +4,8 @@ FROM python:3.13-slim
 # Set working directory
 WORKDIR /app
 
+# Force rebuild - Railway deployment fix
+
 # Install system dependencies including Node.js for building frontend
 RUN apt-get update && apt-get install -y \
     gcc \
