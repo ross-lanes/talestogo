@@ -176,8 +176,40 @@ async def shutdown_event():
     """Stop the background scheduler when the app shuts down"""
     stop_scheduler()
 
-# --- Root Endpoint ---
-@app.get("/", tags=["Root"])
-async def read_root():
-    """Root endpoint to check if the API is running."""
-    return {"message": "Welcome to the TALES API!"}
+# --- Static Files & Frontend ---
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import os
+
+# Get the project root directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
+
+# Only mount static files if the dist directory exists (production)
+if FRONTEND_DIST.exists():
+    # Mount static assets (JS, CSS, images)
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+
+    # Serve other static files from dist root
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve the React frontend for all non-API routes"""
+        from fastapi.responses import FileResponse
+
+        # If path starts with /api/, let FastAPI handle it (shouldn't reach here)
+        if full_path.startswith("api/"):
+            return {"message": "API endpoint not found"}, 404
+
+        # Try to serve the specific file if it exists
+        file_path = FRONTEND_DIST / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+
+        # Otherwise serve index.html (for React Router)
+        return FileResponse(FRONTEND_DIST / "index.html")
+else:
+    # Development fallback - API only
+    @app.get("/", tags=["Root"])
+    async def read_root():
+        """Root endpoint to check if the API is running."""
+        return {"message": "Welcome to the TALES API! Frontend not built yet."}
