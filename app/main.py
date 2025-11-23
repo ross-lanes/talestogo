@@ -55,7 +55,8 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
         "http://localhost:5173",
         "http://localhost:5177",  # Alternate Vite dev server port
         "https://tales-frontend.onrender.com",
-        "https://tales.robotrachel.com",
+        "https://apps.robotrachel.com",
+        "https://tales.robotrachel.com",  # Legacy domain
         "https://solsticehc.robotrachel.com",
         "https://api.tales.robotrachel.com",
     ]
@@ -78,7 +79,8 @@ app.add_middleware(
         "http://localhost:5173",  # Local development (default Vite port)
         "http://localhost:5177",  # Local development (alternate Vite port)
         "https://tales-frontend.onrender.com",  # Production frontend (legacy)
-        "https://tales.robotrachel.com",  # Production frontend (custom domain)
+        "https://apps.robotrachel.com",  # Production frontend (custom domain)
+        "https://tales.robotrachel.com",  # Legacy domain
         "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain
         "https://api.tales.robotrachel.com",  # API subdomain
     ],
