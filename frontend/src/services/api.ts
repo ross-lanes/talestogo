@@ -5,6 +5,7 @@ import axios from 'axios';
 const API_BASE_URL = (() => {
   // If running on production domain, always use HTTPS
   if (window.location.hostname === 'tales.robotrachel.com' ||
+      window.location.hostname === 'apps.robotrachel.com' ||
       window.location.hostname === 'solsticehc.robotrachel.com') {
     return 'https://api.tales.robotrachel.com';
   }
