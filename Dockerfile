@@ -5,6 +5,7 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Force rebuild - Railway deployment fix
+# Rebuild to pick up VITE environment variables
 
 # Install system dependencies including Node.js for building frontend
 RUN apt-get update && apt-get install -y \
