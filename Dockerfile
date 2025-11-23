@@ -4,8 +4,10 @@ FROM python:3.13-slim
 # Set working directory
 WORKDIR /app
 
-# Force rebuild - Railway deployment fix
-# Rebuild to pick up VITE environment variables
+# Accept build arguments for Vite environment variables
+ARG VITE_API_URL
+ARG VITE_GOOGLE_CLIENT_ID
+ARG VITE_MICROSOFT_CLIENT_ID
 
 # Install system dependencies including Node.js for building frontend
 RUN apt-get update && apt-get install -y \
@@ -24,6 +26,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Set environment variables for Vite build
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+ENV VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID}
 
 # Build frontend
 RUN cd frontend && npm install && npm run build && cd ..
