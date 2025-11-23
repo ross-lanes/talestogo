@@ -32,5 +32,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 
 # Run database setup and start the server
-CMD python -c "from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)" && \
-    uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Use shell form to allow environment variable expansion
+CMD sh -c "python -c 'from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
