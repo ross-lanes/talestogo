@@ -151,7 +151,7 @@ export default function Layout({ children }: LayoutProps) {
   const drawer = (
     <Box sx={{
       height: '100%',
-      backgroundColor: tenant?.primary_color || '#003e60',
+      backgroundColor: '#000000',
       display: 'flex',
       flexDirection: 'column',
     }}>
@@ -166,7 +166,7 @@ export default function Layout({ children }: LayoutProps) {
     height: { xs: 106, sm: 114 },
     gap: 1,
     cursor: 'pointer',
-    backgroundColor: tenant?.primary_color || '#003e60',  // Use tenant primary color
+    backgroundColor: '#000000',  // Black background
     color: 'common.white',               // make all text inside white
     '&:hover': {
     },
@@ -300,7 +300,7 @@ export default function Layout({ children }: LayoutProps) {
         sx={{
           width: { sm: drawerWidth },
           flexShrink: { sm: 0 },
-          backgroundColor: { sm: tenant?.primary_color || '#003e60' }
+          backgroundColor: { sm: '#000000' }
         }}
       >
         <Drawer
@@ -357,7 +357,7 @@ export default function Layout({ children }: LayoutProps) {
         <AppBar
           position="static"
           sx={{
-            backgroundColor: 'primary.main',
+            backgroundColor: '#000000',
             width: '100%',
           }}
         >

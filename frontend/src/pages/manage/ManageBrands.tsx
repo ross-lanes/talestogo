@@ -197,16 +197,15 @@ const ManageBrands: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>Brand Name</TableCell>
-              <TableCell>Industry</TableCell>
+              <TableCell>Edit</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Created</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {brands.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center">
+                <TableCell colSpan={4} align="center">
                   <Typography color="textSecondary" sx={{ py: 3 }}>
                     No brands found. Create your first brand to get started.
                   </Typography>
@@ -220,7 +219,70 @@ const ManageBrands: React.FC = () => {
                       {brand.brand_name}
                     </Typography>
                   </TableCell>
-                  <TableCell>{brand.industry || '-'}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: '#80A1D4',
+                          color: '#80A1D4',
+                          '&:hover': {
+                            borderColor: '#80A1D4',
+                            backgroundColor: 'rgba(128, 161, 212, 0.08)'
+                          }
+                        }}
+                        onClick={() => navigate(`/manage/brand-info?brand_id=${brand.id}`)}
+                      >
+                        Brand Info
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: '#75C9C8',
+                          color: '#75C9C8',
+                          '&:hover': {
+                            borderColor: '#75C9C8',
+                            backgroundColor: 'rgba(117, 201, 200, 0.08)'
+                          }
+                        }}
+                        onClick={() => navigate(`/manage/queries?brand_id=${brand.id}`)}
+                      >
+                        Queries
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: '#44809C',
+                          color: '#44809C',
+                          '&:hover': {
+                            borderColor: '#44809C',
+                            backgroundColor: 'rgba(68, 128, 156, 0.08)'
+                          }
+                        }}
+                        onClick={() => navigate(`/manage/descriptors?brand_id=${brand.id}`)}
+                      >
+                        Descriptors
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          borderColor: '#9FA8DA',
+                          color: '#9FA8DA',
+                          '&:hover': {
+                            borderColor: '#9FA8DA',
+                            backgroundColor: 'rgba(159, 168, 218, 0.08)'
+                          }
+                        }}
+                        onClick={() => navigate(`/manage/competitors?brand_id=${brand.id}`)}
+                      >
+                        Competitors
+                      </Button>
+                    </Box>
+                  </TableCell>
                   <TableCell>
                     {brand.is_active ? (
                       <Chip
@@ -238,18 +300,7 @@ const ManageBrands: React.FC = () => {
                       </Button>
                     )}
                   </TableCell>
-                  <TableCell>
-                    {new Date(brand.created_at).toLocaleDateString()}
-                  </TableCell>
                   <TableCell align="right">
-                    <Tooltip title="Edit">
-                      <IconButton
-                        size="small"
-                        onClick={() => navigate(`/manage/brand-info?brand_id=${brand.id}`)}
-                      >
-                        <Edit />
-                      </IconButton>
-                    </Tooltip>
                     <Tooltip title="Share">
                       <IconButton
                         size="small"
