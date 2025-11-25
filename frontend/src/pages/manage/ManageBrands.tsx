@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBrand } from '../../contexts/BrandContext';
 import { brandsAPI } from '../../services/api';
+import ShareBrandDialog from '../../components/ShareBrandDialog';
 
 interface BrandInfo {
   id: number;
@@ -75,6 +76,11 @@ const ManageBrands: React.FC = () => {
   const [deleteBrandId, setDeleteBrandId] = useState<number | null>(null);
   const [deleteBrandName, setDeleteBrandName] = useState('');
   const [deleting, setDeleting] = useState(false);
+
+  // Share dialog state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareBrandId, setShareBrandId] = useState<number | null>(null);
+  const [shareBrandName, setShareBrandName] = useState('');
 
   const isAdmin = user?.email === 'robotrachel@gmail.com';
 
@@ -155,6 +161,12 @@ const ManageBrands: React.FC = () => {
     } catch (err: any) {
       setError('Failed to activate brand');
     }
+  };
+
+  const handleShareClick = (brand: BrandInfo) => {
+    setShareBrandId(brand.id);
+    setShareBrandName(brand.brand_name);
+    setShareDialogOpen(true);
   };
 
   if (brandsLoading) {
@@ -304,7 +316,7 @@ const ManageBrands: React.FC = () => {
                     <Tooltip title="Share">
                       <IconButton
                         size="small"
-                        onClick={() => navigate(`/manage/brand-info?brand_id=${brand.id}`)}
+                        onClick={() => handleShareClick(brand)}
                       >
                         <Share />
                       </IconButton>
@@ -429,6 +441,16 @@ const ManageBrands: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Share Brand Dialog */}
+      {shareBrandId && (
+        <ShareBrandDialog
+          open={shareDialogOpen}
+          onClose={() => setShareDialogOpen(false)}
+          brandId={shareBrandId}
+          brandName={shareBrandName}
+        />
+      )}
     </Container>
   );
 };
