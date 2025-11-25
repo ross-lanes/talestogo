@@ -27,7 +27,16 @@
       "Bash(npx tsc:*)",
       "Bash(pg_dump:*)",
       "Bash(chmod:*)",
-      "Bash(dig:*)"
+      "Bash(dig:*)",
+      "Bash(railway run:*)",
+      "Bash(railway connect:*)",
+      "Bash(railway status:*)",
+      "Bash(railway variables:*)",
+      "Bash(railway service)",
+      "Bash(railway link:*)",
+      "Bash(railway unlink:*)",
+      "Bash(railway list:*)",
+      "Bash(railway logs:*)"
     ],
     "deny": [],
     "ask": []

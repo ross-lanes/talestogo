@@ -86,19 +86,23 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
     setTasks(prev => prev.filter(task => task.id !== taskId));
   }, []);
 
-  // Poll for task updates every 5 seconds
+  // Poll for task updates - adjust interval based on whether there are running tasks
   useEffect(() => {
     // Initial fetch
     refreshTasks();
 
+    // Use longer interval when no running tasks
+    const hasRunningTasks = tasks.some(task => task.status === 'running');
+    const pollInterval = hasRunningTasks ? 5000 : 30000; // 5s if running tasks, 30s otherwise
+
     // Set up polling interval
     const interval = setInterval(() => {
       refreshTasks();
-    }, 5000); // Poll every 5 seconds
+    }, pollInterval);
 
     // Cleanup on unmount
     return () => clearInterval(interval);
-  }, [refreshTasks]);
+  }, [refreshTasks, tasks]);
 
   return (
     <TaskStatusContext.Provider value={{ tasks, isLoading, refreshTasks, dismissTask }}>

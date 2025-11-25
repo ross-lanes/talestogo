@@ -23,8 +23,18 @@ if DATABASE_URL.startswith("sqlite"):
         DATABASE_URL, connect_args={"check_same_thread": False}
     )
 else:
-    # PostgreSQL doesn't need check_same_thread
-    engine = create_engine(DATABASE_URL)
+    # PostgreSQL - increase connection pool to handle concurrent requests
+    # pool_size: number of connections to keep open
+    # max_overflow: additional connections that can be created on demand
+    # pool_pre_ping: verify connections are alive before using them
+    # pool_recycle: recycle connections after 1 hour to prevent stale connections
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=20,          # Increased from default 5
+        max_overflow=30,       # Increased from default 10
+        pool_pre_ping=True,    # Check connection health
+        pool_recycle=3600      # Recycle after 1 hour
+    )
 
 # Create a SessionLocal class. Each instance of this class will be a database session.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
