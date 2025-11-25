@@ -3,9 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tales: Learn what AIs say about your brand</title>
+    <title>RobotRachel Apps Suite</title>
     <!-- Force rebuild -->
     <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- Domain Redirect: tales.robotrachel.com -> apps.robotrachel.com -->
+    <script>
+      // Redirect tales.robotrachel.com to apps.robotrachel.com
+      if (window.location.hostname === 'tales.robotrachel.com') {
+        const newUrl = window.location.href.replace('tales.robotrachel.com', 'apps.robotrachel.com');
+        window.location.replace(newUrl);
+      }
+    </script>
 
     <!-- Google Fonts - Montserrat and Roboto Condensed -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

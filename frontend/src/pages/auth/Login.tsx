@@ -12,7 +12,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { PublicClientApplication, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { useAuth } from '../../contexts/AuthContext';
-import talesLogo from './tales_black.png';
+import robotRachelLogo from '/logos/RobotRachelBB-Black-on-Transparent.png';
 
 const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID || '';
 
@@ -100,55 +100,67 @@ const Login: React.FC = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#ffffff',
+        backgroundColor: '#000000',
         minHeight: '100vh',
         width: '100vw',
         display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        fontFamily: 'Roboto, sans-serif',
+        fontFamily: '"Roboto Condensed", "Roboto", "Arial", sans-serif',
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
+        padding: 3,
       }}
     >
+      {/* Login Card */}
       <Paper
-        elevation={6}
+        elevation={0}
         sx={{
-          p: 4,
+          p: 5,
           width: 500,
           maxWidth: '90vw',
           textAlign: 'center',
-          borderRadius: 4,
-          backgroundColor: '#fff',
+          borderRadius: 2,
+          backgroundColor: '#ffffff',
+          border: '1px solid rgba(0, 0, 0, 0.12)',
         }}
       >
-        <Box sx={{ mb: 3 }}>
-          <img
-            src={talesLogo}
-            alt="Tales Logo"
-            style={{ width: '120px', marginBottom: '16px' }}
-          />
+        <Box sx={{ mb: 4 }}>
+          <Box
+            sx={{
+              cursor: 'pointer',
+              display: 'inline-block',
+            }}
+            onClick={() => window.open('http://www.robotrachel.com', '_blank')}
+          >
+            <img
+              src={robotRachelLogo}
+              alt="RobotRachel"
+              style={{ width: '220px', marginBottom: '24px' }}
+            />
+          </Box>
           <Typography
-            variant="h5"
+            variant="h4"
             component="h1"
             gutterBottom
-            sx={{ color: '#003e60', fontWeight: 700, lineHeight: 1.4 }}
+            sx={{
+              color: '#000000',
+              fontWeight: 700,
+              lineHeight: 1.3,
+              fontFamily: '"Montserrat", "Arial", sans-serif',
+              mb: 2,
+            }}
           >
-            Welcome to Tales!
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ color: '#80a1d4', mt: 2, mb: 2, lineHeight: 1.6 }}
-          >
-            If you are a new user, an administrator will be alerted when you log in for the first time to consider your account for approval.
+            Welcome to the RobotRachel Apps Suite!
           </Typography>
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: 3, textAlign: 'left' }}>
             {error}
           </Alert>
         )}
@@ -159,7 +171,7 @@ const Login: React.FC = () => {
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, alignItems: 'center', mb: 3 }}>
           <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
@@ -179,18 +191,22 @@ const Login: React.FC = () => {
             sx={{
               borderColor: '#003e60',
               color: '#003e60',
+              borderWidth: '1.5px',
               '&:hover': {
-                borderColor: '#54475f',
-                backgroundColor: 'rgba(102, 87, 117, 0.04)',
+                borderColor: '#003e60',
+                borderWidth: '1.5px',
+                backgroundColor: 'rgba(0, 62, 96, 0.04)',
               },
               textTransform: 'none',
-              fontSize: '14px',
-              padding: '10px 16px',
-              fontWeight: 500,
+              fontSize: '15px',
+              padding: '11px 24px',
+              fontWeight: 600,
+              fontFamily: '"Roboto Condensed", sans-serif',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 1,
+              gap: 1.5,
+              borderRadius: 1,
             }}
           >
             <svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
@@ -205,11 +221,43 @@ const Login: React.FC = () => {
 
         <Typography
           variant="body2"
-          sx={{ mt: 3, color: '#7f8c8d' }}
+          sx={{
+            color: 'rgba(0, 0, 0, 0.6)',
+            fontSize: '0.875rem',
+            fontFamily: '"Roboto Condensed", sans-serif',
+          }}
         >
-          Sign in with your Google or Microsoft account to access TALES
+          Sign in with your Google or Microsoft account
+        </Typography>
+
+        <Typography
+          variant="caption"
+          sx={{
+            mt: 2,
+            display: 'block',
+            color: 'rgba(0, 0, 0, 0.5)',
+            fontSize: '0.75rem',
+            fontStyle: 'italic',
+            fontFamily: '"Roboto Condensed", sans-serif',
+          }}
+        >
+          New users will be reviewed by an administrator for approval
         </Typography>
       </Paper>
+
+      {/* Footer */}
+      <Box sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: '0.75rem',
+            fontFamily: '"Roboto Condensed", sans-serif',
+          }}
+        >
+          © 2025 RobotRachel • AI Reputation Intelligence
+        </Typography>
+      </Box>
     </Box>
   );
 };

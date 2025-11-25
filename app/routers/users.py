@@ -190,7 +190,7 @@ async def send_invitation_email(
 
     # Determine email domain and type
     domain = user.email.split('@')[1].lower()
-    production_url = 'https://tales.robotrachel.com'
+    production_url = 'https://apps.robotrachel.com'
 
     # Generate email content based on domain
     if domain == 'solsticehc.net':

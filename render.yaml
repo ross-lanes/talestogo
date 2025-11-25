@@ -26,7 +26,9 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_URL
-        value: https://tales.robotrachel.com
+        value: https://apps.robotrachel.com
+      - key: ENABLE_SCHEDULER
+        value: true
 
   # NOTE: Celery worker service removed - now using APScheduler + threading model
   # This eliminates the need for Redis and simplifies deployment

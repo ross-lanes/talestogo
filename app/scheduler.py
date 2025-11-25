@@ -12,6 +12,7 @@ FIXED ISSUES:
 """
 import asyncio
 import time
+import os
 from concurrent.futures import ThreadPoolExecutor
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -25,6 +26,17 @@ from .models import ScheduledTask, ScheduledTaskHistory, User, BrandInfo
 from .email import send_email
 
 logger = logging.getLogger(__name__)
+
+# Check if scheduler should be enabled (controlled by environment variable)
+def is_scheduler_enabled() -> bool:
+    """
+    Check if the scheduler should be enabled based on ENABLE_SCHEDULER environment variable.
+
+    Returns:
+        bool: True if scheduler should run, False otherwise (e.g., on localhost)
+    """
+    enable_scheduler = os.getenv('ENABLE_SCHEDULER', 'false').lower()
+    return enable_scheduler in ('true', '1', 'yes')
 
 # Global scheduler instance
 scheduler = AsyncIOScheduler()
@@ -245,7 +257,7 @@ Collection Date: {history.started_at.strftime('%B %d, %Y')}
 Responses Collected: {history.collection_responses or 'Processing'}
 Responses Analyzed: {history.analysis_responses or 'Processing'}
 
-View your results: https://tales.robotrachel.com/analytics
+View your results: https://apps.robotrachel.com/analytics
 
 Next scheduled run: {schedule.next_run_at.strftime('%B %d, %Y at %I:%M %p') if schedule.next_run_at else 'Not scheduled'}
 
@@ -264,7 +276,7 @@ Error: {history.error_message or 'Unknown error'}
 Responses Collected: {history.collection_responses or 0}
 Responses Analyzed: {history.analysis_responses or 0}
 
-Please log in to review and manually re-run if needed: https://tales.robotrachel.com/data
+Please log in to review and manually re-run if needed: https://apps.robotrachel.com/data
 
 Next scheduled run: {schedule.next_run_at.strftime('%B %d, %Y at %I:%M %p') if schedule.next_run_at else 'Not scheduled'}
 
@@ -332,7 +344,13 @@ def check_and_schedule_tasks():
 
 
 def start_scheduler():
-    """Start the background scheduler"""
+    """Start the background scheduler (only if ENABLE_SCHEDULER=true)"""
+    # Check if scheduler should be enabled
+    if not is_scheduler_enabled():
+        logger.info("Scheduler DISABLED (ENABLE_SCHEDULER=false) - scheduled tasks will not run")
+        logger.info("This is expected on localhost. Set ENABLE_SCHEDULER=true in production to enable scheduled tasks.")
+        return
+
     try:
         # Check for tasks to run every minute
         scheduler.add_job(
@@ -344,7 +362,7 @@ def start_scheduler():
         )
 
         scheduler.start()
-        logger.info("Scheduler started successfully - checking for tasks every minute")
+        logger.info("Scheduler ENABLED and started successfully - checking for tasks every minute")
         logger.info("FIXED: Prevents duplicate runs, updates next_run_at immediately, uses direct data_pipeline calls")
 
     except Exception as e:
