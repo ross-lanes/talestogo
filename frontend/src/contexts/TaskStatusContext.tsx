@@ -86,19 +86,24 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
     setTasks(prev => prev.filter(task => task.id !== taskId));
   }, []);
 
-  // Poll for task updates - adjust interval based on whether there are running tasks
+  // DISABLED: Automatic polling was causing database connection pool exhaustion
+  // Poll for task updates only when explicitly refreshed or when there are running tasks
   useEffect(() => {
-    // Initial fetch
+    // Initial fetch only
     refreshTasks();
 
-    // Use longer interval when no running tasks
+    // Only poll if there are actively running tasks
     const hasRunningTasks = tasks.some(task => task.status === 'running');
-    const pollInterval = hasRunningTasks ? 5000 : 30000; // 5s if running tasks, 30s otherwise
 
-    // Set up polling interval
+    if (!hasRunningTasks) {
+      // No polling if no running tasks
+      return;
+    }
+
+    // Poll every 10 seconds only when tasks are running
     const interval = setInterval(() => {
       refreshTasks();
-    }, pollInterval);
+    }, 10000); // 10s when running tasks
 
     // Cleanup on unmount
     return () => clearInterval(interval);
