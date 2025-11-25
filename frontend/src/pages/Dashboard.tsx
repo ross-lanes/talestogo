@@ -119,7 +119,7 @@ export default function Dashboard() {
       const response = await api.get('/analytics/dashboard', { params });
       return response.data;
     },
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    // REMOVED refetchInterval - was causing unnecessary polling
   });
 
   // Fetch sentiment breakdown
