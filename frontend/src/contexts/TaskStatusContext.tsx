@@ -100,10 +100,10 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
       return;
     }
 
-    // Poll every 10 seconds only when tasks are running
+    // Poll every 60 seconds only when tasks are running
     const interval = setInterval(() => {
       refreshTasks();
-    }, 10000); // 10s when running tasks
+    }, 60000); // 60s (1 minute) when running tasks
 
     // Cleanup on unmount
     return () => clearInterval(interval);
