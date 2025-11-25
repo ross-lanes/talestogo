@@ -325,11 +325,14 @@ const UserManagement: React.FC = () => {
   };
 
   const handleSendInvitation = async (user: User) => {
+    console.log('handleSendInvitation called for user:', user);
     setError('');
     setSuccess('');
 
     try {
-      await adminAPI.sendInvitationEmail(user.id);
+      console.log('Calling sendInvitationEmail API...');
+      const result = await adminAPI.sendInvitationEmail(user.id);
+      console.log('API response:', result);
       setSuccess(`Invitation email sent to ${user.email}!`);
     } catch (err: any) {
       console.error('Failed to send invitation email:', err);
