@@ -25,7 +25,8 @@ from app.routers import (
     brands,
     operations,
     tenants,
-    personas  # Heads - Persona Intelligence Platform
+    personas,  # Heads - Persona Intelligence Platform
+    migration_helper  # Temporary migration helper
 )
 
 # This line ensures tables are created if they don't exist when the app starts.
@@ -115,6 +116,9 @@ app.include_router(batches.router)
 app.include_router(scheduled_tasks.router)
 app.include_router(help.router)
 app.include_router(tasks.router)
+
+# Temporary migration helper (will be removed after rollback)
+app.include_router(migration_helper.router)
 
 # --- Scheduler ---
 from app.scheduler import start_scheduler, stop_scheduler
