@@ -86,30 +86,15 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
     setTasks(prev => prev.filter(task => task.id !== taskId));
   }, []);
 
+  // DISABLED: All automatic polling completely disabled
   // Initial fetch on component mount only
   useEffect(() => {
     refreshTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty array = run only once on mount
 
-  // Set up polling interval based on whether tasks are running
-  // This effect re-runs when tasks change, but only sets up the interval
-  // It does NOT call refreshTasks immediately (preventing infinite loop)
-  useEffect(() => {
-    const hasRunningTasks = tasks.some(task => task.status === 'running');
-
-    if (!hasRunningTasks) {
-      // No polling if no running tasks
-      return;
-    }
-
-    // Poll every 60 seconds only when tasks are running
-    const interval = setInterval(() => {
-      refreshTasks();
-    }, 60000); // 60s (1 minute) when running tasks
-
-    return () => clearInterval(interval);
-  }, [tasks, refreshTasks]);
+  // POLLING COMPLETELY DISABLED - no automatic refresh
+  // Tasks can only be refreshed by calling refreshTasks() manually
 
   return (
     <TaskStatusContext.Provider value={{ tasks, isLoading, refreshTasks, dismissTask }}>
