@@ -36,7 +36,10 @@
       "Bash(railway link:*)",
       "Bash(railway unlink:*)",
       "Bash(railway list:*)",
-      "Bash(railway logs:*)"
+      "Bash(railway logs:*)",
+      "Bash(for file in /Users/rachelkremen/Documents/Code/tales_project/app/routers/*.py)",
+      "Bash(git checkout:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

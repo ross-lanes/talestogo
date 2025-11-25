@@ -86,13 +86,16 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
     setTasks(prev => prev.filter(task => task.id !== taskId));
   }, []);
 
-  // DISABLED: Automatic polling was causing database connection pool exhaustion
-  // Poll for task updates only when explicitly refreshed or when there are running tasks
+  // Initial fetch on component mount only
   useEffect(() => {
-    // Initial fetch only
     refreshTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty array = run only once on mount
 
-    // Only poll if there are actively running tasks
+  // Set up polling interval based on whether tasks are running
+  // This effect re-runs when tasks change, but only sets up the interval
+  // It does NOT call refreshTasks immediately (preventing infinite loop)
+  useEffect(() => {
     const hasRunningTasks = tasks.some(task => task.status === 'running');
 
     if (!hasRunningTasks) {
@@ -105,9 +108,8 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
       refreshTasks();
     }, 60000); // 60s (1 minute) when running tasks
 
-    // Cleanup on unmount
     return () => clearInterval(interval);
-  }, [refreshTasks, tasks]);
+  }, [tasks, refreshTasks]);
 
   return (
     <TaskStatusContext.Provider value={{ tasks, isLoading, refreshTasks, dismissTask }}>
