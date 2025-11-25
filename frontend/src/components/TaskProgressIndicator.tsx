@@ -3,6 +3,7 @@ import { Box, LinearProgress, Typography, Paper, Alert, Dialog, DialogTitle, Dia
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { api } from '../services/api';
+import { useTaskStatus } from '../contexts/TaskStatusContext';
 
 interface TaskStatus {
   id: number;
@@ -21,56 +22,34 @@ interface TaskProgressIndicatorProps {
 }
 
 export default function TaskProgressIndicator({ onComplete, autoRefresh = true }: TaskProgressIndicatorProps) {
-  const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
+  // REMOVED: Local polling - now uses TaskStatusContext for centralized, optimized polling
+  // This was polling every 2 seconds and causing database connection pool exhaustion
+  const { tasks } = useTaskStatus();
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [previousTaskId, setPreviousTaskId] = useState<number | null>(null);
 
-  const fetchTaskStatus = async () => {
-    try {
-      const response = await api.get<TaskStatus>('/tasks/status/');
-      const data = response.data;
+  // Get the first task (running, completed, failed, or cancelled)
+  const taskStatus = tasks.length > 0 ? tasks[0] : null;
 
-      const previousStatus = taskStatus?.status;
-      setTaskStatus(data);
-
-      // If task just completed (transition from running to completed), show success dialog
-      if (data && data.status === 'completed' && previousStatus === 'running') {
-        setIsPolling(false);
-        setShowSuccessDialog(true);
-        if (onComplete) {
-          onComplete();
-        }
-      }
-
-      // If task failed or cancelled, stop polling
-      if (data && (data.status === 'failed' || data.status === 'cancelled')) {
-        setIsPolling(false);
-      }
-    } catch (error) {
-      console.error('Error fetching task status:', error);
-    }
-  };
-
+  // Watch for task completion
   useEffect(() => {
-    // Initial fetch
-    fetchTaskStatus();
+    if (!taskStatus) return;
 
-    // Set up polling if autoRefresh is enabled
-    if (autoRefresh) {
-      setIsPolling(true);
+    // If task just completed (new task ID and status is completed)
+    if (taskStatus.status === 'completed' && taskStatus.id !== previousTaskId) {
+      setShowSuccessDialog(true);
+      setPreviousTaskId(taskStatus.id);
+      if (onComplete) {
+        onComplete();
+      }
     }
-  }, [autoRefresh]);
 
-  useEffect(() => {
-    if (!isPolling) return;
-
-    const interval = setInterval(() => {
-      fetchTaskStatus();
-    }, 2000); // Poll every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [isPolling]);
+    // Update previous task ID
+    if (taskStatus.id !== previousTaskId) {
+      setPreviousTaskId(taskStatus.id);
+    }
+  }, [taskStatus, onComplete, previousTaskId]);
 
   const getTaskTypeLabel = (taskType: string) => {
     switch (taskType) {
@@ -95,9 +74,7 @@ export default function TaskProgressIndicator({ onComplete, autoRefresh = true }
     setIsCancelling(true);
     try {
       await api.post(`/tasks/cancel/${taskStatus.id}`);
-      setIsPolling(false);
-      // Refresh task status to show cancelled state
-      await fetchTaskStatus();
+      // Task status will be refreshed by TaskStatusContext
     } catch (error: any) {
       console.error('Error cancelling task:', error);
       alert(error.response?.data?.detail || 'Failed to cancel task');

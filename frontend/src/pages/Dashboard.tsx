@@ -16,6 +16,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, Cart
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
+import { useTaskStatus } from '../contexts/TaskStatusContext';
 import BatchSelector from '../components/BatchSelector';
 import { captureAndUploadCharts } from '../utils/chartCapture';
 import ChartContainer from '../components/ChartContainer';
@@ -33,23 +34,11 @@ interface DashboardMetrics {
   leading_position: string;
 }
 
-interface TaskStatus {
-  id: number;
-  status: string;
-  task_type: string;
-  progress: number;
-  total_items: number;
-  processed_items: number;
-  message: string;
-  error_message?: string;
-  started_at?: string;
-  completed_at?: string;
-}
-
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { activeBrand } = useBrand();
+  const { tasks } = useTaskStatus();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
     open: false,
@@ -118,18 +107,9 @@ export default function Dashboard() {
   });
 
 
-  // Fetch task status
-  const { data: taskStatus } = useQuery<TaskStatus>({
-    queryKey: ['task-status'],
-    queryFn: async () => {
-      const response = await api.get('/tasks/status/');
-      return response.data;
-    },
-    refetchInterval: (data: any) => {
-      // Poll every 3 seconds if a task is running, otherwise every 30 seconds
-      return data?.status === 'running' ? 3000 : 30000;
-    },
-  });
+  // REMOVED: Redundant task status polling - now handled by TaskStatusContext
+  // This was causing database connection pool exhaustion by polling every 3-30 seconds
+  // TaskStatusContext already provides global task status with optimized polling
 
   // Fetch dashboard metrics
   const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
@@ -319,23 +299,26 @@ export default function Dashboard() {
   const highThreatCount = threats.filter((c: any) => c.threat_level === 'High').length;
   const mediumThreatCount = threats.filter((c: any) => c.threat_level === 'Medium').length;
 
+  // Get the first running task from global task status
+  const runningTask = tasks.find(task => task.status === 'running');
+
   return (
     <Box>
       {/* Task Progress Indicator */}
-      {taskStatus && taskStatus.status === 'running' && dismissedTaskId !== taskStatus.id && (
+      {runningTask && dismissedTaskId !== runningTask.id && (
         <Alert
           severity="info"
           sx={{ mb: 3 }}
-          onClose={() => setDismissedTaskId(taskStatus.id)}
+          onClose={() => setDismissedTaskId(runningTask.id)}
         >
           <Box display="flex" alignItems="center" gap={2}>
             <CircularProgress size={20} />
             <Box flex={1}>
               <Typography variant="body2" fontWeight="bold">
-                {taskStatus.task_type === 'analysis_and_report' ? 'Analysis & Report Generation' : taskStatus.task_type}
+                {runningTask.task_type === 'analysis' ? 'Analysis & Report Generation' : runningTask.task_type}
               </Typography>
               <Typography variant="caption">
-                {taskStatus.message || `Processing ${taskStatus.processed_items} of ${taskStatus.total_items} items...`}
+                {runningTask.message || `Processing ${runningTask.processed_items} of ${runningTask.total_items} items...`}
               </Typography>
             </Box>
           </Box>
