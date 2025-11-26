@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
+import logging
 
 from app import crud, models, schemas
+
+logger = logging.getLogger(__name__)
 from app.database import SessionLocal
 from app.auth import get_current_user
 from app.utils.brand_access import (
@@ -166,20 +170,30 @@ def share_brand_endpoint(
     ).first()
 
     if existing_share:
+        logger.info(f"Brand {brand_id} is already shared with user {user_to_share_with.id} (share id: {existing_share.id})")
         raise HTTPException(status_code=400, detail=f"Brand is already shared with {share_data.email}")
 
-    # Create the share
-    new_share = models.BrandShare(
-        brand_id=brand_id,
-        user_id=user_to_share_with.id,
-        shared_by_user_id=current_user.id,
-        permission_level='edit'
-    )
-    db.add(new_share)
-    db.commit()
-    db.refresh(new_share)
-
-    return new_share
+    # Create the share with error handling for race conditions
+    try:
+        new_share = models.BrandShare(
+            brand_id=brand_id,
+            user_id=user_to_share_with.id,
+            shared_by_user_id=current_user.id,
+            permission_level='edit'
+        )
+        db.add(new_share)
+        db.commit()
+        db.refresh(new_share)
+        logger.info(f"Successfully shared brand {brand_id} with user {user_to_share_with.id} (share id: {new_share.id})")
+        return new_share
+    except IntegrityError as e:
+        db.rollback()
+        logger.error(f"IntegrityError sharing brand {brand_id} with user {user_to_share_with.id}: {str(e)}")
+        # Check if the error is due to a unique constraint (brand already shared)
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            raise HTTPException(status_code=400, detail=f"Brand is already shared with {share_data.email}")
+        # Re-raise for other integrity errors
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router_brands.get("/{brand_id}/shares", response_model=List[schemas.BrandShareWithUser])

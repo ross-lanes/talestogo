@@ -2,7 +2,7 @@ import datetime
 import enum
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Float, Text, Date,
-    MetaData, Table, create_engine, ForeignKey, Index
+    MetaData, Table, create_engine, ForeignKey, Index, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 # Import Base from your database setup file
@@ -303,6 +303,9 @@ class BrandInfo(Base):
 
 class BrandShare(Base):
     __tablename__ = "brand_shares"
+    __table_args__ = (
+        UniqueConstraint('brand_id', 'user_id', name='uq_brand_shares_brand_user'),
+    )
     id = Column(Integer, primary_key=True, index=True)
     brand_id = Column(Integer, ForeignKey("brand_info.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)  # User being granted access
