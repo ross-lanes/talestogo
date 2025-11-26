@@ -259,9 +259,9 @@ const AppRoutes: React.FC = () => {
             }
           />
 
-          {/* Admin Routes */}
+          {/* Admin Routes - use /settings prefix to avoid conflict with /admin API routes */}
           <Route
-            path="/admin/users"
+            path="/settings/users"
             element={
               <ProtectedRoute requireAdmin>
                 <Layout>
@@ -271,7 +271,7 @@ const AppRoutes: React.FC = () => {
             }
           />
           <Route
-            path="/admin/tenants"
+            path="/settings/tenants"
             element={
               <ProtectedRoute requireAdmin>
                 <Layout>
@@ -281,7 +281,7 @@ const AppRoutes: React.FC = () => {
             }
           />
           <Route
-            path="/admin/users/:userId/brands/:brandId"
+            path="/settings/users/:userId/brands/:brandId"
             element={
               <ProtectedRoute requireAdmin>
                 <Layout>
@@ -291,7 +291,7 @@ const AppRoutes: React.FC = () => {
             }
           />
           <Route
-            path="/admin/scheduler"
+            path="/settings/scheduler"
             element={
               <ProtectedRoute requireAdmin>
                 <Layout>

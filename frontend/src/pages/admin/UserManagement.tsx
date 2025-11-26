@@ -283,7 +283,7 @@ const UserManagement: React.FC = () => {
       }
 
       // Navigate to the first brand (or could show a selection dialog if multiple)
-      navigate(`/admin/users/${menuUser.id}/brands/${brands[0].id}`);
+      navigate(`/settings/users/${menuUser.id}/brands/${brands[0].id}`);
       handleCloseMenu();
     } catch (err: any) {
       console.error('Failed to load user brands:', err);

@@ -129,7 +129,7 @@ const UserBrandData: React.FC = () => {
         <Alert severity="error">{error || 'User or brand not found'}</Alert>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/admin/users')}
+          onClick={() => navigate('/settings/users')}
           sx={{ mt: 2 }}
         >
           Back to Users
@@ -146,7 +146,7 @@ const UserBrandData: React.FC = () => {
           <Link
             component="button"
             variant="body1"
-            onClick={() => navigate('/admin/users')}
+            onClick={() => navigate('/settings/users')}
             sx={{ cursor: 'pointer', textDecoration: 'none' }}
           >
             Admin
@@ -154,7 +154,7 @@ const UserBrandData: React.FC = () => {
           <Link
             component="button"
             variant="body1"
-            onClick={() => navigate('/admin/users')}
+            onClick={() => navigate('/settings/users')}
             sx={{ cursor: 'pointer', textDecoration: 'none' }}
           >
             Users
@@ -178,7 +178,7 @@ const UserBrandData: React.FC = () => {
 
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/admin/users')}
+            onClick={() => navigate('/settings/users')}
           >
             Back to Users
           </Button>

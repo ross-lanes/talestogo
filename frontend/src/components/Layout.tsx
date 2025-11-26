@@ -102,17 +102,17 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const handleAdminPanel = () => {
-    navigate('/admin/users');
+    navigate('/settings/users');
     handleUserMenuClose();
   };
 
   const handleTenantManagement = () => {
-    navigate('/admin/tenants');
+    navigate('/settings/tenants');
     handleUserMenuClose();
   };
 
   const handleSchedulerDashboard = () => {
-    navigate('/admin/scheduler');
+    navigate('/settings/scheduler');
     handleUserMenuClose();
   };
 
