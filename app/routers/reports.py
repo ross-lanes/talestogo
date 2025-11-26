@@ -90,14 +90,20 @@ def update_report(
     report_id: int,
     report_update: schemas.ReportUpdate,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Update a report (mainly for adding Google Doc URL) for the current user."""
+    """Update a report (supports shared brands)."""
+    from app.utils.brand_access import get_data_owner_user_id
+
+    # Get the data owner user_id (for shared brands, this is the brand owner's ID)
+    data_owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
     db_report = crud.update_report(
         db,
         report_id=report_id,
         report_update=report_update,
-        user_id=current_user.id
+        user_id=data_owner_user_id
     )
     if db_report is None:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -108,10 +114,16 @@ def update_report(
 def delete_report(
     report_id: int,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
-    """Delete a report for the current user."""
-    deleted_report = crud.delete_report(db, report_id=report_id, user_id=current_user.id)
+    """Delete a report (supports shared brands)."""
+    from app.utils.brand_access import get_data_owner_user_id
+
+    # Get the data owner user_id (for shared brands, this is the brand owner's ID)
+    data_owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    deleted_report = crud.delete_report(db, report_id=report_id, user_id=data_owner_user_id)
     if deleted_report is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return deleted_report
