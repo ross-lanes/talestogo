@@ -121,12 +121,12 @@ const UserManagement: React.FC = () => {
       loadActiveUsers();
     }
 
-    // Auto-refresh active users every 30 seconds
+    // Auto-refresh active users every 60 seconds
     const interval = setInterval(() => {
       if (isAdmin) {
         loadActiveUsers();
       }
-    }, 30000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [isAdmin]);
