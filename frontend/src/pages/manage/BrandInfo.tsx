@@ -9,7 +9,6 @@ import {
   Alert,
   CircularProgress,
   Grid,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -345,11 +344,6 @@ const BrandInfo: React.FC = () => {
       )}
 
       <Paper elevation={2} sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Brand Information
-        </Typography>
-        <Divider sx={{ mb: 3 }} />
-
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
