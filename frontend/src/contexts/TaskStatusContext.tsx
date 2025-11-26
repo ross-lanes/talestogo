@@ -68,12 +68,15 @@ export const TaskStatusProvider: React.FC<TaskStatusProviderProps> = ({ children
     try {
       setIsLoading(true);
       const response = await api.get<Task[]>('/tasks/status');
+      // Ensure response.data is an array before filtering
+      const data = Array.isArray(response.data) ? response.data : [];
       // Filter out dismissed tasks
-      const filteredTasks = response.data.filter(task => !dismissedTaskIds.has(task.id));
+      const filteredTasks = data.filter(task => !dismissedTaskIds.has(task.id));
       setTasks(filteredTasks);
     } catch (error: any) {
       console.error('Failed to fetch task status:', error);
       // Don't show error to user - just fail silently for background polling
+      setTasks([]);
     } finally {
       setIsLoading(false);
     }

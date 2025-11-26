@@ -52,23 +52,31 @@ export const BrandProvider: React.FC<BrandProviderProps> = ({ children }) => {
 
   // Fetch all brands and active brand when user is authenticated or impersonation changes
   useEffect(() => {
+    console.log('[BrandContext] useEffect triggered, isAuthenticated:', isAuthenticated, 'impersonatedUser:', impersonatedUser?.id);
     if (isAuthenticated) {
       refreshBrands();
     } else {
+      console.log('[BrandContext] Not authenticated, skipping fetch');
       setLoading(false);
     }
   }, [isAuthenticated, impersonatedUser?.id]);
 
   const refreshBrands = async () => {
+    console.log('[BrandContext] refreshBrands called');
     setLoading(true);
     setError(null);
     try {
       // Fetch all brands
+      console.log('[BrandContext] Fetching /brands/...');
+      console.log('[BrandContext] API baseURL:', api.defaults.baseURL);
       const brandsResponse = await api.get<BrandInfo[]>('/brands/');
-      setBrands(brandsResponse.data);
+      console.log('[BrandContext] Response:', brandsResponse.data);
+      // Ensure response.data is an array
+      const brandsData = Array.isArray(brandsResponse.data) ? brandsResponse.data : [];
+      setBrands(brandsData);
 
       // Find and set the active brand
-      const active = brandsResponse.data.find(brand => brand.is_active);
+      const active = brandsData.find(brand => brand.is_active);
       setActiveBrand(active || null);
     } catch (err: any) {
       console.error('Error fetching brands:', err);
