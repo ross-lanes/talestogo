@@ -1,18 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Container,
   Paper,
   Typography,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Chip,
   Alert,
   CircularProgress,
   Dialog,
@@ -22,14 +14,19 @@ import {
   DialogActions,
   TextField,
   Tooltip,
+  IconButton,
+  Card,
+  CardContent,
+  Grid,
 } from '@mui/material';
 import {
   Delete,
   SwapHoriz,
-  RemoveCircleOutline,
-  Edit,
   Share,
-  CheckCircle,
+  Edit,
+  QuestionAnswer,
+  Description,
+  Business,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,70 +34,42 @@ import { useBrand } from '../../contexts/BrandContext';
 import { brandsAPI } from '../../services/api';
 import ShareBrandDialog from '../../components/ShareBrandDialog';
 
-interface BrandInfo {
-  id: number;
-  user_id?: number;
-  brand_name: string;
-  website_url: string | null;
-  industry: string | null;
-  description: string | null;
-  is_active: boolean;
-  created_at: string;
-}
-
-const ManageBrands: React.FC = () => {
+const ManageBrand: React.FC = () => {
   const { user } = useAuth();
-  const { switchBrand, activeBrand } = useBrand();
+  const { activeBrand, loading: brandsLoading, refreshBrands } = useBrand();
   const navigate = useNavigate();
 
-  const { brands, loading: brandsLoading, refreshBrands } = useBrand();
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   // Transfer dialog state
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [transferBrandId, setTransferBrandId] = useState<number | null>(null);
-  const [transferBrandName, setTransferBrandName] = useState('');
   const [transferEmail, setTransferEmail] = useState('');
   const [transferring, setTransferring] = useState(false);
 
   // Remove dialog state
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [removeBrandId, setRemoveBrandId] = useState<number | null>(null);
-  const [removeBrandName, setRemoveBrandName] = useState('');
   const [removing, setRemoving] = useState(false);
 
   // Delete dialog state (admin only)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteBrandId, setDeleteBrandId] = useState<number | null>(null);
-  const [deleteBrandName, setDeleteBrandName] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareBrandId, setShareBrandId] = useState<number | null>(null);
-  const [shareBrandName, setShareBrandName] = useState('');
 
   const isAdmin = user?.email === 'robotrachel@gmail.com';
 
-  const handleTransferClick = (brand: BrandInfo) => {
-    setTransferBrandId(brand.id);
-    setTransferBrandName(brand.brand_name);
-    setTransferEmail('');
-    setTransferDialogOpen(true);
-  };
-
   const handleTransferSubmit = async () => {
-    if (!transferBrandId || !transferEmail) return;
+    if (!activeBrand || !transferEmail) return;
 
     try {
       setTransferring(true);
       setError('');
-      const result = await brandsAPI.transferBrand(transferBrandId, transferEmail);
+      const result = await brandsAPI.transferBrand(activeBrand.id, transferEmail);
       setSuccess(result.message);
       setTransferDialogOpen(false);
-      await refreshBrands(); // Reload to remove transferred brand
+      await refreshBrands();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to transfer brand');
     } finally {
@@ -108,22 +77,16 @@ const ManageBrands: React.FC = () => {
     }
   };
 
-  const handleRemoveClick = (brand: BrandInfo) => {
-    setRemoveBrandId(brand.id);
-    setRemoveBrandName(brand.brand_name);
-    setRemoveDialogOpen(true);
-  };
-
   const handleRemoveConfirm = async () => {
-    if (!removeBrandId) return;
+    if (!activeBrand) return;
 
     try {
       setRemoving(true);
       setError('');
-      const result = await brandsAPI.removeBrand(removeBrandId);
+      const result = await brandsAPI.removeBrand(activeBrand.id);
       setSuccess(result.message);
       setRemoveDialogOpen(false);
-      await refreshBrands(); // Reload to remove brand from list
+      await refreshBrands();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to remove brand');
     } finally {
@@ -131,42 +94,21 @@ const ManageBrands: React.FC = () => {
     }
   };
 
-  const handleDeleteClick = (brand: BrandInfo) => {
-    setDeleteBrandId(brand.id);
-    setDeleteBrandName(brand.brand_name);
-    setDeleteDialogOpen(true);
-  };
-
   const handleDeleteConfirm = async () => {
-    if (!deleteBrandId) return;
+    if (!activeBrand) return;
 
     try {
       setDeleting(true);
       setError('');
-      await brandsAPI.deleteBrand(deleteBrandId);
-      setSuccess(`Brand "${deleteBrandName}" permanently deleted`);
+      await brandsAPI.deleteBrand(activeBrand.id);
+      setSuccess(`Brand "${activeBrand.brand_name}" permanently deleted`);
       setDeleteDialogOpen(false);
-      await refreshBrands(); // Reload to remove deleted brand
+      await refreshBrands();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete brand');
     } finally {
       setDeleting(false);
     }
-  };
-
-  const handleActivate = async (brand: BrandInfo) => {
-    try {
-      await switchBrand(brand.id);
-      // No need to reload - switchBrand already updates the context
-    } catch (err: any) {
-      setError('Failed to activate brand');
-    }
-  };
-
-  const handleShareClick = (brand: BrandInfo) => {
-    setShareBrandId(brand.id);
-    setShareBrandName(brand.brand_name);
-    setShareDialogOpen(true);
   };
 
   if (brandsLoading) {
@@ -177,19 +119,77 @@ const ManageBrands: React.FC = () => {
     );
   }
 
+  if (!activeBrand) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h5" gutterBottom>
+            No Brand Selected
+          </Typography>
+          <Typography color="textSecondary" sx={{ mb: 3 }}>
+            Please select a brand from the Brand Switcher in the top navigation, or create a new brand.
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate('/manage/brand-info?new=true')}
+          >
+            Create New Brand
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Manage Brands
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => navigate('/manage/brand-info?new=true')}
-        >
-          Create New Brand
-        </Button>
+        <Box>
+          <Typography variant="h4" component="h1">
+            Manage Brand
+          </Typography>
+          <Typography variant="h6" color="textSecondary">
+            {activeBrand.brand_name}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Share Brand">
+            <IconButton onClick={() => setShareDialogOpen(true)}>
+              <Share />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Transfer to Another User">
+            <IconButton
+              onClick={() => {
+                setTransferEmail('');
+                setTransferDialogOpen(true);
+              }}
+              color="primary"
+            >
+              <SwapHoriz />
+            </IconButton>
+          </Tooltip>
+          {!isAdmin && (
+            <Tooltip title="Remove Brand (Transfer to Admin)">
+              <IconButton
+                onClick={() => setRemoveDialogOpen(true)}
+                color="warning"
+              >
+                <Delete />
+              </IconButton>
+            </Tooltip>
+          )}
+          {isAdmin && (
+            <Tooltip title="Permanently Delete (Admin Only)">
+              <IconButton
+                onClick={() => setDeleteDialogOpen(true)}
+                color="error"
+              >
+                <Delete />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
       </Box>
 
       {error && (
@@ -204,167 +204,98 @@ const ManageBrands: React.FC = () => {
         </Alert>
       )}
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Brand Name</TableCell>
-              <TableCell>Edit</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {brands.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} align="center">
-                  <Typography color="textSecondary" sx={{ py: 3 }}>
-                    No brands found. Create your first brand to get started.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              brands.map((brand) => (
-                <TableRow key={brand.id}>
-                  <TableCell>
-                    <Typography variant="body1" fontWeight={brand.is_active ? 'bold' : 'normal'}>
-                      {brand.brand_name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          borderColor: '#80A1D4',
-                          color: '#80A1D4',
-                          '&:hover': {
-                            borderColor: '#80A1D4',
-                            backgroundColor: 'rgba(128, 161, 212, 0.08)'
-                          }
-                        }}
-                        onClick={() => navigate(`/manage/brand-info?brand_id=${brand.id}`)}
-                      >
-                        Brand Info
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          borderColor: '#75C9C8',
-                          color: '#75C9C8',
-                          '&:hover': {
-                            borderColor: '#75C9C8',
-                            backgroundColor: 'rgba(117, 201, 200, 0.08)'
-                          }
-                        }}
-                        onClick={() => navigate(`/manage/queries?brand_id=${brand.id}`)}
-                      >
-                        Queries
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          borderColor: '#44809C',
-                          color: '#44809C',
-                          '&:hover': {
-                            borderColor: '#44809C',
-                            backgroundColor: 'rgba(68, 128, 156, 0.08)'
-                          }
-                        }}
-                        onClick={() => navigate(`/manage/descriptors?brand_id=${brand.id}`)}
-                      >
-                        Descriptors
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          borderColor: '#9FA8DA',
-                          color: '#9FA8DA',
-                          '&:hover': {
-                            borderColor: '#9FA8DA',
-                            backgroundColor: 'rgba(159, 168, 218, 0.08)'
-                          }
-                        }}
-                        onClick={() => navigate(`/manage/competitors?brand_id=${brand.id}`)}
-                      >
-                        Competitors
-                      </Button>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {brand.is_active ? (
-                      <Chip
-                        icon={<CheckCircle />}
-                        label="Active"
-                        color="success"
-                        size="small"
-                      />
-                    ) : (
-                      <Button
-                        size="small"
-                        onClick={() => handleActivate(brand)}
-                      >
-                        Activate
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Share">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleShareClick(brand)}
-                      >
-                        <Share />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Transfer to Another User">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleTransferClick(brand)}
-                        color="primary"
-                      >
-                        <SwapHoriz />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Remove Brand (Transfer to Admin)">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleRemoveClick(brand)}
-                        color="warning"
-                        disabled={isAdmin}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </Tooltip>
-                    {isAdmin && (
-                      <Tooltip title="Permanently Delete (Admin Only)">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteClick(brand)}
-                          color="error"
-                        >
-                          <RemoveCircleOutline />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={6}>
+          <Card
+            sx={{
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 4 },
+              height: '100%'
+            }}
+            onClick={() => navigate('/manage/brand-info')}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Edit sx={{ fontSize: 40, color: '#80A1D4', mr: 2 }} />
+                <Typography variant="h6">Brand Info</Typography>
+              </Box>
+              <Typography color="textSecondary">
+                Edit brand name, description, industry, and website URL.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card
+            sx={{
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 4 },
+              height: '100%'
+            }}
+            onClick={() => navigate('/manage/queries')}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <QuestionAnswer sx={{ fontSize: 40, color: '#75C9C8', mr: 2 }} />
+                <Typography variant="h6">Queries</Typography>
+              </Box>
+              <Typography color="textSecondary">
+                Manage the questions asked to AI platforms about your brand.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card
+            sx={{
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 4 },
+              height: '100%'
+            }}
+            onClick={() => navigate('/manage/descriptors')}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Description sx={{ fontSize: 40, color: '#44809C', mr: 2 }} />
+                <Typography variant="h6">Descriptors</Typography>
+              </Box>
+              <Typography color="textSecondary">
+                Define the target descriptors you want associated with your brand.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card
+            sx={{
+              cursor: 'pointer',
+              '&:hover': { boxShadow: 4 },
+              height: '100%'
+            }}
+            onClick={() => navigate('/manage/competitors')}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Business sx={{ fontSize: 40, color: '#9FA8DA', mr: 2 }} />
+                <Typography variant="h6">Competitors</Typography>
+              </Box>
+              <Typography color="textSecondary">
+                Track competitors to compare your brand's AI visibility.
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Transfer Brand Dialog */}
       <Dialog open={transferDialogOpen} onClose={() => setTransferDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Transfer Brand</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            Transfer "{transferBrandName}" to another user in your organization.
+            Transfer "{activeBrand.brand_name}" to another user in your organization.
             The new owner will receive all brand data and you will no longer have access.
           </DialogContentText>
           <TextField
@@ -397,7 +328,7 @@ const ManageBrands: React.FC = () => {
         <DialogTitle>Remove Brand</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Remove "{removeBrandName}" from your account? This will transfer ownership to
+            Remove "{activeBrand.brand_name}" from your account? This will transfer ownership to
             the admin (robotrachel@gmail.com). All data will be preserved but you will
             no longer have access to this brand.
           </DialogContentText>
@@ -422,7 +353,7 @@ const ManageBrands: React.FC = () => {
         <DialogTitle>Permanently Delete Brand</DialogTitle>
         <DialogContent>
           <DialogContentText color="error">
-            <strong>WARNING:</strong> This will permanently delete "{deleteBrandName}" and ALL
+            <strong>WARNING:</strong> This will permanently delete "{activeBrand.brand_name}" and ALL
             associated data including queries, responses, competitors, descriptors, reports,
             and analytics. This action cannot be undone.
           </DialogContentText>
@@ -443,16 +374,14 @@ const ManageBrands: React.FC = () => {
       </Dialog>
 
       {/* Share Brand Dialog */}
-      {shareBrandId && (
-        <ShareBrandDialog
-          open={shareDialogOpen}
-          onClose={() => setShareDialogOpen(false)}
-          brandId={shareBrandId}
-          brandName={shareBrandName}
-        />
-      )}
+      <ShareBrandDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        brandId={activeBrand.id}
+        brandName={activeBrand.brand_name}
+      />
     </Container>
   );
 };
 
-export default ManageBrands;
+export default ManageBrand;

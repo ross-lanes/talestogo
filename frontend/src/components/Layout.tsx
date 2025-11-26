@@ -129,7 +129,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/', indent: false },
-    { text: 'Manage Brands', icon: <CustomizeIcon />, path: '/manage/brands', indent: false },
+    { text: 'Manage Brand', icon: <CustomizeIcon />, path: '/manage/brands', indent: false },
     { text: 'Collect & Analyze', icon: <CollectionIcon />, path: '/collect-analyze', indent: false },
     { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics/brand-mentions', indent: false },
     { text: 'Brand Mentions', icon: <AnnouncementIcon />, path: '/analytics/brand-mentions', indent: true },
