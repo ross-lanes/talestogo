@@ -141,45 +141,48 @@ const BrandSwitcher: React.FC = () => {
         </Box>
         <Divider />
 
-        {brands.map((brand) => (
-          <MenuItem
-            key={brand.id}
-            onClick={() => handleSwitchBrand(brand.id)}
-            selected={brand.is_active}
-            sx={{
-              py: 1.5,
-              px: 2,
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(117, 201, 200, 0.12)',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              {brand.is_active ? (
-                <CheckIcon fontSize="small" sx={{ color: '#75C9C8' }} />
-              ) : (
-                <BrandIcon fontSize="small" />
-              )}
-            </ListItemIcon>
-            <ListItemText
-              primary={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" fontWeight={brand.is_active ? 600 : 400}>
-                    {brand.brand_name}
-                  </Typography>
-                  {brand.is_active && (
-                    <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
-                  )}
-                </Box>
-              }
-              secondary={brand.industry || 'No industry set'}
-              secondaryTypographyProps={{
-                variant: 'caption',
-                color: 'text.secondary',
+        {brands.map((brand) => {
+          const isActive = activeBrand?.id === brand.id;
+          return (
+            <MenuItem
+              key={brand.id}
+              onClick={() => handleSwitchBrand(brand.id)}
+              selected={isActive}
+              sx={{
+                py: 1.5,
+                px: 2,
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(117, 201, 200, 0.12)',
+                },
               }}
-            />
-          </MenuItem>
-        ))}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                {isActive ? (
+                  <CheckIcon fontSize="small" sx={{ color: '#75C9C8' }} />
+                ) : (
+                  <BrandIcon fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" fontWeight={isActive ? 600 : 400}>
+                      {brand.brand_name}
+                    </Typography>
+                    {isActive && (
+                      <Chip label="Active" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                    )}
+                  </Box>
+                }
+                secondary={brand.industry || 'No industry set'}
+                secondaryTypographyProps={{
+                  variant: 'caption',
+                  color: 'text.secondary',
+                }}
+              />
+            </MenuItem>
+          );
+        })}
 
         {brands.length < 20 && (
           <>

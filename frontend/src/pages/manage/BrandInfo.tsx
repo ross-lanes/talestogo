@@ -301,7 +301,7 @@ const BrandInfo: React.FC = () => {
 
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h2">
-          {isNewBrand ? 'Add New Brand' : 'Customize Branding'}
+          {isNewBrand ? 'Add New Brand' : 'Brand Information'}
         </Typography>
         {brandExists && !isNewBrand && (
           <Box display="flex" gap={1}>
