@@ -112,6 +112,10 @@ const UserManagement: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
+  // Invitation email dialog
+  const [invitationDialogOpen, setInvitationDialogOpen] = useState(false);
+  const [invitationUser, setInvitationUser] = useState<User | null>(null);
+
 
 
   useEffect(() => {
@@ -324,20 +328,39 @@ const UserManagement: React.FC = () => {
     setUserToDelete(null);
   };
 
-  const handleSendInvitation = async (user: User) => {
-    console.log('handleSendInvitation called for user:', user);
-    setError('');
-    setSuccess('');
+  const handleShowInvitation = (user: User) => {
+    setInvitationUser(user);
+    setInvitationDialogOpen(true);
+  };
 
-    try {
-      console.log('Calling sendInvitationEmail API...');
-      const result = await adminAPI.sendInvitationEmail(user.id);
-      console.log('API response:', result);
-      setSuccess(`Invitation email sent to ${user.email}!`);
-    } catch (err: any) {
-      console.error('Failed to send invitation email:', err);
-      setError(err.response?.data?.detail || 'Failed to send invitation email');
+  const getInvitationEmailContent = (user: User) => {
+    const domain = user.email.split('@')[1]?.toLowerCase() || '';
+    const productionUrl = 'https://apps.robotrachel.com';
+    const subject = 'Welcome to Tales - Shape Your AI story';
+
+    let signInMethod: string;
+    if (domain === 'solsticehc.net') {
+      signInMethod = '- Click "Sign in with Microsoft."\n- Log in with ' + user.email + '.';
+    } else if (domain === 'gmail.com') {
+      signInMethod = '- Click "Sign in with Google."\n- Log in with ' + user.email + '.';
+    } else {
+      signInMethod = '- Sign in with ' + user.email + ' using the Google or Microsoft login buttons.';
     }
+
+    const body = `Hi ${user.full_name || user.email},
+
+You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
+
+Your story starts at ${productionUrl}.
+${signInMethod}
+- Click on Customize and start adding information about your brands!
+
+Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
+
+May your metrics be ever in your favor,
+RobotRachel`;
+
+    return { subject, body };
   };
 
   const handleLoginAsUser = async () => {
@@ -469,10 +492,10 @@ const UserManagement: React.FC = () => {
         <Button
           size="small"
           variant="outlined"
-          startIcon={<EmailIcon />}
-          onClick={() => handleSendInvitation(params.row as User)}
+          startIcon={<VisibilityIcon />}
+          onClick={() => handleShowInvitation(params.row as User)}
         >
-          Send
+          Show
         </Button>
       ),
     },
@@ -723,6 +746,88 @@ const UserManagement: React.FC = () => {
           <Button onClick={handleCancelDelete}>Cancel</Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Invitation Email Dialog */}
+      <Dialog
+        open={invitationDialogOpen}
+        onClose={() => setInvitationDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Invitation Email for {invitationUser?.full_name || invitationUser?.email}</DialogTitle>
+        <DialogContent>
+          {invitationUser && (() => {
+            const { subject, body } = getInvitationEmailContent(invitationUser);
+            return (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
+                {/* To field */}
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    To:
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: 2, backgroundColor: 'grey.50', cursor: 'text', userSelect: 'all' }}
+                  >
+                    <Typography
+                      component="a"
+                      href={`mailto:${invitationUser.email}`}
+                      sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                    >
+                      {invitationUser.email}
+                    </Typography>
+                  </Paper>
+                </Box>
+
+                {/* Subject field */}
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Subject:
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: 2, backgroundColor: 'grey.50', cursor: 'text', userSelect: 'all' }}
+                  >
+                    <Typography>{subject}</Typography>
+                  </Paper>
+                </Box>
+
+                {/* Body field */}
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Body:
+                  </Typography>
+                  <Paper
+                    variant="outlined"
+                    sx={{ p: 2, backgroundColor: 'grey.50', cursor: 'text', userSelect: 'all' }}
+                  >
+                    <Typography
+                      component="pre"
+                      sx={{
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit',
+                        whiteSpace: 'pre-wrap',
+                        margin: 0,
+                        '& a': { color: 'primary.main' }
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: body
+                          .replace(/https:\/\/apps\.robotrachel\.com/g, '<a href="https://apps.robotrachel.com" target="_blank" rel="noopener">https://apps.robotrachel.com</a>')
+                          .replace(/admin@robotrachel\.com/g, '<a href="mailto:admin@robotrachel.com">admin@robotrachel.com</a>')
+                      }}
+                    />
+                  </Paper>
+                </Box>
+              </Box>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInvitationDialogOpen(false)} variant="contained">
+            Close
           </Button>
         </DialogActions>
       </Dialog>
