@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv(override=True)  # Load environment variables from .env file
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -60,7 +61,13 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
         "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
         "https://solsticehc.robotrachel.com",
         "https://api.tales.robotrachel.com",
+        "https://tales-frontend-development.up.railway.app",  # Railway dev frontend
+        "https://tales-frontend-production.up.railway.app",  # Railway prod frontend
     ]
+    # Add FRONTEND_URL from environment if set
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if frontend_url and frontend_url not in allowed_origins:
+        allowed_origins.append(frontend_url)
 
     headers = {}
     if origin in allowed_origins:
@@ -73,18 +80,27 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
         headers=headers
     )
 
+# Build CORS origins list
+cors_origins = [
+    "http://localhost:5173",  # Local development (default Vite port)
+    "http://localhost:5177",  # Local development (alternate Vite port)
+    "https://tales-frontend.onrender.com",  # Production frontend (legacy)
+    "https://apps.robotrachel.com",  # Primary production domain
+    "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
+    "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain
+    "https://api.tales.robotrachel.com",  # API subdomain
+    "https://tales-frontend-development.up.railway.app",  # Railway dev frontend
+    "https://tales-frontend-production.up.railway.app",  # Railway prod frontend
+]
+# Add FRONTEND_URL from environment if set (for dynamic configuration)
+_frontend_url = os.environ.get("FRONTEND_URL")
+if _frontend_url and _frontend_url not in cors_origins:
+    cors_origins.append(_frontend_url)
+
 # Configure CORS to allow frontend to access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Local development (default Vite port)
-        "http://localhost:5177",  # Local development (alternate Vite port)
-        "https://tales-frontend.onrender.com",  # Production frontend (legacy)
-        "https://apps.robotrachel.com",  # Primary production domain
-        "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
-        "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain
-        "https://api.tales.robotrachel.com",  # API subdomain
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all headers
