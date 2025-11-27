@@ -121,22 +121,17 @@ def analyze_raw_response(
     descriptors: List[str]
 ) -> Dict[str, Any]:
     """
-    Uses Perplexity to analyze a raw response and extract structured data.
+    Uses Gemini to analyze a raw response and extract structured data.
     """
-    if not perplexity_client:
-        print("ERROR: Perplexity API key is required for analysis but is not configured.")
-        return {"error": "Perplexity API key not configured for analysis."}
+    if not GEMINI_API_KEY:
+        print("ERROR: Gemini API key is required for analysis but is not configured.")
+        return {"error": "Gemini API key not configured for analysis."}
 
     competitor_list_str = ", ".join(f'"{c}"' for c in competitors)
     descriptor_list_str = ", ".join(f'"{d}"' for d in descriptors)
 
-    system_prompt = (
-        "You are an expert AI Optimization analyst. Your task is to analyze an AI-generated response "
-        "objectively based on a provided query. Respond ONLY with a valid JSON object, with no other text "
-        "or explanations. All fields in the JSON must be populated."
-    )
+    prompt = f"""You are an expert AI Optimization analyst. Your task is to analyze an AI-generated response objectively based on a provided query. Respond ONLY with a valid JSON object, with no other text or explanations. All fields in the JSON must be populated.
 
-    user_prompt = f"""
     Analyze the following AI response based on the original query and the provided context.
 
     **Original Query:**
@@ -176,26 +171,30 @@ def analyze_raw_response(
     Now, analyze the provided AI Response and return the JSON object.
     """
 
-    print(f"Analyzing response with Perplexity for query: '{query_text[:50]}...'")
+    print(f"Analyzing response with Gemini for query: '{query_text[:50]}...'")
 
     try:
-        response = perplexity_client.chat.completions.create(
-            model="llama-3-sonar-large-32k-online",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
+        model = genai.GenerativeModel('gemini-2.5-pro')
+        response = model.generate_content(prompt)
 
-        response_text = response.choices[0].message.content
+        response_content = response.text
+
+        # Clean the response - remove markdown code blocks if present
+        if response_content.startswith("```json"):
+            response_content = response_content[7:]
+        if response_content.startswith("```"):
+            response_content = response_content[3:]
+        if response_content.endswith("```"):
+            response_content = response_content[:-3]
+        response_content = response_content.strip()
 
         # Parse the JSON response
-        analysis_json = json.loads(response_text)
+        analysis_json = json.loads(response_content)
         return analysis_json
     except json.JSONDecodeError as e:
-        print(f"ERROR: Could not parse JSON from Perplexity analysis response. Error: {e}")
-        print(f"Raw analysis response: {response_text if 'response_text' in locals() else 'No response'}")
-        return {"error": "Failed to parse analysis from Perplexity."}
+        print(f"ERROR: Could not parse JSON from Gemini analysis response. Error: {e}")
+        print(f"Raw analysis response: {response_content if 'response_content' in locals() else 'No response'}")
+        return {"error": "Failed to parse analysis from Gemini."}
     except Exception as e:
-        print(f"ERROR: Perplexity analysis failed. Error: {e}")
-        return {"error": f"Perplexity analysis failed: {str(e)}"}
+        print(f"ERROR: Gemini analysis failed. Error: {e}")
+        return {"error": f"Gemini analysis failed: {str(e)}"}
