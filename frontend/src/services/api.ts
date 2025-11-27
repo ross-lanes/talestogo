@@ -1,8 +1,13 @@
 import axios from 'axios';
 
 // API Base URL - points to your FastAPI backend
-// Auto-detect based on hostname and protocol
+// Auto-detect based on hostname and protocol, or use VITE_API_URL env var
 const API_BASE_URL = (() => {
+  // First check for explicit environment variable (used for Railway deployments)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
   // If running on production domain, always use HTTPS
   if (window.location.hostname === 'apps.robotrachel.com') {
     // Backend is served at the same domain (no /api prefix needed)
@@ -13,6 +18,15 @@ const API_BASE_URL = (() => {
   }
   if (window.location.hostname === 'solsticehc.robotrachel.com') {
     return 'https://api.tales.robotrachel.com';
+  }
+  // Railway development environment
+  if (window.location.hostname === 'tales-frontend-development.up.railway.app') {
+    return 'https://tales-backend-development.up.railway.app';
+  }
+  // Railway production environment
+  if (window.location.hostname.includes('.up.railway.app')) {
+    // Default Railway backend pattern
+    return window.location.origin.replace('frontend', 'backend');
   }
   // For localhost, use HTTP
   return 'http://localhost:8000';
@@ -37,7 +51,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
+    // Debug: log the full URL being requested
+    const fullUrl = `${config.baseURL}${config.url}`;
+    console.log('[API] Request:', config.method?.toUpperCase(), fullUrl);
     return config;
   },
   (error) => {
