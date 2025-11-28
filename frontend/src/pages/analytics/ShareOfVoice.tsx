@@ -632,9 +632,11 @@ export default function ShareOfVoice() {
                       formatter={(value: number) => [`${value}%`, '']}
                       labelFormatter={(label) => `Date: ${label}`}
                     />
-                    <Legend />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
                     {orgNames.map((org, index) => {
                       const isBrand = org === brandName;
+                      // Use acronym for legend, but keep full name in tooltip
+                      const legendName = isBrand ? 'Your Brand' : createAcronym(org);
                       return (
                         <Line
                           key={org}
@@ -642,7 +644,7 @@ export default function ShareOfVoice() {
                           dataKey={org}
                           stroke={isBrand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
                           strokeWidth={formattedData.length === 1 ? 0 : (isBrand ? 3 : 2)}
-                          name={org}
+                          name={legendName}
                           dot={{ fill: isBrand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: isBrand ? 8 : 6, stroke: isBrand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], strokeWidth: 2 }}
                           activeDot={{ r: isBrand ? 10 : 8 }}
                           connectNulls={true}
