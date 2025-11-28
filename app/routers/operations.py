@@ -649,7 +649,9 @@ async def debug_batch_analytics_status(
             "leader_count": analytics.leader_count,
             "featured_count": analytics.featured_count,
             "listed_count": analytics.listed_count,
-            "not_mentioned_count": analytics.not_mentioned_count
+            "not_mentioned_count": analytics.not_mentioned_count,
+            "sov_data": analytics.sov_data,
+            "descriptor_data": analytics.descriptor_data
         })
 
     # Count responses with batch_id
