@@ -548,6 +548,7 @@ def cancel_task(
 
 @router.post("/backfill-batch-analytics/", status_code=200)
 async def backfill_batch_analytics(
+    force: bool = False,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
     brand_id: Optional[int] = Depends(get_active_brand_id)
@@ -555,17 +556,127 @@ async def backfill_batch_analytics(
     """
     Backfill batch analytics for all completed batches.
     This recomputes cached analytics for trend charts.
+
+    Args:
+        force: If True, recomputes analytics even if they already exist (default: False)
     """
     if not brand_id:
         raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
 
-    from app.services.batch_analytics import backfill_all_batch_analytics
+    from app.services.batch_analytics import compute_batch_analytics
 
     try:
-        processed = backfill_all_batch_analytics(db, current_user.id, brand_id)
+        # Get all completed batches for this user/brand
+        batches = db.query(models.CollectionBatch).filter(
+            models.CollectionBatch.user_id == current_user.id,
+            models.CollectionBatch.brand_id == brand_id,
+            models.CollectionBatch.status == 'completed'
+        ).all()
+
+        processed = 0
+        for batch in batches:
+            if force:
+                # Force recompute even if analytics exist
+                result = compute_batch_analytics(db, batch.id, current_user.id, brand_id)
+                if result:
+                    processed += 1
+            else:
+                # Only compute if analytics don't exist
+                existing = db.query(models.BatchAnalytics).filter(
+                    models.BatchAnalytics.batch_id == batch.id
+                ).first()
+
+                if not existing:
+                    result = compute_batch_analytics(db, batch.id, current_user.id, brand_id)
+                    if result:
+                        processed += 1
+
         return {
-            "message": f"Successfully backfilled analytics for {processed} batches",
-            "processed_batches": processed
+            "message": f"Successfully {'recomputed' if force else 'backfilled'} analytics for {processed} batches",
+            "processed_batches": processed,
+            "total_batches": len(batches),
+            "forced": force
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to backfill batch analytics: {str(e)}")
+
+
+@router.get("/debug/batch-analytics-status/", status_code=200)
+async def debug_batch_analytics_status(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Debug endpoint to check BatchAnalytics status.
+    Shows how many batches exist, how many have analytics, and sample data.
+    """
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
+
+    # Count batches
+    total_batches = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.user_id == current_user.id,
+        models.CollectionBatch.brand_id == brand_id
+    ).count()
+
+    completed_batches = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.user_id == current_user.id,
+        models.CollectionBatch.brand_id == brand_id,
+        models.CollectionBatch.status == 'completed'
+    ).count()
+
+    # Count BatchAnalytics records
+    total_analytics = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.user_id == current_user.id,
+        models.BatchAnalytics.brand_id == brand_id
+    ).count()
+
+    # Get sample BatchAnalytics data
+    sample_analytics = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.user_id == current_user.id,
+        models.BatchAnalytics.brand_id == brand_id
+    ).order_by(models.BatchAnalytics.collection_date.desc()).limit(5).all()
+
+    sample_data = []
+    for analytics in sample_analytics:
+        sample_data.append({
+            "batch_id": analytics.batch_id,
+            "collection_date": analytics.collection_date.isoformat() if analytics.collection_date else None,
+            "total_responses": analytics.total_responses,
+            "mention_count": analytics.mention_count,
+            "mention_rate": analytics.mention_rate,
+            "leader_count": analytics.leader_count,
+            "featured_count": analytics.featured_count,
+            "listed_count": analytics.listed_count,
+            "not_mentioned_count": analytics.not_mentioned_count
+        })
+
+    # Count responses with batch_id
+    responses_with_batch = db.query(models.Response).filter(
+        models.Response.user_id == current_user.id,
+        models.Response.brand_id == brand_id,
+        models.Response.batch_id.isnot(None)
+    ).count()
+
+    # Count total responses
+    total_responses = db.query(models.Response).filter(
+        models.Response.user_id == current_user.id,
+        models.Response.brand_id == brand_id
+    ).count()
+
+    return {
+        "batches": {
+            "total": total_batches,
+            "completed": completed_batches
+        },
+        "batch_analytics": {
+            "total_records": total_analytics,
+            "sample_data": sample_data
+        },
+        "responses": {
+            "total": total_responses,
+            "with_batch_id": responses_with_batch,
+            "without_batch_id": total_responses - responses_with_batch
+        }
+    }
