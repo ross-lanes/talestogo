@@ -4,18 +4,13 @@ import { test, expect } from '@playwright/test';
  * Brand Mentions Analytics Tests
  *
  * These tests verify the Brand Mentions analytics page functionality.
- * Note: These tests require authentication. You'll need to:
- * 1. Set up auth state (see e2e/README.md)
- * 2. Have test data in the database
+ * Tests run against Railway development environment with authenticated state.
  */
 
+// Use authenticated state from fixtures
+test.use({ storageState: 'e2e/fixtures/auth.json' });
+
 test.describe('Brand Mentions Page', () => {
-  // Skip if not authenticated
-  // To run these tests, set up auth state first
-  test.skip(({ browserName }) => {
-    // Skip all tests until auth is set up
-    return true;
-  }, 'Authentication not configured - see e2e/README.md');
 
   test.beforeEach(async ({ page }) => {
     // Navigate to brand mentions page
@@ -102,8 +97,6 @@ test.describe('Brand Mentions Page', () => {
 });
 
 test.describe('Brand Mentions Interactivity', () => {
-  test.skip(({ browserName }) => true, 'Authentication not configured');
-
   test('should show tooltip on chart hover', async ({ page }) => {
     await page.goto('/analytics/brand-mentions');
 
@@ -125,17 +118,13 @@ test.describe('Brand Mentions Interactivity', () => {
 });
 
 /**
- * To enable these tests:
- *
- * 1. Set up authentication:
- *    - Login to http://localhost:5173
- *    - Run in console: await page.context().storageState({ path: 'e2e/fixtures/auth.json' })
- *
- * 2. Update this file to use auth state:
- *    test.use({ storageState: 'e2e/fixtures/auth.json' });
- *
- * 3. Remove the test.skip() calls above
- *
- * 4. Run tests:
+ * To run these tests:
  *    npm run test:e2e -- brand-mentions
+ *
+ * Or run all E2E tests:
+ *    npm run test:e2e
+ *
+ * Note: Auth state expires after the JWT token expires.
+ * If tests fail with auth errors, regenerate auth.json by logging in
+ * to Railway and running the localStorage extraction script again.
  */
