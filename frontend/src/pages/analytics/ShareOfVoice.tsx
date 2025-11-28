@@ -615,7 +615,7 @@ export default function ShareOfVoice() {
 
               return (
                 <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-                <ChartContainer width="100%" height={800}>
+                <ChartContainer width="100%" height={600}>
                   <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
