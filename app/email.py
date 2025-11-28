@@ -1,46 +1,36 @@
 """
 Email notification service
 
-Supports two modes:
-1. Resend API (recommended for Railway/cloud) - set RESEND_API_KEY
-2. SMTP fallback - set SMTP_USER and SMTP_PASSWORD
+Uses Resend API for sending emails (required for Railway deployment).
+Requires RESEND_API_KEY and FROM_EMAIL environment variables.
+
+For setup instructions, see CLAUDE.md
 """
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
 import logging
 import httpx
 
 logger = logging.getLogger(__name__)
 
-# Resend API (recommended - works on Railway)
+# Resend API configuration (required)
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
-
-# SMTP fallback (may not work on cloud platforms that block port 587)
-SMTP_HOST = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
-SMTP_USER = os.getenv('SMTP_USER')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')
 FROM_EMAIL = os.getenv('FROM_EMAIL', 'admin@robotrachel.com')
 
 
 async def send_email(to_email: str, subject: str, body: str):
-    """Send email notification via Resend API or SMTP fallback"""
+    """
+    Send email notification via Resend API.
 
-    # Try Resend first (works on Railway)
-    if RESEND_API_KEY:
-        await _send_via_resend(to_email, subject, body)
-        return
+    Raises:
+        ValueError: If RESEND_API_KEY is not configured
+        Exception: If email send fails
+    """
+    if not RESEND_API_KEY:
+        error_msg = "RESEND_API_KEY is not configured. Email sending is disabled."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
-    # SMTP fallback
-    if SMTP_USER and SMTP_PASSWORD:
-        await _send_via_smtp(to_email, subject, body)
-        return
-
-    # No email service configured
-    logger.info(f"Email not configured. Would send to {to_email}: {subject}")
-    logger.info(f"Body: {body}")
+    await _send_via_resend(to_email, subject, body)
 
 
 async def _send_via_resend(to_email: str, subject: str, body: str):
@@ -72,23 +62,3 @@ async def _send_via_resend(to_email: str, subject: str, body: str):
         raise
 
 
-async def _send_via_smtp(to_email: str, subject: str, body: str):
-    """Send email via SMTP (may not work on cloud platforms)"""
-    msg = MIMEMultipart()
-    msg['From'] = FROM_EMAIL
-    msg['To'] = to_email
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        # Add timeout to prevent hanging
-        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
-        server.starttls()
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        logger.info(f"Email sent via SMTP to {to_email}")
-    except Exception as e:
-        logger.error(f"Failed to send email via SMTP: {str(e)}")
-        raise
