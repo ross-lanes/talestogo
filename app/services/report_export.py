@@ -1,6 +1,6 @@
 """
 Report Export Service
-Provides Word and PDF export functionality with proper table formatting.
+Provides Word export functionality with proper table formatting.
 """
 
 import io
@@ -9,13 +9,6 @@ from typing import Optional
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
-import markdown2
 import matplotlib
 matplotlib.use('Agg')  # Use non-GUI backend
 import matplotlib.pyplot as plt
@@ -147,171 +140,6 @@ def export_to_word(markdown_content: str, title: str) -> io.BytesIO:
     # Save to BytesIO
     output = io.BytesIO()
     doc.save(output)
-    output.seek(0)
-
-    return output
-
-
-def export_to_pdf(markdown_content: str, title: str) -> io.BytesIO:
-    """
-    Convert markdown report to PDF document with proper formatting.
-
-    Args:
-        markdown_content: The markdown content to convert
-        title: The report title
-
-    Returns:
-        BytesIO object containing the PDF document
-    """
-    output = io.BytesIO()
-    doc = SimpleDocTemplate(
-        output,
-        pagesize=letter,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
-        bottomMargin=72,
-    )
-
-    # Container for the 'Flowable' objects
-    elements = []
-
-    # Define styles
-    styles = getSampleStyleSheet()
-
-    # Custom styles
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#2C3E50'),
-        spaceAfter=30,
-        alignment=TA_LEFT,
-    )
-
-    h1_style = ParagraphStyle(
-        'CustomH1',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#34495E'),
-        spaceAfter=12,
-        spaceBefore=12,
-    )
-
-    h2_style = ParagraphStyle(
-        'CustomH2',
-        parent=styles['Heading2'],
-        fontSize=14,
-        textColor=colors.HexColor('#34495E'),
-        spaceAfter=10,
-        spaceBefore=10,
-    )
-
-    h3_style = ParagraphStyle(
-        'CustomH3',
-        parent=styles['Heading3'],
-        fontSize=12,
-        textColor=colors.HexColor('#34495E'),
-        spaceAfter=8,
-        spaceBefore=8,
-    )
-
-    body_style = ParagraphStyle(
-        'CustomBody',
-        parent=styles['BodyText'],
-        fontSize=10,
-        alignment=TA_JUSTIFY,
-        spaceAfter=6,
-    )
-
-    # Parse markdown
-    lines = markdown_content.split('\n')
-    i = 0
-
-    while i < len(lines):
-        line = lines[i].strip()
-
-        if not line:
-            i += 1
-            continue
-
-        # H1 Headers
-        if line.startswith('# '):
-            text = line[2:].strip()
-            elements.append(Paragraph(text, h1_style))
-            elements.append(Spacer(1, 12))
-
-        # H2 Headers
-        elif line.startswith('## '):
-            text = line[3:].strip()
-            elements.append(Paragraph(text, h2_style))
-            elements.append(Spacer(1, 10))
-
-        # H3 Headers
-        elif line.startswith('### '):
-            text = line[4:].strip()
-            elements.append(Paragraph(text, h3_style))
-            elements.append(Spacer(1, 8))
-
-        # Horizontal rules
-        elif line.startswith('---') or line.startswith('***'):
-            elements.append(Spacer(1, 12))
-
-        # Tables
-        elif line.startswith('|'):
-            table_lines = []
-            while i < len(lines) and lines[i].strip().startswith('|'):
-                table_lines.append(lines[i].strip())
-                i += 1
-            i -= 1
-
-            if len(table_lines) >= 2:
-                # Parse header
-                header = [cell.strip() for cell in table_lines[0].split('|')[1:-1]]
-
-                # Parse data rows
-                data_rows = [[cell.strip().replace('**', '') for cell in row.split('|')[1:-1]]
-                            for row in table_lines[2:]]
-
-                if data_rows:
-                    # Create table data
-                    table_data = [header] + data_rows
-
-                    # Create table
-                    t = Table(table_data, repeatRows=1)
-
-                    # Style the table
-                    t.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A90E2')),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 10),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                        ('FONTSIZE', (0, 1), (-1, -1), 9),
-                        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F5F5')]),
-                    ]))
-
-                    elements.append(t)
-                    elements.append(Spacer(1, 12))
-
-        # Bullet points or regular text
-        else:
-            text = line.replace('**', '<b>').replace('**', '</b>')
-            text = text.replace('- ', '• ')
-            if text:
-                elements.append(Paragraph(text, body_style))
-                elements.append(Spacer(1, 6))
-
-        i += 1
-
-    # Build PDF
-    doc.build(elements)
     output.seek(0)
 
     return output
@@ -521,14 +349,28 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
 
     chart_images = {}
 
-    # TALES brand colors
+    # Primary and secondary color wheel colors for professional charts
+    # Primary: Red, Blue, Yellow
+    # Secondary: Orange, Green, Purple
+    CHART_COLORS = [
+        '#2563EB',  # Blue (primary)
+        '#DC2626',  # Red (primary)
+        '#F59E0B',  # Orange (secondary)
+        '#10B981',  # Green (secondary)
+        '#8B5CF6',  # Purple (secondary)
+        '#EAB308',  # Yellow (primary)
+        '#06B6D4',  # Cyan
+        '#EC4899',  # Pink
+    ]
+
+    # Legacy COLORS dict for backward compatibility
     COLORS = {
-        'primary': '#665775',
-        'secondary': '#80a1d4',
-        'accent': '#75c9c8',
-        'positive': '#4caf50',
-        'neutral': '#9e9e9e',
-        'negative': '#f44336',
+        'primary': '#2563EB',    # Blue
+        'secondary': '#DC2626',  # Red
+        'accent': '#10B981',     # Green
+        'positive': '#10B981',   # Green
+        'neutral': '#6B7280',    # Gray
+        'negative': '#DC2626',   # Red
     }
 
     try:
@@ -556,16 +398,16 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 sentiments = list(sentiment_breakdown.keys())
                 counts = list(sentiment_breakdown.values())
 
-                # Color mapping for sentiments
+                # Color mapping for sentiments using primary/secondary colors
                 sentiment_colors = {
-                    'Very Positive': '#58A13B',  # Extended green
-                    'Positive': '#B2C9AB',       # Sage
-                    'Neutral': '#9FA8DA',        # Periwinkle
-                    'Negative': '#E04320',       # Burnt orange/red
-                    'Very Negative': '#EA4A4A',  # Extended red
-                    'Mixed': '#75C9C8'           # Teal
+                    'Very Positive': '#10B981',  # Green (secondary)
+                    'Positive': '#34D399',       # Light green
+                    'Neutral': '#6B7280',        # Gray
+                    'Negative': '#F59E0B',       # Orange (secondary)
+                    'Very Negative': '#DC2626',  # Red (primary)
+                    'Mixed': '#8B5CF6'           # Purple (secondary)
                 }
-                colors_list = [sentiment_colors.get(s, '#999999') for s in sentiments]
+                colors_list = [sentiment_colors.get(s, '#6B7280') for s in sentiments]
 
                 ax.pie(counts, labels=sentiments, autopct='%1.1f%%', colors=colors_list, startangle=90)
                 ax.set_title('Sentiment Distribution', fontsize=16, fontweight='bold', pad=20)
@@ -598,7 +440,7 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 positions = list(positioning_breakdown.keys())
                 counts = list(positioning_breakdown.values())
 
-                bars = ax.barh(positions, counts, color=COLORS['primary'])
+                bars = ax.barh(positions, counts, color='#2563EB')  # Blue (primary)
                 ax.set_xlabel('Number of Responses', fontsize=12)
                 ax.set_title('Brand Positioning Breakdown', fontsize=16, fontweight='bold', pad=20)
                 ax.invert_yaxis()
@@ -615,7 +457,7 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 chart_images['positioning'] = img_buffer
                 plt.close(fig)
 
-        # 3. Share of Voice Chart
+        # 3. Share of Voice Pie Chart
         sov_data = analytics.get_share_of_voice(db, user_id=user_id, brand_id=brand_id)
         if sov_data and isinstance(sov_data, list) and len(sov_data) > 0:
             fig, ax = plt.subplots(figsize=(8, 6))
@@ -629,17 +471,25 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
 
             # Only include if there are counts > 0
             if any(c > 0 for c in counts):
-                # Highlight brand in different color
-                colors_list = [COLORS['primary'] if item.get('is_brand', False) else COLORS['secondary'] for item in sorted_data]
+                # Use primary/secondary color wheel colors
+                colors_list = [CHART_COLORS[i % len(CHART_COLORS)] for i in range(len(sorted_data))]
 
-                bars = ax.barh(entities, counts, color=colors_list)
-                ax.set_xlabel('Mention Count', fontsize=12)
-                ax.set_title('Share of Voice - Brand vs Competitors', fontsize=16, fontweight='bold', pad=20)
-                ax.invert_yaxis()
+                # Create pie chart
+                wedges, texts, autotexts = ax.pie(
+                    counts,
+                    labels=entities,
+                    autopct='%1.1f%%',
+                    colors=colors_list,
+                    startangle=90,
+                    explode=[0.03 if item.get('is_brand', False) else 0 for item in sorted_data]
+                )
 
-                # Add value labels
-                for i, (bar, count) in enumerate(zip(bars, counts)):
-                    ax.text(count, i, f' {count}', va='center', fontsize=10)
+                # Style the percentage labels
+                for autotext in autotexts:
+                    autotext.set_fontsize(10)
+                    autotext.set_weight('bold')
+
+                ax.set_title('Share of Voice', fontsize=16, fontweight='bold', pad=20)
 
                 # Save to BytesIO
                 img_buffer = io.BytesIO()
@@ -659,7 +509,7 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
             no_count = total - yes_count
             labels = ['Mentioned', 'Not Mentioned']
             sizes = [yes_count, no_count]
-            colors_list = ['#58A13B', '#E04320']  # success, danger
+            colors_list = ['#10B981', '#DC2626']  # Green (secondary), Red (primary)
 
             if any(s > 0 for s in sizes):
                 fig, ax = plt.subplots(figsize=(8, 6))
@@ -712,11 +562,11 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 fig, ax = plt.subplots(figsize=(10, 6))
 
                 bars1 = ax.bar([i - width for i in x], mention_rates, width, label='Mention Rate (%)',
-                              color=COLORS['primary'])
+                              color='#2563EB')  # Blue (primary)
                 bars2 = ax.bar(x, positive_sentiment, width, label='Positive Sentiment (%)',
-                              color='#58A13B')
+                              color='#10B981')  # Green (secondary)
                 bars3 = ax.bar([i + width for i in x], leader_positioning, width, label='Leader/Featured (%)',
-                              color=COLORS['secondary'])
+                              color='#F59E0B')  # Orange (secondary)
 
                 # Add value labels on bars
                 for bars in [bars1, bars2, bars3]:
@@ -752,7 +602,7 @@ def _generate_chart_images(db: Session, user_id: int, brand_id: Optional[int] = 
                 descriptors, counts = zip(*sorted_descriptors)
 
                 fig, ax = plt.subplots(figsize=(10, 6))
-                bars = ax.barh(range(len(descriptors)), counts, color=COLORS['primary'])
+                bars = ax.barh(range(len(descriptors)), counts, color='#8B5CF6')  # Purple (secondary)
 
                 # Add value labels
                 for bar, count in zip(bars, counts):

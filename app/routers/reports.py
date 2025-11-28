@@ -237,66 +237,6 @@ def export_report_to_word(
     )
 
 
-@router.get("/{report_id}/export/pdf")
-def export_report_to_pdf(
-    report_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
-):
-    """Export a report to PDF format (supports shared brands)."""
-    from app.services.report_export import export_to_pdf
-
-    # Get the report with brand access validation
-    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
-
-    # Generate PDF
-    pdf_file = export_to_pdf(db_report.report_content, db_report.title)
-
-    # Create safe filename
-    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    filename = f"{safe_filename}.pdf"
-
-    return StreamingResponse(
-        pdf_file,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-
-@router.get("/{report_id}/export/html")
-def export_report_to_html(
-    report_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
-):
-    """Export a report to interactive HTML with embedded Chart.js visualizations (supports shared brands)."""
-    from app.services.report_html import generate_html_report_with_charts
-
-    # Get the report with brand access validation
-    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
-
-    # Generate HTML with charts
-    html_content = generate_html_report_with_charts(
-        db_report.report_content,
-        db_report.title,
-        db,
-        user_id=current_user.id,
-        brand_id=brand_id
-    )
-
-    # Create safe filename
-    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    filename = f"{safe_filename}.html"
-
-    return StreamingResponse(
-        io.BytesIO(html_content.encode('utf-8')),
-        media_type="text/html",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-
 @router.get("/{report_id}/export/pptx")
 def export_report_to_pptx(
     report_id: int,

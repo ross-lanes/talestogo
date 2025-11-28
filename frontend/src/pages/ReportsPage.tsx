@@ -102,25 +102,6 @@ export default function ReportsPage() {
     }
   };
 
-  const handleDownloadHTML = async (report: Report) => {
-    try {
-      const response = await api.get(`/reports/${report.id}/export/html`, {
-        responseType: 'blob',
-      });
-      const url = URL.createObjectURL(response.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Error downloading HTML:', error);
-      alert(`Failed to download HTML: ${error.response?.data?.detail || error.message}`);
-    }
-  };
-
   // Sort reports by created_at descending
   const sortedReports = [...reports].sort((a, b) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

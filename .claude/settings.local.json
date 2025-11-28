@@ -39,7 +39,19 @@
       "Bash(railway logs:*)",
       "Bash(for file in /Users/rachelkremen/Documents/Code/tales_project/app/routers/*.py)",
       "Bash(git checkout:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(git log:*)",
+      "Bash(railway up:*)",
+      "Bash(railway redeploy:*)",
+      "Bash(railway whoami:*)",
+      "Bash(.railway-deploy-trigger)",
+      "Bash(./start_local.sh)",
+      "Bash(psql:*)",
+      "Bash(brew install postgresql@15)",
+      "Bash(brew services:*)",
+      "Bash(/opt/homebrew/opt/postgresql@16/bin/psql:*)",
+      "Bash(node -e:*)",
+      "Bash(git show:*)"
     ],
     "deny": [],
     "ask": []

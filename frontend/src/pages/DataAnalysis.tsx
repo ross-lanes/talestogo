@@ -131,36 +131,6 @@ export default function DataAnalysis() {
     setViewDialogOpen(true);
   };
 
-  const handleDownloadHTML = async (report: Report) => {
-    try {
-      const response = await api.get(`/reports/${report.id}/export/html`, {
-        responseType: 'blob',
-      });
-
-      const blob = new Blob([response.data], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${report.title}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setSnackbar({
-        open: true,
-        message: 'HTML report with charts downloaded successfully',
-        severity: 'success',
-      });
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to download HTML report',
-        severity: 'error',
-      });
-    }
-  };
-
   const handleDownloadWord = async (report: Report) => {
     try {
       const response = await api.get(`/reports/${report.id}/export/word`, {
@@ -381,14 +351,6 @@ export default function DataAnalysis() {
                         >
                           Word
                         </Button>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<DownloadIcon />}
-                          onClick={() => handleDownloadHTML(report)}
-                        >
-                          HTML
-                        </Button>
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -470,9 +432,6 @@ export default function DataAnalysis() {
             sx={{ bgcolor: '#003e60', color: 'white', '&:hover': { bgcolor: '#80a1d4' } }}
           >
             Word
-          </Button>
-          <Button onClick={() => handleDownloadHTML(selectedReport!)}>
-            HTML
           </Button>
           <Button onClick={() => setViewDialogOpen(false)} variant="contained">
             Close
