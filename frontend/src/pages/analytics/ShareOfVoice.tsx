@@ -589,25 +589,29 @@ export default function ShareOfVoice() {
           <>
             {/* Format data for chart */}
             {(() => {
+              // The API returns data in format: { date: "...", "OrgName1": 30, "OrgName2": 20, ... }
+              // We need to format dates and extract organization names
               const formattedData = sovTrends.map((item: any) => {
                 const result: any = {
-                  date: formatDateEST(item.date, 'short'),
-                  'Your Brand': item.brand_sov
+                  date: formatDateEST(item.date, 'short')
                 };
-                // Add competitors
-                Object.entries(item.competitors || {}).forEach(([name, sov]) => {
-                  result[name] = sov;
+                // Copy all organization data (everything except 'date')
+                Object.entries(item).forEach(([key, value]) => {
+                  if (key !== 'date') {
+                    result[key] = value;
+                  }
                 });
                 return result;
               });
 
-              // Get all organization names (brand + competitors)
-              const allOrgs = new Set<string>();
-              allOrgs.add('Your Brand');
-              sovTrends.forEach((item: any) => {
-                Object.keys(item.competitors || {}).forEach(name => allOrgs.add(name));
-              });
+              // Get all organization names from the first data point (excluding 'date')
+              const allOrgs = sovTrends.length > 0
+                ? Object.keys(sovTrends[0]).filter(key => key !== 'date')
+                : [];
               const orgNames = Array.from(allOrgs);
+
+              // Identify which organization is the brand (from the share of voice data)
+              const brandName = brandData?.name || null;
 
               return (
                 <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
@@ -629,19 +633,22 @@ export default function ShareOfVoice() {
                       labelFormatter={(label) => `Date: ${label}`}
                     />
                     <Legend />
-                    {orgNames.map((org, index) => (
-                      <Line
-                        key={org}
-                        type="monotone"
-                        dataKey={org}
-                        stroke={org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
-                        strokeWidth={formattedData.length === 1 ? 0 : (org === 'Your Brand' ? 3 : 2)}
-                        name={org}
-                        dot={{ fill: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: org === 'Your Brand' ? 8 : 6, stroke: org === 'Your Brand' ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], strokeWidth: 2 }}
-                        activeDot={{ r: org === 'Your Brand' ? 10 : 8 }}
-                        connectNulls={true}
-                      />
-                    ))}
+                    {orgNames.map((org, index) => {
+                      const isBrand = org === brandName;
+                      return (
+                        <Line
+                          key={org}
+                          type="monotone"
+                          dataKey={org}
+                          stroke={isBrand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length]}
+                          strokeWidth={formattedData.length === 1 ? 0 : (isBrand ? 3 : 2)}
+                          name={org}
+                          dot={{ fill: isBrand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], r: isBrand ? 8 : 6, stroke: isBrand ? BRAND_COLOR : COMPETITOR_COLORS[index % COMPETITOR_COLORS.length], strokeWidth: 2 }}
+                          activeDot={{ r: isBrand ? 10 : 8 }}
+                          connectNulls={true}
+                        />
+                      );
+                    })}
                   </LineChart>
                 </ChartContainer>
                 </Box>
