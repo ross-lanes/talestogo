@@ -513,7 +513,8 @@ def get_brand_mentions_by_llm(
     ).filter(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
-        models.Response.platform.isnot(None)
+        models.Response.platform.isnot(None),
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).group_by(
         models.Response.platform
     ).all()
@@ -558,7 +559,8 @@ def get_positioning_by_llm(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
-        models.Response.brand_position.isnot(None)
+        models.Response.brand_position.isnot(None),
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).group_by(
         models.Response.platform,
         models.Response.brand_position
@@ -612,7 +614,8 @@ def get_sentiment_by_llm(
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
         models.Response.sentiment.isnot(None),
-        models.Response.brand_mentioned == 'Yes'  # Only analyze sentiment where brand is mentioned
+        models.Response.brand_mentioned == 'Yes',  # Only analyze sentiment where brand is mentioned
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).group_by(
         models.Response.platform,
         models.Response.sentiment
@@ -678,7 +681,8 @@ def get_share_of_voice_by_llm(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
-        models.Response.brand_mentioned == 'Yes'
+        models.Response.brand_mentioned == 'Yes',
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).group_by(
         models.Response.platform
     ).all()
@@ -692,7 +696,8 @@ def get_share_of_voice_by_llm(
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
         models.Response.competitors_mentioned.isnot(None),
-        models.Response.competitors_mentioned != ''
+        models.Response.competitors_mentioned != '',
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).group_by(
         models.Response.platform
     ).all()
@@ -747,7 +752,8 @@ def get_descriptors_by_llm(
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
         models.Response.descriptors.isnot(None),
-        models.Response.descriptors != ''
+        models.Response.descriptors != '',
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).all()
 
     # Process descriptors by platform
@@ -805,7 +811,8 @@ def get_threats_by_llm(
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
         models.Response.competitors_mentioned.isnot(None),
-        models.Response.competitors_mentioned != ''
+        models.Response.competitors_mentioned != '',
+        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).all()
 
     # Process competitors by platform
