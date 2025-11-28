@@ -137,8 +137,18 @@ async def run_analysis(
 
         # Run analysis and report generation in sequence in the background with task-id
         # Use separate commands to capture which step fails
-        analysis_cmd = f"python3 {analysis_script} --all --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id}"
-        report_cmd = f"python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}"
+        analysis_cmd = [
+            "python3", analysis_script,
+            "--all",
+            "--user-id", str(current_user.id),
+            "--brand-id", str(brand_id),
+            "--task-id", str(task_status.id)
+        ]
+        report_cmd = [
+            "python3", report_script,
+            "--user-id", str(current_user.id),
+            "--brand-id", str(brand_id)
+        ]
 
         # Create a background task to monitor the subprocess
         def run_analysis_task():
@@ -151,7 +161,6 @@ async def run_analysis(
                 env['PYTHONPATH'] = project_root
                 analysis_process = subprocess.Popen(
                     analysis_cmd,
-                    shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -189,7 +198,6 @@ async def run_analysis(
                 # Run report generation script
                 report_process = subprocess.run(
                     report_cmd,
-                    shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -341,8 +349,18 @@ async def rerun_analysis(
         # Use separate commands to capture which step fails
         # Pass specific response IDs instead of --all to only analyze date-filtered responses
         response_ids_str = ','.join(map(str, response_ids))
-        analysis_cmd = f"python3 {analysis_script} --response-ids {response_ids_str} --user-id {current_user.id} --brand-id {brand_id} --task-id {task_status.id}"
-        report_cmd = f"python3 {report_script} --user-id {current_user.id} --brand-id {brand_id}"
+        analysis_cmd = [
+            "python3", analysis_script,
+            "--response-ids", response_ids_str,
+            "--user-id", str(current_user.id),
+            "--brand-id", str(brand_id),
+            "--task-id", str(task_status.id)
+        ]
+        report_cmd = [
+            "python3", report_script,
+            "--user-id", str(current_user.id),
+            "--brand-id", str(brand_id)
+        ]
 
         # Create a background task to monitor the subprocess
         def run_reanalysis_task():
@@ -355,7 +373,6 @@ async def rerun_analysis(
                 env['PYTHONPATH'] = project_root
                 analysis_process = subprocess.run(
                     analysis_cmd,
-                    shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -378,7 +395,6 @@ async def rerun_analysis(
                 # Run report generation script
                 report_process = subprocess.run(
                     report_cmd,
-                    shell=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -528,3 +544,28 @@ def cancel_task(
         raise HTTPException(status_code=403, detail="No permission to kill this process")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cancel task: {str(e)}")
+
+
+@router.post("/backfill-batch-analytics/", status_code=200)
+async def backfill_batch_analytics(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Backfill batch analytics for all completed batches.
+    This recomputes cached analytics for trend charts.
+    """
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
+
+    from app.services.batch_analytics import backfill_all_batch_analytics
+
+    try:
+        processed = backfill_all_batch_analytics(db, current_user.id, brand_id)
+        return {
+            "message": f"Successfully backfilled analytics for {processed} batches",
+            "processed_batches": processed
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to backfill batch analytics: {str(e)}")

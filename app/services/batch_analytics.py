@@ -51,23 +51,9 @@ def compute_batch_analytics(
     if not responses:
         return None
 
-    # Get responses excluding brand_in_query for mention metrics
-    responses_excluding_branded = db.query(models.Response).join(
-        models.Query,
-        (models.Response.query_id == models.Query.query_id) &
-        (models.Response.user_id == models.Query.user_id) &
-        (models.Response.brand_id == models.Query.brand_id)
-    ).filter(
-        models.Response.batch_id == batch_id,
-        models.Response.user_id == user_id,
-        models.Response.brand_id == brand_id,
-        models.Query.brand_in_query == False
-    ).all()
-
-    total_responses = len(responses_excluding_branded)
-
-    if total_responses == 0:
-        return None
+    # Use all responses for analytics to ensure consistency with platform breakdowns
+    # Previously excluded brand_in_query queries, but this caused empty charts when all queries were branded
+    total_responses = len(responses)
 
     # Initialize counters
     mention_count = 0
@@ -91,7 +77,7 @@ def compute_batch_analytics(
     descriptor_counts: Dict[str, int] = {}
 
     # Process each response
-    for response in responses_excluding_branded:
+    for response in responses:
         # Brand mentions and positioning
         if response.brand_mentioned in ['Yes', 'Indirect']:
             mention_count += 1
