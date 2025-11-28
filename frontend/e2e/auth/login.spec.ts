@@ -10,29 +10,31 @@ import { test, expect } from '@playwright/test';
  * 3. Manual login before tests (auth state storage)
  */
 
+// These tests should run WITHOUT auth state to test login flow
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test.describe('Login Page', () => {
   test('should display login page when not authenticated', async ({ page }) => {
-    // Navigate to the app
+    // Navigate to the app without auth
     await page.goto('/');
 
     // Should be redirected to login or see login UI
-    // Adjust selectors based on your actual login page
     await expect(page).toHaveURL(/.*login.*/i);
 
-    // Verify Google login button is present
-    // Update selector to match your actual implementation
-    const googleLoginButton = page.locator('button', { hasText: /sign in with google/i });
-    await expect(googleLoginButton).toBeVisible();
+    // Verify Google login button is present (rendered as iframe by @react-oauth/google)
+    const googleLoginIframe = page.frameLocator('iframe[src*="accounts.google.com"]');
+    const googleButton = googleLoginIframe.locator('button, div[role="button"]').first();
+    await expect(googleButton).toBeVisible({ timeout: 10000 });
   });
 
   test('should show login UI elements', async ({ page }) => {
     await page.goto('/login');
 
-    // Verify page title
-    await expect(page).toHaveTitle(/tales|login/i);
+    // Verify page title contains expected text
+    await expect(page).toHaveTitle(/RobotRachel Apps Suite/i);
 
     // Verify branding/logo is present
-    const logo = page.locator('[alt*="logo" i], [alt*="tales" i], img').first();
+    const logo = page.locator('img').first();
     await expect(logo).toBeVisible();
   });
 });
