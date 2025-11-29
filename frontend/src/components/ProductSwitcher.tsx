@@ -88,8 +88,9 @@ const ProductSwitcher: React.FC = () => {
         PaperProps={{
           sx: {
             mt: 1,
-            minWidth: 280,
-            maxHeight: 500,
+            minWidth: { xs: 280, sm: 280 },
+            maxWidth: { xs: '90vw', sm: 400 },
+            maxHeight: { xs: '70vh', sm: 500 },
           },
         }}
       >

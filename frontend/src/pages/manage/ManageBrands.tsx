@@ -121,8 +121,8 @@ const ManageBrand: React.FC = () => {
 
   if (!activeBrand) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
+      <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 2, sm: 3 } }}>
+        <Paper sx={{ p: { xs: 3, sm: 4 }, textAlign: 'center' }}>
           <Typography variant="h5" gutterBottom>
             No Brand Selected
           </Typography>
@@ -142,8 +142,8 @@ const ManageBrand: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 2, sm: 3 } }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 2, sm: 0 } }}>
         <Box>
           <Typography variant="h4" component="h1">
             Manage Brand
@@ -152,7 +152,7 @@ const ManageBrand: React.FC = () => {
             {activeBrand.brand_name}
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 } }}>
           <Tooltip title="Share Brand">
             <IconButton onClick={() => setShareDialogOpen(true)}>
               <Share />

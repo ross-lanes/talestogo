@@ -162,9 +162,9 @@ export default function Layout({ children }: LayoutProps) {
     alignItems: 'center',
     justifyContent: 'center',
     px: 2,
-    minHeight: { xs: 106, sm: 114 },
-    height: { xs: 106, sm: 114 },
-    gap: 1,
+    minHeight: { xs: 90, sm: 114 }, // Reduced mobile height
+    height: { xs: 90, sm: 114 },
+    gap: 0.5,
     cursor: 'pointer',
     backgroundColor: '#000000',  // Black background
     color: 'common.white',               // make all text inside white
@@ -182,17 +182,18 @@ export default function Layout({ children }: LayoutProps) {
     component="div"
     sx={{
       textAlign: 'center',
-      fontSize: '0.875rem',
+      fontSize: { xs: '0.75rem', sm: '0.875rem' }, // Smaller on mobile
       fontStyle: 'italic',
       lineHeight: 1.3,
       color: 'common.white',             // ensure secondary text is white
     }}
   >
-    <img
+    <Box
+      component="img"
       src={talesWhite}
       alt={currentProduct.name}
-      style={{
-        width: 120,
+      sx={{
+        width: { xs: 100, sm: 120 }, // Smaller logo on mobile
         maxWidth: '100%',
         display: 'block',
         margin: '0 auto',
@@ -363,10 +364,11 @@ export default function Layout({ children }: LayoutProps) {
         >
           <Toolbar
             sx={{
-              minHeight: { xs: 106, sm: 114 },
-              height: { xs: 106, sm: 114 },
+              minHeight: { xs: 90, sm: 114 }, // Reduced mobile height
+              height: { xs: 90, sm: 114 },
               width: '100%',
-              pr: '10px !important', // Right padding 10px from edge
+              pr: { xs: 1, sm: '10px' }, // Less padding on mobile
+              pl: { xs: 1, sm: 2 },
             }}
           >
             {/* Left: hamburger (mobile only) */}
@@ -375,14 +377,18 @@ export default function Layout({ children }: LayoutProps) {
               aria-label="open drawer"
               edge="start"
               onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
+              sx={{ mr: { xs: 0.5, sm: 2 }, display: { sm: 'none' } }}
             >
               <MenuIcon />
             </IconButton>
 
             {/* Tenant Logo (if available) */}
             {tenant?.logo_url && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+              <Box sx={{
+                display: { xs: 'none', sm: 'flex' }, // Hide logo on mobile to save space
+                alignItems: 'center',
+                mr: 2
+              }}>
                 <img
                   src={tenant.logo_url}
                   alt={tenant.tenant_name}
@@ -402,7 +408,7 @@ export default function Layout({ children }: LayoutProps) {
                   ml: 'auto',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 2,
+                  gap: { xs: 0.5, sm: 2 }, // Reduced gap on mobile
                   color: 'common.white',
                   '& .MuiTypography-root': { color: 'common.white' },
                   '& .MuiSvgIcon-root': { color: 'common.white' },
@@ -494,7 +500,14 @@ export default function Layout({ children }: LayoutProps) {
         </Menu>
 
         {/* Page Content */}
-        <Box sx={{ p: 3, flexGrow: 1, backgroundColor: 'white' }}>
+        <Box sx={{
+          p: { xs: 2, sm: 3 }, // Less padding on mobile
+          flexGrow: 1,
+          backgroundColor: 'white',
+          width: '100%',
+          maxWidth: '100%', // Prevent overflow
+          overflowX: 'hidden', // Prevent horizontal scroll
+        }}>
           {children}
         </Box>
       </Box>

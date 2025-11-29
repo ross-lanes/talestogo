@@ -91,24 +91,25 @@ const BrandSwitcher: React.FC = () => {
       <Button
         onClick={handleClick}
         disabled={switching}
-        startIcon={<BrandIcon />}
+        startIcon={<BrandIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
         endIcon={<KeyboardArrowDown />}
         sx={{
           color: 'text.primary',
           textTransform: 'none',
-          px: 2,
+          px: { xs: 1, sm: 2 },
           py: 1,
           borderRadius: 1,
+          minWidth: { xs: 'auto', sm: 'auto' },
           '&:hover': {
             backgroundColor: 'rgba(0, 0, 0, 0.04)',
           },
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', ml: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', ml: { xs: 0, sm: 1 } }}>
+          <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: { xs: 'none', sm: 'block' } }}>
             Brand
           </Typography>
-          <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+          <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2, fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
             {switching ? 'Switching...' : activeBrand?.brand_name || 'Select Brand'}
           </Typography>
         </Box>
@@ -129,8 +130,9 @@ const BrandSwitcher: React.FC = () => {
         PaperProps={{
           sx: {
             mt: 1,
-            minWidth: 250,
-            maxHeight: 400,
+            minWidth: { xs: 280, sm: 250 },
+            maxWidth: { xs: '90vw', sm: 400 },
+            maxHeight: { xs: '70vh', sm: 400 },
           },
         }}
       >

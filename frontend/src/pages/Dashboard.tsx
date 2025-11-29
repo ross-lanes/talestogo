@@ -325,12 +325,12 @@ export default function Dashboard() {
         </Alert>
       )}
 
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
         <Typography variant="h2" component="h1">
           Key Metrics Dashboard
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Box sx={{ minWidth: 300 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 1, sm: 2 }, alignItems: 'center', flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+          <Box sx={{ minWidth: { xs: '100%', sm: 250, md: 300 }, flexGrow: { xs: 1, sm: 0 } }}>
             <BatchSelector
               selectedBatchId={selectedBatchId}
               onBatchChange={setSelectedBatchId}
@@ -340,11 +340,15 @@ export default function Dashboard() {
           </Box>
           <Button
             variant="outlined"
-            startIcon={<DownloadIcon />}
+            startIcon={<DownloadIcon sx={{ display: { xs: 'none', sm: 'inline' } }} />}
             onClick={handleDownloadDashboard}
             size="small"
+            sx={{ minWidth: { xs: 44, sm: 'auto' }, px: { xs: 1, sm: 2 } }}
           >
-            Download Dashboard as Image
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+              Download Dashboard as Image
+            </Box>
+            <DownloadIcon sx={{ display: { xs: 'inline', sm: 'none' } }} />
           </Button>
         </Box>
       </Box>
@@ -473,14 +477,14 @@ export default function Dashboard() {
       {/* Charts Section */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper id="dashboard-sentiment-chart" sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Paper id="dashboard-sentiment-chart" sx={{ p: { xs: 2, sm: 3 }, height: { xs: 280, sm: 300 }, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Sentiment Breakdown
             </Typography>
             {sentimentData && sentimentData.total > 0 ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', height: 240 }}>
-                {/* Legend on the left */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mr: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', height: { xs: 220, sm: 240 }, gap: { xs: 1, sm: 0 } }}>
+                {/* Legend on the left/top */}
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'row', sm: 'column' }, flexWrap: { xs: 'wrap', sm: 'nowrap' }, gap: 1, mr: { xs: 0, sm: 2 }, mb: { xs: 1, sm: 0 }, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                   {[
                     { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, color: '#116C29' },
                     { name: 'Positive', value: sentimentData.positive_pct || 0, color: '#58A13B' },
@@ -488,16 +492,16 @@ export default function Dashboard() {
                     { name: 'Mixed', value: sentimentData.mixed_pct || 0, color: '#75C9C8' },
                     { name: 'Negative', value: sentimentData.negative_pct || 0, color: '#E04320' },
                   ].filter(item => item.value > 0).map((item) => (
-                    <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 16, height: 16, backgroundColor: item.color, borderRadius: '2px' }} />
-                      <Typography variant="body2" sx={{ fontSize: '13px' }}>
+                    <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: '2px' }} />
+                      <Typography variant="body2" sx={{ fontSize: { xs: '11px', sm: '13px' }, whiteSpace: 'nowrap' }}>
                         {item.name}: {Math.round(item.value)}%
                       </Typography>
                     </Box>
                   ))}
                 </Box>
-                {/* Pie chart on the right */}
-                <ChartContainer width="100%" height={240} showLogo={false}>
+                {/* Pie chart on the right/bottom */}
+                <ChartContainer width="100%" height={{ xs: 150, sm: 240 }} showLogo={false}>
                   <PieChart>
                     <Pie
                       data={[
@@ -509,7 +513,7 @@ export default function Dashboard() {
                       ].filter(item => item.value > 0)}
                       cx="50%"
                       cy="50%"
-                      outerRadius={80}
+                      outerRadius={70}
                       dataKey="value"
                     >
                     </Pie>
@@ -518,7 +522,7 @@ export default function Dashboard() {
                 </ChartContainer>
               </Box>
             ) : (
-              <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ height: { xs: 220, sm: 240 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography color="textSecondary">No sentiment data available</Typography>
               </Box>
             )}
@@ -526,7 +530,7 @@ export default function Dashboard() {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Paper id="dashboard-positioning-chart" sx={{ p: 3, height: 300, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Paper id="dashboard-positioning-chart" sx={{ p: { xs: 2, sm: 3 }, height: { xs: 280, sm: 300 }, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Positioning Distribution
             </Typography>
@@ -557,7 +561,7 @@ export default function Dashboard() {
                   }
                 }
                 return (
-              <ChartContainer width="100%" height={240}>
+              <ChartContainer width="100%" height={{ xs: 220, sm: 240 }}>
                 <BarChart
                   data={[
                     { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
@@ -565,7 +569,7 @@ export default function Dashboard() {
                     { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
                     { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
                   ]}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 40 }}
+                  margin={{ top: 5, right: 20, left: 10, bottom: 40 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="position" angle={-45} textAnchor="end" height={50} />
@@ -592,7 +596,7 @@ export default function Dashboard() {
                 );
               })()
             ) : (
-              <Box sx={{ height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ height: { xs: 220, sm: 240 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography color="textSecondary">No positioning data available</Typography>
               </Box>
             )}

@@ -140,8 +140,8 @@ export default function BrandMentions() {
       </Typography>
 
       {/* Explanatory Text */}
-      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
-        <Typography variant="body1">
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 3, sm: 4 }, backgroundColor: '#f9f9f9' }}>
+        <Typography variant="body1" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
           <strong>Brand Mentions</strong> tracks how often your brand appears in AI-generated responses over time. This metric shows the percentage of responses that mention your brand (either directly or indirectly) when answering queries in your domain. An increasing trend indicates growing brand visibility in AI systems.
         </Typography>
       </Paper>
@@ -176,9 +176,9 @@ export default function BrandMentions() {
       )}
 
       {/* Trend Chart */}
-      <Paper sx={{ p: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box>
+      <Paper sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, gap: { xs: 2, sm: 0 } }}>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="h6">
               Brand Mention Rate Over Time
             </Typography>
@@ -189,18 +189,20 @@ export default function BrandMentions() {
           {formattedData.length > 0 && (
             <Button
               variant="outlined"
-              startIcon={<Download />}
+              startIcon={<Download sx={{ display: { xs: 'none', sm: 'inline' } }} />}
               onClick={handleDownloadTrendChart}
               size="small"
+              sx={{ minWidth: { xs: 44, sm: 'auto' }, px: { xs: 1, sm: 2 } }}
             >
-              Image
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Image</Box>
+              <Download sx={{ display: { xs: 'inline', sm: 'none' } }} />
             </Button>
           )}
         </Box>
 
         {formattedData.length > 0 ? (
-          <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ChartContainer width="100%" height={400}>
+          <Box ref={trendChartRef} sx={{ backgroundColor: 'white', p: { xs: 1, sm: 2 }, border: '1px solid #e0e0e0', mt: 2 }}>
+            <ChartContainer width="100%" height={{ xs: 300, sm: 350, md: 400 }}>
             <LineChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
@@ -240,9 +242,9 @@ export default function BrandMentions() {
 
       {/* LLM Breakdown Chart */}
       {llmData && llmData.length > 0 && (
-        <Paper sx={{ p: 4, mt: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box>
+        <Paper sx={{ p: { xs: 2, sm: 3, md: 4 }, mt: { xs: 3, sm: 4 } }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2, gap: { xs: 2, sm: 0 } }}>
+            <Box sx={{ flex: 1 }}>
               <Typography variant="h6">
                 Brand Mention Rate by LLM Platform
               </Typography>
@@ -252,16 +254,18 @@ export default function BrandMentions() {
             </Box>
             <Button
               variant="outlined"
-              startIcon={<Download />}
+              startIcon={<Download sx={{ display: { xs: 'none', sm: 'inline' } }} />}
               onClick={handleDownloadLLMChart}
               size="small"
+              sx={{ minWidth: { xs: 44, sm: 'auto' }, px: { xs: 1, sm: 2 } }}
             >
-              Image
+              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Image</Box>
+              <Download sx={{ display: { xs: 'inline', sm: 'none' } }} />
             </Button>
           </Box>
 
-          <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
-            <ChartContainer width="100%" height={400}>
+          <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: { xs: 1, sm: 2 }, border: '1px solid #e0e0e0', mt: 2 }}>
+            <ChartContainer width="100%" height={{ xs: 300, sm: 350, md: 400 }}>
               <BarChart data={llmData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="platform" />
@@ -287,20 +291,20 @@ export default function BrandMentions() {
           </Box>
 
           {/* LLM Data Table */}
-          <Box sx={{ overflowX: 'auto', mt: 3 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <Box sx={{ overflowX: 'auto', mt: 3, WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                  <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold' }}>Platform</th>
-                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mention Rate</th>
-                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mentions</th>
-                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Total Responses</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Platform</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Mention Rate</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Mentions</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Total Responses</th>
                 </tr>
               </thead>
               <tbody>
                 {llmData.map((item: any, index: number) => (
                   <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '12px' }}>
+                    <td style={{ padding: '8px 12px' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box
                           sx={{
@@ -313,11 +317,11 @@ export default function BrandMentions() {
                         {item.platform}
                       </Box>
                     </td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 'bold', fontSize: '0.875rem' }}>
                       {item.mention_rate}%
                     </td>
-                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.mentions}</td>
-                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.total_responses}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '0.875rem' }}>{item.mentions}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '0.875rem' }}>{item.total_responses}</td>
                   </tr>
                 ))}
               </tbody>
@@ -328,29 +332,29 @@ export default function BrandMentions() {
 
       {/* Data Table */}
       {formattedData.length > 0 && (
-        <Paper sx={{ p: 4, mt: 4 }}>
+        <Paper sx={{ p: { xs: 2, sm: 3, md: 4 }, mt: { xs: 3, sm: 4 } }}>
           <Typography variant="h6" gutterBottom>
             Collection History
           </Typography>
-          <Box sx={{ overflowX: 'auto', mt: 2 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <Box sx={{ overflowX: 'auto', mt: 2, WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '500px' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                  <th style={{ textAlign: 'left', padding: '12px', fontWeight: 'bold' }}>Date</th>
-                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mention Rate</th>
-                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Mentions</th>
-                  <th style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold' }}>Total Responses</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Date</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Mention Rate</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Mentions</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 'bold', fontSize: '0.875rem' }}>Total Responses</th>
                 </tr>
               </thead>
               <tbody>
                 {formattedData.slice().reverse().map((item: any, index: number) => (
                   <tr key={index} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '12px' }}>{item.displayDate}</td>
-                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
+                    <td style={{ padding: '8px 12px', fontSize: '0.875rem' }}>{item.displayDate}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 'bold', fontSize: '0.875rem' }}>
                       {item.mention_rate}%
                     </td>
-                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.mention_count}</td>
-                    <td style={{ padding: '12px', textAlign: 'right' }}>{item.total}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '0.875rem' }}>{item.mention_count}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '0.875rem' }}>{item.total}</td>
                   </tr>
                 ))}
               </tbody>
