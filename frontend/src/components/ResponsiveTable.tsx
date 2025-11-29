@@ -15,10 +15,9 @@ import {
   CardContent,
   Typography,
   Box,
-  SxProps,
-  Theme,
 } from '@mui/material';
-import { ReactNode } from 'react';
+import type { SxProps, Theme } from '@mui/material';
+import type { ReactNode } from 'react';
 import { useIsMobile } from '../utils/responsive';
 
 export interface Column {

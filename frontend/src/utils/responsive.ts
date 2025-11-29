@@ -3,8 +3,9 @@
  * Uses Material-UI breakpoint system
  */
 
-import { useTheme, useMediaQuery, Theme } from '@mui/material';
-import { Breakpoint } from '@mui/system';
+import { useTheme, useMediaQuery } from '@mui/material';
+import type { Theme } from '@mui/material';
+import type { Breakpoint } from '@mui/system';
 
 /**
  * Hook to check if current viewport is mobile (below sm breakpoint)

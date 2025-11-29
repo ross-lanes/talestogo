@@ -3,8 +3,9 @@
  * Provides consistent responsive behavior across the app
  */
 
-import { Box, SxProps, Theme } from '@mui/material';
-import { ReactNode } from 'react';
+import { Box } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material';
+import type { ReactNode } from 'react';
 
 interface ResponsiveContainerProps {
   children: ReactNode;

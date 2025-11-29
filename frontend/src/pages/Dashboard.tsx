@@ -501,25 +501,27 @@ export default function Dashboard() {
                   ))}
                 </Box>
                 {/* Pie chart on the right/bottom */}
-                <ChartContainer width="100%" height={{ xs: 150, sm: 240 }} showLogo={false}>
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#116C29' },
-                        { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#58A13B' },
-                        { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#9FA8DA' },
-                        { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
-                        { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#E04320' },
-                      ].filter(item => item.value > 0)}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={70}
-                      dataKey="value"
-                    >
-                    </Pie>
-                    <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
-                  </PieChart>
-                </ChartContainer>
+                <Box sx={{ height: { xs: 150, sm: 240 } }}>
+                  <ChartContainer width="100%" height={240} showLogo={false}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#116C29' },
+                          { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#58A13B' },
+                          { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#9FA8DA' },
+                          { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
+                          { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#E04320' },
+                        ].filter(item => item.value > 0)}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        dataKey="value"
+                      >
+                      </Pie>
+                      <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
+                    </PieChart>
+                  </ChartContainer>
+                </Box>
               </Box>
             ) : (
               <Box sx={{ height: { xs: 220, sm: 240 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -561,38 +563,40 @@ export default function Dashboard() {
                   }
                 }
                 return (
-              <ChartContainer width="100%" height={{ xs: 220, sm: 240 }}>
-                <BarChart
-                  data={[
-                    { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                    { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
-                    { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                    { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
-                  ]}
-                  margin={{ top: 5, right: 20, left: 10, bottom: 40 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="position" angle={-45} textAnchor="end" height={50} />
-                  <YAxis domain={[0, roundedMax]} allowDecimals={false} />
-                  <Tooltip
-                    formatter={(value: number, name: string, props: any) => [
-                      value,
-                      props.payload.fullName || name
+              <Box sx={{ height: { xs: 220, sm: 240 } }}>
+                <ChartContainer width="100%" height={240}>
+                  <BarChart
+                    data={[
+                      { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
+                      { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
+                      { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
+                      { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
                     ]}
-                  />
-                  <Bar dataKey="count">
-                    {[
-                      { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                      { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
-                      { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                      { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
-                    ].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                    <LabelList dataKey="count" position="top" />
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
+                    margin={{ top: 5, right: 20, left: 10, bottom: 40 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="position" angle={-45} textAnchor="end" height={50} />
+                    <YAxis domain={[0, roundedMax]} allowDecimals={false} />
+                    <Tooltip
+                      formatter={(value: number, name: string, props: any) => [
+                        value,
+                        props.payload.fullName || name
+                      ]}
+                    />
+                    <Bar dataKey="count">
+                      {[
+                        { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
+                        { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
+                        { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
+                        { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                      <LabelList dataKey="count" position="top" />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </Box>
                 );
               })()
             ) : (

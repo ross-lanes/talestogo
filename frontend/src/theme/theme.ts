@@ -46,61 +46,37 @@ export const theme = createTheme({
     fontFamily: '"Roboto Condensed", "Roboto", "Arial", sans-serif',
     h1: {
       fontFamily: '"Montserrat", "Arial", sans-serif',
-      fontSize: {
-        xs: '1.75rem', // Mobile: smaller for limited screen space
-        sm: '2rem',    // Tablet: medium size
-        md: '2.5rem',  // Desktop: full size
-      },
+      fontSize: '2.5rem', // Desktop default, use RESPONSIVE_FONT_SIZE from utils/responsive.ts for responsive sizing
       fontWeight: 300, // Light weight for large headers
       letterSpacing: '-0.01562em',
     },
     h2: {
       fontFamily: '"Montserrat", "Arial", sans-serif',
-      fontSize: {
-        xs: '1.5rem',  // Mobile
-        sm: '1.75rem', // Tablet
-        md: '2rem',    // Desktop
-      },
+      fontSize: '2rem', // Desktop default
       fontWeight: 500, // Medium weight for smaller headers
       letterSpacing: '-0.00833em',
     },
     h3: {
       fontFamily: '"Montserrat", "Arial", sans-serif',
-      fontSize: {
-        xs: '1.25rem', // Mobile
-        sm: '1.5rem',  // Tablet
-        md: '1.75rem', // Desktop
-      },
+      fontSize: '1.75rem', // Desktop default
       fontWeight: 700, // Bold weight for subheaders
       letterSpacing: '0em',
     },
     h4: {
       fontFamily: '"Montserrat", "Arial", sans-serif',
-      fontSize: {
-        xs: '1.125rem', // Mobile
-        sm: '1.25rem',  // Tablet
-        md: '1.5rem',   // Desktop
-      },
+      fontSize: '1.5rem', // Desktop default
       fontWeight: 700,
       letterSpacing: '0.00735em',
     },
     h5: {
       fontFamily: '"Montserrat", "Arial", sans-serif',
-      fontSize: {
-        xs: '1rem',    // Mobile
-        sm: '1.125rem', // Tablet
-        md: '1.25rem',  // Desktop
-      },
+      fontSize: '1.25rem', // Desktop default
       fontWeight: 700,
       letterSpacing: '0em',
     },
     h6: {
       fontFamily: '"Montserrat", "Arial", sans-serif',
-      fontSize: {
-        xs: '0.875rem', // Mobile
-        sm: '0.9375rem', // Tablet
-        md: '1rem',      // Desktop
-      },
+      fontSize: '1rem', // Desktop default
       fontWeight: 700,
       letterSpacing: '0.0075em',
     },
