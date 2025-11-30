@@ -26,6 +26,7 @@ import {
   Warning as WarningIcon,
   LocalHospital as DrugIcon,
   Info as InfoIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 
 // OpenFDA API base URL
@@ -36,6 +37,10 @@ interface DrugLabel {
   brand_name: string | null;
   generic_name: string | null;
   manufacturer: string | null;
+  effective_time: string | null;
+  version: string | null;
+  set_id: string | null;
+  spl_id: string | null;
   indications_and_usage?: string[];
   warnings?: string[];
   adverse_reactions?: string[];
@@ -44,6 +49,16 @@ interface DrugLabel {
   contraindications?: string[];
   drug_interactions?: string[];
 }
+
+// Helper to format FDA date (YYYYMMDD) to readable format
+const formatFDADate = (dateStr: string | null): string | null => {
+  if (!dateStr || dateStr.length !== 8) return dateStr;
+  const year = dateStr.substring(0, 4);
+  const month = dateStr.substring(4, 6);
+  const day = dateStr.substring(6, 8);
+  const date = new Date(`${year}-${month}-${day}`);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+};
 
 interface AdverseEventCount {
   term: string;
@@ -119,6 +134,10 @@ const CanonLookup: React.FC = () => {
       brand_name: openfda.brand_name?.[0] || null,
       generic_name: openfda.generic_name?.[0] || null,
       manufacturer: openfda.manufacturer_name?.[0] || null,
+      effective_time: labelData.effective_time || null,
+      version: labelData.version || null,
+      set_id: labelData.set_id || null,
+      spl_id: openfda.spl_id?.[0] || labelData.id || null,
       indications_and_usage: labelData.indications_and_usage,
       warnings: labelData.warnings,
       adverse_reactions: labelData.adverse_reactions,
@@ -294,6 +313,11 @@ const CanonLookup: React.FC = () => {
 
 // Label Results Component
 const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
+  // Build DailyMed URL using set_id if available
+  const dailyMedUrl = label.set_id
+    ? `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${label.set_id}`
+    : null;
+
   return (
     <Card>
       <CardContent>
@@ -312,6 +336,64 @@ const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
               Manufacturer: {label.manufacturer}
             </Typography>
           )}
+
+          {/* Document Metadata */}
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Grid container spacing={2}>
+              {label.effective_time && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Label Effective Date
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {formatFDADate(label.effective_time)}
+                  </Typography>
+                </Grid>
+              )}
+              {label.version && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Version
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {label.version}
+                  </Typography>
+                </Grid>
+              )}
+              {label.set_id && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Set ID
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500} sx={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.75rem',
+                    wordBreak: 'break-all'
+                  }}>
+                    {label.set_id}
+                  </Typography>
+                </Grid>
+              )}
+              {dailyMedUrl && (
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Full Document
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    href={dailyMedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    endIcon={<OpenInNewIcon />}
+                    sx={{ mt: 0.5 }}
+                  >
+                    View on DailyMed
+                  </Button>
+                </Grid>
+              )}
+            </Grid>
+          </Box>
         </Box>
 
         <Divider sx={{ mb: 2 }} />
