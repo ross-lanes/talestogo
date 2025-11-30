@@ -463,6 +463,14 @@ export default function Dashboard() {
                   <Typography variant="body2" color="textSecondary">
                     {metrics.leading_position}
                   </Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
+                    {(() => {
+                      const brandData = Array.isArray(shareOfVoice)
+                        ? shareOfVoice.find((item: any) => item.is_brand)
+                        : null;
+                      return `${Math.round(brandData?.leadership_visibility ?? 0)}% Leadership Visibility`;
+                    })()}
+                  </Typography>
                 </Box>
                 <VisibilityIcon sx={{ fontSize: 48, color: '#003e60' }} />
               </Box>
