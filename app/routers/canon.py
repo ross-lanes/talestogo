@@ -1,14 +1,19 @@
 """
 Canon - FDA Drug Data Research API endpoints
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import httpx
 import json
+import io
+import logging
+from docx import Document
 
 from app.services.llm_service import _call_perplexity_api, LLMConfigurationError, LLMAPIError
 from app.auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/canon", tags=["canon"])
 
@@ -23,6 +28,25 @@ class QuestionRequest(BaseModel):
 class QuestionResponse(BaseModel):
     answer: str
     sources: list[str]
+    disclaimer: str
+
+
+class DocumentIssue(BaseModel):
+    category: str  # 'accuracy', 'outdated', 'missing', 'warning'
+    severity: str  # 'high', 'medium', 'low'
+    text_excerpt: str
+    issue_description: str
+    fda_reference: str
+
+
+class DocumentCheckResponse(BaseModel):
+    drug_name: str
+    fda_label_date: Optional[str]
+    fda_set_id: Optional[str]
+    dailymed_url: Optional[str]
+    document_text_preview: str
+    issues: List[DocumentIssue]
+    summary: str
     disclaimer: str
 
 
@@ -230,4 +254,258 @@ Provide a helpful, accurate answer:"""
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while processing your question: {str(e)}"
+        )
+
+
+async def get_full_drug_label(drug_name: str) -> dict:
+    """Get comprehensive drug label information including metadata."""
+    params = {
+        "search": f'openfda.brand_name:"{drug_name}" OR openfda.generic_name:"{drug_name}"',
+        "limit": 1
+    }
+    data = await fetch_openfda_data("/drug/label.json", params)
+
+    if not data.get("results"):
+        return None
+
+    label = data["results"][0]
+    openfda = label.get("openfda", {})
+
+    # Format the effective date
+    effective_time = label.get("effective_time")
+    formatted_date = None
+    if effective_time and len(effective_time) == 8:
+        formatted_date = f"{effective_time[:4]}-{effective_time[4:6]}-{effective_time[6:8]}"
+
+    return {
+        "brand_name": openfda.get("brand_name", ["Unknown"])[0],
+        "generic_name": openfda.get("generic_name", [None])[0],
+        "manufacturer": openfda.get("manufacturer_name", [None])[0],
+        "effective_time": effective_time,
+        "formatted_date": formatted_date,
+        "set_id": label.get("set_id"),
+        "version": label.get("version"),
+        "indications_and_usage": label.get("indications_and_usage", []),
+        "warnings": label.get("warnings", []),
+        "adverse_reactions": label.get("adverse_reactions", []),
+        "boxed_warning": label.get("boxed_warning", []),
+        "contraindications": label.get("contraindications", []),
+        "drug_interactions": label.get("drug_interactions", []),
+        "dosage_and_administration": label.get("dosage_and_administration", []),
+        "warnings_and_cautions": label.get("warnings_and_cautions", []),
+    }
+
+
+def extract_text_from_docx(file_content: bytes) -> str:
+    """Extract text content from a Word document."""
+    doc = Document(io.BytesIO(file_content))
+    paragraphs = []
+    for paragraph in doc.paragraphs:
+        if paragraph.text.strip():
+            paragraphs.append(paragraph.text.strip())
+    return "\n\n".join(paragraphs)
+
+
+@router.post("/check-document", response_model=DocumentCheckResponse)
+async def check_document(
+    file: UploadFile = File(...),
+    drug_name: str = Form(...),
+    current_user = Depends(get_current_user)
+):
+    """
+    Check a Word document against FDA drug label data.
+    Analyzes claims in the document for accuracy against official FDA information.
+    """
+    # Validate file type
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    if not file.filename.lower().endswith('.docx'):
+        raise HTTPException(
+            status_code=400,
+            detail="File must be a Word document (.docx)"
+        )
+
+    # Validate drug name
+    drug_name = drug_name.strip()
+    if not drug_name:
+        raise HTTPException(status_code=400, detail="Drug name is required")
+
+    # Read and extract document text
+    try:
+        file_content = await file.read()
+        if len(file_content) == 0:
+            raise HTTPException(status_code=400, detail="File is empty")
+
+        if len(file_content) > 10 * 1024 * 1024:  # 10 MB limit
+            raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
+        document_text = extract_text_from_docx(file_content)
+
+        if not document_text.strip():
+            raise HTTPException(status_code=400, detail="Document appears to be empty or contains no readable text")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reading document: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read document. Please ensure it's a valid .docx file."
+        )
+
+    # Fetch FDA label data
+    fda_label = await get_full_drug_label(drug_name)
+
+    if not fda_label:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No FDA label found for '{drug_name}'. Please check the drug name spelling."
+        )
+
+    # Build DailyMed URL
+    dailymed_url = None
+    if fda_label.get("set_id"):
+        dailymed_url = f"https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={fda_label['set_id']}"
+
+    # Build comprehensive FDA context for the LLM
+    fda_context_parts = [
+        f"Drug: {fda_label['brand_name']}",
+    ]
+    if fda_label.get("generic_name"):
+        fda_context_parts.append(f"Generic Name: {fda_label['generic_name']}")
+    if fda_label.get("manufacturer"):
+        fda_context_parts.append(f"Manufacturer: {fda_label['manufacturer']}")
+    if fda_label.get("formatted_date"):
+        fda_context_parts.append(f"Label Effective Date: {fda_label['formatted_date']}")
+
+    # Add all label sections
+    section_map = {
+        "indications_and_usage": "INDICATIONS AND USAGE",
+        "boxed_warning": "BOXED WARNING",
+        "warnings": "WARNINGS",
+        "warnings_and_cautions": "WARNINGS AND PRECAUTIONS",
+        "adverse_reactions": "ADVERSE REACTIONS",
+        "contraindications": "CONTRAINDICATIONS",
+        "drug_interactions": "DRUG INTERACTIONS",
+        "dosage_and_administration": "DOSAGE AND ADMINISTRATION",
+    }
+
+    for key, title in section_map.items():
+        content = fda_label.get(key, [])
+        if content:
+            # Truncate very long sections
+            text = content[0][:3000] if len(content[0]) > 3000 else content[0]
+            fda_context_parts.append(f"\n=== {title} ===\n{text}")
+
+    fda_context = "\n".join(fda_context_parts)
+
+    # Truncate document text for prompt if too long
+    doc_text_for_prompt = document_text[:8000] if len(document_text) > 8000 else document_text
+
+    # Build the analysis prompt
+    prompt = f"""You are Canon, an expert medical/regulatory document reviewer. Your task is to check a document's claims about a pharmaceutical drug against official FDA label data.
+
+DRUG: {drug_name}
+FDA LABEL EFFECTIVE DATE: {fda_label.get('formatted_date', 'Unknown')}
+
+=== FDA LABEL DATA ===
+{fda_context}
+
+=== DOCUMENT TO CHECK ===
+{doc_text_for_prompt}
+
+=== INSTRUCTIONS ===
+Analyze the document for:
+1. **Accuracy Issues**: Claims that contradict or misrepresent FDA label information
+2. **Outdated Information**: Information that may have changed based on the FDA label date
+3. **Missing Information**: Critical safety information (boxed warnings, contraindications) that should be included
+4. **Off-Label Claims**: Statements about uses not approved in the indications section
+
+For each issue found, provide:
+- Category: 'accuracy', 'outdated', 'missing', or 'warning'
+- Severity: 'high' (safety-critical), 'medium' (significant), or 'low' (minor)
+- The exact text excerpt from the document (keep brief, max 100 characters)
+- Description of the issue
+- What the FDA label actually says
+
+Respond with valid JSON in this exact format:
+{{
+    "issues": [
+        {{
+            "category": "accuracy",
+            "severity": "high",
+            "text_excerpt": "quote from document",
+            "issue_description": "description of what's wrong",
+            "fda_reference": "what the FDA label says"
+        }}
+    ],
+    "summary": "Overall assessment of the document's accuracy (2-3 sentences)"
+}}
+
+If no issues are found, return an empty issues array with a positive summary.
+Important: Respond ONLY with valid JSON, no other text."""
+
+    try:
+        # Call AI to analyze
+        response_text = _call_perplexity_api(prompt)
+
+        # Clean the response - remove markdown code blocks if present
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        # Parse the JSON response
+        analysis = json.loads(response_text)
+
+        issues = []
+        for issue_data in analysis.get("issues", []):
+            issues.append(DocumentIssue(
+                category=issue_data.get("category", "accuracy"),
+                severity=issue_data.get("severity", "medium"),
+                text_excerpt=issue_data.get("text_excerpt", "")[:200],
+                issue_description=issue_data.get("issue_description", ""),
+                fda_reference=issue_data.get("fda_reference", "")
+            ))
+
+        summary = analysis.get("summary", "Analysis complete.")
+
+        return DocumentCheckResponse(
+            drug_name=fda_label["brand_name"],
+            fda_label_date=fda_label.get("formatted_date"),
+            fda_set_id=fda_label.get("set_id"),
+            dailymed_url=dailymed_url,
+            document_text_preview=document_text[:500] + ("..." if len(document_text) > 500 else ""),
+            issues=issues,
+            summary=summary,
+            disclaimer="This analysis is based on FDA label data from openFDA. It is intended as a reference tool only and should not replace professional medical/legal/regulatory review. Always verify findings against the official FDA label."
+        )
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse AI response as JSON: {str(e)}")
+        logger.error(f"Raw response: {response_text[:500]}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to analyze document. Please try again."
+        )
+    except LLMConfigurationError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured. Please contact the administrator."
+        )
+    except LLMAPIError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"AI service temporarily unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error checking document: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while checking the document: {str(e)}"
         )
