@@ -35,7 +35,7 @@ const PRODUCTS: ProductInfo[] = [
     id: 'canon',
     name: 'Canon',
     description: 'FDA Drug Data Research',
-    logoPath: '/canon_white.svg',
+    logoPath: '/canon_logo_white.png',
     enabled: true,
     // No requiredTenants = available to all tenants
   },
