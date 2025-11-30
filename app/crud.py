@@ -569,22 +569,41 @@ def update_brand_info(db: Session, brand_id: int, brand_info_update: schemas.Bra
     return db_brand
 
 def activate_brand(db: Session, brand_id: int, user_id: int) -> Optional[models.BrandInfo]:
-    """Sets a brand as active and deactivates all other brands for the user."""
-    # Verify brand belongs to user
-    db_brand = get_brand_by_id(db, brand_id, user_id)
-    if not db_brand:
-        return None
+    """
+    Sets a brand as active and deactivates all other brands for the user.
+    Uses SELECT FOR UPDATE to prevent race conditions when multiple requests
+    try to activate brands concurrently.
+    """
+    try:
+        # Acquire row-level lock on the brand to prevent concurrent modifications
+        # This prevents race conditions where two requests try to activate different brands
+        db_brand = db.query(models.BrandInfo).filter(
+            models.BrandInfo.id == brand_id,
+            models.BrandInfo.user_id == user_id
+        ).with_for_update().first()
 
-    # Deactivate all other brands
-    db.query(models.BrandInfo).filter(
-        models.BrandInfo.user_id == user_id
-    ).update({models.BrandInfo.is_active: False})
+        if not db_brand:
+            return None
 
-    # Activate this brand
-    db_brand.is_active = True
-    db.commit()
-    db.refresh(db_brand)
-    return db_brand
+        # Deactivate all other brands for this user
+        # The lock on db_brand prevents other transactions from activating brands
+        # until this transaction commits
+        db.query(models.BrandInfo).filter(
+            models.BrandInfo.user_id == user_id
+        ).update({models.BrandInfo.is_active: False})
+
+        # Activate this brand
+        db_brand.is_active = True
+
+        # Commit atomically - either all changes succeed or all are rolled back
+        db.commit()
+        db.refresh(db_brand)
+        return db_brand
+
+    except Exception as e:
+        # If any error occurs, rollback to maintain consistency
+        db.rollback()
+        raise Exception(f"Failed to activate brand: {str(e)}") from e
 
 def transfer_brand_ownership(db: Session, brand_id: int, current_owner_id: int, new_owner_id: int) -> Optional[models.BrandInfo]:
     """
@@ -620,43 +639,52 @@ def transfer_brand_ownership(db: Session, brand_id: int, current_owner_id: int, 
     if not new_owner:
         return None
 
-    # Transfer brand ownership
-    db_brand.user_id = new_owner_id
-    db_brand.is_active = False  # New owner must manually activate it
+    try:
+        # Transfer brand ownership
+        db_brand.user_id = new_owner_id
+        db_brand.is_active = False  # New owner must manually activate it
 
-    # Transfer all associated data to new owner
-    db.query(models.Query).filter(models.Query.brand_id == brand_id).update({models.Query.user_id: new_owner_id})
-    db.query(models.Response).filter(models.Response.brand_id == brand_id).update({models.Response.user_id: new_owner_id})
-    db.query(models.TargetDescriptor).filter(models.TargetDescriptor.brand_id == brand_id).update({models.TargetDescriptor.user_id: new_owner_id})
-    db.query(models.Competitor).filter(models.Competitor.brand_id == brand_id).update({models.Competitor.user_id: new_owner_id})
-    db.query(models.Campaign).filter(models.Campaign.brand_id == brand_id).update({models.Campaign.user_id: new_owner_id})
-    db.query(models.Report).filter(models.Report.brand_id == brand_id).update({models.Report.user_id: new_owner_id})
-    db.query(models.CitedSource).filter(models.CitedSource.brand_id == brand_id).update({models.CitedSource.user_id: new_owner_id})
-    db.query(models.CollectionBatch).filter(models.CollectionBatch.brand_id == brand_id).update({models.CollectionBatch.user_id: new_owner_id})
-    db.query(models.BatchAnalytics).filter(models.BatchAnalytics.brand_id == brand_id).update({models.BatchAnalytics.user_id: new_owner_id})
-    db.query(models.TaskStatus).filter(models.TaskStatus.brand_id == brand_id).update({models.TaskStatus.user_id: new_owner_id})
-    db.query(models.ScheduledTask).filter(models.ScheduledTask.brand_id == brand_id).update({models.ScheduledTask.user_id: new_owner_id})
-    db.query(models.ScheduledTaskHistory).filter(models.ScheduledTaskHistory.brand_id == brand_id).update({models.ScheduledTaskHistory.user_id: new_owner_id})
+        # Transfer all associated data to new owner
+        # All updates are performed within a transaction - if any fail, all will be rolled back
+        db.query(models.Query).filter(models.Query.brand_id == brand_id).update({models.Query.user_id: new_owner_id})
+        db.query(models.Response).filter(models.Response.brand_id == brand_id).update({models.Response.user_id: new_owner_id})
+        db.query(models.TargetDescriptor).filter(models.TargetDescriptor.brand_id == brand_id).update({models.TargetDescriptor.user_id: new_owner_id})
+        db.query(models.Competitor).filter(models.Competitor.brand_id == brand_id).update({models.Competitor.user_id: new_owner_id})
+        db.query(models.Campaign).filter(models.Campaign.brand_id == brand_id).update({models.Campaign.user_id: new_owner_id})
+        db.query(models.Report).filter(models.Report.brand_id == brand_id).update({models.Report.user_id: new_owner_id})
+        db.query(models.CitedSource).filter(models.CitedSource.brand_id == brand_id).update({models.CitedSource.user_id: new_owner_id})
+        db.query(models.CollectionBatch).filter(models.CollectionBatch.brand_id == brand_id).update({models.CollectionBatch.user_id: new_owner_id})
+        db.query(models.BatchAnalytics).filter(models.BatchAnalytics.brand_id == brand_id).update({models.BatchAnalytics.user_id: new_owner_id})
+        db.query(models.TaskStatus).filter(models.TaskStatus.brand_id == brand_id).update({models.TaskStatus.user_id: new_owner_id})
+        db.query(models.ScheduledTask).filter(models.ScheduledTask.brand_id == brand_id).update({models.ScheduledTask.user_id: new_owner_id})
+        db.query(models.ScheduledTaskHistory).filter(models.ScheduledTaskHistory.brand_id == brand_id).update({models.ScheduledTaskHistory.user_id: new_owner_id})
 
-    # Transfer Heads personas
-    db.query(models.PersonaGeneration).filter(models.PersonaGeneration.brand_id == brand_id).update({models.PersonaGeneration.user_id: new_owner_id})
-    db.query(models.Persona).filter(models.Persona.brand_id == brand_id).update({models.Persona.user_id: new_owner_id})
+        # Transfer Heads personas
+        db.query(models.PersonaGeneration).filter(models.PersonaGeneration.brand_id == brand_id).update({models.PersonaGeneration.user_id: new_owner_id})
+        db.query(models.Persona).filter(models.Persona.brand_id == brand_id).update({models.Persona.user_id: new_owner_id})
 
-    # Remove any BrandShare records where old owner was shared with
-    db.query(models.BrandShare).filter(
-        models.BrandShare.brand_id == brand_id,
-        models.BrandShare.user_id == current_owner_id
-    ).delete()
+        # Remove any BrandShare records where old owner was shared with
+        db.query(models.BrandShare).filter(
+            models.BrandShare.brand_id == brand_id,
+            models.BrandShare.user_id == current_owner_id
+        ).delete()
 
-    # Remove any BrandShare records where old owner shared the brand
-    db.query(models.BrandShare).filter(
-        models.BrandShare.brand_id == brand_id,
-        models.BrandShare.shared_by_user_id == current_owner_id
-    ).delete()
+        # Remove any BrandShare records where old owner shared the brand
+        db.query(models.BrandShare).filter(
+            models.BrandShare.brand_id == brand_id,
+            models.BrandShare.shared_by_user_id == current_owner_id
+        ).delete()
 
-    db.commit()
-    db.refresh(db_brand)
-    return db_brand
+        # Commit all changes atomically
+        db.commit()
+        db.refresh(db_brand)
+        return db_brand
+
+    except Exception as e:
+        # If any operation fails, rollback all changes to maintain data consistency
+        db.rollback()
+        # Re-raise the exception so the caller knows the transfer failed
+        raise Exception(f"Failed to transfer brand ownership: {str(e)}") from e
 
 def delete_brand_info(db: Session, brand_id: int, user_id: int, admin_override: bool = False) -> Optional[models.BrandInfo]:
     """Deletes a specific brand and all associated data."""
@@ -776,18 +804,76 @@ def update_user(db: Session, user_id: int, user_update: schemas.UserUpdate, encr
     return db_user
 
 def admin_update_user(db: Session, user_id: int, user_update: schemas.UserAdminUpdate) -> Optional[models.User]:
-    """Admin updates user status (is_active, is_admin)."""
+    """Admin updates user status (is_active, is_admin, allowed_products)."""
+    import json
     db_user = get_user_by_id(db, user_id)
     if not db_user:
         return None
 
     update_data = user_update.model_dump(exclude_unset=True)
+
+    # Handle allowed_products as JSON
+    if 'allowed_products' in update_data:
+        products = update_data.pop('allowed_products')
+        if products is not None:
+            db_user.allowed_products = json.dumps(products)
+        else:
+            db_user.allowed_products = None
+
     for key, value in update_data.items():
         setattr(db_user, key, value)
 
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+# === Product Access Helper Functions ===
+
+# Valid product IDs for the Solstice AI Suite
+VALID_PRODUCT_IDS = ['tales', 'heads', 'canon', 'vision', 'pulse', 'voice', 'guardian']
+
+def get_user_allowed_products(user: models.User) -> List[str]:
+    """
+    Returns list of product IDs the user can access.
+    - Admins get all products
+    - skremen@solsticehc.net gets all products
+    - Others default to ['tales'] if not set
+    """
+    import json
+
+    # Admins see all products
+    if user.is_admin:
+        return VALID_PRODUCT_IDS
+
+    # Special case for skremen
+    if user.email and user.email.lower() == 'skremen@solsticehc.net':
+        return VALID_PRODUCT_IDS
+
+    # Parse stored products or default to Tales only
+    if not user.allowed_products:
+        return ['tales']
+
+    try:
+        products = json.loads(user.allowed_products)
+        if isinstance(products, list):
+            return [p for p in products if p in VALID_PRODUCT_IDS]
+        return ['tales']
+    except (json.JSONDecodeError, TypeError):
+        return ['tales']
+
+
+def set_user_allowed_products(db: Session, user: models.User, products: List[str]) -> models.User:
+    """Sets the products a user can access."""
+    import json
+
+    # Validate product IDs
+    valid_products = [p for p in products if p in VALID_PRODUCT_IDS]
+
+    user.allowed_products = json.dumps(valid_products) if valid_products else None
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 # ============================================================================

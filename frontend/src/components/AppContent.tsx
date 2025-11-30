@@ -49,12 +49,13 @@ import { TaskStatusBanner } from './TaskStatusBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import ProtectedRoute from './ProtectedRoute';
 
-// Inner component that has access to TenantContext
+// Inner component that has access to TenantContext and AuthContext
 const AppRoutes: React.FC = () => {
   const { tenant } = useTenant();
+  const { user } = useAuth();
 
   return (
-    <ProductProvider tenantName={tenant?.tenant_name}>
+    <ProductProvider tenantName={tenant?.tenant_name} user={user}>
       <TenantThemeProvider>
         <ImpersonationBanner />
         <TaskStatusBanner />

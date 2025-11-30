@@ -384,6 +384,7 @@ class User(UserBase):
     picture_url: Optional[str] = None
     invitation_expires_at: Optional[datetime.datetime] = None
     tenant_id: Optional[int] = None
+    allowed_products: Optional[List[str]] = None  # Product IDs user can access
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
@@ -404,6 +405,7 @@ class UserAdminUpdate(BaseModel):
     """Schema for admin to update user status"""
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
+    allowed_products: Optional[List[str]] = None  # Product IDs user can access
     model_config = ConfigDict(extra='forbid')
 
 # --- Invitation Schemas ---
@@ -576,4 +578,26 @@ class Persona(PersonaBase):
 
 class PersonaGenerationWithPersonas(PersonaGeneration):
     personas: List[Persona] = []
+
+
+# ========================================
+# Admin Audit Log Schemas
+# ========================================
+class AdminAuditLogBase(BaseModel):
+    admin_user_id: int
+    action_type: str
+    target_user_id: Optional[int] = None
+    details: Optional[str] = None
+    ip_address: Optional[str] = None
+
+
+class AdminAuditLogCreate(AdminAuditLogBase):
+    pass
+
+
+class AdminAuditLog(AdminAuditLogBase):
+    id: int
+    timestamp: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
 

@@ -16,6 +16,7 @@ interface User {
   openai_api_key?: string;
   anthropic_api_key?: string;
   perplexity_api_key?: string;
+  allowed_products?: string[];  // Product IDs user can access (e.g., ['tales', 'heads', 'canon'])
 }
 
 interface AuthContextType {
