@@ -21,10 +21,10 @@ const CanonDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const exampleQueries = [
-    'What are the most common side effects of Lipitor?',
-    'Compare warnings for Humira vs Enbrel',
-    'Has metformin been recalled recently?',
-    'What does the FDA label say about pediatric use of Adderall?',
+    'What are the most common side effects of Galafold?',
+    'Compare warnings for Zircaix vs Posluma',
+    'Has Salonpas been recalled recently?',
+    'What does the FDA label say about Galafold?',
   ];
 
   return (

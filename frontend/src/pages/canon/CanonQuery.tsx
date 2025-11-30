@@ -76,11 +76,10 @@ const CanonQuery: React.FC = () => {
   };
 
   const exampleQuestions = [
-    'What are the most common side effects of Lipitor?',
-    'Compare the warnings for Humira and Enbrel',
-    'Does Ozempic have a boxed warning?',
-    'What drugs interact with Metformin?',
-    'Which is safer for pediatric use: Adderall or Ritalin?',
+    'What are the most common side effects of Galafold?',
+    'Compare the warnings for Zircaix and Posluma',
+    'Does Salonpas have any contraindications?',
+    'What drugs interact with Galafold?',
   ];
 
   return (

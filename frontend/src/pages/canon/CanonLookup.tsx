@@ -173,11 +173,10 @@ const CanonLookup: React.FC = () => {
   };
 
   const exampleQueries = [
-    'Lipitor',
-    'Ozempic',
-    'Humira',
-    'Metformin',
-    'Adderall',
+    'Galafold',
+    'Zircaix',
+    'Posluma',
+    'Salonpas',
   ];
 
   return (
