@@ -2,11 +2,17 @@ from dotenv import load_dotenv
 load_dotenv(override=True)  # Load environment variables from .env file
 
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app import models
 from app.database import engine
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 # Import all routers
 from app.routers import (
@@ -27,6 +33,7 @@ from app.routers import (
     operations,
     tenants,
     personas,  # Heads - Persona Intelligence Platform
+    canon,  # Canon - FDA Drug Data Research
     migration_helper  # Temporary migration helper
 )
 
@@ -41,8 +48,11 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Import for exception handling
-from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 
@@ -124,6 +134,9 @@ app.include_router(operations.router)
 
 # Heads - Persona Intelligence Platform
 app.include_router(personas.router)
+
+# Canon - FDA Drug Data Research
+app.include_router(canon.router)
 
 # Analytics and admin routers
 app.include_router(analytics.router)
