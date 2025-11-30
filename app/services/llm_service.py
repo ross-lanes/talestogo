@@ -84,9 +84,9 @@ def _call_perplexity_api(query: str) -> str:
         raise LLMConfigurationError("Perplexity API key not configured or client failed to initialize.")
 
     try:
-        logger.info(f"Calling Perplexity API with model 'llama-3-sonar-large-32k-online' for query: '{query[:50]}...'")
+        logger.info(f"Calling Perplexity API with model 'sonar' for query: '{query[:50]}...'")
         response = perplexity_client.chat.completions.create(
-            model="llama-3-sonar-large-32k-online",
+            model="sonar",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant providing detailed, factual answers."},
                 {"role": "user", "content": query},
