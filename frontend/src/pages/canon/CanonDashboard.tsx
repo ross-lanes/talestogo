@@ -78,7 +78,7 @@ const CanonDashboard: React.FC = () => {
       <Card sx={{ mb: 4, bgcolor: 'primary.main', color: 'white' }}>
         <CardContent sx={{ p: 4 }}>
           <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
-            Ask anything about FDA drug data...
+            Ask anything about FDA drug data
           </Typography>
           <TextField
             fullWidth
