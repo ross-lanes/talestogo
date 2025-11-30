@@ -155,8 +155,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Canon navigation menu items
   const canonMenuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/canon', indent: false },
-    { text: 'Ask a Question', icon: <SearchIcon />, path: '/canon/query', indent: false },
+    { text: 'Ask a Question', icon: <SearchIcon />, path: '/canon', indent: false },
     { text: 'Check a Document', icon: <ReportIcon />, path: '/canon/documents', indent: false },
     { text: 'Compare Drugs', icon: <CompareIcon />, path: '/canon/compare', indent: false },
     { text: 'Adverse Events', icon: <WarningIcon />, path: '/canon/adverse-events', indent: false },
