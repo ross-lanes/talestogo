@@ -26,6 +26,7 @@ import {
   Lightbulb as LightbulbIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
+import { formatMarkdown } from './utils/formatMarkdown';
 
 interface QuestionResponse {
   answer: string;
@@ -164,18 +165,21 @@ const CanonQuery: React.FC = () => {
               <QuestionIcon sx={{ mr: 1, color: 'primary.main' }} />
               Answer
             </Typography>
-            <Typography
-              variant="body1"
+            <Box
               sx={{
                 whiteSpace: 'pre-wrap',
                 mb: 3,
                 pl: 2,
                 borderLeft: '3px solid',
                 borderColor: 'primary.main',
+                '& strong': { fontWeight: 600 },
+                '& em': { fontStyle: 'italic' },
               }}
             >
-              {response.answer}
-            </Typography>
+              <Typography variant="body1" component="div">
+                {formatMarkdown(response.answer)}
+              </Typography>
+            </Box>
 
             <Divider sx={{ my: 2 }} />
 

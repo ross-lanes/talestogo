@@ -28,6 +28,7 @@ import {
   Info as InfoIcon,
   OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
+import { formatMarkdown } from './utils/formatMarkdown';
 
 // OpenFDA API base URL
 const OPENFDA_BASE_URL = 'https://api.fda.gov';
@@ -404,9 +405,11 @@ const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
             <Typography variant="subtitle2" gutterBottom>
               <strong>BOXED WARNING</strong>
             </Typography>
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-              {truncateText(label.boxed_warning.join('\n\n'), 1000)}
-            </Typography>
+            <Box sx={{ whiteSpace: 'pre-wrap', '& strong': { fontWeight: 600 }, '& em': { fontStyle: 'italic' } }}>
+              <Typography variant="body2" component="div">
+                {formatMarkdown(truncateText(label.boxed_warning.join('\n\n'), 1000))}
+              </Typography>
+            </Box>
           </Alert>
         )}
 
@@ -459,12 +462,11 @@ const LabelSection: React.FC<{
         </Typography>
       </AccordionSummary>
       <AccordionDetails>
-        <Typography
-          variant="body2"
-          sx={{ whiteSpace: 'pre-wrap' }}
-        >
-          {truncateText(content.join('\n\n'), 3000)}
-        </Typography>
+        <Box sx={{ whiteSpace: 'pre-wrap', '& strong': { fontWeight: 600 }, '& em': { fontStyle: 'italic' } }}>
+          <Typography variant="body2" component="div">
+            {formatMarkdown(truncateText(content.join('\n\n'), 3000))}
+          </Typography>
+        </Box>
       </AccordionDetails>
     </Accordion>
   );
