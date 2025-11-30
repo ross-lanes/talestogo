@@ -17,9 +17,11 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProduct } from '../contexts/ProductContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProductSwitcher: React.FC = () => {
   const { currentProduct, availableProducts, upcomingProducts, switchProduct, isSolsticeHC } = useProduct();
+  const { user } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
 
@@ -57,8 +59,9 @@ const ProductSwitcher: React.FC = () => {
   // because upcoming products might not load immediately on page load
   const hasMultipleProducts = availableProducts.length > 1 || upcomingProducts.length > 0;
   const isSolsticeUser = isSolsticeHC; // Solstice HC always sees switcher (for upcoming products)
+  const isAdmin = user?.is_admin || false; // Admins always see the switcher
 
-  if (!hasMultipleProducts && !isSolsticeUser) {
+  if (!hasMultipleProducts && !isSolsticeUser && !isAdmin) {
     return null;
   }
 
