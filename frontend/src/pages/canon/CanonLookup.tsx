@@ -27,6 +27,7 @@ import {
   LocalHospital as DrugIcon,
   Info as InfoIcon,
   OpenInNew as OpenInNewIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { formatMarkdown } from './utils/formatMarkdown';
 
@@ -319,6 +320,67 @@ const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
     ? `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${label.set_id}`
     : null;
 
+  const downloadAsWord = () => {
+    let content = `FDA Drug Label: ${label.brand_name || label.generic_name || 'Unknown Drug'}\n${'='.repeat(50)}\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+
+    if (label.brand_name) content += `Brand Name: ${label.brand_name}\n`;
+    if (label.generic_name) content += `Generic Name: ${label.generic_name}\n`;
+    if (label.manufacturer) content += `Manufacturer: ${label.manufacturer}\n`;
+    if (label.effective_time) content += `Label Effective Date: ${formatFDADate(label.effective_time)}\n`;
+    if (dailyMedUrl) content += `DailyMed URL: ${dailyMedUrl}\n`;
+    content += '\n';
+
+    if (label.boxed_warning && label.boxed_warning.length > 0) {
+      content += `BOXED WARNING\n${'-'.repeat(30)}\n`;
+      content += label.boxed_warning.join('\n\n') + '\n\n';
+    }
+
+    if (label.indications_and_usage && label.indications_and_usage.length > 0) {
+      content += `INDICATIONS AND USAGE\n${'-'.repeat(30)}\n`;
+      content += label.indications_and_usage.join('\n\n') + '\n\n';
+    }
+
+    if (label.warnings && label.warnings.length > 0) {
+      content += `WARNINGS\n${'-'.repeat(30)}\n`;
+      content += label.warnings.join('\n\n') + '\n\n';
+    }
+
+    if (label.adverse_reactions && label.adverse_reactions.length > 0) {
+      content += `ADVERSE REACTIONS\n${'-'.repeat(30)}\n`;
+      content += label.adverse_reactions.join('\n\n') + '\n\n';
+    }
+
+    if (label.dosage_and_administration && label.dosage_and_administration.length > 0) {
+      content += `DOSAGE AND ADMINISTRATION\n${'-'.repeat(30)}\n`;
+      content += label.dosage_and_administration.join('\n\n') + '\n\n';
+    }
+
+    if (label.contraindications && label.contraindications.length > 0) {
+      content += `CONTRAINDICATIONS\n${'-'.repeat(30)}\n`;
+      content += label.contraindications.join('\n\n') + '\n\n';
+    }
+
+    if (label.drug_interactions && label.drug_interactions.length > 0) {
+      content += `DRUG INTERACTIONS\n${'-'.repeat(30)}\n`;
+      content += label.drug_interactions.join('\n\n') + '\n\n';
+    }
+
+    content += `\nDISCLAIMER\n${'-'.repeat(30)}\n`;
+    content += 'This data is sourced from the FDA\'s openFDA API. It is intended for informational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.\n';
+
+    // Create blob and download
+    const blob = new Blob([content], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FDA_Label_${label.brand_name || label.generic_name || 'Drug'}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card>
       <CardContent>
@@ -394,6 +456,18 @@ const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
                 </Grid>
               )}
             </Grid>
+          </Box>
+
+          {/* Download Button */}
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={downloadAsWord}
+            >
+              Download as Word
+            </Button>
           </Box>
         </Box>
 
@@ -479,16 +553,52 @@ const AdverseEventsResults: React.FC<{
 }> = ({ drugName, data }) => {
   const maxCount = data.topReactions[0]?.count || 1;
 
+  const downloadAsWord = () => {
+    let content = `FDA Adverse Event Reports: ${drugName}\n${'='.repeat(50)}\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    content += `Drug: ${drugName}\n`;
+    content += `Total Reports in Top 20: ${data.total.toLocaleString()}\n\n`;
+
+    content += `TOP 20 REPORTED ADVERSE REACTIONS\n${'-'.repeat(30)}\n\n`;
+    data.topReactions.forEach((reaction, index) => {
+      content += `${index + 1}. ${reaction.term}: ${reaction.count.toLocaleString()} reports\n`;
+    });
+
+    content += `\n\nDISCLAIMER\n${'-'.repeat(30)}\n`;
+    content += 'These counts represent the number of adverse event reports submitted to the FDA where this reaction was mentioned. A report does not prove the drug caused the reaction. This data is sourced from the FDA\'s openFDA API and is intended for informational purposes only.\n';
+
+    // Create blob and download
+    const blob = new Blob([content], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FDA_Adverse_Events_${drugName}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card>
       <CardContent>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Adverse Events for {drugName}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Top 20 reported adverse reactions from FDA adverse event reports
-          </Typography>
+        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography variant="h5" gutterBottom>
+              Adverse Events for {drugName}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Top 20 reported adverse reactions from FDA adverse event reports
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={downloadAsWord}
+          >
+            Download as Word
+          </Button>
         </Box>
 
         <Divider sx={{ mb: 3 }} />

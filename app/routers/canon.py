@@ -67,6 +67,29 @@ class AdjustDocumentResponse(BaseModel):
     changes_summary: str
 
 
+class CompareDrugsRequest(BaseModel):
+    drug_names: List[str]  # 2-4 drug names
+
+
+class DrugComparisonData(BaseModel):
+    drug_name: str
+    brand_name: Optional[str]
+    generic_name: Optional[str]
+    manufacturer: Optional[str]
+    fda_label_date: Optional[str]
+    indications_summary: Optional[str]
+    key_warnings: Optional[str]
+    common_side_effects: Optional[str]
+    dailymed_url: Optional[str]
+
+
+class CompareDrugsResponse(BaseModel):
+    drugs: List[DrugComparisonData]
+    comparison_table: str  # Markdown table
+    comparison_paragraphs: str  # 1-4 paragraphs of comparison
+    disclaimer: str
+
+
 async def fetch_openfda_data(endpoint: str, params: dict) -> dict:
     """Fetch data from OpenFDA API."""
     async with httpx.AsyncClient() as client:
@@ -675,4 +698,180 @@ Important: Respond ONLY with valid JSON, no other text."""
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while adjusting the document: {str(e)}"
+        )
+
+
+@router.post("/compare", response_model=CompareDrugsResponse)
+async def compare_drugs(
+    request: CompareDrugsRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Compare 2-4 drugs using FDA label data and AI analysis.
+    Returns a comparison table and detailed paragraphs.
+    """
+    drug_names = [name.strip() for name in request.drug_names if name.strip()]
+
+    if len(drug_names) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 drug names are required")
+
+    if len(drug_names) > 4:
+        raise HTTPException(status_code=400, detail="Maximum 4 drugs can be compared at once")
+
+    # Fetch FDA data for each drug
+    drugs_data = []
+    fda_contexts = []
+
+    for drug_name in drug_names:
+        fda_label = await get_full_drug_label(drug_name)
+
+        if fda_label:
+            dailymed_url = None
+            if fda_label.get("set_id"):
+                dailymed_url = f"https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={fda_label['set_id']}"
+
+            drug_data = DrugComparisonData(
+                drug_name=drug_name,
+                brand_name=fda_label.get("brand_name"),
+                generic_name=fda_label.get("generic_name"),
+                manufacturer=fda_label.get("manufacturer"),
+                fda_label_date=fda_label.get("formatted_date"),
+                indications_summary=None,
+                key_warnings=None,
+                common_side_effects=None,
+                dailymed_url=dailymed_url
+            )
+            drugs_data.append(drug_data)
+
+            # Build context for AI
+            context_parts = [f"=== {drug_name} ==="]
+            context_parts.append(f"Brand Name: {fda_label.get('brand_name', 'Unknown')}")
+            if fda_label.get("generic_name"):
+                context_parts.append(f"Generic Name: {fda_label['generic_name']}")
+            if fda_label.get("manufacturer"):
+                context_parts.append(f"Manufacturer: {fda_label['manufacturer']}")
+
+            if fda_label.get("indications_and_usage"):
+                context_parts.append(f"\nIndications:\n{fda_label['indications_and_usage'][0][:1500]}")
+            if fda_label.get("warnings"):
+                context_parts.append(f"\nWarnings:\n{fda_label['warnings'][0][:1500]}")
+            if fda_label.get("boxed_warning"):
+                context_parts.append(f"\nBoxed Warning:\n{fda_label['boxed_warning'][0][:500]}")
+            if fda_label.get("adverse_reactions"):
+                context_parts.append(f"\nAdverse Reactions:\n{fda_label['adverse_reactions'][0][:1500]}")
+            if fda_label.get("contraindications"):
+                context_parts.append(f"\nContraindications:\n{fda_label['contraindications'][0][:500]}")
+            if fda_label.get("drug_interactions"):
+                context_parts.append(f"\nDrug Interactions:\n{fda_label['drug_interactions'][0][:500]}")
+
+            fda_contexts.append("\n".join(context_parts))
+        else:
+            # Drug not found in FDA database
+            drugs_data.append(DrugComparisonData(
+                drug_name=drug_name,
+                brand_name=None,
+                generic_name=None,
+                manufacturer=None,
+                fda_label_date=None,
+                indications_summary="No FDA label found",
+                key_warnings=None,
+                common_side_effects=None,
+                dailymed_url=None
+            ))
+            fda_contexts.append(f"=== {drug_name} ===\nNo FDA label data found for this drug.")
+
+    # Build the comparison prompt
+    drug_list = ", ".join(drug_names)
+    fda_context_combined = "\n\n".join(fda_contexts)
+
+    prompt = f"""You are Canon, an expert in FDA drug data analysis. Compare the following drugs based on their official FDA label information.
+
+DRUGS TO COMPARE: {drug_list}
+
+=== FDA LABEL DATA ===
+{fda_context_combined}
+
+=== INSTRUCTIONS ===
+Create a comprehensive comparison of these drugs. Include:
+
+1. A markdown comparison TABLE with the following columns:
+   - Drug Name
+   - Indications (brief summary)
+   - Key Warnings
+   - Common Side Effects
+   - Contraindications
+
+2. {len(drug_names)} paragraphs of detailed comparison analysis, one for each drug, discussing:
+   - What makes each drug unique
+   - How they compare in terms of safety profile
+   - Important differences in their uses and precautions
+
+Respond with valid JSON in this exact format:
+{{
+    "comparison_table": "| Drug Name | Indications | Key Warnings | Common Side Effects | Contraindications |\\n|---|---|---|---|---|\\n| Drug1 | ... | ... | ... | ... |",
+    "comparison_paragraphs": "Paragraph 1 about first drug...\\n\\nParagraph 2 about second drug...",
+    "drug_summaries": [
+        {{
+            "drug_name": "{drug_names[0]}",
+            "indications_summary": "Brief indications",
+            "key_warnings": "Key warnings",
+            "common_side_effects": "Common side effects"
+        }}
+    ]
+}}
+
+Important: Respond ONLY with valid JSON, no other text. Make the comparison table clear and well-formatted. Each paragraph should be 3-5 sentences."""
+
+    try:
+        response_text = _call_perplexity_api(prompt)
+
+        # Clean the response
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        result = json.loads(response_text)
+
+        # Update drug data with AI summaries
+        for summary in result.get("drug_summaries", []):
+            for drug in drugs_data:
+                if drug.drug_name.lower() == summary.get("drug_name", "").lower():
+                    drug.indications_summary = summary.get("indications_summary")
+                    drug.key_warnings = summary.get("key_warnings")
+                    drug.common_side_effects = summary.get("common_side_effects")
+
+        return CompareDrugsResponse(
+            drugs=drugs_data,
+            comparison_table=result.get("comparison_table", ""),
+            comparison_paragraphs=result.get("comparison_paragraphs", ""),
+            disclaimer="This comparison is based on FDA label data from openFDA. It is intended for informational purposes only and should not be used as a substitute for professional medical advice. Always consult with a qualified healthcare provider before making any decisions about medications."
+        )
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse AI response as JSON: {str(e)}")
+        logger.error(f"Raw response: {response_text[:500]}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate drug comparison. Please try again."
+        )
+    except LLMConfigurationError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured. Please contact the administrator."
+        )
+    except LLMAPIError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"AI service temporarily unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error comparing drugs: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while comparing drugs: {str(e)}"
         )

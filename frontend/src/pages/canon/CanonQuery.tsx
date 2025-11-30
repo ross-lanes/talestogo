@@ -24,6 +24,7 @@ import {
   Source as SourceIcon,
   Info as InfoIcon,
   Lightbulb as LightbulbIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 import { formatMarkdown } from './utils/formatMarkdown';
@@ -74,6 +75,36 @@ const CanonQuery: React.FC = () => {
       e.preventDefault();
       handleAsk();
     }
+  };
+
+  const downloadAsWord = () => {
+    if (!response) return;
+
+    let content = `Canon FDA Drug Data Query\n${'='.repeat(50)}\n\n`;
+    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    content += `QUESTION\n${'-'.repeat(30)}\n`;
+    content += question + '\n\n';
+    content += `ANSWER\n${'-'.repeat(30)}\n`;
+    content += response.answer.replace(/\*\*/g, '').replace(/\*/g, '') + '\n\n';
+    content += `DATA SOURCES\n${'-'.repeat(30)}\n`;
+    response.sources.forEach((source, index) => {
+      content += `${index + 1}. ${source}\n`;
+    });
+    content += `\n\nDISCLAIMER\n${'-'.repeat(30)}\n`;
+    content += response.disclaimer + '\n';
+
+    // Create blob and download
+    const blob = new Blob([content], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // Create a safe filename from the question
+    const safeQuestion = question.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_');
+    a.download = `Canon_Query_${safeQuestion}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const exampleQuestions = [
@@ -160,11 +191,21 @@ const CanonQuery: React.FC = () => {
       {response && (
         <Card>
           <CardContent>
-            {/* Answer */}
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              <QuestionIcon sx={{ mr: 1, color: 'primary.main' }} />
-              Answer
-            </Typography>
+            {/* Header with Download Button */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
+                <QuestionIcon sx={{ mr: 1, color: 'primary.main' }} />
+                Answer
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={downloadAsWord}
+              >
+                Download as Word
+              </Button>
+            </Box>
             <Box
               sx={{
                 whiteSpace: 'pre-wrap',
