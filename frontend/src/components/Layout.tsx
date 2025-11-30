@@ -43,6 +43,9 @@ import {
   Schedule as ScheduleIcon,
   HelpOutline as HelpIcon,
   Business as BusinessIcon,
+  Search as SearchIcon,
+  CompareArrows as CompareIcon,
+  Bookmark as BookmarkIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,12 +56,19 @@ import TenantSwitcher from './TenantSwitcher';
 import ProductSwitcher from './ProductSwitcher';
 import talesWhite from './tales_white.png';
 
+// Product logos map - using imported assets for bundled products
+const PRODUCT_LOGOS: Record<string, string> = {
+  tales: talesWhite,
+  // Other products use logoPath from ProductContext (public folder)
+};
+
 const drawerWidth = 240;
 
 // Product taglines
 const PRODUCT_TAGLINES: Record<string, string> = {
   tales: 'Shape your AI story.',
   heads: 'Know your audience.',
+  canon: 'Research FDA data.',
   vision: 'See the market clearly.',
   pulse: 'Measure what matters.',
   voice: 'Optimize every word.',
@@ -127,7 +137,8 @@ export default function Layout({ children }: LayoutProps) {
   };
 
 
-  const menuItems = [
+  // Tales navigation menu items
+  const talesMenuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/', indent: false },
     { text: 'Manage Brand', icon: <CustomizeIcon />, path: '/manage/brands', indent: false },
     { text: 'Collect & Analyze', icon: <CollectionIcon />, path: '/collect-analyze', indent: false },
@@ -141,6 +152,19 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Recommendations', icon: <FlagIcon />, path: '/analytics/recommendations', indent: false },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports', indent: false },
   ];
+
+  // Canon navigation menu items
+  const canonMenuItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/canon', indent: false },
+    { text: 'Ask a Question', icon: <SearchIcon />, path: '/canon/query', indent: false },
+    { text: 'Check a Document', icon: <ReportIcon />, path: '/canon/documents', indent: false },
+    { text: 'Compare Drugs', icon: <CompareIcon />, path: '/canon/compare', indent: false },
+    { text: 'Adverse Events', icon: <WarningIcon />, path: '/canon/adverse-events', indent: false },
+    { text: 'Saved Searches', icon: <BookmarkIcon />, path: '/canon/saved', indent: false },
+  ];
+
+  // Select menu items based on current product
+  const menuItems = currentProduct.id === 'canon' ? canonMenuItems : talesMenuItems;
 
   const handleMenuItemClick = (item: any) => {
     if (item.path) {
@@ -175,7 +199,7 @@ export default function Layout({ children }: LayoutProps) {
       color: 'common.white',             // ensure h1 text is white
     },
   }}
-  onClick={() => navigate('/')}
+  onClick={() => navigate(currentProduct.id === 'canon' ? '/canon' : '/')}
 >
   <Typography
     variant="body2"
@@ -190,7 +214,7 @@ export default function Layout({ children }: LayoutProps) {
   >
     <Box
       component="img"
-      src={talesWhite}
+      src={PRODUCT_LOGOS[currentProduct.id] || currentProduct.logoPath}
       alt={currentProduct.name}
       sx={{
         width: { xs: 100, sm: 120 }, // Smaller logo on mobile
