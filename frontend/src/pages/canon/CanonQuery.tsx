@@ -11,173 +11,76 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Divider,
-  Grid2 as Grid,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
   InputAdornment,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import {
-  Search as SearchIcon,
-  ExpandMore as ExpandMoreIcon,
-  Warning as WarningIcon,
-  LocalHospital as DrugIcon,
+  QuestionAnswer as QuestionIcon,
+  Send as SendIcon,
+  Source as SourceIcon,
   Info as InfoIcon,
+  Lightbulb as LightbulbIcon,
 } from '@mui/icons-material';
+import api from '../../api/client';
 
-// OpenFDA API base URL
-const OPENFDA_BASE_URL = 'https://api.fda.gov';
-
-// Types
-interface DrugLabel {
-  brand_name: string | null;
-  generic_name: string | null;
-  manufacturer: string | null;
-  indications_and_usage?: string[];
-  warnings?: string[];
-  adverse_reactions?: string[];
-  dosage_and_administration?: string[];
-  boxed_warning?: string[];
-  contraindications?: string[];
-  drug_interactions?: string[];
-}
-
-interface AdverseEventCount {
-  term: string;
-  count: number;
-}
-
-interface SearchResult {
-  type: 'label' | 'adverse_events';
-  label?: DrugLabel;
-  adverseEvents?: {
-    total: number;
-    topReactions: AdverseEventCount[];
-  };
+interface QuestionResponse {
+  answer: string;
+  sources: string[];
+  disclaimer: string;
 }
 
 const CanonQuery: React.FC = () => {
-  const [query, setQuery] = useState('');
-  const [searchType, setSearchType] = useState<'label' | 'adverse_events'>('label');
+  const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<SearchResult | null>(null);
+  const [response, setResponse] = useState<QuestionResponse | null>(null);
 
-  const handleSearch = async () => {
-    if (!query.trim()) {
-      setError('Please enter a drug name to search');
+  const handleAsk = async () => {
+    if (!question.trim()) {
+      setError('Please enter a question');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setResult(null);
+    setResponse(null);
 
     try {
-      if (searchType === 'label') {
-        await searchDrugLabel(query.trim());
-      } else {
-        await searchAdverseEvents(query.trim());
-      }
+      const result = await api.post<QuestionResponse>('/canon/ask', {
+        question: question.trim(),
+      });
+      setResponse(result.data);
     } catch (err: any) {
-      console.error('Search error:', err);
-      setError(err.message || 'An error occurred while searching. Please try again.');
+      console.error('Ask error:', err);
+      if (err.response?.status === 503) {
+        setError('The AI service is temporarily unavailable. Please try again later.');
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('An error occurred while processing your question. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const searchDrugLabel = async (drugName: string) => {
-    const searchQuery = encodeURIComponent(`openfda.brand_name:"${drugName}" OR openfda.generic_name:"${drugName}"`);
-    const url = `${OPENFDA_BASE_URL}/drug/label.json?search=${searchQuery}&limit=1`;
-
-    const response = await fetch(url);
-
-    if (response.status === 404) {
-      setError(`No FDA label found for "${drugName}". Try a different spelling or drug name.`);
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch drug label');
-    }
-
-    const data = await response.json();
-
-    if (!data.results || data.results.length === 0) {
-      setError(`No FDA label found for "${drugName}". Try a different spelling or drug name.`);
-      return;
-    }
-
-    const labelData = data.results[0];
-    const openfda = labelData.openfda || {};
-
-    const label: DrugLabel = {
-      brand_name: openfda.brand_name?.[0] || null,
-      generic_name: openfda.generic_name?.[0] || null,
-      manufacturer: openfda.manufacturer_name?.[0] || null,
-      indications_and_usage: labelData.indications_and_usage,
-      warnings: labelData.warnings,
-      adverse_reactions: labelData.adverse_reactions,
-      dosage_and_administration: labelData.dosage_and_administration,
-      boxed_warning: labelData.boxed_warning,
-      contraindications: labelData.contraindications,
-      drug_interactions: labelData.drug_interactions,
-    };
-
-    setResult({ type: 'label', label });
-  };
-
-  const searchAdverseEvents = async (drugName: string) => {
-    const searchQuery = encodeURIComponent(`patient.drug.medicinalproduct:"${drugName}"`);
-    const url = `${OPENFDA_BASE_URL}/drug/event.json?search=${searchQuery}&count=patient.reaction.reactionmeddrapt.exact&limit=20`;
-
-    const response = await fetch(url);
-
-    if (response.status === 404) {
-      setError(`No adverse events found for "${drugName}". Try a different spelling or drug name.`);
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch adverse events');
-    }
-
-    const data = await response.json();
-
-    if (!data.results || data.results.length === 0) {
-      setError(`No adverse events found for "${drugName}".`);
-      return;
-    }
-
-    const topReactions: AdverseEventCount[] = data.results.map((r: any) => ({
-      term: r.term,
-      count: r.count,
-    }));
-
-    const total = topReactions.reduce((sum, r) => sum + r.count, 0);
-
-    setResult({
-      type: 'adverse_events',
-      adverseEvents: { total, topReactions },
-    });
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch();
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAsk();
     }
   };
 
-  const exampleQueries = [
-    'Lipitor',
-    'Ozempic',
-    'Humira',
-    'Metformin',
-    'Adderall',
+  const exampleQuestions = [
+    'What are the most common side effects of Lipitor?',
+    'Compare the warnings for Humira and Enbrel',
+    'Does Ozempic have a boxed warning?',
+    'What drugs interact with Metformin?',
+    'Which is safer for pediatric use: Adderall or Ritalin?',
   ];
 
   return (
@@ -188,73 +91,61 @@ const CanonQuery: React.FC = () => {
           Ask a Question
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Search FDA drug labels and adverse event reports
+          Ask questions about FDA drug data in natural language. Our AI will search official FDA databases and provide answers.
         </Typography>
       </Box>
 
-      {/* Search Box */}
+      {/* Question Input */}
       <Paper sx={{ p: 3, mb: 4 }}>
-        <Box sx={{ mb: 2 }}>
-          <ToggleButtonGroup
-            value={searchType}
-            exclusive
-            onChange={(_, value) => value && setSearchType(value)}
-            size="small"
-          >
-            <ToggleButton value="label">
-              <DrugIcon sx={{ mr: 1 }} />
-              Drug Label
-            </ToggleButton>
-            <ToggleButton value="adverse_events">
-              <WarningIcon sx={{ mr: 1 }} />
-              Adverse Events
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
           <TextField
             fullWidth
-            placeholder={searchType === 'label'
-              ? "Enter a drug name (e.g., Lipitor, Ozempic, Humira)"
-              : "Enter a drug name to see reported adverse events"
-            }
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            multiline
+            rows={2}
+            placeholder="Ask anything about FDA drug data... (e.g., What are the most common side effects of Ozempic?)"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
             onKeyPress={handleKeyPress}
+            disabled={loading}
             InputProps={{
               startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
+                <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                  <QuestionIcon color="action" />
                 </InputAdornment>
               ),
             }}
           />
           <Button
             variant="contained"
-            onClick={handleSearch}
-            disabled={loading}
-            sx={{ minWidth: 120 }}
+            onClick={handleAsk}
+            disabled={loading || !question.trim()}
+            sx={{ minWidth: 120, height: 56 }}
+            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Search'}
+            {loading ? 'Asking...' : 'Ask'}
           </Button>
         </Box>
 
-        {/* Example Queries */}
+        {/* Example Questions */}
         <Box sx={{ mt: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-            Try:
-          </Typography>
-          {exampleQueries.map((example) => (
-            <Chip
-              key={example}
-              label={example}
-              size="small"
-              onClick={() => setQuery(example)}
-              sx={{ mr: 0.5, mb: 0.5, cursor: 'pointer' }}
-              variant="outlined"
-            />
-          ))}
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <LightbulbIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 0.5 }} />
+            <Typography variant="caption" color="text.secondary">
+              Try asking:
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {exampleQuestions.map((example, index) => (
+              <Chip
+                key={index}
+                label={example}
+                size="small"
+                onClick={() => setQuestion(example)}
+                sx={{ cursor: 'pointer' }}
+                variant="outlined"
+              />
+            ))}
+          </Box>
         </Box>
       </Paper>
 
@@ -265,200 +156,98 @@ const CanonQuery: React.FC = () => {
         </Alert>
       )}
 
-      {/* Results */}
-      {result && result.type === 'label' && result.label && (
-        <LabelResults label={result.label} />
+      {/* Response */}
+      {response && (
+        <Card>
+          <CardContent>
+            {/* Answer */}
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+              <QuestionIcon sx={{ mr: 1, color: 'primary.main' }} />
+              Answer
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                whiteSpace: 'pre-wrap',
+                mb: 3,
+                pl: 2,
+                borderLeft: '3px solid',
+                borderColor: 'primary.main',
+              }}
+            >
+              {response.answer}
+            </Typography>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Sources */}
+            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+              <SourceIcon sx={{ mr: 1, fontSize: 18 }} />
+              Data Sources
+            </Typography>
+            <List dense>
+              {response.sources.map((source, index) => (
+                <ListItem key={index} sx={{ py: 0 }}>
+                  <ListItemIcon sx={{ minWidth: 24 }}>
+                    <Box
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: 'primary.main',
+                      }}
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={source}
+                    primaryTypographyProps={{ variant: 'body2' }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Disclaimer */}
+            <Alert severity="info" icon={<InfoIcon />}>
+              <Typography variant="caption">
+                {response.disclaimer}
+              </Typography>
+            </Alert>
+          </CardContent>
+        </Card>
       )}
 
-      {result && result.type === 'adverse_events' && result.adverseEvents && (
-        <AdverseEventsResults
-          drugName={query}
-          data={result.adverseEvents}
-        />
-      )}
-
-      {/* Disclaimer */}
-      <Paper sx={{ p: 2, mt: 4, bgcolor: 'grey.50' }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-          <InfoIcon sx={{ mr: 1, color: 'info.main', fontSize: 20 }} />
-          <Typography variant="caption" color="text.secondary">
-            <strong>Disclaimer:</strong> This data is sourced from the FDA's openFDA API.
-            It is intended for informational purposes only and should not be used as a substitute
-            for professional medical advice, diagnosis, or treatment. The information may not be
-            complete or up-to-date. Always consult with a qualified healthcare provider.
+      {/* How It Works */}
+      {!response && !loading && (
+        <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
+          <Typography variant="h6" gutterBottom>
+            How It Works
           </Typography>
-        </Box>
-      </Paper>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Canon uses AI to answer your questions about FDA drug data:
+          </Typography>
+          <Box component="ol" sx={{ pl: 2, '& li': { mb: 1 } }}>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <strong>You ask a question</strong> about any drug or medication
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <strong>We search FDA databases</strong> including drug labels and adverse event reports
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <strong>AI synthesizes an answer</strong> based on official FDA data
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <strong>Sources are cited</strong> so you know where the information comes from
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            <strong>Best for:</strong> Comparing drugs, understanding side effects, checking warnings, and researching drug interactions.
+          </Typography>
+        </Paper>
+      )}
     </Container>
   );
-};
-
-// Label Results Component
-const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
-  return (
-    <Card>
-      <CardContent>
-        {/* Drug Header */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            {label.brand_name || label.generic_name || 'Unknown Drug'}
-          </Typography>
-          {label.generic_name && label.brand_name && (
-            <Typography variant="subtitle1" color="text.secondary">
-              Generic: {label.generic_name}
-            </Typography>
-          )}
-          {label.manufacturer && (
-            <Typography variant="body2" color="text.secondary">
-              Manufacturer: {label.manufacturer}
-            </Typography>
-          )}
-        </Box>
-
-        <Divider sx={{ mb: 2 }} />
-
-        {/* Boxed Warning */}
-        {label.boxed_warning && label.boxed_warning.length > 0 && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              <strong>BOXED WARNING</strong>
-            </Typography>
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-              {truncateText(label.boxed_warning.join('\n\n'), 1000)}
-            </Typography>
-          </Alert>
-        )}
-
-        {/* Label Sections */}
-        <LabelSection
-          title="Indications and Usage"
-          content={label.indications_and_usage}
-          defaultExpanded
-        />
-        <LabelSection
-          title="Warnings"
-          content={label.warnings}
-        />
-        <LabelSection
-          title="Adverse Reactions"
-          content={label.adverse_reactions}
-        />
-        <LabelSection
-          title="Dosage and Administration"
-          content={label.dosage_and_administration}
-        />
-        <LabelSection
-          title="Contraindications"
-          content={label.contraindications}
-        />
-        <LabelSection
-          title="Drug Interactions"
-          content={label.drug_interactions}
-        />
-      </CardContent>
-    </Card>
-  );
-};
-
-// Label Section Accordion
-const LabelSection: React.FC<{
-  title: string;
-  content?: string[];
-  defaultExpanded?: boolean;
-}> = ({ title, content, defaultExpanded = false }) => {
-  if (!content || content.length === 0) {
-    return null;
-  }
-
-  return (
-    <Accordion defaultExpanded={defaultExpanded}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography variant="subtitle1" fontWeight={500}>
-          {title}
-        </Typography>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Typography
-          variant="body2"
-          sx={{ whiteSpace: 'pre-wrap' }}
-        >
-          {truncateText(content.join('\n\n'), 3000)}
-        </Typography>
-      </AccordionDetails>
-    </Accordion>
-  );
-};
-
-// Adverse Events Results Component
-const AdverseEventsResults: React.FC<{
-  drugName: string;
-  data: { total: number; topReactions: AdverseEventCount[] };
-}> = ({ drugName, data }) => {
-  const maxCount = data.topReactions[0]?.count || 1;
-
-  return (
-    <Card>
-      <CardContent>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Adverse Events for {drugName}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Top 20 reported adverse reactions from FDA adverse event reports
-          </Typography>
-        </Box>
-
-        <Divider sx={{ mb: 3 }} />
-
-        <Grid container spacing={2}>
-          {data.topReactions.map((reaction, index) => (
-            <Grid size={{ xs: 12, sm: 6 }} key={reaction.term}>
-              <Box sx={{ mb: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" fontWeight={500}>
-                    {index + 1}. {reaction.term}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {reaction.count.toLocaleString()} reports
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    height: 8,
-                    bgcolor: 'grey.200',
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      height: '100%',
-                      width: `${(reaction.count / maxCount) * 100}%`,
-                      bgcolor: index < 5 ? 'error.main' : 'warning.main',
-                      borderRadius: 1,
-                    }}
-                  />
-                </Box>
-              </Box>
-            </Grid>
-          ))}
-        </Grid>
-
-        <Alert severity="info" sx={{ mt: 3 }}>
-          <Typography variant="body2">
-            These counts represent the number of adverse event reports submitted to the FDA
-            where this reaction was mentioned. A report does not prove the drug caused the reaction.
-          </Typography>
-        </Alert>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Helper function to truncate long text
-const truncateText = (text: string, maxLength: number): string => {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '... [truncated]';
 };
 
 export default CanonQuery;

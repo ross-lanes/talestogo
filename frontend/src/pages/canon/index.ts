@@ -1,4 +1,5 @@
 export { default as CanonDashboard } from './CanonDashboard';
+export { default as CanonLookup } from './CanonLookup';
 export { default as CanonQuery } from './CanonQuery';
 export { default as CanonAdverseEvents } from './CanonAdverseEvents';
 export { default as CanonCompare } from './CanonCompare';

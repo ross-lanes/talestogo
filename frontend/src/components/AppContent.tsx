@@ -34,6 +34,7 @@ import GenerateHCPPersonas from '../pages/heads/GenerateHCPPersonas';
 import Generations from '../pages/heads/Generations';
 // Canon - FDA Drug Data Research pages
 import {
+  CanonLookup,
   CanonQuery,
   CanonAdverseEvents,
   CanonCompare,
@@ -364,6 +365,16 @@ const AppRoutes: React.FC = () => {
           {/* Canon - FDA Drug Data Research Routes */}
           <Route
             path="/canon"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonLookup />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/ask"
             element={
               <ProtectedRoute>
                 <Layout>
