@@ -27,10 +27,10 @@ const PRODUCTS: ProductInfo[] = [
   {
     id: 'heads',
     name: 'Heads',
-    description: 'Persona Intelligence Platform',
+    description: 'AI-Powered Persona Generator',
     logoPath: '/heads_white.png',
-    enabled: false, // Coming soon - still in development
-    requiredTenants: ['Solstice HC'], // Only Solstice HC can access
+    enabled: true,
+    // No requiredTenants = available to all tenants
   },
   {
     id: 'canon',

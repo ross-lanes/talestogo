@@ -187,12 +187,6 @@ const ProductSwitcher: React.FC = () => {
           </>
         )}
 
-        <Divider sx={{ mt: 1 }} />
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-            One login, all products. Shared brands across the suite.
-          </Typography>
-        </Box>
       </Menu>
     </Box>
   );

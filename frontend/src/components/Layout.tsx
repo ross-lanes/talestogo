@@ -46,6 +46,7 @@ import {
   Search as SearchIcon,
   CompareArrows as CompareIcon,
   Bookmark as BookmarkIcon,
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -161,8 +162,23 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Compare Drugs', icon: <CompareIcon />, path: '/canon/compare', indent: false },
   ];
 
+  // Heads navigation menu items
+  const headsMenuItems = [
+    { text: 'Generate Personas', icon: <AutoAwesomeIcon />, path: '/heads', indent: false },
+  ];
+
   // Select menu items based on current product
-  const menuItems = currentProduct.id === 'canon' ? canonMenuItems : talesMenuItems;
+  const getMenuItems = () => {
+    switch (currentProduct.id) {
+      case 'canon':
+        return canonMenuItems;
+      case 'heads':
+        return headsMenuItems;
+      default:
+        return talesMenuItems;
+    }
+  };
+  const menuItems = getMenuItems();
 
   const handleMenuItemClick = (item: any) => {
     if (item.path) {
@@ -197,7 +213,11 @@ export default function Layout({ children }: LayoutProps) {
       color: 'common.white',             // ensure h1 text is white
     },
   }}
-  onClick={() => navigate(currentProduct.id === 'canon' ? '/canon' : '/')}
+  onClick={() => {
+    if (currentProduct.id === 'canon') navigate('/canon');
+    else if (currentProduct.id === 'heads') navigate('/heads');
+    else navigate('/');
+  }}
 >
   <Typography
     variant="body2"

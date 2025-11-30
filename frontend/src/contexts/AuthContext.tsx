@@ -12,6 +12,10 @@ interface User {
   is_invited: boolean;
   created_at: string;
   updated_at: string;
+  gemini_api_key?: string;
+  openai_api_key?: string;
+  anthropic_api_key?: string;
+  perplexity_api_key?: string;
 }
 
 interface AuthContextType {

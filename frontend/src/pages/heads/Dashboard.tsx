@@ -1,151 +1,324 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  Button,
   Box,
   Alert,
+  Button,
+  CircularProgress,
 } from '@mui/material';
-import {
-  PersonAdd as PatientIcon,
-  MedicalServices as HCPIcon,
-  History as HistoryIcon,
-} from '@mui/icons-material';
-import { useBrand } from '../../contexts/BrandContext';
+import HistoryIcon from '@mui/icons-material/History';
 import { useAuth } from '../../contexts/AuthContext';
+import type { Persona, HeadsFormData, Source } from '../../types/heads';
+import { DEFAULT_FORM_DATA, ExportFormat } from '../../types/heads';
+import {
+  generatePersonas,
+  generatePersonaImage,
+  saveGenerationToStorage,
+  loadGenerationFromStorage,
+  hasStoredGeneration,
+} from '../../services/headsService';
+import HeadsInputForm from './components/HeadsInputForm';
+import PersonaCard from './components/PersonaCard';
+import HeadsExportToolbar from './components/HeadsExportToolbar';
 
-export default function Dashboard() {
+export default function HeadsDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { brands, activeBrand } = useBrand();
 
-  const dashboardCards = [
-    {
-      title: 'Generate Patient Personas',
-      description: 'Create patient personas for your active brand',
-      icon: <PatientIcon sx={{ fontSize: 48, color: 'secondary.main' }} />,
-      action: () => navigate('/heads/generate/patient'),
-      buttonText: 'Generate Patients',
-      disabled: !activeBrand,
-    },
-    {
-      title: 'Generate HCP Personas',
-      description: 'Create healthcare professional personas for your active brand',
-      icon: <HCPIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
-      action: () => navigate('/heads/generate/hcp'),
-      buttonText: 'Generate HCPs',
-      disabled: !activeBrand,
-    },
-    {
-      title: 'View Generations',
-      description: 'Browse and download previously generated personas',
-      icon: <HistoryIcon sx={{ fontSize: 48, color: 'success.main' }} />,
-      action: () => navigate('/heads/generations'),
-      buttonText: 'View History',
-    },
-  ];
+  const [formData, setFormData] = useState<HeadsFormData>(DEFAULT_FORM_DATA);
+  const [currentView, setCurrentView] = useState<'input' | 'results'>('input');
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasSavedData, setHasSavedData] = useState(false);
+  const [generatingImageFor, setGeneratingImageFor] = useState<string | null>(null);
+
+  const geminiApiKey = user?.gemini_api_key || '';
+
+  useEffect(() => {
+    setHasSavedData(hasStoredGeneration());
+  }, []);
+
+  const handleGenerate = useCallback(async () => {
+    if (!geminiApiKey) {
+      setError('Please add your Gemini API key in Settings to generate personas.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setPersonas([]);
+    setSources([]);
+
+    try {
+      const result = await generatePersonas(formData, geminiApiKey);
+      setPersonas(result.personas);
+      setSources(result.sources);
+      setCurrentView('results');
+      saveGenerationToStorage(result.personas, result.sources, formData);
+      setHasSavedData(true);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [formData, geminiApiKey]);
+
+  const handleLoadRecent = () => {
+    const saved = loadGenerationFromStorage();
+    if (saved) {
+      setPersonas(saved.personas);
+      setSources(saved.sources);
+      setFormData(saved.formData);
+      setCurrentView('results');
+    }
+  };
+
+  const handleUpdatePersona = (updatedPersona: Persona) => {
+    setPersonas((prevPersonas) => {
+      const newPersonas = prevPersonas.map((p) =>
+        p.id === updatedPersona.id ? updatedPersona : p
+      );
+      saveGenerationToStorage(newPersonas, sources, formData);
+      return newPersonas;
+    });
+  };
+
+  const handleGenerateImage = async (persona: Persona, styleKeywords?: string) => {
+    if (!geminiApiKey) {
+      setError('Please add your Gemini API key in Settings to generate images.');
+      return;
+    }
+
+    setGeneratingImageFor(persona.id);
+    try {
+      const imageBase64 = await generatePersonaImage(persona, geminiApiKey, styleKeywords);
+      handleUpdatePersona({ ...persona, avatarBase64: imageBase64 });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate image.';
+      setError(errorMessage);
+    } finally {
+      setGeneratingImageFor(null);
+    }
+  };
+
+  const exportData = (data: Persona | Persona[], format: ExportFormat) => {
+    let content = '';
+    let filename = 'personas';
+    let mimeType = 'text/plain';
+
+    if (Array.isArray(data)) {
+      filename = `${formData.brand.replace(/\s+/g, '_')}_personas`;
+    } else {
+      filename = `${data.name.replace(/\s+/g, '_')}_persona`;
+    }
+
+    if (format === ExportFormat.JSON) {
+      content = JSON.stringify(data, null, 2);
+      mimeType = 'application/json';
+      filename += '.json';
+    } else if (format === ExportFormat.TXT) {
+      mimeType = 'text/plain';
+      filename += '.txt';
+      const list = Array.isArray(data) ? data : [data];
+      content = list
+        .map(
+          (p) => `
+----------------------------------------
+TITLE: ${p.generalizationTitle}
+NAME: ${p.name}
+AGE: ${p.age}
+OCCUPATION: ${p.occupation}
+LOCATION: ${p.location}
+WORKPLACE: ${p.workplace}
+TECH ABILITY: ${p.technologyAbility || 'N/A'}
+TECH COMFORT: ${p.technologyComfortability || 'N/A'}
+PROFILE: ${p.profile}
+
+GOALS:
+${p.goals.map((g) => `- ${g}`).join('\n')}
+
+FRUSTRATIONS:
+${p.frustrations.map((f) => `- ${f}`).join('\n')}
+
+BRAND VIEW: ${p.brandView}
+MARKETING STRATEGY: ${p.marketingStrategy}
+----------------------------------------
+        `
+        )
+        .join('\n');
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Welcome to Heads, {user?.full_name || user?.email}
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Generate professional healthcare personas for pharmaceutical brands
-        </Typography>
-      </Box>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Input View */}
+      {currentView === 'input' && (
+        <Box sx={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+          {/* Header */}
+          <Box sx={{ mb: 4, textAlign: 'center' }}>
+            <Typography variant="h4" fontWeight={700} gutterBottom>
+              Construct Your Ideal Personas
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto', mb: 3 }}>
+              Input your brand details and target demographics. We'll generate detailed,
+              actionable user personas to guide your marketing strategy.
+            </Typography>
 
-      {!activeBrand && brands.length > 0 && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Please select an active brand to generate personas.
-        </Alert>
-      )}
-
-      {brands.length === 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          You don't have any brands yet. Create a brand to get started!
-        </Alert>
-      )}
-
-      {activeBrand && (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          Active Brand: <strong>{activeBrand.brand_name}</strong>
-        </Alert>
-      )}
-
-      <Grid container spacing={3}>
-        {dashboardCards.map((card, index) => (
-          <Grid item xs={12} md={4} key={index}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flexGrow: 1, textAlign: 'center' }}>
-                <Box sx={{ mb: 2 }}>{card.icon}</Box>
-                <Typography variant="h5" component="h2" gutterBottom>
-                  {card.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {card.description}
-                </Typography>
-              </CardContent>
-              <CardActions sx={{ justifyContent: 'center', pb: 2 }}>
+            {!geminiApiKey && (
+              <Alert severity="warning" sx={{ maxWidth: 600, mx: 'auto', mb: 3 }}>
+                Please add your Gemini API key in{' '}
                 <Button
-                  variant="contained"
-                  onClick={card.action}
-                  disabled={card.disabled}
+                  size="small"
+                  onClick={() => navigate('/settings')}
+                  sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
                 >
-                  {card.buttonText}
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                  Settings
+                </Button>{' '}
+                to generate personas.
+              </Alert>
+            )}
 
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Quick Stats
-        </Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <Card>
-              <CardContent>
-                <Typography color="text.secondary" gutterBottom>
-                  Total Brands
-                </Typography>
-                <Typography variant="h4">{brands.length}</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card>
-              <CardContent>
-                <Typography color="text.secondary" gutterBottom>
-                  Active Brand
-                </Typography>
-                <Typography variant="h6">
-                  {activeBrand?.brand_name || 'None'}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Card>
-              <CardContent>
-                <Typography color="text.secondary" gutterBottom>
-                  Account Status
-                </Typography>
-                <Typography variant="h6">
-                  {user?.is_active ? 'Active' : 'Pending'}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Box>
+            {hasSavedData && (
+              <Button
+                variant="outlined"
+                startIcon={<HistoryIcon />}
+                onClick={handleLoadRecent}
+                sx={{ mb: 2 }}
+              >
+                View Most Recent Personas
+              </Button>
+            )}
+          </Box>
+
+          {/* Input Form */}
+          <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+            <HeadsInputForm
+              formData={formData}
+              setFormData={setFormData}
+              onSubmit={handleGenerate}
+              isLoading={loading}
+            />
+          </Box>
+
+          {/* Error */}
+          {error && (
+            <Alert severity="error" sx={{ maxWidth: 900, mx: 'auto', mt: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Link to results if available */}
+          {personas.length > 0 && (
+            <Box sx={{ textAlign: 'center', mt: 3 }}>
+              <Button variant="text" onClick={() => setCurrentView('results')}>
+                Return to current results
+              </Button>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      {/* Results View */}
+      {currentView === 'results' && (
+        <Box>
+          {/* Toolbar */}
+          <HeadsExportToolbar
+            personas={personas}
+            formData={formData}
+            onBack={() => setCurrentView('input')}
+            onExportJson={() => exportData(personas, ExportFormat.JSON)}
+            onExportText={() => exportData(personas, ExportFormat.TXT)}
+            onPrint={() => window.print()}
+          />
+
+          {/* Error */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Loading */}
+          {loading ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 10 }}>
+              <CircularProgress size={48} sx={{ mb: 2 }} />
+              <Typography color="text.secondary">Updating Personas...</Typography>
+            </Box>
+          ) : (
+            <>
+              {/* Persona Cards */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {personas.map((persona) => (
+                  <PersonaCard
+                    key={persona.id}
+                    persona={persona}
+                    onExport={exportData}
+                    onUpdate={handleUpdatePersona}
+                    onGenerateImage={handleGenerateImage}
+                    isGeneratingImage={generatingImageFor === persona.id}
+                  />
+                ))}
+              </Box>
+
+              {/* Sources */}
+              {sources.length > 0 && (
+                <Box
+                  sx={{
+                    mt: 4,
+                    p: 3,
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                  }}
+                  className="no-print"
+                >
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
+                    Sources & Citations
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {sources.map((source, idx) => (
+                      <Button
+                        key={idx}
+                        variant="outlined"
+                        size="small"
+                        href={source.uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ textTransform: 'none' }}
+                      >
+                        {source.title}
+                      </Button>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {/* Back to input */}
+              <Box sx={{ textAlign: 'center', mt: 4 }} className="no-print">
+                <Button variant="text" onClick={() => setCurrentView('input')}>
+                  Create New Personas
+                </Button>
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
     </Container>
   );
 }
