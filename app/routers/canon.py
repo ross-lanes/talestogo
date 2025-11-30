@@ -7,7 +7,7 @@ from typing import Optional
 import httpx
 import json
 
-from app.services.llm_service import _call_gemini_api, LLMConfigurationError, LLMAPIError
+from app.services.llm_service import _call_perplexity_api, LLMConfigurationError, LLMAPIError
 from app.auth import get_current_user
 
 router = APIRouter(prefix="/canon", tags=["canon"])
@@ -141,7 +141,7 @@ async def ask_question(
 ):
     """
     Answer a natural language question about FDA drug data using AI.
-    Fetches relevant data from OpenFDA and uses Gemini to synthesize an answer.
+    Fetches relevant data from OpenFDA and uses Perplexity to synthesize an answer.
     """
     question = request.question.strip()
 
@@ -203,8 +203,8 @@ INSTRUCTIONS:
 Provide a helpful, accurate answer:"""
 
     try:
-        # Call Gemini to generate the answer
-        answer = _call_gemini_api(prompt)
+        # Call Perplexity to generate the answer
+        answer = _call_perplexity_api(prompt)
 
         # Add default source if none were found
         if not sources:
