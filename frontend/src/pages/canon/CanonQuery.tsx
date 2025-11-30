@@ -77,9 +77,9 @@ const CanonQuery: React.FC = () => {
 
   const exampleQuestions = [
     'What are the most common side effects of Galafold?',
-    'Compare the warnings for Zircaix and Posluma',
+    'Compare the warnings for Posluma and Pylarify',
     'Does Salonpas have any contraindications?',
-    'What drugs interact with Galafold?',
+    'What drugs interact with Zircaix?',
   ];
 
   return (

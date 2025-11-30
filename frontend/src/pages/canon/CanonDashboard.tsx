@@ -22,9 +22,9 @@ const CanonDashboard: React.FC = () => {
 
   const exampleQueries = [
     'What are the most common side effects of Galafold?',
-    'Compare warnings for Zircaix vs Posluma',
+    'Compare warnings for Posluma vs Illuccix',
     'Has Salonpas been recalled recently?',
-    'What does the FDA label say about Galafold?',
+    'What does the FDA label say about Zircaix?',
   ];
 
   return (
