@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 // Product types in the Solstice AI Suite
-export type ProductType = 'tales' | 'heads' | 'vision' | 'pulse' | 'voice' | 'guardian';
+export type ProductType = 'tales' | 'heads' | 'canon' | 'vision' | 'pulse' | 'voice' | 'guardian';
 
 interface ProductInfo {
   id: ProductType;
@@ -30,6 +30,14 @@ const PRODUCTS: ProductInfo[] = [
     logoPath: '/heads_white.png',
     enabled: false, // Coming soon - still in development
     requiredTenants: ['Solstice HC'], // Only Solstice HC can access
+  },
+  {
+    id: 'canon',
+    name: 'Canon',
+    description: 'FDA Drug Data Research',
+    logoPath: '/canon_white.png',
+    enabled: true,
+    // No requiredTenants = available to all tenants
   },
   {
     id: 'vision',

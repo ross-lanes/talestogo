@@ -40,6 +40,9 @@ const ProductSwitcher: React.FC = () => {
       case 'heads':
         navigate('/heads');
         break;
+      case 'canon':
+        navigate('/canon');
+        break;
       case 'tales':
         navigate('/');
         break;

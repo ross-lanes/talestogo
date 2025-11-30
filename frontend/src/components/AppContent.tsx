@@ -32,6 +32,15 @@ import GeneratePersonas from '../pages/heads/GeneratePersonas';
 import GeneratePatientPersonas from '../pages/heads/GeneratePatientPersonas';
 import GenerateHCPPersonas from '../pages/heads/GenerateHCPPersonas';
 import Generations from '../pages/heads/Generations';
+// Canon - FDA Drug Data Research pages
+import {
+  CanonDashboard,
+  CanonQuery,
+  CanonAdverseEvents,
+  CanonCompare,
+  CanonDocuments,
+  CanonSavedSearches,
+} from '../pages/canon';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
@@ -348,6 +357,68 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <Generations />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Canon - FDA Drug Data Research Routes */}
+          <Route
+            path="/canon"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/query"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonQuery />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/adverse-events"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonAdverseEvents />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/compare"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonCompare />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/documents"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonDocuments />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/saved"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonSavedSearches />
                 </Layout>
               </ProtectedRoute>
             }
