@@ -52,8 +52,9 @@ export default function Dashboard() {
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
 
-  // Responsive chart heights
-  const sentimentChartHeight = useResponsiveValue(150, 240, 240);
+  // Responsive chart heights and sizes
+  const sentimentChartHeight = useResponsiveValue(200, 250, 300);
+  const sentimentOuterRadius = useResponsiveValue(60, 80, 100);
   const positioningChartHeight = useResponsiveValue(220, 240, 240);
 
   // Reset selectedBatchId when brand changes
@@ -482,30 +483,13 @@ export default function Dashboard() {
       {/* Charts Section */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper id="dashboard-sentiment-chart" sx={{ p: { xs: 2, sm: 3 }, height: { xs: 280, sm: 300 }, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+          <Paper id="dashboard-sentiment-chart" sx={{ p: { xs: 2, sm: 3 }, height: { xs: 320, sm: 360, md: 400 }, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
             <Typography variant="h6" gutterBottom>
               Sentiment Breakdown
             </Typography>
             {sentimentData && sentimentData.total > 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', height: { xs: 220, sm: 240 }, gap: { xs: 1, sm: 0 } }}>
-                {/* Legend on the left/top */}
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'row', sm: 'column' }, flexWrap: { xs: 'wrap', sm: 'nowrap' }, gap: 1, mr: { xs: 0, sm: 2 }, mb: { xs: 1, sm: 0 }, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
-                  {[
-                    { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, color: '#116C29' },
-                    { name: 'Positive', value: sentimentData.positive_pct || 0, color: '#58A13B' },
-                    { name: 'Neutral', value: sentimentData.neutral_pct || 0, color: '#9FA8DA' },
-                    { name: 'Mixed', value: sentimentData.mixed_pct || 0, color: '#75C9C8' },
-                    { name: 'Negative', value: sentimentData.negative_pct || 0, color: '#E04320' },
-                  ].filter(item => item.value > 0).map((item) => (
-                    <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Box sx={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: '2px' }} />
-                      <Typography variant="body2" sx={{ fontSize: { xs: '11px', sm: '13px' }, whiteSpace: 'nowrap' }}>
-                        {item.name}: {Math.round(item.value)}%
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-                {/* Pie chart on the right/bottom */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: { xs: 260, sm: 300, md: 340 }, gap: 2 }}>
+                {/* Pie chart on top - bigger on larger screens */}
                 <ChartContainer width="100%" height={sentimentChartHeight} showLogo={false}>
                   <PieChart>
                     <Pie
@@ -518,13 +502,30 @@ export default function Dashboard() {
                       ].filter(item => item.value > 0)}
                       cx="50%"
                       cy="50%"
-                      outerRadius={70}
+                      outerRadius={sentimentOuterRadius}
                       dataKey="value"
                     >
                     </Pie>
                     <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
                   </PieChart>
                 </ChartContainer>
+                {/* Legend below the chart */}
+                <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 1.5, justifyContent: 'center' }}>
+                  {[
+                    { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, color: '#116C29' },
+                    { name: 'Positive', value: sentimentData.positive_pct || 0, color: '#58A13B' },
+                    { name: 'Neutral', value: sentimentData.neutral_pct || 0, color: '#9FA8DA' },
+                    { name: 'Mixed', value: sentimentData.mixed_pct || 0, color: '#75C9C8' },
+                    { name: 'Negative', value: sentimentData.negative_pct || 0, color: '#E04320' },
+                  ].filter(item => item.value > 0).map((item) => (
+                    <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box sx={{ width: 12, height: 12, backgroundColor: item.color, borderRadius: '2px' }} />
+                      <Typography variant="body2" sx={{ fontSize: { xs: '11px', sm: '12px', md: '13px' }, whiteSpace: 'nowrap' }}>
+                        {item.name}: {Math.round(item.value)}%
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
               </Box>
             ) : (
               <Box sx={{ height: { xs: 220, sm: 240 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
