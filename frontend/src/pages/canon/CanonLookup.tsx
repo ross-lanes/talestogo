@@ -193,9 +193,9 @@ const CanonLookup: React.FC = () => {
 
   const exampleQueries = [
     'Galafold',
-    'Zircaix',
     'Posluma',
     'Salonpas',
+    'Ozempic',
   ];
 
   return (

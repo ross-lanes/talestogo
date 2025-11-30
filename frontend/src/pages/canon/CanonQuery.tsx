@@ -79,7 +79,7 @@ const CanonQuery: React.FC = () => {
     'What are the most common side effects of Galafold?',
     'Compare the warnings for Posluma and Pylarify',
     'Does Salonpas have any contraindications?',
-    'What drugs interact with Zircaix?',
+    'What drugs interact with Ozempic?',
   ];
 
   return (

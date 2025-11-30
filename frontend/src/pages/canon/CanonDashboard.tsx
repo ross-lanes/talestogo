@@ -24,7 +24,7 @@ const CanonDashboard: React.FC = () => {
     'What are the most common side effects of Galafold?',
     'Compare warnings for Posluma vs Illuccix',
     'Has Salonpas been recalled recently?',
-    'What does the FDA label say about Zircaix?',
+    'What does the FDA label say about Ozempic?',
   ];
 
   return (
