@@ -25,7 +25,7 @@ import {
   Info as InfoIcon,
   Lightbulb as LightbulbIcon,
 } from '@mui/icons-material';
-import api from '../../api/client';
+import api from '../../services/api';
 
 interface QuestionResponse {
   answer: string;
