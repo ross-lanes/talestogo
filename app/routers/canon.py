@@ -45,9 +45,26 @@ class DocumentCheckResponse(BaseModel):
     fda_set_id: Optional[str]
     dailymed_url: Optional[str]
     document_text_preview: str
+    document_full_text: str
     issues: List[DocumentIssue]
     summary: str
+    reading_level: str
+    reading_level_description: str
     disclaimer: str
+
+
+class AdjustDocumentRequest(BaseModel):
+    document_text: str
+    drug_name: str
+    target_reading_level: Optional[str] = None
+    target_tone: Optional[str] = None
+
+
+class AdjustDocumentResponse(BaseModel):
+    adjusted_text: str
+    reading_level: str
+    tone: str
+    changes_summary: str
 
 
 async def fetch_openfda_data(endpoint: str, params: dict) -> dict:
@@ -404,7 +421,7 @@ async def check_document(
     doc_text_for_prompt = document_text[:8000] if len(document_text) > 8000 else document_text
 
     # Build the analysis prompt
-    prompt = f"""You are Canon, an expert medical/regulatory document reviewer. Your task is to check a document's claims about a pharmaceutical drug against official FDA label data.
+    prompt = f"""You are Canon, an expert medical/regulatory document reviewer. Your task is to check a document's claims about a pharmaceutical drug against official FDA label data, and analyze its reading level.
 
 DRUG: {drug_name}
 FDA LABEL EFFECTIVE DATE: {fda_label.get('formatted_date', 'Unknown')}
@@ -421,6 +438,7 @@ Analyze the document for:
 2. **Outdated Information**: Information that may have changed based on the FDA label date
 3. **Missing Information**: Critical safety information (boxed warnings, contraindications) that should be included
 4. **Off-Label Claims**: Statements about uses not approved in the indications section
+5. **Reading Level**: Assess the reading comprehension level of the document
 
 For each issue found, provide:
 - Category: 'accuracy', 'outdated', 'missing', or 'warning'
@@ -428,6 +446,13 @@ For each issue found, provide:
 - The exact text excerpt from the document (keep brief, max 100 characters)
 - Description of the issue
 - What the FDA label actually says
+
+For reading level, use one of these categories:
+- "5th Grade" - Very simple language, short sentences, basic vocabulary
+- "8th Grade" - Moderate complexity, suitable for general public
+- "High School" - More complex sentences, some technical terms explained
+- "College" - Academic language, technical terminology, complex concepts
+- "Professional" - Medical/scientific terminology, assumes healthcare background
 
 Respond with valid JSON in this exact format:
 {{
@@ -440,7 +465,9 @@ Respond with valid JSON in this exact format:
             "fda_reference": "what the FDA label says"
         }}
     ],
-    "summary": "Overall assessment of the document's accuracy (2-3 sentences)"
+    "summary": "Overall assessment of the document's accuracy (2-3 sentences)",
+    "reading_level": "8th Grade",
+    "reading_level_description": "Brief explanation of why this reading level was determined (1 sentence)"
 }}
 
 If no issues are found, return an empty issues array with a positive summary.
@@ -474,6 +501,8 @@ Important: Respond ONLY with valid JSON, no other text."""
             ))
 
         summary = analysis.get("summary", "Analysis complete.")
+        reading_level = analysis.get("reading_level", "Unknown")
+        reading_level_description = analysis.get("reading_level_description", "Reading level could not be determined.")
 
         return DocumentCheckResponse(
             drug_name=fda_label["brand_name"],
@@ -481,8 +510,11 @@ Important: Respond ONLY with valid JSON, no other text."""
             fda_set_id=fda_label.get("set_id"),
             dailymed_url=dailymed_url,
             document_text_preview=document_text[:500] + ("..." if len(document_text) > 500 else ""),
+            document_full_text=document_text,
             issues=issues,
             summary=summary,
+            reading_level=reading_level,
+            reading_level_description=reading_level_description,
             disclaimer="This analysis is based on FDA label data from openFDA. It is intended as a reference tool only and should not replace professional medical/legal/regulatory review. Always verify findings against the official FDA label."
         )
 
@@ -508,4 +540,139 @@ Important: Respond ONLY with valid JSON, no other text."""
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while checking the document: {str(e)}"
+        )
+
+
+@router.post("/adjust-document", response_model=AdjustDocumentResponse)
+async def adjust_document(
+    request: AdjustDocumentRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Adjust a document's reading level and/or tone while preserving FDA accuracy.
+    """
+    document_text = request.document_text.strip()
+    drug_name = request.drug_name.strip()
+
+    if not document_text:
+        raise HTTPException(status_code=400, detail="Document text is required")
+
+    if not drug_name:
+        raise HTTPException(status_code=400, detail="Drug name is required")
+
+    if not request.target_reading_level and not request.target_tone:
+        raise HTTPException(status_code=400, detail="Either target reading level or target tone must be specified")
+
+    # Define valid options
+    valid_reading_levels = ["5th Grade", "8th Grade", "High School", "College", "Professional"]
+    valid_tones = ["Professional", "Friendly", "Empathetic", "Direct", "Educational", "Reassuring"]
+
+    if request.target_reading_level and request.target_reading_level not in valid_reading_levels:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid reading level. Must be one of: {', '.join(valid_reading_levels)}"
+        )
+
+    if request.target_tone and request.target_tone not in valid_tones:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid tone. Must be one of: {', '.join(valid_tones)}"
+        )
+
+    # Truncate document if too long
+    doc_text_for_prompt = document_text[:10000] if len(document_text) > 10000 else document_text
+
+    # Build adjustment instructions
+    adjustments = []
+    if request.target_reading_level:
+        reading_level_desc = {
+            "5th Grade": "Use very simple language, short sentences (10-15 words), basic vocabulary. Avoid medical jargon entirely. Explain any necessary terms in simple words.",
+            "8th Grade": "Use moderate complexity, clear sentences, explain technical terms when used. Suitable for the general public.",
+            "High School": "Use more complex sentences, some technical terms with brief explanations. Assume basic health literacy.",
+            "College": "Use academic language, technical terminology with context. Assume good health literacy.",
+            "Professional": "Use medical/scientific terminology appropriate for healthcare professionals. Assume clinical background."
+        }
+        adjustments.append(f"Adjust to {request.target_reading_level} reading level: {reading_level_desc.get(request.target_reading_level, '')}")
+
+    if request.target_tone:
+        tone_desc = {
+            "Professional": "Formal, objective, clinical language. Focus on facts.",
+            "Friendly": "Warm, approachable, conversational. Use 'you' and 'your'.",
+            "Empathetic": "Understanding, supportive, acknowledging concerns and feelings.",
+            "Direct": "Clear, concise, to the point. No unnecessary words.",
+            "Educational": "Informative, explanatory, teaching-oriented. Include context and background.",
+            "Reassuring": "Calming, positive where appropriate, addresses common concerns."
+        }
+        adjustments.append(f"Adjust tone to {request.target_tone}: {tone_desc.get(request.target_tone, '')}")
+
+    prompt = f"""You are Canon, an expert medical document editor. Your task is to adjust a pharmaceutical document while preserving all FDA-accurate information.
+
+DRUG: {drug_name}
+
+=== ORIGINAL DOCUMENT ===
+{doc_text_for_prompt}
+
+=== ADJUSTMENTS REQUIRED ===
+{chr(10).join(adjustments)}
+
+=== CRITICAL RULES ===
+1. PRESERVE all medical facts, warnings, and FDA-required information
+2. Do NOT add any new medical claims
+3. Do NOT remove any safety information
+4. Maintain the same overall structure and content
+5. Only adjust the language style, complexity, and tone as requested
+
+Respond with valid JSON in this exact format:
+{{
+    "adjusted_text": "The full adjusted document text here",
+    "reading_level": "{request.target_reading_level or 'unchanged'}",
+    "tone": "{request.target_tone or 'unchanged'}",
+    "changes_summary": "Brief summary of what changes were made (1-2 sentences)"
+}}
+
+Important: Respond ONLY with valid JSON, no other text."""
+
+    try:
+        response_text = _call_perplexity_api(prompt)
+
+        # Clean the response
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        result = json.loads(response_text)
+
+        return AdjustDocumentResponse(
+            adjusted_text=result.get("adjusted_text", document_text),
+            reading_level=result.get("reading_level", request.target_reading_level or "unchanged"),
+            tone=result.get("tone", request.target_tone or "unchanged"),
+            changes_summary=result.get("changes_summary", "Document adjusted as requested.")
+        )
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse AI response as JSON: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to adjust document. Please try again."
+        )
+    except LLMConfigurationError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service is not configured. Please contact the administrator."
+        )
+    except LLMAPIError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"AI service temporarily unavailable: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error adjusting document: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while adjusting the document: {str(e)}"
         )

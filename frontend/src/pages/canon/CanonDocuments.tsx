@@ -18,6 +18,11 @@ import {
   ListItemText,
   Collapse,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid2 as Grid,
 } from '@mui/material';
 import {
   Description as DescriptionIcon,
@@ -30,6 +35,9 @@ import {
   ExpandLess as ExpandLessIcon,
   OpenInNew as OpenInNewIcon,
   CalendarToday as CalendarIcon,
+  School as SchoolIcon,
+  Tune as TuneIcon,
+  AutoFixHigh as AutoFixIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 import { formatMarkdown } from './utils/formatMarkdown';
@@ -48,18 +56,50 @@ interface DocumentCheckResponse {
   fda_set_id: string | null;
   dailymed_url: string | null;
   document_text_preview: string;
+  document_full_text: string;
   issues: DocumentIssue[];
   summary: string;
+  reading_level: string;
+  reading_level_description: string;
   disclaimer: string;
 }
+
+interface AdjustDocumentResponse {
+  adjusted_text: string;
+  reading_level: string;
+  tone: string;
+  changes_summary: string;
+}
+
+const READING_LEVELS = [
+  { value: '5th Grade', label: '5th Grade', description: 'Very simple language, short sentences' },
+  { value: '8th Grade', label: '8th Grade', description: 'Moderate complexity, general public' },
+  { value: 'High School', label: 'High School', description: 'Some technical terms explained' },
+  { value: 'College', label: 'College', description: 'Academic language, technical terms' },
+  { value: 'Professional', label: 'Professional', description: 'Medical/scientific terminology' },
+];
+
+const TONES = [
+  { value: 'Professional', label: 'Professional', description: 'Formal, objective, clinical' },
+  { value: 'Friendly', label: 'Friendly', description: 'Warm, approachable, conversational' },
+  { value: 'Empathetic', label: 'Empathetic', description: 'Understanding, supportive' },
+  { value: 'Direct', label: 'Direct', description: 'Clear, concise, to the point' },
+  { value: 'Educational', label: 'Educational', description: 'Informative, explanatory' },
+  { value: 'Reassuring', label: 'Reassuring', description: 'Calming, addresses concerns' },
+];
 
 const CanonDocuments: React.FC = () => {
   const [drugName, setDrugName] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<DocumentCheckResponse | null>(null);
+  const [adjustedResponse, setAdjustedResponse] = useState<AdjustDocumentResponse | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showAdjusted, setShowAdjusted] = useState(false);
+  const [targetReadingLevel, setTargetReadingLevel] = useState('');
+  const [targetTone, setTargetTone] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,6 +111,8 @@ const CanonDocuments: React.FC = () => {
       }
       setFile(selectedFile);
       setError(null);
+      setResponse(null);
+      setAdjustedResponse(null);
     }
   };
 
@@ -84,6 +126,8 @@ const CanonDocuments: React.FC = () => {
       }
       setFile(droppedFile);
       setError(null);
+      setResponse(null);
+      setAdjustedResponse(null);
     }
   };
 
@@ -104,6 +148,7 @@ const CanonDocuments: React.FC = () => {
     setLoading(true);
     setError(null);
     setResponse(null);
+    setAdjustedResponse(null);
 
     try {
       const formData = new FormData();
@@ -129,6 +174,39 @@ const CanonDocuments: React.FC = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAdjust = async () => {
+    if (!response) return;
+    if (!targetReadingLevel && !targetTone) {
+      setError('Please select a reading level or tone to adjust to');
+      return;
+    }
+
+    setAdjusting(true);
+    setError(null);
+
+    try {
+      const result = await api.post<AdjustDocumentResponse>('/canon/adjust-document', {
+        document_text: response.document_full_text,
+        drug_name: response.drug_name,
+        target_reading_level: targetReadingLevel || null,
+        target_tone: targetTone || null,
+      });
+      setAdjustedResponse(result.data);
+      setShowAdjusted(true);
+    } catch (err: any) {
+      console.error('Document adjust error:', err);
+      if (err.response?.status === 503) {
+        setError('The AI service is temporarily unavailable. Please try again later.');
+      } else if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError('An error occurred while adjusting the document. Please try again.');
+      }
+    } finally {
+      setAdjusting(false);
     }
   };
 
@@ -170,6 +248,23 @@ const CanonDocuments: React.FC = () => {
         return 'Safety Warning';
       default:
         return category;
+    }
+  };
+
+  const getReadingLevelColor = (level: string) => {
+    switch (level) {
+      case '5th Grade':
+        return 'success';
+      case '8th Grade':
+        return 'info';
+      case 'High School':
+        return 'primary';
+      case 'College':
+        return 'warning';
+      case 'Professional':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
@@ -302,7 +397,7 @@ const CanonDocuments: React.FC = () => {
 
       {/* Results */}
       {response && (
-        <Card>
+        <Card sx={{ mb: 4 }}>
           <CardContent>
             {/* FDA Label Info Header */}
             <Box sx={{ mb: 3 }}>
@@ -332,6 +427,148 @@ const CanonDocuments: React.FC = () => {
                 )}
               </Box>
             </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Reading Level Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                <SchoolIcon sx={{ mr: 1 }} />
+                Reading Comprehension Level
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                <Chip
+                  label={response.reading_level}
+                  color={getReadingLevelColor(response.reading_level) as any}
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {response.reading_level_description}
+              </Typography>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Adjust Reading Level & Tone Section */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                <TuneIcon sx={{ mr: 1 }} />
+                Adjust Document
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Adjust the reading level or tone while preserving FDA-accurate information.
+              </Typography>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Target Reading Level</InputLabel>
+                    <Select
+                      value={targetReadingLevel}
+                      label="Target Reading Level"
+                      onChange={(e) => setTargetReadingLevel(e.target.value)}
+                    >
+                      <MenuItem value="">
+                        <em>No change</em>
+                      </MenuItem>
+                      {READING_LEVELS.map((level) => (
+                        <MenuItem key={level.value} value={level.value}>
+                          <Box>
+                            <Typography variant="body2">{level.label}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {level.description}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Target Tone</InputLabel>
+                    <Select
+                      value={targetTone}
+                      label="Target Tone"
+                      onChange={(e) => setTargetTone(e.target.value)}
+                    >
+                      <MenuItem value="">
+                        <em>No change</em>
+                      </MenuItem>
+                      {TONES.map((tone) => (
+                        <MenuItem key={tone.value} value={tone.value}>
+                          <Box>
+                            <Typography variant="body2">{tone.label}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {tone.description}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+              <Button
+                variant="outlined"
+                onClick={handleAdjust}
+                disabled={adjusting || (!targetReadingLevel && !targetTone)}
+                startIcon={adjusting ? <CircularProgress size={20} /> : <AutoFixIcon />}
+              >
+                {adjusting ? 'Adjusting...' : 'Adjust Document'}
+              </Button>
+            </Box>
+
+            {/* Adjusted Document Result */}
+            {adjustedResponse && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <AutoFixIcon sx={{ mr: 1, color: 'success.main' }} />
+                    Adjusted Document
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    {adjustedResponse.reading_level !== 'unchanged' && (
+                      <Chip
+                        label={`Reading Level: ${adjustedResponse.reading_level}`}
+                        color="success"
+                        size="small"
+                      />
+                    )}
+                    {adjustedResponse.tone !== 'unchanged' && (
+                      <Chip
+                        label={`Tone: ${adjustedResponse.tone}`}
+                        color="success"
+                        size="small"
+                      />
+                    )}
+                  </Box>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      {adjustedResponse.changes_summary}
+                    </Typography>
+                  </Alert>
+                  <Button
+                    variant="text"
+                    onClick={() => setShowAdjusted(!showAdjusted)}
+                    endIcon={showAdjusted ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  >
+                    {showAdjusted ? 'Hide' : 'Show'} Adjusted Text
+                  </Button>
+                  <Collapse in={showAdjusted}>
+                    <Paper sx={{ p: 2, mt: 1, bgcolor: 'success.50', maxHeight: 400, overflow: 'auto' }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ whiteSpace: 'pre-wrap' }}
+                      >
+                        {adjustedResponse.adjusted_text}
+                      </Typography>
+                    </Paper>
+                  </Collapse>
+                </Box>
+              </>
+            )}
 
             <Divider sx={{ my: 2 }} />
 
@@ -425,7 +662,7 @@ const CanonDocuments: React.FC = () => {
                 onClick={() => setShowPreview(!showPreview)}
                 endIcon={showPreview ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               >
-                {showPreview ? 'Hide' : 'Show'} Document Preview
+                {showPreview ? 'Hide' : 'Show'} Original Document Preview
               </Button>
               <Collapse in={showPreview}>
                 <Paper sx={{ p: 2, mt: 1, bgcolor: 'grey.50', maxHeight: 300, overflow: 'auto' }}>
@@ -472,6 +709,9 @@ const CanonDocuments: React.FC = () => {
             </Typography>
             <Typography component="li" variant="body2" color="text.secondary">
               <strong>Review issues</strong> with FDA references and severity levels
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              <strong>Adjust reading level and tone</strong> while preserving accuracy
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
