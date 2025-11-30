@@ -20,6 +20,7 @@ import { useTaskStatus } from '../contexts/TaskStatusContext';
 import BatchSelector from '../components/BatchSelector';
 import { captureAndUploadCharts } from '../utils/chartCapture';
 import ChartContainer from '../components/ChartContainer';
+import { useResponsiveValue } from '../utils/responsive';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -50,6 +51,10 @@ export default function Dashboard() {
   const [dismissedTaskId, setDismissedTaskId] = useState<number | null>(null);
 
   const brandName = activeBrand?.brand_name || 'Your Brand';
+
+  // Responsive chart heights
+  const sentimentChartHeight = useResponsiveValue(150, 240, 240);
+  const positioningChartHeight = useResponsiveValue(220, 240, 240);
 
   // Reset selectedBatchId when brand changes
   useEffect(() => {
@@ -501,27 +506,25 @@ export default function Dashboard() {
                   ))}
                 </Box>
                 {/* Pie chart on the right/bottom */}
-                <Box sx={{ height: { xs: 150, sm: 240 } }}>
-                  <ChartContainer width="100%" height={240} showLogo={false}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#116C29' },
-                          { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#58A13B' },
-                          { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#9FA8DA' },
-                          { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
-                          { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#E04320' },
-                        ].filter(item => item.value > 0)}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={70}
-                        dataKey="value"
-                      >
-                      </Pie>
-                      <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
-                    </PieChart>
-                  </ChartContainer>
-                </Box>
+                <ChartContainer width="100%" height={sentimentChartHeight} showLogo={false}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Very Positive', value: sentimentData.very_positive_pct || 0, fill: '#116C29' },
+                        { name: 'Positive', value: sentimentData.positive_pct || 0, fill: '#58A13B' },
+                        { name: 'Neutral', value: sentimentData.neutral_pct || 0, fill: '#9FA8DA' },
+                        { name: 'Mixed', value: sentimentData.mixed_pct || 0, fill: '#75C9C8' },
+                        { name: 'Negative', value: sentimentData.negative_pct || 0, fill: '#E04320' },
+                      ].filter(item => item.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      dataKey="value"
+                    >
+                    </Pie>
+                    <Tooltip formatter={(value) => `${Math.round(Number(value))}%`} />
+                  </PieChart>
+                </ChartContainer>
               </Box>
             ) : (
               <Box sx={{ height: { xs: 220, sm: 240 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -563,8 +566,7 @@ export default function Dashboard() {
                   }
                 }
                 return (
-              <Box sx={{ height: { xs: 220, sm: 240 } }}>
-                <ChartContainer width="100%" height={240}>
+                <ChartContainer width="100%" height={positioningChartHeight}>
                   <BarChart
                     data={[
                       { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
@@ -596,7 +598,6 @@ export default function Dashboard() {
                     </Bar>
                   </BarChart>
                 </ChartContainer>
-              </Box>
                 );
               })()
             ) : (
