@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // Product types in the Solstice AI Suite
 export type ProductType = 'tales' | 'heads' | 'canon' | 'vision' | 'pulse' | 'voice' | 'guardian';
@@ -145,6 +146,29 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
       setCurrentProduct(availableProducts[0]);
     }
   }, [availableProducts, currentProduct]);
+
+  // Auto-detect product based on URL path
+  const location = useLocation();
+  useEffect(() => {
+    const path = location.pathname;
+    let detectedProductId: ProductType | null = null;
+
+    if (path.startsWith('/canon')) {
+      detectedProductId = 'canon';
+    } else if (path.startsWith('/heads')) {
+      detectedProductId = 'heads';
+    } else if (path === '/' || path.startsWith('/manage') || path.startsWith('/analytics') || path.startsWith('/collect') || path.startsWith('/reports') || path.startsWith('/settings')) {
+      detectedProductId = 'tales';
+    }
+
+    // Switch product if detected and different from current
+    if (detectedProductId && detectedProductId !== currentProduct.id) {
+      const product = availableProducts.find(p => p.id === detectedProductId);
+      if (product) {
+        setCurrentProduct(product);
+      }
+    }
+  }, [location.pathname, availableProducts, currentProduct.id]);
 
   const switchProduct = (productId: ProductType) => {
     const product = availableProducts.find(p => p.id === productId);
