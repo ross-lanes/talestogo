@@ -538,9 +538,21 @@ export default function Dashboard() {
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <Paper id="dashboard-sentiment-chart" sx={{ p: { xs: 2, sm: 3 }, height: { xs: 320, sm: 360, md: 400 }, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <Typography variant="h6" gutterBottom>
-              Sentiment Breakdown
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant="h6">
+                Sentiment Breakdown
+              </Typography>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="body2" color="textSecondary">
+                  {Math.round(metrics.positive_sentiment ?? 0)}% Positive
+                </Typography>
+                {metrics.change_sentiment !== 0 && (
+                  <Typography variant="caption" color={metrics.change_sentiment > 0 ? 'success.main' : 'error.main'}>
+                    {metrics.change_sentiment > 0 ? '↑' : '↓'} {metrics.change_sentiment > 0 ? '+' : ''}{Math.round(metrics.change_sentiment)}% vs last period
+                  </Typography>
+                )}
+              </Box>
+            </Box>
             {sentimentData && sentimentData.total > 0 ? (
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', height: { xs: 260, sm: 300, md: 340 }, gap: { xs: 1, sm: 2 } }}>
                 {/* Legend on the left/top */}
