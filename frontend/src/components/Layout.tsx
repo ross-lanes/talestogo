@@ -43,6 +43,7 @@ import {
   Schedule as ScheduleIcon,
   HelpOutline as HelpIcon,
   Business as BusinessIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -113,6 +114,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleSchedulerDashboard = () => {
     navigate('/settings/scheduler');
+    handleUserMenuClose();
+  };
+
+  const handleDataBatches = () => {
+    navigate('/settings/batches');
     handleUserMenuClose();
   };
 
@@ -475,6 +481,12 @@ export default function Layout({ children }: LayoutProps) {
                   <ScheduleIcon fontSize="small" />
                 </ListItemIcon>
                 <ListItemText>Scheduler Dashboard</ListItemText>
+              </MenuItem>
+              <MenuItem onClick={handleDataBatches}>
+                <ListItemIcon>
+                  <StorageIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Data Batches</ListItemText>
               </MenuItem>
             </>
           )}

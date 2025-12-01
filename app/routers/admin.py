@@ -668,27 +668,46 @@ def update_batch_date(
 
 @router.get("/batches")
 def list_all_batches(
-    limit: int = 50,
+    limit: int = 100,
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(get_current_admin_user)
 ):
-    """List all collection batches across all users."""
+    """List all collection batches across all users with response counts and brand info."""
     batches = db.query(models.CollectionBatch).order_by(
         models.CollectionBatch.started_at.desc()
     ).limit(limit).all()
 
-    return [
-        {
+    result = []
+    for b in batches:
+        # Get response count for this batch
+        response_count = db.query(func.count(models.Response.id)).filter(
+            models.Response.batch_id == b.id
+        ).scalar() or 0
+
+        # Get brand info
+        brand = db.query(models.BrandInfo).filter(
+            models.BrandInfo.id == b.brand_id
+        ).first()
+
+        # Get user info
+        user = db.query(models.User).filter(
+            models.User.id == b.user_id
+        ).first()
+
+        result.append({
             "id": b.id,
             "batch_name": b.batch_name,
             "user_id": b.user_id,
+            "user_email": user.email if user else None,
             "brand_id": b.brand_id,
+            "brand_name": brand.brand_name if brand else None,
             "started_at": b.started_at.isoformat() if b.started_at else None,
             "completed_at": b.completed_at.isoformat() if b.completed_at else None,
-            "status": b.status
-        }
-        for b in batches
-    ]
+            "status": b.status,
+            "response_count": response_count
+        })
+
+    return result
 
 
 # === Debug Endpoints ===
