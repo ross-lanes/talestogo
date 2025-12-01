@@ -689,3 +689,54 @@ def list_all_batches(
         }
         for b in batches
     ]
+
+
+# === Cache Management ===
+
+@router.post("/cache/clear")
+def clear_cache(
+    user_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Clear Redis cache for analytics data.
+
+    Args:
+        user_id: Optional - clear cache for specific user only
+        brand_id: Optional - clear cache for specific brand only (requires user_id)
+
+    If no parameters provided, clears ALL analytics cache.
+    """
+    from ..services.redis_cache import get_redis_cache
+
+    cache = get_redis_cache()
+
+    if not cache.is_available:
+        return {
+            "message": "Redis cache is not available",
+            "cleared": 0
+        }
+
+    if user_id and brand_id:
+        # Clear cache for specific user/brand
+        count = cache.invalidate_user(user_id, brand_id)
+        return {
+            "message": f"Cache cleared for user {user_id}, brand {brand_id}",
+            "cleared": count
+        }
+    elif user_id:
+        # Clear cache for specific user (all brands)
+        count = cache.invalidate_user(user_id)
+        return {
+            "message": f"Cache cleared for user {user_id}",
+            "cleared": count
+        }
+    else:
+        # Clear ALL analytics cache
+        count = cache.invalidate_pattern("*")
+        return {
+            "message": "All analytics cache cleared",
+            "cleared": count
+        }
