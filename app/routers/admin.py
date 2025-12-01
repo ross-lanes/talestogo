@@ -607,3 +607,85 @@ def get_active_users(
         "minutes_threshold": minutes,
         "current_admin_id": current_admin.id
     }
+
+
+# === Batch Management ===
+
+@router.put("/batches/{batch_id}/date")
+def update_batch_date(
+    batch_id: int,
+    new_date: str,  # ISO format: "2025-11-01T23:25:00"
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Update the started_at date for a collection batch.
+
+    Args:
+        batch_id: The batch ID to update
+        new_date: New date in ISO format (e.g., "2025-11-01T23:25:00")
+    """
+    batch = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.id == batch_id
+    ).first()
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    try:
+        new_datetime = datetime.fromisoformat(new_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format: YYYY-MM-DDTHH:MM:SS")
+
+    old_date = batch.started_at
+
+    # Update batch
+    batch.started_at = new_datetime
+
+    # Also shift completed_at if it exists
+    if batch.completed_at and old_date:
+        delta = new_datetime - old_date
+        batch.completed_at = batch.completed_at + delta
+
+    # Update BatchAnalytics collection_date if exists
+    batch_analytics = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.batch_id == batch_id
+    ).first()
+
+    if batch_analytics:
+        batch_analytics.collection_date = new_datetime
+
+    db.commit()
+
+    return {
+        "message": "Batch date updated successfully",
+        "batch_id": batch_id,
+        "old_date": old_date.isoformat() if old_date else None,
+        "new_date": new_datetime.isoformat(),
+        "batch_name": batch.batch_name
+    }
+
+
+@router.get("/batches")
+def list_all_batches(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """List all collection batches across all users."""
+    batches = db.query(models.CollectionBatch).order_by(
+        models.CollectionBatch.started_at.desc()
+    ).limit(limit).all()
+
+    return [
+        {
+            "id": b.id,
+            "batch_name": b.batch_name,
+            "user_id": b.user_id,
+            "brand_id": b.brand_id,
+            "started_at": b.started_at.isoformat() if b.started_at else None,
+            "completed_at": b.completed_at.isoformat() if b.completed_at else None,
+            "status": b.status
+        }
+        for b in batches
+    ]
