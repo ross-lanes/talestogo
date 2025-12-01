@@ -453,7 +453,8 @@ class AnalyticsCache:
                 'sentiment_change': 0,
                 'descriptor_change': 0,
                 'share_of_voice_change': 0,
-                'high_threat_change': None
+                'high_threat_change': None,
+                'leadership_visibility_change': 0
             }
             return
 
@@ -606,12 +607,45 @@ class AnalyticsCache:
                 if threat_score > 50:  # High threat threshold
                     high_threat_count += 1
 
+            # Leadership visibility calculation
+            # Get all queries for brand_in_query filtering
+            queries = self.db.query(models.Query).filter(
+                models.Query.user_id == self.user_id
+            )
+            if self.brand_id:
+                queries = queries.filter(models.Query.brand_id == self.brand_id)
+            queries = queries.all()
+
+            # Build set of query_ids where brand_in_query=True to exclude
+            branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+            # Get all responses for this batch (not just mentions)
+            all_batch_responses = base_query.all()
+
+            # Filter responses: exclude branded queries
+            filtered_responses = [
+                r for r in all_batch_responses
+                if r.query_id not in branded_query_ids
+            ]
+
+            total_for_lv = len(filtered_responses)
+            if total_for_lv > 0:
+                # Count Leader and Featured positions
+                leadership_count = sum(
+                    1 for r in filtered_responses
+                    if r.brand_position in ['Leader', 'Top 3', 'Featured']
+                )
+                leadership_visibility = (leadership_count / total_for_lv) * 100
+            else:
+                leadership_visibility = 0.0
+
             return {
                 'mention_rate': mention_rate,
                 'sentiment_rate': sentiment_rate,
                 'descriptor_rate': descriptor_rate,
                 'share_of_voice': share_of_voice,
-                'high_threat_count': high_threat_count
+                'high_threat_count': high_threat_count,
+                'leadership_visibility': leadership_visibility
             }
 
         # Calculate metrics for both batches
@@ -624,13 +658,15 @@ class AnalyticsCache:
         descriptor_change = recent_metrics['descriptor_rate'] - prev_metrics['descriptor_rate']
         share_of_voice_change = recent_metrics['share_of_voice'] - prev_metrics['share_of_voice']
         high_threat_change = recent_metrics['high_threat_count'] - prev_metrics['high_threat_count']
+        leadership_visibility_change = recent_metrics['leadership_visibility'] - prev_metrics['leadership_visibility']
 
         self._cache['trends'] = {
             'mention_rate_change': round(mention_rate_change),
             'sentiment_change': round(sentiment_change),
             'descriptor_change': round(descriptor_change),
             'share_of_voice_change': round(share_of_voice_change),
-            'high_threat_change': high_threat_change
+            'high_threat_change': high_threat_change,
+            'leadership_visibility_change': round(leadership_visibility_change)
         }
 
     def get_dashboard_data(self) -> Dict[str, Any]:
@@ -650,6 +686,7 @@ class AnalyticsCache:
             'change_descriptor': self._cache.get('trends', {}).get('descriptor_change', 0),
             'change_share_of_voice': self._cache.get('trends', {}).get('share_of_voice_change', 0),
             'change_high_threats': self._cache.get('trends', {}).get('high_threat_change'),
+            'change_leadership_visibility': self._cache.get('trends', {}).get('leadership_visibility_change', 0),
             'leading_position': self._cache.get('leading_position', 'N/A')
         }
 

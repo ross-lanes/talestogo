@@ -34,6 +34,7 @@ interface DashboardMetrics {
   change_descriptor: number;
   change_share_of_voice: number;
   change_high_threats: number | null;
+  change_leadership_visibility: number;
   leading_position: string;
 }
 
@@ -603,9 +604,29 @@ export default function Dashboard() {
 
         <Grid item xs={12} md={6}>
           <Paper id="dashboard-positioning-chart" sx={{ p: { xs: 2, sm: 3 }, height: { xs: 280, sm: 300 }, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
-            <Typography variant="h6" gutterBottom>
-              Positioning Distribution
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant="h6">
+                Positioning Distribution
+              </Typography>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="body2" color="textSecondary">
+                  {(() => {
+                    const brandData = Array.isArray(shareOfVoice)
+                      ? shareOfVoice.find((item: any) => item.is_brand)
+                      : null;
+                    return `${Math.round(brandData?.leadership_visibility ?? 0)}% Leadership Visibility`;
+                  })()}
+                </Typography>
+                {metrics.change_leadership_visibility !== 0 && (
+                  <Typography variant="caption" color={metrics.change_leadership_visibility > 0 ? 'success.main' : 'error.main'}>
+                    {metrics.change_leadership_visibility > 0 ? '↑' : '↓'} {metrics.change_leadership_visibility > 0 ? '+' : ''}{Math.round(metrics.change_leadership_visibility)}% vs last period
+                  </Typography>
+                )}
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5, fontSize: '10px' }}>
+                  % of responses where brand is Leader or Featured
+                </Typography>
+              </Box>
+            </Box>
             {positioningData && positioningData.total > 0 ? (
               (() => {
                 const maxValue = Math.max(
