@@ -725,6 +725,25 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]
     """Gets all users (admin only)."""
     return db.query(models.User).order_by(models.User.created_at.desc()).offset(skip).limit(limit).all()
 
+def get_default_allowed_products(email: str) -> str:
+    """
+    Determine default allowed products based on email.
+
+    Rules:
+    - robotrachel@gmail.com -> full access (tales,heads,canon)
+    - *@solsticehc.net -> full access (tales,heads,canon)
+    - Everyone else -> tales only
+    """
+    email_lower = email.lower()
+
+    # Full access for specific email or domain
+    if email_lower == 'robotrachel@gmail.com' or email_lower.endswith('@solsticehc.net'):
+        return 'tales,heads,canon'
+
+    # Default: Tales only
+    return 'tales'
+
+
 def create_user(db: Session, user: schemas.UserCreate, hashed_password: str, is_invited: bool = False) -> models.User:
     """Creates a new user."""
     # Import here to avoid circular dependency
@@ -733,12 +752,16 @@ def create_user(db: Session, user: schemas.UserCreate, hashed_password: str, is_
     # Get tenant_id based on email domain
     tenant_id = get_tenant_id_for_email(db, user.email)
 
+    # Get default allowed products based on email
+    allowed_products = get_default_allowed_products(user.email)
+
     db_user = models.User(
         email=user.email,
         hashed_password=hashed_password,
         full_name=user.full_name,
         organization=user.organization,
         tenant_id=tenant_id,  # Auto-assign tenant based on email domain
+        allowed_products=allowed_products,  # Auto-assign app access based on email
         is_invited=is_invited,
         is_active=False,  # Must be approved by admin
         is_admin=False
@@ -776,12 +799,17 @@ def update_user(db: Session, user_id: int, user_update: schemas.UserUpdate, encr
     return db_user
 
 def admin_update_user(db: Session, user_id: int, user_update: schemas.UserAdminUpdate) -> Optional[models.User]:
-    """Admin updates user status (is_active, is_admin)."""
+    """Admin updates user status (is_active, is_admin, allowed_products)."""
     db_user = get_user_by_id(db, user_id)
     if not db_user:
         return None
 
     update_data = user_update.model_dump(exclude_unset=True)
+
+    # Convert allowed_products list to comma-separated string for storage
+    if 'allowed_products' in update_data and update_data['allowed_products'] is not None:
+        update_data['allowed_products'] = ','.join(update_data['allowed_products'])
+
     for key, value in update_data.items():
         setattr(db_user, key, value)
 

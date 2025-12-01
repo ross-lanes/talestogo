@@ -53,9 +53,10 @@ import ProtectedRoute from './ProtectedRoute';
 // Inner component that has access to TenantContext
 const AppRoutes: React.FC = () => {
   const { tenant } = useTenant();
+  const { user } = useAuth();
 
   return (
-    <ProductProvider tenantName={tenant?.tenant_name}>
+    <ProductProvider tenantName={tenant?.tenant_name} userAllowedProducts={user?.allowed_products}>
       <TenantThemeProvider>
         <ImpersonationBanner />
         <TaskStatusBanner />

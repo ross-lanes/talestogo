@@ -384,9 +384,20 @@ class User(UserBase):
     picture_url: Optional[str] = None
     invitation_expires_at: Optional[datetime.datetime] = None
     tenant_id: Optional[int] = None
+    allowed_products: Optional[List[str]] = None  # List of product IDs user can access
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Convert comma-separated string to list for allowed_products."""
+        if hasattr(obj, 'allowed_products') and isinstance(obj.allowed_products, str):
+            # Convert "tales,heads,canon" to ["tales", "heads", "canon"]
+            obj_dict = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+            obj_dict['allowed_products'] = obj.allowed_products.split(',') if obj.allowed_products else ['tales']
+            return super().model_validate(obj_dict, **kwargs)
+        return super().model_validate(obj, **kwargs)
 
 class Token(BaseModel):
     access_token: str
@@ -401,9 +412,10 @@ class UserInvite(BaseModel):
     organization: Optional[str] = None
 
 class UserAdminUpdate(BaseModel):
-    """Schema for admin to update user status"""
+    """Schema for admin to update user status and app access"""
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
+    allowed_products: Optional[List[str]] = None  # List of product IDs: ["tales", "heads", "canon"]
     model_config = ConfigDict(extra='forbid')
 
 # --- Invitation Schemas ---

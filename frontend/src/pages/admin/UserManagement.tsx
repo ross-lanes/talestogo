@@ -23,6 +23,9 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Checkbox,
+  FormGroup,
+  Divider,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -50,6 +53,7 @@ interface User {
   is_admin: boolean;
   is_active: boolean;
   is_invited: boolean;
+  allowed_products?: string[];  // List of product IDs user can access
   invitation_expires_at?: string;
   created_at: string;
 }
@@ -103,6 +107,14 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editIsAdmin, setEditIsAdmin] = useState(false);
+  const [editAllowedProducts, setEditAllowedProducts] = useState<string[]>([]);
+
+  // Available products for app access management
+  const availableAppProducts = [
+    { id: 'tales', name: 'Tales', description: 'Brand Reputation Monitor' },
+    { id: 'heads', name: 'Heads', description: 'AI-Powered Persona Generator' },
+    { id: 'canon', name: 'Canon', description: 'FDA Drug Data Research' },
+  ];
 
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -238,6 +250,7 @@ const UserManagement: React.FC = () => {
     setEditingUser(user);
     setEditIsActive(user.is_active);
     setEditIsAdmin(user.is_admin);
+    setEditAllowedProducts(user.allowed_products || ['tales']);
     setEditDialogOpen(true);
   };
 
@@ -251,6 +264,7 @@ const UserManagement: React.FC = () => {
       await adminAPI.updateUserStatus(editingUser.id, {
         is_active: editIsActive,
         is_admin: editIsAdmin,
+        allowed_products: editAllowedProducts,
       });
 
       setSuccess(`User ${editingUser.email} updated successfully`);
@@ -261,6 +275,18 @@ const UserManagement: React.FC = () => {
       console.error('Failed to update user:', err);
       setError(err.response?.data?.detail || 'Failed to update user');
     }
+  };
+
+  const handleToggleProduct = (productId: string) => {
+    setEditAllowedProducts(prev => {
+      if (prev.includes(productId)) {
+        // Don't allow removing the last product - keep at least Tales
+        if (prev.length === 1) return prev;
+        return prev.filter(p => p !== productId);
+      } else {
+        return [...prev, productId];
+      }
+    });
   };
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>, user: User) => {
@@ -484,6 +510,27 @@ RobotRachel`;
         params.value ? <Chip label="Admin" color="primary" size="small" /> : null,
     },
     {
+      field: 'allowed_products',
+      headerName: 'App Access',
+      width: 180,
+      renderCell: (params) => {
+        const products = params.value as string[] || ['tales'];
+        return (
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            {products.map((p: string) => (
+              <Chip
+                key={p}
+                label={p.charAt(0).toUpperCase() + p.slice(1)}
+                size="small"
+                variant="outlined"
+                color={p === 'tales' ? 'primary' : p === 'heads' ? 'secondary' : 'default'}
+              />
+            ))}
+          </Box>
+        );
+      },
+    },
+    {
       field: 'invitation',
       headerName: 'Invitation',
       width: 120,
@@ -686,9 +733,41 @@ RobotRachel`;
               }
               label="Admin"
             />
-            <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4 }}>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4, mb: 2 }}>
               Admins can manage users and view all data
             </Typography>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              App Access
+            </Typography>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 2 }}>
+              Select which apps this user can access
+            </Typography>
+
+            <FormGroup>
+              {availableAppProducts.map((product) => (
+                <FormControlLabel
+                  key={product.id}
+                  control={
+                    <Checkbox
+                      checked={editAllowedProducts.includes(product.id)}
+                      onChange={() => handleToggleProduct(product.id)}
+                      disabled={product.id === 'tales' && editAllowedProducts.length === 1}
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2">{product.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {product.description}
+                      </Typography>
+                    </Box>
+                  }
+                />
+              ))}
+            </FormGroup>
           </Box>
         </DialogContent>
         <DialogActions>

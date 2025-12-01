@@ -37,6 +37,9 @@ MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
 MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
 
 # Admin Configuration
+# NOTE: ADMIN_EMAIL is ONLY used for initial bootstrap (first-time admin OAuth login).
+# After a user is created, all admin checks use the database is_admin flag.
+# To promote/demote admins, update the is_admin field in the database directly.
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "robotrachel@gmail.com")
 
 # Encryption key for API keys (must be stored securely in production)
@@ -381,24 +384,36 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
 
         if not user.full_name:
             user.full_name = oauth_info.get('name')
-        # Only auto-activate if they're the admin, otherwise keep existing status
-        if oauth_info['email'].lower() == ADMIN_EMAIL.lower():
+
+        # Bootstrap: Only auto-grant admin on first OAuth link if not already set
+        # After this, admin status is managed via database only
+        if oauth_info['email'].lower() == ADMIN_EMAIL.lower() and not user.is_admin:
+            print(f"INFO: Bootstrap - granting admin privileges to {oauth_info['email']} (first OAuth login)")
             user.is_active = True
             user.is_admin = True
+
         user.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(user)
         return user
 
     # Create new user
-    # Check if this email is the admin email
+    # Bootstrap: Check if this is the first-time admin email login
+    # After this initial creation, all admin management is done via database
     is_admin_user = (oauth_info['email'].lower() == ADMIN_EMAIL.lower())
+
+    if is_admin_user:
+        print(f"INFO: Bootstrap - creating new admin user for {oauth_info['email']}")
 
     # Get tenant_id based on email domain
     tenant_id = get_tenant_id_for_email(db, oauth_info['email'])
 
     # Get OAuth provider based on email domain, fallback to provided provider
     oauth_provider = get_oauth_provider_for_email(oauth_info['email']) or provider
+
+    # Get default allowed products based on email
+    from .crud import get_default_allowed_products
+    allowed_products = get_default_allowed_products(oauth_info['email'])
 
     new_user = models.User(
         email=oauth_info['email'],
@@ -408,8 +423,9 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
         full_name=oauth_info.get('name'),
         picture_url=oauth_info.get('picture') if provider == 'google' else None,
         tenant_id=tenant_id,  # Auto-assign tenant based on email domain
-        is_active=is_admin_user,  # Only auto-activate admin user, others need approval
-        is_admin=is_admin_user,  # Make admin if email matches ADMIN_EMAIL
+        allowed_products=allowed_products,  # Auto-assign app access based on email
+        is_active=is_admin_user,  # Bootstrap: Only auto-activate admin email, others need approval
+        is_admin=is_admin_user,  # Bootstrap: Grant admin only if ADMIN_EMAIL on first creation
         is_invited=False,  # Require admin approval for all new users
         hashed_password=None  # No password for OAuth users
     )

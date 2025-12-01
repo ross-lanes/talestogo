@@ -96,14 +96,21 @@ export const useProduct = () => {
 interface ProductProviderProps {
   children: ReactNode;
   tenantName?: string;
+  userAllowedProducts?: string[];  // User-specific product access list
 }
 
-export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName }) => {
+export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName, userAllowedProducts }) => {
   // Check if user is in Solstice HC tenant
   const isSolsticeHC = tenantName === 'Solstice HC';
 
-  // Helper function to check if a product is accessible to the current tenant
+  // Helper function to check if a product is accessible to the current user
   const isProductAccessible = (product: ProductInfo): boolean => {
+    // If we have user-specific allowed products, use that
+    if (userAllowedProducts && userAllowedProducts.length > 0) {
+      return userAllowedProducts.includes(product.id);
+    }
+
+    // Fallback to tenant-based access (for backwards compatibility)
     // If product has no tenant requirements, it's available to all
     if (!product.requiredTenants || product.requiredTenants.length === 0) {
       return true;
@@ -112,19 +119,19 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
     return product.requiredTenants.includes(tenantName || 'default');
   };
 
-  // Filter products based on tenant AND enabled status
+  // Filter products based on user access AND enabled status
   const availableProducts = PRODUCTS.filter(p => {
     // Must be enabled
     if (!p.enabled) return false;
-    // Must be accessible to this tenant
+    // Must be accessible to this user
     return isProductAccessible(p);
   });
 
-  // Upcoming products (disabled but would be visible to tenant when enabled)
+  // Upcoming products (disabled but would be visible to user when enabled)
   const upcomingProducts = PRODUCTS.filter(p => {
     // Skip enabled products
     if (p.enabled) return false;
-    // Show only if tenant would have access when enabled
+    // Show only if user would have access when enabled
     return isProductAccessible(p);
   });
 

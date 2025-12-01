@@ -207,7 +207,7 @@ export const adminAPI = {
     return response.data;
   },
 
-  updateUserStatus: async (userId: number, data: { is_active?: boolean; is_admin?: boolean }) => {
+  updateUserStatus: async (userId: number, data: { is_active?: boolean; is_admin?: boolean; allowed_products?: string[] }) => {
     const response = await api.put(`/admin/users/${userId}`, data);
     return response.data;
   },

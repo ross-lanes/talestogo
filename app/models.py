@@ -53,6 +53,8 @@ class User(Base):
     anthropic_api_key_encrypted = Column(Text, nullable=True)
     gemini_api_key_encrypted = Column(Text, nullable=True)
     perplexity_api_key_encrypted = Column(Text, nullable=True)
+    # App access control - comma-separated list of allowed products (e.g., "tales,heads,canon")
+    allowed_products = Column(Text, nullable=True, default="tales")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
