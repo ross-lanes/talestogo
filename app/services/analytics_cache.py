@@ -425,72 +425,96 @@ class AnalyticsCache:
         self._cache['leading_position'] = leading_position
 
     def _calculate_trends(self):
-        """Calculate trend data by comparing the two most recent collection batches."""
-        # Get the two most recent BatchAnalytics records for this user/brand
-        batch_analytics_query = self.db.query(models.BatchAnalytics).filter(
-            models.BatchAnalytics.user_id == self.user_id
+        """
+        Calculate trend data by comparing the two most recent collection batches.
+
+        IMPORTANT: This calculates metrics directly from Response data (not BatchAnalytics)
+        to ensure values match the current dashboard metrics and avoid stale data issues.
+        """
+        # Get the two most recent CollectionBatch records for this user/brand
+        batch_query = self.db.query(models.CollectionBatch).filter(
+            models.CollectionBatch.user_id == self.user_id,
+            models.CollectionBatch.status == 'completed'
         )
         if self.brand_id:
-            batch_analytics_query = batch_analytics_query.filter(
-                models.BatchAnalytics.brand_id == self.brand_id
+            batch_query = batch_query.filter(
+                models.CollectionBatch.brand_id == self.brand_id
             )
 
-        # Order by collection_date descending to get most recent first
-        recent_batches = batch_analytics_query.order_by(
-            models.BatchAnalytics.collection_date.desc()
+        # Order by started_at descending to get most recent first
+        recent_batches = batch_query.order_by(
+            models.CollectionBatch.started_at.desc()
         ).limit(2).all()
 
-        # Calculate mention rate change from batch analytics
-        if len(recent_batches) >= 2:
-            # Most recent batch - previous batch
-            recent_mention_rate = recent_batches[0].mention_rate or 0
-            prev_mention_rate = recent_batches[1].mention_rate or 0
-            mention_rate_change = recent_mention_rate - prev_mention_rate
-        elif len(recent_batches) == 1:
-            # Only one batch, no comparison possible
-            mention_rate_change = 0
-        else:
-            # No batches, fall back to 0
-            mention_rate_change = 0
+        if len(recent_batches) < 2:
+            # Not enough batches for comparison
+            self._cache['trends'] = {
+                'mention_rate_change': 0,
+                'sentiment_change': 0,
+                'descriptor_change': 0,
+                'share_of_voice_change': 0,
+                'high_threat_change': None
+            }
+            return
 
-        # Calculate sentiment change from batch analytics
-        # Positive sentiment rate = (very_positive + positive) / total mentions with sentiment
-        if len(recent_batches) >= 2:
-            # Most recent batch
-            recent_batch = recent_batches[0]
-            recent_mentions_with_sentiment = (
-                (recent_batch.very_positive_count or 0) +
-                (recent_batch.positive_count or 0) +
-                (recent_batch.neutral_count or 0) +
-                (recent_batch.negative_count or 0) +
-                (recent_batch.very_negative_count or 0) +
-                (recent_batch.mixed_count or 0)
+        # Helper function to calculate metrics for a specific batch directly from Response data
+        def calculate_batch_metrics(batch_id: int) -> dict:
+            """Calculate all trend metrics for a batch directly from Response data."""
+            # Base query for this batch
+            base_query = self.db.query(models.Response).filter(
+                models.Response.batch_id == batch_id,
+                models.Response.user_id == self.user_id
             )
-            recent_positive = (recent_batch.very_positive_count or 0) + (recent_batch.positive_count or 0)
-            recent_sentiment_rate = (recent_positive / recent_mentions_with_sentiment * 100) if recent_mentions_with_sentiment > 0 else 0.0
+            if self.brand_id:
+                base_query = base_query.filter(models.Response.brand_id == self.brand_id)
 
-            # Previous batch
-            prev_batch = recent_batches[1]
-            prev_mentions_with_sentiment = (
-                (prev_batch.very_positive_count or 0) +
-                (prev_batch.positive_count or 0) +
-                (prev_batch.neutral_count or 0) +
-                (prev_batch.negative_count or 0) +
-                (prev_batch.very_negative_count or 0) +
-                (prev_batch.mixed_count or 0)
+            # Check if Query table has data for brand_in_query filtering
+            query_count = self.db.query(func.count(models.Query.id)).filter(
+                models.Query.user_id == self.user_id
             )
-            prev_positive = (prev_batch.very_positive_count or 0) + (prev_batch.positive_count or 0)
-            prev_sentiment_rate = (prev_positive / prev_mentions_with_sentiment * 100) if prev_mentions_with_sentiment > 0 else 0.0
+            if self.brand_id:
+                query_count = query_count.filter(models.Query.brand_id == self.brand_id)
+            has_queries = query_count.scalar() > 0
 
-            sentiment_change = recent_sentiment_rate - prev_sentiment_rate
-        else:
-            sentiment_change = 0
+            # For mention rate: exclude brand_in_query responses
+            if has_queries:
+                mention_base = base_query.join(
+                    models.Query,
+                    (models.Response.query_id == models.Query.query_id) &
+                    (models.Response.user_id == models.Query.user_id) &
+                    (models.Response.brand_id == models.Query.brand_id),
+                    isouter=False
+                ).filter(models.Query.brand_in_query == False)
+            else:
+                mention_base = base_query
 
-        # Calculate descriptor adoption change from batch analytics
-        # Descriptor match rate = # of target descriptors matched / total target descriptors
-        descriptor_change = 0
-        if len(recent_batches) >= 2:
-            # Get target descriptors for this user/brand to calculate match rate
+            # Total responses for mention calculation
+            total_responses = mention_base.count()
+
+            # Mentions (Yes or Indirect)
+            mentions = mention_base.filter(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+            ).count()
+
+            mention_rate = (mentions / total_responses * 100) if total_responses > 0 else 0
+
+            # For sentiment: include all responses
+            all_responses = base_query.filter(
+                models.Response.brand_mentioned == 'Yes'
+            ).all()
+
+            # Sentiment counts
+            sentiment_counts = {'Very Positive': 0, 'Positive': 0, 'Neutral': 0,
+                              'Mixed': 0, 'Negative': 0, 'Very Negative': 0}
+            for r in all_responses:
+                if r.sentiment in sentiment_counts:
+                    sentiment_counts[r.sentiment] += 1
+
+            total_with_sentiment = sum(sentiment_counts.values())
+            positive_count = sentiment_counts['Very Positive'] + sentiment_counts['Positive']
+            sentiment_rate = (positive_count / total_with_sentiment * 100) if total_with_sentiment > 0 else 0
+
+            # Descriptor match rate
             target_descriptors_query = self.db.query(models.TargetDescriptor).filter(
                 models.TargetDescriptor.user_id == self.user_id,
                 models.TargetDescriptor.is_target == True
@@ -502,139 +526,104 @@ class AnalyticsCache:
             target_descriptors = target_descriptors_query.all()
             total_target_descriptors = len(target_descriptors)
 
+            descriptor_rate = 0.0
             if total_target_descriptors > 0:
-                target_desc_lower = {td.descriptor.lower() for td in target_descriptors}
+                target_desc_lower = {td.descriptor.lower(): td.descriptor for td in target_descriptors}
+                matched_descriptors = set()
 
-                # Calculate match rate for recent batch
-                recent_descriptor_data = {}
-                if recent_batches[0].descriptor_data:
-                    try:
-                        recent_descriptor_data = json.loads(recent_batches[0].descriptor_data)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                # Get responses with descriptors for this batch
+                responses_with_desc = base_query.filter(
+                    models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                    models.Response.descriptors.isnot(None),
+                    models.Response.descriptors != ''
+                ).all()
 
-                recent_matched = sum(
-                    1 for desc in recent_descriptor_data.keys()
-                    if any(target in desc.lower() or desc.lower() in target for target in target_desc_lower)
-                )
-                recent_descriptor_rate = (recent_matched / total_target_descriptors * 100)
+                for r in responses_with_desc:
+                    if r.descriptors:
+                        response_descriptors = [d.strip().lower() for d in r.descriptors.split(',')]
+                        for target_lower, target_original in target_desc_lower.items():
+                            if any(target_lower in resp_desc or resp_desc in target_lower
+                                   for resp_desc in response_descriptors):
+                                matched_descriptors.add(target_original)
 
-                # Calculate match rate for previous batch
-                prev_descriptor_data = {}
-                if recent_batches[1].descriptor_data:
-                    try:
-                        prev_descriptor_data = json.loads(recent_batches[1].descriptor_data)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+                descriptor_rate = (len(matched_descriptors) / total_target_descriptors * 100)
 
-                prev_matched = sum(
-                    1 for desc in prev_descriptor_data.keys()
-                    if any(target in desc.lower() or desc.lower() in target for target in target_desc_lower)
-                )
-                prev_descriptor_rate = (prev_matched / total_target_descriptors * 100)
-
-                descriptor_change = recent_descriptor_rate - prev_descriptor_rate
-
-        # Calculate share of voice change from batch analytics
-        share_of_voice_change = 0
-        if len(recent_batches) >= 2:
-            # Get brand name
+            # Share of voice calculation
             brand = self.db.query(models.BrandInfo).filter(
                 models.BrandInfo.user_id == self.user_id
             )
             if self.brand_id:
                 brand = brand.filter(models.BrandInfo.id == self.brand_id)
             brand = brand.first()
-            brand_name = brand.brand_name if brand else None
+            brand_name = brand.brand_name if brand else "Your Brand"
 
-            if brand_name:
-                # Calculate SOV for recent batch
-                recent_sov_data = {}
-                if recent_batches[0].sov_data:
-                    try:
-                        recent_sov_data = json.loads(recent_batches[0].sov_data)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+            # Get responses with mentions for SOV (excluding brand_in_query)
+            sov_responses = mention_base.filter(
+                models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
+            ).all()
 
-                # Brand mentions = mention_count from batch analytics
-                recent_brand_mentions = recent_batches[0].mention_count or 0
-                recent_total_mentions = recent_brand_mentions + sum(recent_sov_data.values())
-                recent_sov = (recent_brand_mentions / recent_total_mentions * 100) if recent_total_mentions > 0 else 0
+            # Count brand mentions
+            brand_mentions = len(sov_responses)
 
-                # Calculate SOV for previous batch
-                prev_sov_data = {}
-                if recent_batches[1].sov_data:
-                    try:
-                        prev_sov_data = json.loads(recent_batches[1].sov_data)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
+            # Count competitor mentions
+            competitor_counts = {}
+            for r in sov_responses:
+                if r.competitors:
+                    competitors = [c.strip() for c in r.competitors.split(',')]
+                    for comp in competitors:
+                        if comp and comp != brand_name:
+                            competitor_counts[comp] = competitor_counts.get(comp, 0) + 1
 
-                prev_brand_mentions = recent_batches[1].mention_count or 0
-                prev_total_mentions = prev_brand_mentions + sum(prev_sov_data.values())
-                prev_sov = (prev_brand_mentions / prev_total_mentions * 100) if prev_total_mentions > 0 else 0
+            total_mentions = brand_mentions + sum(competitor_counts.values())
+            share_of_voice = (brand_mentions / total_mentions * 100) if total_mentions > 0 else 0
 
-                share_of_voice_change = recent_sov - prev_sov
+            # High threat count
+            high_threat_count = 0
+            for comp_name, comp_mention_count in competitor_counts.items():
+                # Get responses where this competitor is mentioned
+                competitive_responses = [
+                    r for r in sov_responses
+                    if r.competitors and comp_name.lower() in r.competitors.lower()
+                ]
 
-        # Calculate high threat count change from batch data
-        high_threat_change = None  # None means no comparison possible
-        if len(recent_batches) >= 2:
-            # Helper function to count high threats for a batch
-            def count_high_threats_for_batch(batch_analytics):
-                """Count high threat competitors for a batch using the threat formula."""
-                sov_data = {}
-                if batch_analytics.sov_data:
-                    try:
-                        sov_data = json.loads(batch_analytics.sov_data)
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-
-                if not sov_data:
-                    return 0
-
-                # Get responses for this batch to calculate sentiment-based threat components
-                batch_responses = self.db.query(models.Response).filter(
-                    models.Response.batch_id == batch_analytics.batch_id,
-                    models.Response.user_id == self.user_id
+                # Count sentiment-based threat components
+                negative_when_competitor = sum(
+                    1 for r in competitive_responses
+                    if r.sentiment in ['Negative', 'Very Negative']
                 )
-                if self.brand_id:
-                    batch_responses = batch_responses.filter(
-                        models.Response.brand_id == self.brand_id
-                    )
-                batch_responses = batch_responses.all()
+                positive_competitor = sum(
+                    1 for r in competitive_responses
+                    if r.sentiment in ['Positive', 'Very Positive']
+                )
 
-                high_threat_count = 0
-                for comp_name, mention_count in sov_data.items():
-                    # Get responses where this competitor is mentioned
-                    competitive_responses = [
-                        r for r in batch_responses
-                        if r.competitors and comp_name.lower() in r.competitors.lower()
-                    ]
+                # Calculate threat score
+                threat_score = (
+                    (comp_mention_count * 0.7) +
+                    (negative_when_competitor * 2.0) +
+                    (positive_competitor * 1.5)
+                )
 
-                    # Count negative and positive sentiment
-                    negative_when_competitor_present = sum(
-                        1 for r in competitive_responses
-                        if r.sentiment in ['Negative', 'Very Negative']
-                    )
-                    positive_competitor = sum(
-                        1 for r in competitive_responses
-                        if r.sentiment in ['Positive', 'Very Positive']
-                    )
+                if threat_score > 50:  # High threat threshold
+                    high_threat_count += 1
 
-                    # Calculate threat score using standard formula
-                    threat_score = (
-                        (mention_count * 0.7) +
-                        (negative_when_competitor_present * 2.0) +
-                        (positive_competitor * 1.5)
-                    )
+            return {
+                'mention_rate': mention_rate,
+                'sentiment_rate': sentiment_rate,
+                'descriptor_rate': descriptor_rate,
+                'share_of_voice': share_of_voice,
+                'high_threat_count': high_threat_count
+            }
 
-                    if threat_score > 50:  # High threat threshold
-                        high_threat_count += 1
+        # Calculate metrics for both batches
+        recent_metrics = calculate_batch_metrics(recent_batches[0].id)
+        prev_metrics = calculate_batch_metrics(recent_batches[1].id)
 
-                return high_threat_count
-
-            recent_high_threats = count_high_threats_for_batch(recent_batches[0])
-            prev_high_threats = count_high_threats_for_batch(recent_batches[1])
-            high_threat_change = recent_high_threats - prev_high_threats
+        # Calculate changes (recent - previous)
+        mention_rate_change = recent_metrics['mention_rate'] - prev_metrics['mention_rate']
+        sentiment_change = recent_metrics['sentiment_rate'] - prev_metrics['sentiment_rate']
+        descriptor_change = recent_metrics['descriptor_rate'] - prev_metrics['descriptor_rate']
+        share_of_voice_change = recent_metrics['share_of_voice'] - prev_metrics['share_of_voice']
+        high_threat_change = recent_metrics['high_threat_count'] - prev_metrics['high_threat_count']
 
         self._cache['trends'] = {
             'mention_rate_change': round(mention_rate_change),
