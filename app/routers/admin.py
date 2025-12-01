@@ -5,7 +5,7 @@ Only accessible to admin users (is_admin=True).
 Allows admins to view and manage all brands, queries, descriptors, and competitors
 across all users for support and troubleshooting purposes.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from typing import List, Optional, Dict, Any
@@ -23,37 +23,14 @@ router = APIRouter(
 
 # === User Management ===
 
-@router.get("/users")
+@router.get("/users", response_model=List[schemas.User])
 def get_all_users(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(get_current_admin_user)
-) -> List[dict]:
-    """Get all users in the system with allowed products as list."""
+):
+    """Get all users in the system."""
     users = db.query(models.User).all()
-
-    # Convert each user to dict with allowed_products as list
-    result = []
-    for user in users:
-        allowed_products = crud.get_user_allowed_products(user)
-        user_dict = {
-            "id": user.id,
-            "email": user.email,
-            "full_name": user.full_name,
-            "organization": user.organization,
-            "is_admin": user.is_admin,
-            "is_active": user.is_active,
-            "is_invited": user.is_invited,
-            "google_id": user.google_id,
-            "oauth_provider": user.oauth_provider,
-            "picture_url": user.picture_url,
-            "invitation_expires_at": user.invitation_expires_at,
-            "tenant_id": user.tenant_id,
-            "allowed_products": allowed_products,
-            "created_at": user.created_at,
-            "updated_at": user.updated_at,
-        }
-        result.append(user_dict)
-    return result
+    return users
 
 
 @router.get("/users/{user_id}", response_model=schemas.User)
@@ -517,7 +494,6 @@ def admin_run_collection_for_user(
 @router.post("/login-as-user/{user_id}")
 def admin_login_as_user(
     user_id: int,
-    request: Request,
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
@@ -526,10 +502,8 @@ def admin_login_as_user(
     This allows admins to "log in as" another user to troubleshoot issues.
 
     Returns a token that can be used to authenticate as the target user.
-    All impersonation attempts are logged for security auditing.
     """
     from ..auth import create_access_token
-    import json
 
     # Verify target user exists
     target_user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -539,84 +513,11 @@ def admin_login_as_user(
     # Generate JWT token for the target user
     access_token = create_access_token(data={"sub": target_user.id})
 
-    # Log the impersonation event for security auditing
-    try:
-        # Get client IP address
-        client_ip = request.client.host if request.client else None
-
-        # Create detailed audit log entry
-        audit_details = json.dumps({
-            "target_email": target_user.email,
-            "target_name": target_user.full_name,
-            "admin_email": current_admin.email,
-            "admin_name": current_admin.full_name,
-            "success": True
-        })
-
-        audit_log = models.AdminAuditLog(
-            admin_user_id=current_admin.id,
-            action_type="impersonate_user",
-            target_user_id=target_user.id,
-            details=audit_details,
-            ip_address=client_ip
-        )
-        db.add(audit_log)
-        db.commit()
-    except Exception as e:
-        # If audit logging fails, still allow the impersonation but log the error
-        # This prevents audit log failures from blocking legitimate admin actions
-        print(f"WARNING: Failed to create audit log for impersonation: {e}")
-        db.rollback()
-
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user_email": target_user.email,
         "user_name": target_user.full_name
-    }
-
-
-@router.get("/audit-logs")
-def get_audit_logs(
-    limit: int = 100,
-    offset: int = 0,
-    action_type: Optional[str] = None,
-    admin_user_id: Optional[int] = None,
-    target_user_id: Optional[int] = None,
-    db: Session = Depends(get_db),
-    current_admin: models.User = Depends(get_current_admin_user)
-) -> Dict[str, Any]:
-    """
-    Get admin audit logs for security review and compliance.
-    Supports filtering by action_type, admin_user_id, or target_user_id.
-    """
-    from .. import schemas
-
-    # Build query
-    query = db.query(models.AdminAuditLog)
-
-    # Apply filters
-    if action_type:
-        query = query.filter(models.AdminAuditLog.action_type == action_type)
-    if admin_user_id:
-        query = query.filter(models.AdminAuditLog.admin_user_id == admin_user_id)
-    if target_user_id:
-        query = query.filter(models.AdminAuditLog.target_user_id == target_user_id)
-
-    # Get total count
-    total = query.count()
-
-    # Get paginated results
-    logs = query.order_by(models.AdminAuditLog.timestamp.desc())\
-        .offset(offset)\
-        .limit(limit)\
-        .all()
-
-    return {
-        "logs": [schemas.AdminAuditLog.model_validate(log) for log in logs],
-        "total": total,
-        "limit": limit,
-        "offset": offset
     }
 
 

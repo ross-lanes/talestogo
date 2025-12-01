@@ -53,9 +53,6 @@ class User(Base):
     anthropic_api_key_encrypted = Column(Text, nullable=True)
     gemini_api_key_encrypted = Column(Text, nullable=True)
     perplexity_api_key_encrypted = Column(Text, nullable=True)
-    # Product access control - JSON array of product IDs user can access
-    # null/empty = Tales only (default), admins bypass this check
-    allowed_products = Column(Text, nullable=True)  # JSON: ["tales", "heads", "canon"]
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -477,32 +474,6 @@ class Persona(Base):
     __table_args__ = (
         Index('idx_persona_generation', 'generation_id', 'persona_type'),
         Index('idx_persona_user_brand', 'user_id', 'brand_id'),
-    )
-
-# === Admin Audit Log Model (for security and compliance) ===
-class AdminAuditLog(Base):
-    """
-    Audit log for admin actions requiring tracking.
-    Currently tracks admin impersonation events.
-    """
-    __tablename__ = "admin_audit_logs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    admin_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    action_type = Column(String(100), nullable=False, index=True)  # 'impersonate_user', 'delete_user', etc.
-    target_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    details = Column(Text, nullable=True)  # JSON or text description of the action
-    ip_address = Column(String(45), nullable=True)  # IPv4 (15 chars) or IPv6 (45 chars)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, nullable=False, index=True)
-
-    # Relationships
-    admin_user = relationship("User", foreign_keys=[admin_user_id])
-    target_user = relationship("User", foreign_keys=[target_user_id])
-
-    # Composite index for querying
-    __table_args__ = (
-        Index('idx_audit_admin_action', 'admin_user_id', 'action_type', 'timestamp'),
-        Index('idx_audit_target_user', 'target_user_id', 'timestamp'),
     )
 
 # --- End of Models ---

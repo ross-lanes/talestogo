@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DOMPurify from 'dompurify';
 import {
   Box,
   Container,
@@ -33,10 +32,10 @@ import {
   MoreVert as MoreVertIcon,
   Folder as FolderIcon,
   Delete as DeleteIcon,
+  Email as EmailIcon,
   Login as LoginIcon,
   FiberManualRecord as ActiveIcon,
   Visibility as VisibilityIcon,
-  Apps as AppsIcon,
 } from '@mui/icons-material';
 import { adminAPI, api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -53,15 +52,7 @@ interface User {
   is_invited: boolean;
   invitation_expires_at?: string;
   created_at: string;
-  allowed_products?: string[];
 }
-
-// Available products for assignment
-const PRODUCT_OPTIONS = [
-  { id: 'tales', name: 'Tales', description: 'Brand Reputation Monitor' },
-  { id: 'heads', name: 'Heads', description: 'AI Persona Generator' },
-  { id: 'canon', name: 'Canon', description: 'FDA Drug Data Research' },
-];
 
 interface Tenant {
   id: number;
@@ -112,7 +103,6 @@ const UserManagement: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editIsAdmin, setEditIsAdmin] = useState(false);
-  const [editAllowedProducts, setEditAllowedProducts] = useState<string[]>([]);
 
   // Menu state
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
@@ -206,7 +196,7 @@ const UserManagement: React.FC = () => {
 
     try {
       const tenantIdToUse = inviteTenantId === '' ? undefined : inviteTenantId;
-      await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse);
+      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse);
 
       // Close the invite dialog
       setInviteDialogOpen(false);
@@ -248,8 +238,6 @@ const UserManagement: React.FC = () => {
     setEditingUser(user);
     setEditIsActive(user.is_active);
     setEditIsAdmin(user.is_admin);
-    // Set allowed products, defaulting to ['tales'] if not set
-    setEditAllowedProducts(user.allowed_products || ['tales']);
     setEditDialogOpen(true);
   };
 
@@ -263,7 +251,6 @@ const UserManagement: React.FC = () => {
       await adminAPI.updateUserStatus(editingUser.id, {
         is_active: editIsActive,
         is_admin: editIsAdmin,
-        allowed_products: editAllowedProducts,
       });
 
       setSuccess(`User ${editingUser.email} updated successfully`);
@@ -274,20 +261,6 @@ const UserManagement: React.FC = () => {
       console.error('Failed to update user:', err);
       setError(err.response?.data?.detail || 'Failed to update user');
     }
-  };
-
-  const handleProductToggle = (productId: string) => {
-    setEditAllowedProducts(prev => {
-      if (prev.includes(productId)) {
-        // Don't allow removing all products - at least Tales should remain
-        if (prev.length === 1 && productId === 'tales') {
-          return prev;
-        }
-        return prev.filter(p => p !== productId);
-      } else {
-        return [...prev, productId];
-      }
-    });
   };
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>, user: User) => {
@@ -511,32 +484,6 @@ RobotRachel`;
         params.value ? <Chip label="Admin" color="primary" size="small" /> : null,
     },
     {
-      field: 'allowed_products',
-      headerName: 'App Access',
-      width: 180,
-      renderCell: (params) => {
-        const user = params.row as User;
-        // Admins and skremen see all
-        if (user.is_admin || user.email?.toLowerCase() === 'skremen@solsticehc.net') {
-          return <Chip label="All Apps" color="primary" size="small" icon={<AppsIcon />} />;
-        }
-        const products = user.allowed_products || ['tales'];
-        return (
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {products.map((p: string) => (
-              <Chip
-                key={p}
-                label={p.charAt(0).toUpperCase() + p.slice(1)}
-                size="small"
-                variant="outlined"
-                sx={{ fontSize: '0.7rem' }}
-              />
-            ))}
-          </Box>
-        );
-      },
-    },
-    {
       field: 'invitation',
       headerName: 'Invitation',
       width: 120,
@@ -739,55 +686,9 @@ RobotRachel`;
               }
               label="Admin"
             />
-            <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4, mb: 3 }}>
+            <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4 }}>
               Admins can manage users and view all data
             </Typography>
-
-            {/* App Access Section */}
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <AppsIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle2" fontWeight={600}>
-                  App Access
-                </Typography>
-              </Box>
-              {editIsAdmin ? (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Admins automatically have access to all apps.
-                </Typography>
-              ) : (
-                <>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
-                    Select which apps this user can access:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {PRODUCT_OPTIONS.map((product) => (
-                      <FormControlLabel
-                        key={product.id}
-                        control={
-                          <Switch
-                            size="small"
-                            checked={editAllowedProducts.includes(product.id)}
-                            onChange={() => handleProductToggle(product.id)}
-                            disabled={product.id === 'tales' && editAllowedProducts.length === 1}
-                          />
-                        }
-                        label={
-                          <Box>
-                            <Typography variant="body2" fontWeight={500}>
-                              {product.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {product.description}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    ))}
-                  </Box>
-                </>
-              )}
-            </Box>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -913,12 +814,9 @@ RobotRachel`;
                         '& a': { color: 'primary.main' }
                       }}
                       dangerouslySetInnerHTML={{
-                        __html: DOMPurify.sanitize(
-                          body
-                            .replace(/https:\/\/apps\.robotrachel\.com/g, '<a href="https://apps.robotrachel.com" target="_blank" rel="noopener noreferrer">https://apps.robotrachel.com</a>')
-                            .replace(/admin@robotrachel\.com/g, '<a href="mailto:admin@robotrachel.com">admin@robotrachel.com</a>'),
-                          { ALLOWED_TAGS: ['a'], ALLOWED_ATTR: ['href', 'target', 'rel'] }
-                        )
+                        __html: body
+                          .replace(/https:\/\/apps\.robotrachel\.com/g, '<a href="https://apps.robotrachel.com" target="_blank" rel="noopener">https://apps.robotrachel.com</a>')
+                          .replace(/admin@robotrachel\.com/g, '<a href="mailto:admin@robotrachel.com">admin@robotrachel.com</a>')
                       }}
                     />
                   </Paper>

@@ -1,16 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Product types in the Solstice AI Suite
 export type ProductType = 'tales' | 'heads' | 'canon' | 'vision' | 'pulse' | 'voice' | 'guardian';
-
-// User interface for product access control
-interface UserInfo {
-  email?: string;
-  is_admin?: boolean;
-  allowed_products?: string[];
-}
 
 interface ProductInfo {
   id: ProductType;
@@ -103,10 +96,9 @@ export const useProduct = () => {
 interface ProductProviderProps {
   children: ReactNode;
   tenantName?: string;
-  user?: UserInfo | null;
 }
 
-export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName, user }) => {
+export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName }) => {
   // Check if user is in Solstice HC tenant
   const isSolsticeHC = tenantName === 'Solstice HC';
 
@@ -120,45 +112,21 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
     return product.requiredTenants.includes(tenantName || 'default');
   };
 
-  // Helper function to check if user has permission for a product
-  const userHasProductAccess = (productId: ProductType): boolean => {
-    // No user = default to Tales only
-    if (!user) return productId === 'tales';
+  // Filter products based on tenant AND enabled status
+  const availableProducts = PRODUCTS.filter(p => {
+    // Must be enabled
+    if (!p.enabled) return false;
+    // Must be accessible to this tenant
+    return isProductAccessible(p);
+  });
 
-    // Admins see all products
-    if (user.is_admin) return true;
-
-    // Special case: skremen@solsticehc.net sees all products
-    if (user.email?.toLowerCase() === 'skremen@solsticehc.net') return true;
-
-    // Check user's allowed_products list, default to Tales only
-    const allowedProducts = user.allowed_products || ['tales'];
-    return allowedProducts.includes(productId);
-  };
-
-  // Filter products based on tenant, enabled status, AND user permissions
-  const availableProducts = useMemo(() => {
-    return PRODUCTS.filter(p => {
-      // Must be enabled
-      if (!p.enabled) return false;
-      // Must be accessible to this tenant
-      if (!isProductAccessible(p)) return false;
-      // Must be accessible to this user
-      return userHasProductAccess(p.id);
-    });
-  }, [user, tenantName]);
-
-  // Upcoming products (disabled but would be visible to tenant/user when enabled)
-  const upcomingProducts = useMemo(() => {
-    return PRODUCTS.filter(p => {
-      // Skip enabled products
-      if (p.enabled) return false;
-      // Show only if tenant would have access when enabled
-      if (!isProductAccessible(p)) return false;
-      // Show only if user would have access (admins and skremen see all)
-      return userHasProductAccess(p.id);
-    });
-  }, [user, tenantName]);
+  // Upcoming products (disabled but would be visible to tenant when enabled)
+  const upcomingProducts = PRODUCTS.filter(p => {
+    // Skip enabled products
+    if (p.enabled) return false;
+    // Show only if tenant would have access when enabled
+    return isProductAccessible(p);
+  });
 
   // Initialize from localStorage or default to first available
   const [currentProduct, setCurrentProduct] = useState<ProductInfo>(() => {
