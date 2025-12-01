@@ -13,6 +13,7 @@ import Settings from '../pages/Settings';
 import UserManagement from '../pages/admin/UserManagement';
 import TenantManagement from '../pages/admin/TenantManagement';
 import UserBrandData from '../pages/admin/UserBrandData';
+import AdminBatches from '../pages/admin/AdminBatches';
 import AdminSchedulerDashboard from '../pages/AdminSchedulerDashboard';
 import SentimentAnalysis from '../pages/analytics/SentimentAnalysis';
 import PositioningAnalysis from '../pages/analytics/PositioningAnalysis';
@@ -305,6 +306,16 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute requireAdmin>
                 <Layout>
                   <AdminSchedulerDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/batches"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Layout>
+                  <AdminBatches />
                 </Layout>
               </ProtectedRoute>
             }

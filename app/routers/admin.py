@@ -607,3 +607,523 @@ def get_active_users(
         "minutes_threshold": minutes,
         "current_admin_id": current_admin.id
     }
+
+
+# === Batch Management ===
+
+@router.put("/batches/{batch_id}/date")
+def update_batch_date(
+    batch_id: int,
+    new_date: str,  # ISO format: "2025-11-01T23:25:00"
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Update the started_at date for a collection batch.
+
+    Args:
+        batch_id: The batch ID to update
+        new_date: New date in ISO format (e.g., "2025-11-01T23:25:00")
+    """
+    batch = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.id == batch_id
+    ).first()
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    try:
+        new_datetime = datetime.fromisoformat(new_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format: YYYY-MM-DDTHH:MM:SS")
+
+    old_date = batch.started_at
+
+    # Update batch
+    batch.started_at = new_datetime
+
+    # Also shift completed_at if it exists
+    if batch.completed_at and old_date:
+        delta = new_datetime - old_date
+        batch.completed_at = batch.completed_at + delta
+
+    # Update BatchAnalytics collection_date if exists
+    batch_analytics = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.batch_id == batch_id
+    ).first()
+
+    if batch_analytics:
+        batch_analytics.collection_date = new_datetime
+
+    db.commit()
+
+    return {
+        "message": "Batch date updated successfully",
+        "batch_id": batch_id,
+        "old_date": old_date.isoformat() if old_date else None,
+        "new_date": new_datetime.isoformat(),
+        "batch_name": batch.batch_name
+    }
+
+
+@router.get("/batches")
+def list_all_batches(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """List all collection batches across all users with response counts and brand info."""
+    batches = db.query(models.CollectionBatch).order_by(
+        models.CollectionBatch.started_at.desc()
+    ).limit(limit).all()
+
+    result = []
+    for b in batches:
+        # Get response count for this batch
+        response_count = db.query(func.count(models.Response.id)).filter(
+            models.Response.batch_id == b.id
+        ).scalar() or 0
+
+        # Get brand info
+        brand = db.query(models.BrandInfo).filter(
+            models.BrandInfo.id == b.brand_id
+        ).first()
+
+        # Get user info
+        user = db.query(models.User).filter(
+            models.User.id == b.user_id
+        ).first()
+
+        result.append({
+            "id": b.id,
+            "batch_name": b.batch_name,
+            "user_id": b.user_id,
+            "user_email": user.email if user else None,
+            "brand_id": b.brand_id,
+            "brand_name": brand.brand_name if brand else None,
+            "started_at": b.started_at.isoformat() if b.started_at else None,
+            "completed_at": b.completed_at.isoformat() if b.completed_at else None,
+            "status": b.status,
+            "response_count": response_count
+        })
+
+    return result
+
+
+# === Debug Endpoints ===
+
+@router.get("/debug/batch-analytics")
+def debug_batch_analytics(
+    brand_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Debug endpoint to view BatchAnalytics data and trend calculations.
+    Shows the two most recent batches and the calculated change values.
+    """
+    import json
+
+    # Get batch analytics for the admin's user account or filter by brand
+    batch_analytics_query = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.user_id == current_admin.id
+    )
+    if brand_id:
+        batch_analytics_query = batch_analytics_query.filter(
+            models.BatchAnalytics.brand_id == brand_id
+        )
+
+    recent_batches = batch_analytics_query.order_by(
+        models.BatchAnalytics.collection_date.desc()
+    ).limit(5).all()
+
+    if len(recent_batches) < 2:
+        return {
+            "error": "Need at least 2 batches to compare",
+            "batches_found": len(recent_batches),
+            "batches": [
+                {
+                    "batch_id": ba.batch_id,
+                    "collection_date": ba.collection_date.isoformat() if ba.collection_date else None,
+                    "mention_rate": ba.mention_rate,
+                    "mention_count": ba.mention_count,
+                    "total_responses": ba.total_responses
+                }
+                for ba in recent_batches
+            ]
+        }
+
+    recent = recent_batches[0]
+    previous = recent_batches[1]
+
+    # Calculate the same way as analytics_cache.py
+    mention_rate_change = (recent.mention_rate or 0) - (previous.mention_rate or 0)
+
+    return {
+        "most_recent_batch": {
+            "batch_id": recent.batch_id,
+            "collection_date": recent.collection_date.isoformat() if recent.collection_date else None,
+            "mention_rate": recent.mention_rate,
+            "mention_count": recent.mention_count,
+            "total_responses": recent.total_responses,
+            "brand_id": recent.brand_id,
+            "user_id": recent.user_id
+        },
+        "previous_batch": {
+            "batch_id": previous.batch_id,
+            "collection_date": previous.collection_date.isoformat() if previous.collection_date else None,
+            "mention_rate": previous.mention_rate,
+            "mention_count": previous.mention_count,
+            "total_responses": previous.total_responses,
+            "brand_id": previous.brand_id,
+            "user_id": previous.user_id
+        },
+        "calculated_change": {
+            "mention_rate_change": mention_rate_change,
+            "formula": f"recent({recent.mention_rate}) - previous({previous.mention_rate}) = {mention_rate_change}"
+        },
+        "all_batches": [
+            {
+                "batch_id": ba.batch_id,
+                "collection_date": ba.collection_date.isoformat() if ba.collection_date else None,
+                "mention_rate": ba.mention_rate,
+                "brand_id": ba.brand_id
+            }
+            for ba in recent_batches
+        ]
+    }
+
+
+@router.post("/debug/recompute-batch-analytics/{batch_id}")
+def recompute_batch_analytics(
+    batch_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Recompute BatchAnalytics for a specific batch.
+    Use this when batch analytics data appears to be incorrect.
+    """
+    from ..services.batch_analytics import compute_batch_analytics
+
+    # Get the batch to find user_id and brand_id
+    batch = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.id == batch_id
+    ).first()
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Recompute analytics
+    result = compute_batch_analytics(db, batch_id, batch.user_id, batch.brand_id)
+
+    if result:
+        return {
+            "message": "Batch analytics recomputed successfully",
+            "batch_id": batch_id,
+            "mention_rate": result.mention_rate,
+            "mention_count": result.mention_count,
+            "total_responses": result.total_responses
+        }
+    else:
+        return {
+            "message": "No responses found for batch",
+            "batch_id": batch_id
+        }
+
+
+# === Cache Management ===
+
+@router.post("/cache/clear")
+def clear_cache(
+    user_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Clear Redis cache for analytics data.
+
+    Args:
+        user_id: Optional - clear cache for specific user only
+        brand_id: Optional - clear cache for specific brand only (requires user_id)
+
+    If no parameters provided, clears ALL analytics cache.
+    """
+    from ..services.redis_cache import get_redis_cache
+
+    cache = get_redis_cache()
+
+    if not cache.is_available:
+        return {
+            "message": "Redis cache is not available",
+            "cleared": 0
+        }
+
+    if user_id and brand_id:
+        # Clear cache for specific user/brand
+        count = cache.invalidate_user(user_id, brand_id)
+        return {
+            "message": f"Cache cleared for user {user_id}, brand {brand_id}",
+            "cleared": count
+        }
+    elif user_id:
+        # Clear cache for specific user (all brands)
+        count = cache.invalidate_user(user_id)
+        return {
+            "message": f"Cache cleared for user {user_id}",
+            "cleared": count
+        }
+    else:
+        # Clear ALL analytics cache
+        count = cache.invalidate_pattern("*")
+        return {
+            "message": "All analytics cache cleared",
+            "cleared": count
+        }
+
+
+# === Data Deduplication ===
+
+@router.get("/debug/december-duplicates")
+def investigate_december_duplicates(
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Investigate duplicate responses in December 2025 data.
+    Shows batch info and identifies duplicate prompt/platform combinations.
+    """
+    from sqlalchemy import extract
+
+    # Get all December 2025 batches
+    december_batches = db.query(models.CollectionBatch).filter(
+        extract('month', models.CollectionBatch.started_at) == 12,
+        extract('year', models.CollectionBatch.started_at) == 2025
+    ).order_by(models.CollectionBatch.started_at).all()
+
+    result = {
+        "december_batches": [],
+        "total_december_responses": 0,
+        "duplicates": [],
+        "summary": {}
+    }
+
+    for batch in december_batches:
+        # Count responses for this batch
+        response_count = db.query(func.count(models.Response.id)).filter(
+            models.Response.batch_id == batch.id
+        ).scalar()
+
+        result["total_december_responses"] += response_count
+
+        # Get unique prompts and platforms
+        unique_prompts = db.query(func.count(func.distinct(models.Response.prompt_id))).filter(
+            models.Response.batch_id == batch.id
+        ).scalar()
+
+        platforms = db.query(func.distinct(models.Response.platform)).filter(
+            models.Response.batch_id == batch.id
+        ).all()
+        platform_list = [p[0] for p in platforms]
+
+        result["december_batches"].append({
+            "batch_id": batch.id,
+            "batch_name": batch.batch_name,
+            "user_id": batch.user_id,
+            "brand_id": batch.brand_id,
+            "started_at": batch.started_at.isoformat() if batch.started_at else None,
+            "status": batch.status,
+            "response_count": response_count,
+            "unique_prompts": unique_prompts,
+            "platforms": platform_list,
+            "expected_count": unique_prompts * len(platform_list)
+        })
+
+    # Find duplicate prompt/platform combinations within December batches
+    december_batch_ids = [b.id for b in december_batches]
+
+    if december_batch_ids:
+        duplicate_check = db.query(
+            models.Response.batch_id,
+            models.Response.prompt_id,
+            models.Response.platform,
+            func.count(models.Response.id).label('count')
+        ).filter(
+            models.Response.batch_id.in_(december_batch_ids)
+        ).group_by(
+            models.Response.batch_id,
+            models.Response.prompt_id,
+            models.Response.platform
+        ).having(
+            func.count(models.Response.id) > 1
+        ).all()
+
+        for dup in duplicate_check:
+            prompt = db.query(models.Prompt).filter(models.Prompt.id == dup.prompt_id).first()
+            result["duplicates"].append({
+                "batch_id": dup.batch_id,
+                "prompt_id": dup.prompt_id,
+                "prompt_text": prompt.prompt_text[:100] if prompt else "Unknown",
+                "platform": dup.platform,
+                "duplicate_count": dup.count
+            })
+
+    result["summary"] = {
+        "total_batches": len(december_batches),
+        "total_responses": result["total_december_responses"],
+        "expected_responses": sum(b["expected_count"] for b in result["december_batches"]),
+        "duplicate_groups": len(result["duplicates"]),
+        "excess_responses": result["total_december_responses"] - sum(b["expected_count"] for b in result["december_batches"])
+    }
+
+    return result
+
+
+@router.post("/fix/remove-duplicate-responses")
+def remove_duplicate_responses(
+    batch_id: Optional[int] = None,
+    dry_run: bool = True,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Remove duplicate responses (same prompt_id + platform within same batch).
+    Keeps the FIRST response (lowest ID) and removes duplicates.
+
+    Args:
+        batch_id: Specific batch to clean (or None for all December 2025 batches)
+        dry_run: If True, only report what would be deleted (default: True)
+
+    Returns:
+        Count of responses that would be/were deleted
+    """
+    from sqlalchemy import extract
+
+    # Determine which batches to clean
+    if batch_id:
+        batch_ids = [batch_id]
+    else:
+        # Get all December 2025 batches
+        december_batches = db.query(models.CollectionBatch).filter(
+            extract('month', models.CollectionBatch.started_at) == 12,
+            extract('year', models.CollectionBatch.started_at) == 2025
+        ).all()
+        batch_ids = [b.id for b in december_batches]
+
+    if not batch_ids:
+        return {"message": "No batches to process", "deleted": 0}
+
+    # Find all duplicate groups
+    duplicate_groups = db.query(
+        models.Response.batch_id,
+        models.Response.prompt_id,
+        models.Response.platform,
+        func.count(models.Response.id).label('count'),
+        func.min(models.Response.id).label('keep_id')
+    ).filter(
+        models.Response.batch_id.in_(batch_ids)
+    ).group_by(
+        models.Response.batch_id,
+        models.Response.prompt_id,
+        models.Response.platform
+    ).having(
+        func.count(models.Response.id) > 1
+    ).all()
+
+    # Collect IDs to delete
+    ids_to_delete = []
+    for group in duplicate_groups:
+        # Get all response IDs for this prompt/platform combination
+        response_ids = db.query(models.Response.id).filter(
+            models.Response.batch_id == group.batch_id,
+            models.Response.prompt_id == group.prompt_id,
+            models.Response.platform == group.platform
+        ).order_by(models.Response.id).all()
+
+        # Keep the first one (lowest ID), mark rest for deletion
+        for rid in response_ids[1:]:  # Skip the first (keep it)
+            ids_to_delete.append(rid[0])
+
+    result = {
+        "dry_run": dry_run,
+        "batches_processed": batch_ids,
+        "duplicate_groups_found": len(duplicate_groups),
+        "responses_to_delete": len(ids_to_delete),
+        "sample_deletions": ids_to_delete[:20]  # Show first 20 IDs
+    }
+
+    if not dry_run and ids_to_delete:
+        # Actually delete the duplicates
+        deleted_count = db.query(models.Response).filter(
+            models.Response.id.in_(ids_to_delete)
+        ).delete(synchronize_session=False)
+
+        db.commit()
+        result["deleted"] = deleted_count
+        result["message"] = f"Successfully deleted {deleted_count} duplicate responses"
+
+        # Clear cache after deletion
+        from ..services.redis_cache import get_redis_cache
+        cache = get_redis_cache()
+        if cache.is_available:
+            cache.invalidate_pattern("*")
+            result["cache_cleared"] = True
+    else:
+        result["message"] = "Dry run - no changes made. Set dry_run=false to actually delete duplicates."
+
+    return result
+
+
+@router.delete("/batches/{batch_id}")
+def delete_batch(
+    batch_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Delete an entire collection batch and all its associated responses.
+
+    This is a destructive operation - use with caution!
+    """
+    # Find the batch
+    batch = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.id == batch_id
+    ).first()
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    batch_name = batch.batch_name
+
+    # Count responses before deletion
+    response_count = db.query(func.count(models.Response.id)).filter(
+        models.Response.batch_id == batch_id
+    ).scalar()
+
+    # Delete all responses for this batch
+    db.query(models.Response).filter(
+        models.Response.batch_id == batch_id
+    ).delete(synchronize_session=False)
+
+    # Delete BatchAnalytics if exists
+    db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.batch_id == batch_id
+    ).delete(synchronize_session=False)
+
+    # Delete the batch itself
+    db.delete(batch)
+    db.commit()
+
+    # Clear cache
+    from ..services.redis_cache import get_redis_cache
+    cache = get_redis_cache()
+    if cache.is_available:
+        cache.invalidate_pattern("*")
+
+    return {
+        "message": f"Batch '{batch_name}' deleted successfully",
+        "batch_id": batch_id,
+        "responses_deleted": response_count,
+        "cache_cleared": True
+    }

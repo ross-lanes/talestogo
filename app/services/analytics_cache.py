@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, case
 from typing import Dict, List, Any, Optional, Tuple
 import datetime
+import json
 from datetime import timedelta
 from .. import models
 from . import metrics
@@ -424,95 +425,248 @@ class AnalyticsCache:
         self._cache['leading_position'] = leading_position
 
     def _calculate_trends(self):
-        """Calculate 30-day trend data."""
-        end_date = datetime.datetime.utcnow()
-        start_date = end_date - timedelta(days=30)
-        mid_date = end_date - timedelta(days=15)
+        """
+        Calculate trend data by comparing the two most recent collection batches.
 
-        # Recent period (last 15 days) - excluding brand_in_query
-        recent_responses = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= mid_date
-            ),
-            include_brand_in_query=False
-        ).scalar() or 0
+        IMPORTANT: This calculates metrics directly from Response data (not BatchAnalytics)
+        to ensure values match the current dashboard metrics and avoid stale data issues.
+        """
+        # Get the two most recent CollectionBatch records for this user/brand
+        batch_query = self.db.query(models.CollectionBatch).filter(
+            models.CollectionBatch.user_id == self.user_id,
+            models.CollectionBatch.status == 'completed'
+        )
+        if self.brand_id:
+            batch_query = batch_query.filter(
+                models.CollectionBatch.brand_id == self.brand_id
+            )
 
-        recent_mentions = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= mid_date,
+        # Order by started_at descending to get most recent first
+        recent_batches = batch_query.order_by(
+            models.CollectionBatch.started_at.desc()
+        ).limit(2).all()
+
+        if len(recent_batches) < 2:
+            # Not enough batches for comparison
+            self._cache['trends'] = {
+                'mention_rate_change': 0,
+                'sentiment_change': 0,
+                'descriptor_change': 0,
+                'share_of_voice_change': 0,
+                'high_threat_change': None,
+                'leadership_visibility_change': 0
+            }
+            return
+
+        # Helper function to calculate metrics for a specific batch directly from Response data
+        def calculate_batch_metrics(batch_id: int) -> dict:
+            """Calculate all trend metrics for a batch directly from Response data."""
+            # Base query for this batch
+            base_query = self.db.query(models.Response).filter(
+                models.Response.batch_id == batch_id,
+                models.Response.user_id == self.user_id
+            )
+            if self.brand_id:
+                base_query = base_query.filter(models.Response.brand_id == self.brand_id)
+
+            # Check if Query table has data for brand_in_query filtering
+            query_count = self.db.query(func.count(models.Query.id)).filter(
+                models.Query.user_id == self.user_id
+            )
+            if self.brand_id:
+                query_count = query_count.filter(models.Query.brand_id == self.brand_id)
+            has_queries = query_count.scalar() > 0
+
+            # For mention rate: exclude brand_in_query responses
+            if has_queries:
+                mention_base = base_query.join(
+                    models.Query,
+                    (models.Response.query_id == models.Query.query_id) &
+                    (models.Response.user_id == models.Query.user_id) &
+                    (models.Response.brand_id == models.Query.brand_id),
+                    isouter=False
+                ).filter(models.Query.brand_in_query == False)
+            else:
+                mention_base = base_query
+
+            # Total responses for mention calculation
+            total_responses = mention_base.count()
+
+            # Mentions (Yes or Indirect)
+            mentions = mention_base.filter(
                 models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
-            ),
-            include_brand_in_query=False
-        ).scalar() or 0
+            ).count()
 
-        # Previous period (15-30 days ago) - excluding brand_in_query
-        prev_responses = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= start_date,
-                models.Response.timestamp < mid_date
-            ),
-            include_brand_in_query=False
-        ).scalar() or 0
+            mention_rate = (mentions / total_responses * 100) if total_responses > 0 else 0
 
-        prev_mentions = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= start_date,
-                models.Response.timestamp < mid_date,
+            # For sentiment: include all responses
+            all_responses = base_query.filter(
+                models.Response.brand_mentioned == 'Yes'
+            ).all()
+
+            # Sentiment counts
+            sentiment_counts = {'Very Positive': 0, 'Positive': 0, 'Neutral': 0,
+                              'Mixed': 0, 'Negative': 0, 'Very Negative': 0}
+            for r in all_responses:
+                if r.sentiment in sentiment_counts:
+                    sentiment_counts[r.sentiment] += 1
+
+            total_with_sentiment = sum(sentiment_counts.values())
+            positive_count = sentiment_counts['Very Positive'] + sentiment_counts['Positive']
+            sentiment_rate = (positive_count / total_with_sentiment * 100) if total_with_sentiment > 0 else 0
+
+            # Descriptor match rate
+            target_descriptors_query = self.db.query(models.TargetDescriptor).filter(
+                models.TargetDescriptor.user_id == self.user_id,
+                models.TargetDescriptor.is_target == True
+            )
+            if self.brand_id:
+                target_descriptors_query = target_descriptors_query.filter(
+                    models.TargetDescriptor.brand_id == self.brand_id
+                )
+            target_descriptors = target_descriptors_query.all()
+            total_target_descriptors = len(target_descriptors)
+
+            descriptor_rate = 0.0
+            if total_target_descriptors > 0:
+                target_desc_lower = {td.descriptor.lower(): td.descriptor for td in target_descriptors}
+                matched_descriptors = set()
+
+                # Get responses with descriptors for this batch
+                responses_with_desc = base_query.filter(
+                    models.Response.brand_mentioned.in_(['Yes', 'Indirect']),
+                    models.Response.descriptors.isnot(None),
+                    models.Response.descriptors != ''
+                ).all()
+
+                for r in responses_with_desc:
+                    if r.descriptors:
+                        response_descriptors = [d.strip().lower() for d in r.descriptors.split(',')]
+                        for target_lower, target_original in target_desc_lower.items():
+                            if any(target_lower in resp_desc or resp_desc in target_lower
+                                   for resp_desc in response_descriptors):
+                                matched_descriptors.add(target_original)
+
+                descriptor_rate = (len(matched_descriptors) / total_target_descriptors * 100)
+
+            # Share of voice calculation
+            brand = self.db.query(models.BrandInfo).filter(
+                models.BrandInfo.user_id == self.user_id
+            )
+            if self.brand_id:
+                brand = brand.filter(models.BrandInfo.id == self.brand_id)
+            brand = brand.first()
+            brand_name = brand.brand_name if brand else "Your Brand"
+
+            # Get responses with mentions for SOV (excluding brand_in_query)
+            sov_responses = mention_base.filter(
                 models.Response.brand_mentioned.in_(['Yes', 'Indirect'])
-            ),
-            include_brand_in_query=False
-        ).scalar() or 0
+            ).all()
 
-        # Calculate mention rate change
-        recent_mention_rate = round((recent_mentions / recent_responses * 100)) if recent_responses > 0 else 0
-        prev_mention_rate = round((prev_mentions / prev_responses * 100)) if prev_responses > 0 else 0
-        mention_rate_change = recent_mention_rate - prev_mention_rate
+            # Count brand mentions
+            brand_mentions = len(sov_responses)
 
-        # Sentiment trends (including all responses)
-        recent_positive = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= mid_date,
-                models.Response.brand_mentioned == 'Yes',
-                models.Response.sentiment.in_(['Very Positive', 'Positive'])
-            ),
-            include_brand_in_query=True
-        ).scalar() or 0
+            # Count competitor mentions
+            competitor_counts = {}
+            for r in sov_responses:
+                if r.competitors:
+                    competitors = [c.strip() for c in r.competitors.split(',')]
+                    for comp in competitors:
+                        if comp and comp != brand_name:
+                            competitor_counts[comp] = competitor_counts.get(comp, 0) + 1
 
-        recent_mentions_all = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= mid_date,
-                models.Response.brand_mentioned == 'Yes'
-            ),
-            include_brand_in_query=True
-        ).scalar() or 0
+            total_mentions = brand_mentions + sum(competitor_counts.values())
+            share_of_voice = (brand_mentions / total_mentions * 100) if total_mentions > 0 else 0
 
-        prev_positive = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= start_date,
-                models.Response.timestamp < mid_date,
-                models.Response.brand_mentioned == 'Yes',
-                models.Response.sentiment.in_(['Very Positive', 'Positive'])
-            ),
-            include_brand_in_query=True
-        ).scalar() or 0
+            # High threat count
+            high_threat_count = 0
+            for comp_name, comp_mention_count in competitor_counts.items():
+                # Get responses where this competitor is mentioned
+                competitive_responses = [
+                    r for r in sov_responses
+                    if r.competitors and comp_name.lower() in r.competitors.lower()
+                ]
 
-        prev_mentions_all = self._apply_filters(
-            self.db.query(func.count(models.Response.id)).filter(
-                models.Response.timestamp >= start_date,
-                models.Response.timestamp < mid_date,
-                models.Response.brand_mentioned == 'Yes'
-            ),
-            include_brand_in_query=True
-        ).scalar() or 0
+                # Count sentiment-based threat components
+                negative_when_competitor = sum(
+                    1 for r in competitive_responses
+                    if r.sentiment in ['Negative', 'Very Negative']
+                )
+                positive_competitor = sum(
+                    1 for r in competitive_responses
+                    if r.sentiment in ['Positive', 'Very Positive']
+                )
 
-        recent_sentiment_rate = (recent_positive / recent_mentions_all * 100) if recent_mentions_all > 0 else 0.0
-        prev_sentiment_rate = (prev_positive / prev_mentions_all * 100) if prev_mentions_all > 0 else 0.0
-        sentiment_change = recent_sentiment_rate - prev_sentiment_rate
+                # Calculate threat score
+                threat_score = (
+                    (comp_mention_count * 0.7) +
+                    (negative_when_competitor * 2.0) +
+                    (positive_competitor * 1.5)
+                )
+
+                if threat_score > 50:  # High threat threshold
+                    high_threat_count += 1
+
+            # Leadership visibility calculation
+            # Get all queries for brand_in_query filtering
+            queries = self.db.query(models.Query).filter(
+                models.Query.user_id == self.user_id
+            )
+            if self.brand_id:
+                queries = queries.filter(models.Query.brand_id == self.brand_id)
+            queries = queries.all()
+
+            # Build set of query_ids where brand_in_query=True to exclude
+            branded_query_ids = {q.query_id for q in queries if q.brand_in_query}
+
+            # Get all responses for this batch (not just mentions)
+            all_batch_responses = base_query.all()
+
+            # Filter responses: exclude branded queries
+            filtered_responses = [
+                r for r in all_batch_responses
+                if r.query_id not in branded_query_ids
+            ]
+
+            total_for_lv = len(filtered_responses)
+            if total_for_lv > 0:
+                # Count Leader and Featured positions
+                leadership_count = sum(
+                    1 for r in filtered_responses
+                    if r.brand_position in ['Leader', 'Top 3', 'Featured']
+                )
+                leadership_visibility = (leadership_count / total_for_lv) * 100
+            else:
+                leadership_visibility = 0.0
+
+            return {
+                'mention_rate': mention_rate,
+                'sentiment_rate': sentiment_rate,
+                'descriptor_rate': descriptor_rate,
+                'share_of_voice': share_of_voice,
+                'high_threat_count': high_threat_count,
+                'leadership_visibility': leadership_visibility
+            }
+
+        # Calculate metrics for both batches
+        recent_metrics = calculate_batch_metrics(recent_batches[0].id)
+        prev_metrics = calculate_batch_metrics(recent_batches[1].id)
+
+        # Calculate changes (recent - previous)
+        mention_rate_change = recent_metrics['mention_rate'] - prev_metrics['mention_rate']
+        sentiment_change = recent_metrics['sentiment_rate'] - prev_metrics['sentiment_rate']
+        descriptor_change = recent_metrics['descriptor_rate'] - prev_metrics['descriptor_rate']
+        share_of_voice_change = recent_metrics['share_of_voice'] - prev_metrics['share_of_voice']
+        high_threat_change = recent_metrics['high_threat_count'] - prev_metrics['high_threat_count']
+        leadership_visibility_change = recent_metrics['leadership_visibility'] - prev_metrics['leadership_visibility']
 
         self._cache['trends'] = {
             'mention_rate_change': round(mention_rate_change),
             'sentiment_change': round(sentiment_change),
-            'descriptor_change': 0  # Can be calculated if needed
+            'descriptor_change': round(descriptor_change),
+            'share_of_voice_change': round(share_of_voice_change),
+            'high_threat_change': high_threat_change,
+            'leadership_visibility_change': round(leadership_visibility_change)
         }
 
     def get_dashboard_data(self) -> Dict[str, Any]:
@@ -530,6 +684,9 @@ class AnalyticsCache:
             'change_mention_rate': self._cache.get('trends', {}).get('mention_rate_change', 0),
             'change_sentiment': self._cache.get('trends', {}).get('sentiment_change', 0),
             'change_descriptor': self._cache.get('trends', {}).get('descriptor_change', 0),
+            'change_share_of_voice': self._cache.get('trends', {}).get('share_of_voice_change', 0),
+            'change_high_threats': self._cache.get('trends', {}).get('high_threat_change'),
+            'change_leadership_visibility': self._cache.get('trends', {}).get('leadership_visibility_change', 0),
             'leading_position': self._cache.get('leading_position', 'N/A')
         }
 
