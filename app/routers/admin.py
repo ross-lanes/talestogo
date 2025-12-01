@@ -691,6 +691,90 @@ def list_all_batches(
     ]
 
 
+# === Debug Endpoints ===
+
+@router.get("/debug/batch-analytics")
+def debug_batch_analytics(
+    brand_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Debug endpoint to view BatchAnalytics data and trend calculations.
+    Shows the two most recent batches and the calculated change values.
+    """
+    import json
+
+    # Get batch analytics for the admin's user account or filter by brand
+    batch_analytics_query = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.user_id == current_admin.id
+    )
+    if brand_id:
+        batch_analytics_query = batch_analytics_query.filter(
+            models.BatchAnalytics.brand_id == brand_id
+        )
+
+    recent_batches = batch_analytics_query.order_by(
+        models.BatchAnalytics.collection_date.desc()
+    ).limit(5).all()
+
+    if len(recent_batches) < 2:
+        return {
+            "error": "Need at least 2 batches to compare",
+            "batches_found": len(recent_batches),
+            "batches": [
+                {
+                    "batch_id": ba.batch_id,
+                    "collection_date": ba.collection_date.isoformat() if ba.collection_date else None,
+                    "mention_rate": ba.mention_rate,
+                    "mention_count": ba.mention_count,
+                    "total_responses": ba.total_responses
+                }
+                for ba in recent_batches
+            ]
+        }
+
+    recent = recent_batches[0]
+    previous = recent_batches[1]
+
+    # Calculate the same way as analytics_cache.py
+    mention_rate_change = (recent.mention_rate or 0) - (previous.mention_rate or 0)
+
+    return {
+        "most_recent_batch": {
+            "batch_id": recent.batch_id,
+            "collection_date": recent.collection_date.isoformat() if recent.collection_date else None,
+            "mention_rate": recent.mention_rate,
+            "mention_count": recent.mention_count,
+            "total_responses": recent.total_responses,
+            "brand_id": recent.brand_id,
+            "user_id": recent.user_id
+        },
+        "previous_batch": {
+            "batch_id": previous.batch_id,
+            "collection_date": previous.collection_date.isoformat() if previous.collection_date else None,
+            "mention_rate": previous.mention_rate,
+            "mention_count": previous.mention_count,
+            "total_responses": previous.total_responses,
+            "brand_id": previous.brand_id,
+            "user_id": previous.user_id
+        },
+        "calculated_change": {
+            "mention_rate_change": mention_rate_change,
+            "formula": f"recent({recent.mention_rate}) - previous({previous.mention_rate}) = {mention_rate_change}"
+        },
+        "all_batches": [
+            {
+                "batch_id": ba.batch_id,
+                "collection_date": ba.collection_date.isoformat() if ba.collection_date else None,
+                "mention_rate": ba.mention_rate,
+                "brand_id": ba.brand_id
+            }
+            for ba in recent_batches
+        ]
+    }
+
+
 # === Cache Management ===
 
 @router.post("/cache/clear")
