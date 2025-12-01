@@ -1054,3 +1054,57 @@ def remove_duplicate_responses(
         result["message"] = "Dry run - no changes made. Set dry_run=false to actually delete duplicates."
 
     return result
+
+
+@router.delete("/batches/{batch_id}")
+def delete_batch(
+    batch_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Delete an entire collection batch and all its associated responses.
+
+    This is a destructive operation - use with caution!
+    """
+    # Find the batch
+    batch = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.id == batch_id
+    ).first()
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    batch_name = batch.batch_name
+
+    # Count responses before deletion
+    response_count = db.query(func.count(models.Response.id)).filter(
+        models.Response.batch_id == batch_id
+    ).scalar()
+
+    # Delete all responses for this batch
+    db.query(models.Response).filter(
+        models.Response.batch_id == batch_id
+    ).delete(synchronize_session=False)
+
+    # Delete BatchAnalytics if exists
+    db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.batch_id == batch_id
+    ).delete(synchronize_session=False)
+
+    # Delete the batch itself
+    db.delete(batch)
+    db.commit()
+
+    # Clear cache
+    from ..services.redis_cache import get_redis_cache
+    cache = get_redis_cache()
+    if cache.is_available:
+        cache.invalidate_pattern("*")
+
+    return {
+        "message": f"Batch '{batch_name}' deleted successfully",
+        "batch_id": batch_id,
+        "responses_deleted": response_count,
+        "cache_cleared": True
+    }
