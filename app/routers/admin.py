@@ -862,3 +862,195 @@ def clear_cache(
             "message": "All analytics cache cleared",
             "cleared": count
         }
+
+
+# === Data Deduplication ===
+
+@router.get("/debug/december-duplicates")
+def investigate_december_duplicates(
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Investigate duplicate responses in December 2025 data.
+    Shows batch info and identifies duplicate prompt/platform combinations.
+    """
+    from sqlalchemy import extract
+
+    # Get all December 2025 batches
+    december_batches = db.query(models.CollectionBatch).filter(
+        extract('month', models.CollectionBatch.started_at) == 12,
+        extract('year', models.CollectionBatch.started_at) == 2025
+    ).order_by(models.CollectionBatch.started_at).all()
+
+    result = {
+        "december_batches": [],
+        "total_december_responses": 0,
+        "duplicates": [],
+        "summary": {}
+    }
+
+    for batch in december_batches:
+        # Count responses for this batch
+        response_count = db.query(func.count(models.Response.id)).filter(
+            models.Response.batch_id == batch.id
+        ).scalar()
+
+        result["total_december_responses"] += response_count
+
+        # Get unique prompts and platforms
+        unique_prompts = db.query(func.count(func.distinct(models.Response.prompt_id))).filter(
+            models.Response.batch_id == batch.id
+        ).scalar()
+
+        platforms = db.query(func.distinct(models.Response.platform)).filter(
+            models.Response.batch_id == batch.id
+        ).all()
+        platform_list = [p[0] for p in platforms]
+
+        result["december_batches"].append({
+            "batch_id": batch.id,
+            "batch_name": batch.batch_name,
+            "user_id": batch.user_id,
+            "brand_id": batch.brand_id,
+            "started_at": batch.started_at.isoformat() if batch.started_at else None,
+            "status": batch.status,
+            "response_count": response_count,
+            "unique_prompts": unique_prompts,
+            "platforms": platform_list,
+            "expected_count": unique_prompts * len(platform_list)
+        })
+
+    # Find duplicate prompt/platform combinations within December batches
+    december_batch_ids = [b.id for b in december_batches]
+
+    if december_batch_ids:
+        duplicate_check = db.query(
+            models.Response.batch_id,
+            models.Response.prompt_id,
+            models.Response.platform,
+            func.count(models.Response.id).label('count')
+        ).filter(
+            models.Response.batch_id.in_(december_batch_ids)
+        ).group_by(
+            models.Response.batch_id,
+            models.Response.prompt_id,
+            models.Response.platform
+        ).having(
+            func.count(models.Response.id) > 1
+        ).all()
+
+        for dup in duplicate_check:
+            prompt = db.query(models.Prompt).filter(models.Prompt.id == dup.prompt_id).first()
+            result["duplicates"].append({
+                "batch_id": dup.batch_id,
+                "prompt_id": dup.prompt_id,
+                "prompt_text": prompt.prompt_text[:100] if prompt else "Unknown",
+                "platform": dup.platform,
+                "duplicate_count": dup.count
+            })
+
+    result["summary"] = {
+        "total_batches": len(december_batches),
+        "total_responses": result["total_december_responses"],
+        "expected_responses": sum(b["expected_count"] for b in result["december_batches"]),
+        "duplicate_groups": len(result["duplicates"]),
+        "excess_responses": result["total_december_responses"] - sum(b["expected_count"] for b in result["december_batches"])
+    }
+
+    return result
+
+
+@router.post("/fix/remove-duplicate-responses")
+def remove_duplicate_responses(
+    batch_id: Optional[int] = None,
+    dry_run: bool = True,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Remove duplicate responses (same prompt_id + platform within same batch).
+    Keeps the FIRST response (lowest ID) and removes duplicates.
+
+    Args:
+        batch_id: Specific batch to clean (or None for all December 2025 batches)
+        dry_run: If True, only report what would be deleted (default: True)
+
+    Returns:
+        Count of responses that would be/were deleted
+    """
+    from sqlalchemy import extract
+
+    # Determine which batches to clean
+    if batch_id:
+        batch_ids = [batch_id]
+    else:
+        # Get all December 2025 batches
+        december_batches = db.query(models.CollectionBatch).filter(
+            extract('month', models.CollectionBatch.started_at) == 12,
+            extract('year', models.CollectionBatch.started_at) == 2025
+        ).all()
+        batch_ids = [b.id for b in december_batches]
+
+    if not batch_ids:
+        return {"message": "No batches to process", "deleted": 0}
+
+    # Find all duplicate groups
+    duplicate_groups = db.query(
+        models.Response.batch_id,
+        models.Response.prompt_id,
+        models.Response.platform,
+        func.count(models.Response.id).label('count'),
+        func.min(models.Response.id).label('keep_id')
+    ).filter(
+        models.Response.batch_id.in_(batch_ids)
+    ).group_by(
+        models.Response.batch_id,
+        models.Response.prompt_id,
+        models.Response.platform
+    ).having(
+        func.count(models.Response.id) > 1
+    ).all()
+
+    # Collect IDs to delete
+    ids_to_delete = []
+    for group in duplicate_groups:
+        # Get all response IDs for this prompt/platform combination
+        response_ids = db.query(models.Response.id).filter(
+            models.Response.batch_id == group.batch_id,
+            models.Response.prompt_id == group.prompt_id,
+            models.Response.platform == group.platform
+        ).order_by(models.Response.id).all()
+
+        # Keep the first one (lowest ID), mark rest for deletion
+        for rid in response_ids[1:]:  # Skip the first (keep it)
+            ids_to_delete.append(rid[0])
+
+    result = {
+        "dry_run": dry_run,
+        "batches_processed": batch_ids,
+        "duplicate_groups_found": len(duplicate_groups),
+        "responses_to_delete": len(ids_to_delete),
+        "sample_deletions": ids_to_delete[:20]  # Show first 20 IDs
+    }
+
+    if not dry_run and ids_to_delete:
+        # Actually delete the duplicates
+        deleted_count = db.query(models.Response).filter(
+            models.Response.id.in_(ids_to_delete)
+        ).delete(synchronize_session=False)
+
+        db.commit()
+        result["deleted"] = deleted_count
+        result["message"] = f"Successfully deleted {deleted_count} duplicate responses"
+
+        # Clear cache after deletion
+        from ..services.redis_cache import get_redis_cache
+        cache = get_redis_cache()
+        if cache.is_available:
+            cache.invalidate_pattern("*")
+            result["cache_cleared"] = True
+    else:
+        result["message"] = "Dry run - no changes made. Set dry_run=false to actually delete duplicates."
+
+    return result
