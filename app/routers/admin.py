@@ -775,6 +775,44 @@ def debug_batch_analytics(
     }
 
 
+@router.post("/debug/recompute-batch-analytics/{batch_id}")
+def recompute_batch_analytics(
+    batch_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+):
+    """
+    Recompute BatchAnalytics for a specific batch.
+    Use this when batch analytics data appears to be incorrect.
+    """
+    from ..services.batch_analytics import compute_batch_analytics
+
+    # Get the batch to find user_id and brand_id
+    batch = db.query(models.CollectionBatch).filter(
+        models.CollectionBatch.id == batch_id
+    ).first()
+
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # Recompute analytics
+    result = compute_batch_analytics(db, batch_id, batch.user_id, batch.brand_id)
+
+    if result:
+        return {
+            "message": "Batch analytics recomputed successfully",
+            "batch_id": batch_id,
+            "mention_rate": result.mention_rate,
+            "mention_count": result.mention_count,
+            "total_responses": result.total_responses
+        }
+    else:
+        return {
+            "message": "No responses found for batch",
+            "batch_id": batch_id
+        }
+
+
 # === Cache Management ===
 
 @router.post("/cache/clear")
