@@ -115,7 +115,7 @@ export default function Dashboard() {
   });
 
   // Fetch batches to set default to latest
-  const { data: batches } = useQuery({
+  const { data: batches, isLoading: batchesLoading } = useQuery({
     queryKey: ['collection-batches', activeBrand?.id],
     queryFn: async () => {
       const params = activeBrand?.id ? { brand_id: activeBrand.id } : {};
@@ -125,34 +125,50 @@ export default function Dashboard() {
     enabled: !!activeBrand,
   });
 
+  // Track if we've initialized the batch selection for this brand
+  const [batchInitialized, setBatchInitialized] = useState(false);
+
+  // Reset batch initialization when brand changes
+  useEffect(() => {
+    setBatchInitialized(false);
+  }, [activeBrand?.id]);
+
   // Set default to latest batch when batches load
   useEffect(() => {
-    if (batches && batches.length > 0 && selectedBatchId === null) {
+    if (batches && batches.length > 0 && !batchInitialized) {
       // Sort by started_at descending and pick the first (most recent)
       const sortedBatches = [...batches].sort((a: any, b: any) =>
         new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
       );
       setSelectedBatchId(sortedBatches[0].id);
+      setBatchInitialized(true);
+    } else if (batches && batches.length === 0 && !batchInitialized) {
+      // No batches available - mark as initialized so we can show empty state
+      setBatchInitialized(true);
     }
-  }, [batches, selectedBatchId]);
+  }, [batches, batchInitialized]);
 
 
   // REMOVED: Redundant task status polling - now handled by TaskStatusContext
   // This was causing database connection pool exhaustion by polling every 3-30 seconds
   // TaskStatusContext already provides global task status with optimized polling
 
-  // Fetch dashboard metrics
-  const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
+  // Fetch dashboard metrics - only after batch selection is initialized
+  const { data: metrics, isLoading: metricsLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['dashboard-metrics', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/dashboard', { params });
       return response.data;
     },
-    // REMOVED refetchInterval - was causing unnecessary polling
+    // Only fetch metrics after batch selection is initialized
+    enabled: batchInitialized,
   });
 
-  // Fetch sentiment breakdown
+  // Combined loading state - wait for both batches and metrics
+  const isLoading = batchesLoading || !batchInitialized || metricsLoading;
+
+  // Fetch sentiment breakdown - only after batch selection is initialized
   const { data: sentimentData } = useQuery({
     queryKey: ['sentiment-breakdown', selectedBatchId],
     queryFn: async () => {
@@ -160,9 +176,10 @@ export default function Dashboard() {
       const response = await api.get('/analytics/sentiment/breakdown', { params });
       return response.data;
     },
+    enabled: batchInitialized,
   });
 
-  // Fetch share of voice
+  // Fetch share of voice - only after batch selection is initialized
   const { data: shareOfVoice } = useQuery({
     queryKey: ['share-of-voice-dashboard', selectedBatchId],
     queryFn: async () => {
@@ -170,9 +187,10 @@ export default function Dashboard() {
       const response = await api.get('/analytics/share-of-voice', { params });
       return response.data;
     },
+    enabled: batchInitialized,
   });
 
-  // Fetch positioning data
+  // Fetch positioning data - only after batch selection is initialized
   const { data: positioningData } = useQuery({
     queryKey: ['positioning-dashboard', selectedBatchId],
     queryFn: async () => {
@@ -180,9 +198,10 @@ export default function Dashboard() {
       const response = await api.get('/analytics/positioning/breakdown', { params });
       return response.data;
     },
+    enabled: batchInitialized,
   });
 
-  // Fetch competitor threats (calculated server-side)
+  // Fetch competitor threats (calculated server-side) - only after batch selection is initialized
   const { data: competitorThreats } = useQuery({
     queryKey: ['competitor-threats-dashboard', selectedBatchId],
     queryFn: async () => {
@@ -190,6 +209,7 @@ export default function Dashboard() {
       const response = await api.get('/analytics/competitor-threats', { params });
       return response.data;
     },
+    enabled: batchInitialized,
   });
 
   // Collection mutation
