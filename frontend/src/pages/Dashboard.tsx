@@ -32,6 +32,8 @@ interface DashboardMetrics {
   change_mention_rate: number;
   change_sentiment: number;
   change_descriptor: number;
+  change_share_of_voice: number;
+  change_high_threats: number | null;
   leading_position: string;
 }
 
@@ -421,11 +423,23 @@ export default function Dashboard() {
                   <Typography variant="h4" component="div" color="primary">
                     {highThreatCount ?? 0}
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    High threat competitors
-                  </Typography>
+                  {metrics.change_high_threats !== null && metrics.change_high_threats !== undefined ? (
+                    metrics.change_high_threats === 0 ? (
+                      <Typography variant="body2" color="textSecondary">
+                        No change vs last period
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color={metrics.change_high_threats > 0 ? 'error.main' : 'success.main'}>
+                        {metrics.change_high_threats > 0 ? '↑' : '↓'} {metrics.change_high_threats > 0 ? '+' : ''}{metrics.change_high_threats} vs last period
+                      </Typography>
+                    )
+                  ) : (
+                    <Typography variant="body2" color="textSecondary">
+                      High threat competitors
+                    </Typography>
+                  )}
                 </Box>
-                <WarningIcon sx={{ fontSize: 48, color: '#EA4A4A' }} />
+                <WarningIcon sx={{ fontSize: 48, color: metrics.change_high_threats !== null && metrics.change_high_threats !== 0 ? (metrics.change_high_threats > 0 ? '#EA4A4A' : '#58A13B') : '#EA4A4A' }} />
               </Box>
             </CardContent>
           </Card>
@@ -444,7 +458,7 @@ export default function Dashboard() {
                   </Typography>
                   {formatChange(metrics.change_descriptor)}
                 </Box>
-                <LabelIcon sx={{ fontSize: 48, color: '#80A1D4' }} />
+                <LabelIcon sx={{ fontSize: 48, color: metrics.change_descriptor > 0 ? '#58A13B' : metrics.change_descriptor < 0 ? '#EA4A4A' : '#80A1D4' }} />
               </Box>
             </CardContent>
           </Card>
@@ -461,9 +475,7 @@ export default function Dashboard() {
                   <Typography variant="h4" component="div" color="primary">
                     {Math.round(metrics.share_of_voice ?? 0)}%
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {metrics.leading_position}
-                  </Typography>
+                  {formatChange(metrics.change_share_of_voice)}
                   <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
                     {(() => {
                       const brandData = Array.isArray(shareOfVoice)
@@ -473,7 +485,7 @@ export default function Dashboard() {
                     })()}
                   </Typography>
                 </Box>
-                <VisibilityIcon sx={{ fontSize: 48, color: '#003e60' }} />
+                <VisibilityIcon sx={{ fontSize: 48, color: metrics.change_share_of_voice > 0 ? '#58A13B' : metrics.change_share_of_voice < 0 ? '#EA4A4A' : '#003e60' }} />
               </Box>
             </CardContent>
           </Card>
