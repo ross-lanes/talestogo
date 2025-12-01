@@ -517,15 +517,15 @@ export default function Dashboard() {
                   <Typography variant="h4" component="div" color="primary">
                     {Math.round(metrics.share_of_voice ?? 0)}%
                   </Typography>
-                  {formatChange(metrics.change_share_of_voice)}
-                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
-                    {(() => {
-                      const brandData = Array.isArray(shareOfVoice)
-                        ? shareOfVoice.find((item: any) => item.is_brand)
-                        : null;
-                      return `${Math.round(brandData?.leadership_visibility ?? 0)}% Leadership Visibility`;
-                    })()}
-                  </Typography>
+                  {metrics.change_share_of_voice === 0 ? (
+                    <Typography variant="body2" color="textSecondary">
+                      No change vs last period
+                    </Typography>
+                  ) : (
+                    <Typography variant="body2" color={metrics.change_share_of_voice > 0 ? 'success.main' : 'error.main'}>
+                      {metrics.change_share_of_voice > 0 ? '↑' : '↓'} {metrics.change_share_of_voice > 0 ? '+' : ''}{Math.round(metrics.change_share_of_voice)}% vs last period
+                    </Typography>
+                  )}
                 </Box>
                 <VisibilityIcon sx={{ fontSize: 48, color: metrics.change_share_of_voice > 0 ? '#58A13B' : metrics.change_share_of_voice < 0 ? '#EA4A4A' : '#003e60' }} />
               </Box>
