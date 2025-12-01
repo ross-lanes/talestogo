@@ -131,13 +131,6 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
           </Typography>
         )}
       >
-        {showAllOption && (
-          <MenuItem value="">
-            <Typography variant="body2" fontWeight={600}>
-              All Data
-            </Typography>
-          </MenuItem>
-        )}
         {sortedBatches.map((batch) => (
           <MenuItem key={batch.id} value={batch.id}>
             <Typography variant="body2">
@@ -145,6 +138,13 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
             </Typography>
           </MenuItem>
         ))}
+        {showAllOption && (
+          <MenuItem value="">
+            <Typography variant="body2" fontWeight={600}>
+              All Data
+            </Typography>
+          </MenuItem>
+        )}
       </Select>
     </FormControl>
   );

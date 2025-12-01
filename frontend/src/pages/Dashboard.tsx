@@ -114,6 +114,28 @@ export default function Dashboard() {
     },
   });
 
+  // Fetch batches to set default to latest
+  const { data: batches } = useQuery({
+    queryKey: ['collection-batches', activeBrand?.id],
+    queryFn: async () => {
+      const params = activeBrand?.id ? { brand_id: activeBrand.id } : {};
+      const response = await api.get('/batches/', { params });
+      return response.data;
+    },
+    enabled: !!activeBrand,
+  });
+
+  // Set default to latest batch when batches load
+  useEffect(() => {
+    if (batches && batches.length > 0 && selectedBatchId === null) {
+      // Sort by started_at descending and pick the first (most recent)
+      const sortedBatches = [...batches].sort((a: any, b: any) =>
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+      );
+      setSelectedBatchId(sortedBatches[0].id);
+    }
+  }, [batches, selectedBatchId]);
+
 
   // REMOVED: Redundant task status polling - now handled by TaskStatusContext
   // This was causing database connection pool exhaustion by polling every 3-30 seconds
