@@ -13,9 +13,9 @@ import {
   InputAdornment,
   IconButton,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { Visibility, VisibilityOff, CachedOutlined } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { authAPI } from '../services/api';
+import { authAPI, api } from '../services/api';
 
 const Settings: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -100,6 +100,22 @@ const Settings: React.FC = () => {
 
   const toggleShowKey = (key: keyof typeof showKeys) => {
     setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleClearCache = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const response = await api.post('/admin/cache/clear');
+      setSuccess(`Cache cleared successfully! ${response.data.cleared} entries removed.`);
+    } catch (err: any) {
+      console.error('Clear cache error:', err);
+      setError(err.response?.data?.detail || 'Failed to clear cache');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -280,6 +296,31 @@ const Settings: React.FC = () => {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Admin Tools Section - Only visible to admins */}
+      {user?.is_admin && (
+        <Paper elevation={2} sx={{ p: 3, mt: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Admin Tools
+          </Typography>
+          <Divider sx={{ mb: 3 }} />
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Clear the Redis cache to force dashboard data to be recalculated from the database.
+            Use this if dashboard metrics are showing stale or incorrect values.
+          </Typography>
+
+          <Button
+            variant="outlined"
+            color="warning"
+            onClick={handleClearCache}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <CachedOutlined />}
+          >
+            Clear Analytics Cache
+          </Button>
+        </Paper>
+      )}
     </Container>
   );
 };
