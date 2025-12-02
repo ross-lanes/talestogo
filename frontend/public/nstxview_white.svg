@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
+  <!-- Tokamak/Fusion reactor cross-section icon -->
+  <g fill="none" stroke="white" stroke-width="2">
+    <!-- Outer vessel (D-shape characteristic of NSTX) -->
+    <path d="M25 10 L25 70 C25 70 55 75 55 40 C55 5 25 10 25 10" fill="white" fill-opacity="0.1"/>
+    <!-- Inner plasma region -->
+    <ellipse cx="38" cy="40" rx="12" ry="22" fill="white" fill-opacity="0.2"/>
+    <!-- Center column -->
+    <line x1="25" y1="15" x2="25" y2="65" stroke-width="3"/>
+    <!-- Magnetic field coils (simplified) -->
+    <path d="M20 20 Q15 40 20 60" stroke-width="1.5"/>
+    <path d="M55 25 Q60 40 55 55" stroke-width="1.5"/>
+    <!-- Plasma core glow -->
+    <ellipse cx="38" cy="40" rx="6" ry="12" fill="white" fill-opacity="0.4"/>
+  </g>
+  <!-- NSTXView text -->
+  <text x="75" y="52" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="bold" fill="white">NSTXView</text>
+</svg>

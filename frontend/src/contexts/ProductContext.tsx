@@ -45,7 +45,7 @@ const PRODUCTS: ProductInfo[] = [
     id: 'nstxview',
     name: 'NSTXView',
     description: 'NSTX-U Research Analysis',
-    logoPath: '/nstxview_white.png',
+    logoPath: '/nstxview_white.svg',
     enabled: true,
     requiresUserAccess: true,  // Only available via user's allowed_products
   },
