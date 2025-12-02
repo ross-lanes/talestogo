@@ -163,7 +163,7 @@ export default function Dashboard() {
 
   // Fetch dashboard metrics - only after batch selection is initialized
   const { data: metrics, isLoading: metricsLoading, error } = useQuery<DashboardMetrics>({
-    queryKey: ['dashboard-metrics', selectedBatchId],
+    queryKey: ['dashboard-metrics', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/dashboard', { params });
@@ -178,7 +178,7 @@ export default function Dashboard() {
 
   // Fetch sentiment breakdown - only after batch selection is initialized
   const { data: sentimentData } = useQuery({
-    queryKey: ['sentiment-breakdown', selectedBatchId],
+    queryKey: ['sentiment-breakdown', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/sentiment/breakdown', { params });
@@ -189,7 +189,7 @@ export default function Dashboard() {
 
   // Fetch share of voice - only after batch selection is initialized
   const { data: shareOfVoice } = useQuery({
-    queryKey: ['share-of-voice-dashboard', selectedBatchId],
+    queryKey: ['share-of-voice-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/share-of-voice', { params });
@@ -200,7 +200,7 @@ export default function Dashboard() {
 
   // Fetch positioning data - only after batch selection is initialized
   const { data: positioningData } = useQuery({
-    queryKey: ['positioning-dashboard', selectedBatchId],
+    queryKey: ['positioning-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/positioning/breakdown', { params });
@@ -211,7 +211,7 @@ export default function Dashboard() {
 
   // Fetch competitor threats (calculated server-side) - only after batch selection is initialized
   const { data: competitorThreats } = useQuery({
-    queryKey: ['competitor-threats-dashboard', selectedBatchId],
+    queryKey: ['competitor-threats-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
       const response = await api.get('/analytics/competitor-threats', { params });
