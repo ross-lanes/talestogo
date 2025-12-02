@@ -101,6 +101,7 @@ const UserManagement: React.FC = () => {
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteOrganization, setInviteOrganization] = useState('');
   const [inviteTenantId, setInviteTenantId] = useState<number | ''>('');
+  const [inviteAllowedProducts, setInviteAllowedProducts] = useState<string[]>([]);
 
 
   // Edit dialog
@@ -210,7 +211,8 @@ const UserManagement: React.FC = () => {
 
     try {
       const tenantIdToUse = inviteTenantId === '' ? undefined : inviteTenantId;
-      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse);
+      const productsToUse = inviteAllowedProducts.length > 0 ? inviteAllowedProducts : undefined;
+      const response = await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse, productsToUse);
 
       // Close the invite dialog
       setInviteDialogOpen(false);
@@ -220,6 +222,7 @@ const UserManagement: React.FC = () => {
       setInviteFullName('');
       setInviteOrganization('');
       setInviteTenantId('');
+      setInviteAllowedProducts([]);
 
       // Reload users to get the new user
       await loadUsers();
@@ -284,6 +287,16 @@ const UserManagement: React.FC = () => {
       if (prev.includes(productId)) {
         // Don't allow removing the last product - keep at least Tales
         if (prev.length === 1) return prev;
+        return prev.filter(p => p !== productId);
+      } else {
+        return [...prev, productId];
+      }
+    });
+  };
+
+  const handleToggleInviteProduct = (productId: string) => {
+    setInviteAllowedProducts(prev => {
+      if (prev.includes(productId)) {
         return prev.filter(p => p !== productId);
       } else {
         return [...prev, productId];
@@ -696,9 +709,36 @@ RobotRachel`;
             </Select>
           </FormControl>
 
-          <Typography variant="caption" color="text.secondary">
-            Leave tenant as default to assign user to your tenant. Select a specific tenant to assign them to a different organization.
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            App Access (Optional)
           </Typography>
+          <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 2 }}>
+            Select which apps this user can access. Leave unchecked for default tenant access.
+          </Typography>
+
+          <FormGroup>
+            {availableAppProducts.map((product) => (
+              <FormControlLabel
+                key={product.id}
+                control={
+                  <Checkbox
+                    checked={inviteAllowedProducts.includes(product.id)}
+                    onChange={() => handleToggleInviteProduct(product.id)}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2">{product.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {product.description}
+                    </Typography>
+                  </Box>
+                }
+              />
+            ))}
+          </FormGroup>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>

@@ -153,7 +153,8 @@ def create_invitation(
         is_active=True,  # Pre-approved, will be activated on first Google login
         invitation_token=None,
         invitation_expires_at=None,
-        tenant_id=tenant_id  # Use specified tenant or admin's tenant
+        tenant_id=tenant_id,  # Use specified tenant or admin's tenant
+        allowed_products=invitation.allowed_products  # Set product access at invite time
     )
     db.add(new_user)
     db.commit()

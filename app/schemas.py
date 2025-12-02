@@ -425,6 +425,7 @@ class InvitationCreate(BaseModel):
     full_name: str
     organization: Optional[str] = None
     tenant_id: Optional[int] = None  # Optional: assign to specific tenant, defaults to admin's tenant
+    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales", "heads", "canon", "nstxview"]
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""

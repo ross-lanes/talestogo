@@ -197,12 +197,13 @@ export const adminAPI = {
     return response.data;
   },
 
-  createInvitation: async (email: string, full_name: string, organization?: string, tenant_id?: number) => {
+  createInvitation: async (email: string, full_name: string, organization?: string, tenant_id?: number, allowed_products?: string[]) => {
     const response = await api.post('/admin/users/create-invite', {
       email,
       full_name,
       organization,
       tenant_id,
+      allowed_products,
     });
     return response.data;
   },

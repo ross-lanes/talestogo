@@ -70,6 +70,7 @@ const PRODUCT_TAGLINES: Record<string, string> = {
   tales: 'Shape your AI story.',
   heads: 'Know your audience.',
   canon: 'Research FDA data.',
+  nstxview: 'Explore plasma physics.',
   vision: 'See the market clearly.',
   pulse: 'Measure what matters.',
   voice: 'Optimize every word.',
@@ -171,6 +172,16 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Generate Personas', icon: <AutoAwesomeIcon />, path: '/heads', indent: false },
   ];
 
+  // NSTXView navigation menu items
+  const nstxviewMenuItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/nstxview', indent: false },
+    { text: 'Browse Papers', icon: <ReportIcon />, path: '/nstxview/papers', indent: false },
+    { text: 'Explore Shots', icon: <TrendingUpIcon />, path: '/nstxview/shots', indent: false },
+    { text: 'Analyze Parameters', icon: <AnalyticsIcon />, path: '/nstxview/parameters', indent: false },
+    { text: 'Phenomena', icon: <AutoAwesomeIcon />, path: '/nstxview/phenomena', indent: false },
+    { text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false },
+  ];
+
   // Select menu items based on current product
   const getMenuItems = () => {
     switch (currentProduct.id) {
@@ -178,6 +189,8 @@ export default function Layout({ children }: LayoutProps) {
         return canonMenuItems;
       case 'heads':
         return headsMenuItems;
+      case 'nstxview':
+        return nstxviewMenuItems;
       default:
         return talesMenuItems;
     }
