@@ -819,12 +819,16 @@ class AnalyticsCache:
         breakdown = self._cache.get('positioning_breakdown', {})
         total = sum(breakdown.values())
 
+        # Combine "Top 3" into "Featured" for consistent display
+        # This matches the Leadership Visibility calculation which counts Leader + Featured + Top 3
+        featured_combined = breakdown.get('Featured', 0) + breakdown.get('Top 3', 0)
+
         # Return format expected by dashboard
         return {
             'total': total,
             'leader': breakdown.get('Leader', 0),
-            'top_3': breakdown.get('Top 3', 0),
-            'featured': breakdown.get('Featured', 0),
+            'top_3': breakdown.get('Top 3', 0),  # Keep for backward compatibility
+            'featured': featured_combined,  # Combined Featured + Top 3
             'listed': breakdown.get('Listed', 0),
             'not_mentioned': breakdown.get('Not Mentioned', 0),
             # Also include the detailed breakdown for other pages
