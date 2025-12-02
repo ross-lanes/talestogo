@@ -521,6 +521,74 @@ async def get_parameter_statistics(
     )
 
 
+@router.get("/parameters/histogram/{parameter_name}")
+async def get_parameter_histogram(
+    parameter_name: str,
+    bins: int = Query(default=10, ge=5, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get histogram data for a specific parameter.
+
+    Returns binned value distribution for visualization.
+    """
+    params = db.query(NSTXParameter).filter(
+        NSTXParameter.parameter_name == parameter_name,
+        NSTXParameter.value.isnot(None)
+    ).all()
+
+    if not params:
+        raise HTTPException(status_code=404, detail=f"No numeric data found for parameter: {parameter_name}")
+
+    values = [p.value for p in params]
+    min_val = min(values)
+    max_val = max(values)
+
+    # Handle edge case where all values are the same
+    if min_val == max_val:
+        return {
+            "parameter_name": parameter_name,
+            "bins": [{"min": min_val, "max": max_val, "count": len(values), "label": f"{min_val:.3g}"}],
+            "total_count": len(values),
+            "unit": params[0].unit if params else None
+        }
+
+    # Calculate bin width
+    bin_width = (max_val - min_val) / bins
+    histogram_bins = []
+
+    for i in range(bins):
+        bin_min = min_val + i * bin_width
+        bin_max = min_val + (i + 1) * bin_width
+
+        # Count values in this bin (include max value in last bin)
+        if i == bins - 1:
+            count = sum(1 for v in values if bin_min <= v <= bin_max)
+        else:
+            count = sum(1 for v in values if bin_min <= v < bin_max)
+
+        histogram_bins.append({
+            "min": bin_min,
+            "max": bin_max,
+            "count": count,
+            "label": f"{bin_min:.3g}-{bin_max:.3g}"
+        })
+
+    # Get most common unit
+    units = [p.unit for p in params if p.unit]
+    unit = max(set(units), key=units.count) if units else None
+
+    return {
+        "parameter_name": parameter_name,
+        "bins": histogram_bins,
+        "total_count": len(values),
+        "unit": unit,
+        "min_value": min_val,
+        "max_value": max_val
+    }
+
+
 @router.get("/parameters/names")
 async def list_parameter_names(
     db: Session = Depends(get_db),

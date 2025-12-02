@@ -27,12 +27,28 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Refresh as RefreshIcon,
   BarChart as ChartIcon,
+  PieChart as PieChartIcon,
 } from '@mui/icons-material';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -67,6 +83,32 @@ interface ParameterStatistics {
   shot_count: number;
 }
 
+interface HistogramBin {
+  min: number;
+  max: number;
+  count: number;
+  label: string;
+}
+
+interface HistogramData {
+  parameter_name: string;
+  bins: HistogramBin[];
+  total_count: number;
+  unit: string | null;
+  min_value: number;
+  max_value: number;
+}
+
+// Colors for charts
+const CHART_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1', '#d32f2f'];
+const CATEGORY_COLORS: Record<string, string> = {
+  plasma: '#1976d2',
+  operational: '#9c27b0',
+  performance: '#2e7d32',
+  heating: '#ed6c02',
+  confinement: '#0288d1',
+};
+
 const categoryColors: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'default'> = {
   plasma: 'primary',
   operational: 'secondary',
@@ -90,6 +132,12 @@ const ParameterAnalysis: React.FC = () => {
   const [statsOpen, setStatsOpen] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [selectedStats, setSelectedStats] = useState<ParameterStatistics | null>(null);
+  const [histogramData, setHistogramData] = useState<HistogramData | null>(null);
+  const [histogramLoading, setHistogramLoading] = useState(false);
+  const [statsTab, setStatsTab] = useState(0);
+
+  // Overview charts tab
+  const [overviewTab, setOverviewTab] = useState(0);
 
   const fetchParameterNames = async () => {
     try {
@@ -164,10 +212,39 @@ const ParameterAnalysis: React.FC = () => {
     }
   };
 
+  const fetchHistogram = async (parameterName: string) => {
+    try {
+      setHistogramLoading(true);
+      const token = localStorage.getItem('tales_access_token');
+      const response = await fetch(
+        `${API_BASE}/nstxview/parameters/histogram/${encodeURIComponent(parameterName)}?bins=10`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setHistogramData(data);
+      } else {
+        setHistogramData(null);
+      }
+    } catch {
+      setHistogramData(null);
+    } finally {
+      setHistogramLoading(false);
+    }
+  };
+
   const handleViewStats = async (parameterName: string) => {
     try {
       setStatsLoading(true);
       setStatsOpen(true);
+      setStatsTab(0);
+      setHistogramData(null);
 
       const token = localStorage.getItem('tales_access_token');
       const response = await fetch(
@@ -186,6 +263,9 @@ const ParameterAnalysis: React.FC = () => {
 
       const data = await response.json();
       setSelectedStats(data);
+
+      // Also fetch histogram data
+      fetchHistogram(parameterName);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load statistics');
       setStatsOpen(false);
@@ -294,6 +374,107 @@ const ParameterAnalysis: React.FC = () => {
           </FormControl>
         </Box>
       </Paper>
+
+      {/* Overview Charts */}
+      {viewMode === 'names' && parameterNames.length > 0 && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Tabs value={overviewTab} onChange={(_, v) => setOverviewTab(v)} sx={{ mb: 2 }}>
+            <Tab icon={<ChartIcon />} label="Top Parameters" />
+            <Tab icon={<PieChartIcon />} label="By Category" />
+          </Tabs>
+
+          {overviewTab === 0 && (
+            <Box>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                Top 10 Most Frequent Parameters
+              </Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={parameterNames.slice(0, 10).map(p => ({
+                    name: p.name.replace(/_/g, ' ').substring(0, 20) + (p.name.length > 20 ? '...' : ''),
+                    fullName: p.name,
+                    count: p.count,
+                    category: p.category || 'unknown',
+                  }))}
+                  layout="vertical"
+                  margin={{ left: 120, right: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 12 }}
+                    width={110}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [`${value} values`, 'Count']}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="#1976d2"
+                    onClick={(_data, index) => {
+                      const param = parameterNames[index];
+                      if (param) handleViewStats(param.name);
+                    }}
+                    cursor="pointer"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+              <Typography variant="caption" color="textSecondary">
+                Click on a bar to view detailed statistics
+              </Typography>
+            </Box>
+          )}
+
+          {overviewTab === 1 && (
+            <Box>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                Parameters by Category
+              </Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={(() => {
+                      const categoryData = parameterNames.reduce((acc, p) => {
+                        const cat = p.category || 'unknown';
+                        acc[cat] = (acc[cat] || 0) + p.count;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      return Object.entries(categoryData).map(([name, value]) => ({
+                        name,
+                        value,
+                      }));
+                    })()}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} (${((percent as number) * 100).toFixed(0)}%)`}
+                    outerRadius={100}
+                    dataKey="value"
+                  >
+                    {(() => {
+                      const categoryData = parameterNames.reduce((acc, p) => {
+                        const cat = p.category || 'unknown';
+                        acc[cat] = (acc[cat] || 0) + p.count;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      return Object.keys(categoryData).map((cat, index) => (
+                        <Cell
+                          key={`cell-${cat}`}
+                          fill={CATEGORY_COLORS[cat] || CHART_COLORS[index % CHART_COLORS.length]}
+                        />
+                      ));
+                    })()}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [`${value} values`, 'Count']} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          )}
+        </Paper>
+      )}
 
       {/* Content */}
       {loading ? (
@@ -430,7 +611,7 @@ const ParameterAnalysis: React.FC = () => {
       )}
 
       {/* Statistics Dialog */}
-      <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={statsOpen} onClose={() => setStatsOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           {statsLoading
             ? 'Loading...'
@@ -445,74 +626,122 @@ const ParameterAnalysis: React.FC = () => {
             </Box>
           ) : selectedStats ? (
             <Box sx={{ mt: 1 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      Total Values
-                    </Typography>
-                    <Typography variant="h5">{selectedStats.count}</Typography>
-                  </Paper>
+              <Tabs value={statsTab} onChange={(_, v) => setStatsTab(v)} sx={{ mb: 2 }}>
+                <Tab label="Statistics" />
+                <Tab label="Distribution" disabled={histogramLoading} />
+              </Tabs>
+
+              {statsTab === 0 && (
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Total Values
+                      </Typography>
+                      <Typography variant="h5">{selectedStats.count}</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Papers
+                      </Typography>
+                      <Typography variant="h5">{selectedStats.paper_count}</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Shots
+                      </Typography>
+                      <Typography variant="h5">{selectedStats.shot_count}</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Unit
+                      </Typography>
+                      <Typography variant="h5">{selectedStats.unit || '-'}</Typography>
+                    </Paper>
+                  </Grid>
+                  {selectedStats.min_value !== null && (
+                    <>
+                      <Grid item xs={4}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                          <Typography variant="caption" color="textSecondary">
+                            Min
+                          </Typography>
+                          <Typography variant="h6">
+                            {selectedStats.min_value.toFixed(3)}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                          <Typography variant="caption" color="textSecondary">
+                            Avg
+                          </Typography>
+                          <Typography variant="h6">
+                            {selectedStats.avg_value?.toFixed(3) || '-'}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                          <Typography variant="caption" color="textSecondary">
+                            Max
+                          </Typography>
+                          <Typography variant="h6">
+                            {selectedStats.max_value?.toFixed(3) || '-'}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    </>
+                  )}
                 </Grid>
-                <Grid item xs={6}>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      Papers
+              )}
+
+              {statsTab === 1 && (
+                <Box>
+                  {histogramLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : histogramData && histogramData.bins.length > 0 ? (
+                    <Box>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                        Value Distribution {histogramData.unit && `(${histogramData.unit})`}
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={histogramData.bins}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 10 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip
+                            formatter={(value: number) => [value, 'Count']}
+                            labelFormatter={(label) => `Range: ${label}`}
+                          />
+                          <Bar dataKey="count" fill="#1976d2" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                      <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                        Total: {histogramData.total_count} values | Range: {histogramData.min_value?.toFixed(3)} - {histogramData.max_value?.toFixed(3)}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="textSecondary" align="center" sx={{ py: 4 }}>
+                      No numeric data available for histogram
                     </Typography>
-                    <Typography variant="h5">{selectedStats.paper_count}</Typography>
-                  </Paper>
-                </Grid>
-                <Grid item xs={6}>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      Shots
-                    </Typography>
-                    <Typography variant="h5">{selectedStats.shot_count}</Typography>
-                  </Paper>
-                </Grid>
-                <Grid item xs={6}>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      Unit
-                    </Typography>
-                    <Typography variant="h5">{selectedStats.unit || '-'}</Typography>
-                  </Paper>
-                </Grid>
-                {selectedStats.min_value !== null && (
-                  <>
-                    <Grid item xs={4}>
-                      <Paper variant="outlined" sx={{ p: 2 }}>
-                        <Typography variant="caption" color="textSecondary">
-                          Min
-                        </Typography>
-                        <Typography variant="h6">
-                          {selectedStats.min_value.toFixed(3)}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Paper variant="outlined" sx={{ p: 2 }}>
-                        <Typography variant="caption" color="textSecondary">
-                          Avg
-                        </Typography>
-                        <Typography variant="h6">
-                          {selectedStats.avg_value?.toFixed(3) || '-'}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={4}>
-                      <Paper variant="outlined" sx={{ p: 2 }}>
-                        <Typography variant="caption" color="textSecondary">
-                          Max
-                        </Typography>
-                        <Typography variant="h6">
-                          {selectedStats.max_value?.toFixed(3) || '-'}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                  </>
-                )}
-              </Grid>
+                  )}
+                </Box>
+              )}
             </Box>
           ) : null}
         </DialogContent>

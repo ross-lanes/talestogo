@@ -26,7 +26,7 @@ export default function HowNSTXViewWorks() {
           Overview
         </Typography>
         <Typography variant="body1" paragraph>
-          NSTXView is a research analysis platform for scholarly papers about plasma physics experiments conducted on NSTX (National Spherical Torus Experiment) and NSTX-U (Upgrade) at Princeton Plasma Physics Laboratory. It extracts structured information from approximately 90 research papers to help scientists understand what characteristics make plasma "shots" scientifically interesting.
+          NSTXView is a research analysis platform for scholarly papers about plasma physics experiments conducted on NSTX (National Spherical Torus Experiment) and NSTX-U (Upgrade) at Princeton Plasma Physics Laboratory. It extracts structured information from hundreds of research papers to help scientists understand what characteristics make plasma "shots" scientifically interesting.
         </Typography>
         <Typography variant="body1" paragraph>
           The core hypothesis: If researchers wrote a paper about a particular shot or set of shots, those shots must have been interesting in some way. By analyzing what papers say about these shots, NSTXView identifies patterns that define "interestingness" and can potentially apply these criteria to future NSTX-U experiments.
