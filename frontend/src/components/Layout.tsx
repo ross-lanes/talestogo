@@ -31,7 +31,6 @@ import {
   Visibility as VisibilityIcon,
   SentimentSatisfied as SentimentIcon,
   Warning as WarningIcon,
-  Flag as FlagIcon,
   Announcement as AnnouncementIcon,
   ChatBubble as ResponseIcon,
   Description as ReportIcon,
@@ -156,7 +155,6 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Descriptors', icon: <DescriptorIcon />, path: '/analytics/descriptors', indent: true },
     { text: 'Sentiment', icon: <SentimentIcon />, path: '/analytics/sentiment', indent: true },
     { text: 'Threats', icon: <WarningIcon />, path: '/analytics/threats', indent: true },
-    { text: 'Recommendations', icon: <FlagIcon />, path: '/analytics/recommendations', indent: false },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports', indent: false },
   ];
 
