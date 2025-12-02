@@ -60,11 +60,6 @@ export default function Dashboard() {
   const sentimentOuterRadius = useResponsiveValue(60, 80, 100);
   const positioningChartHeight = useResponsiveValue(220, 240, 240);
 
-  // Reset selectedBatchId when brand changes
-  useEffect(() => {
-    setSelectedBatchId(null);
-  }, [activeBrand?.id]);
-
   // Function to download dashboard as PNG
   const handleDownloadDashboard = async () => {
     if (dashboardRef.current) {
@@ -132,22 +127,34 @@ export default function Dashboard() {
   // Reset batch initialization when brand changes
   useEffect(() => {
     setBatchInitialized(false);
+    setSelectedBatchId(null);
   }, [activeBrand?.id]);
 
   // Set default to latest batch when batches load
+  // IMPORTANT: Include batchesLoading to ensure we wait for the query to complete
   useEffect(() => {
-    if (batches && batches.length > 0 && !batchInitialized) {
+    // Don't initialize until batches query has completed loading
+    if (batchesLoading) {
+      return;
+    }
+
+    // Skip if already initialized for this brand
+    if (batchInitialized) {
+      return;
+    }
+
+    if (batches && batches.length > 0) {
       // Sort by started_at descending and pick the first (most recent)
       const sortedBatches = [...batches].sort((a: any, b: any) =>
         new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
       );
       setSelectedBatchId(sortedBatches[0].id);
       setBatchInitialized(true);
-    } else if (batches && batches.length === 0 && !batchInitialized) {
-      // No batches available - mark as initialized so we can show empty state
+    } else if (batches !== undefined) {
+      // No batches available (empty array) - mark as initialized so we can show empty state
       setBatchInitialized(true);
     }
-  }, [batches, batchInitialized]);
+  }, [batches, batchesLoading, batchInitialized]);
 
 
   // REMOVED: Redundant task status polling - now handled by TaskStatusContext
