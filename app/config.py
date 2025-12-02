@@ -39,15 +39,25 @@ DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 """Maximum overflow connections beyond pool size."""
 
-# LLM API Settings (for Heads persona generation)
+# LLM API Settings (for Heads persona generation and Tales data collection)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 """OpenAI API key for LLM-powered features."""
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 """Anthropic API key for LLM-powered features."""
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+"""Google Gemini API key for LLM-powered features."""
+
+PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY", "")
+"""Perplexity API key for AI-powered research features."""
+
 DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-"""Default LLM provider: 'openai' or 'anthropic'."""
+"""Default LLM provider: 'openai', 'anthropic', or 'gemini'."""
+
+# Upload directory for generated files
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+"""Directory for uploaded and generated files."""
 
 
 # Create a settings object for compatibility with Heads services
@@ -56,7 +66,10 @@ class _Settings:
     def __init__(self):
         self.OPENAI_API_KEY = OPENAI_API_KEY
         self.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY
+        self.GEMINI_API_KEY = GEMINI_API_KEY
+        self.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY
         self.DEFAULT_LLM_PROVIDER = DEFAULT_LLM_PROVIDER
+        self.UPLOAD_DIR = UPLOAD_DIR
 
 
 settings = _Settings()

@@ -187,6 +187,8 @@ Ensure the personas are diverse, realistic, and professionally written from a ph
             personas = await self._generate_with_openai(prompt)
         elif self.provider == "anthropic":
             personas = await self._generate_with_anthropic(prompt)
+        elif self.provider == "gemini":
+            personas = await self._generate_with_gemini(prompt)
         else:
             raise ValueError(f"Unknown LLM provider: {self.provider}")
 
@@ -202,6 +204,8 @@ Ensure the personas are diverse, realistic, and professionally written from a ph
             personas = await self._generate_with_openai(prompt)
         elif self.provider == "anthropic":
             personas = await self._generate_with_anthropic(prompt)
+        elif self.provider == "gemini":
+            personas = await self._generate_with_gemini(prompt)
         else:
             raise ValueError(f"Unknown LLM provider: {self.provider}")
 
@@ -277,6 +281,54 @@ Ensure the personas are diverse, realistic, and professionally written from a ph
 
         except Exception as e:
             raise Exception(f"Anthropic API error: {str(e)}")
+
+    async def _generate_with_gemini(self, prompt: str) -> List[Dict[str, Any]]:
+        """Generate personas using Google Gemini API"""
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+
+            model = genai.GenerativeModel('gemini-2.0-flash')
+
+            # Add system instruction for JSON output
+            full_prompt = f"""You are a professional healthcare marketing expert specializing in pharmaceutical persona development.
+
+{prompt}
+
+IMPORTANT: Return ONLY valid JSON. Do not include any markdown formatting, code blocks, or explanatory text."""
+
+            response = await model.generate_content_async(
+                full_prompt,
+                generation_config={
+                    "temperature": 0.8,
+                    "max_output_tokens": 8000,
+                }
+            )
+
+            content = response.text
+
+            # Extract JSON from response (Gemini might include markdown)
+            if "```json" in content:
+                json_start = content.find("```json") + 7
+                json_end = content.find("```", json_start)
+                content = content[json_start:json_end].strip()
+            elif "```" in content:
+                json_start = content.find("```") + 3
+                json_end = content.find("```", json_start)
+                content = content[json_start:json_end].strip()
+
+            data = json.loads(content)
+
+            # Handle different response structures
+            if isinstance(data, list):
+                return data
+            elif "personas" in data:
+                return data["personas"]
+            else:
+                return [data]
+
+        except Exception as e:
+            raise Exception(f"Gemini API error: {str(e)}")
 
     async def generate_ai_patient_personas(
         self,
@@ -383,6 +435,8 @@ Ensure the personas are diverse, realistic, and professionally written from a ph
                 result_personas = await self._generate_with_openai(prompt)
             elif self.provider == "anthropic":
                 result_personas = await self._generate_with_anthropic(prompt)
+            elif self.provider == "gemini":
+                result_personas = await self._generate_with_gemini(prompt)
             else:
                 raise ValueError(f"Unknown LLM provider: {self.provider}")
 
@@ -417,6 +471,8 @@ Ensure the personas are diverse, realistic, and professionally written from a ph
                 result_personas = await self._generate_with_openai(prompt)
             elif self.provider == "anthropic":
                 result_personas = await self._generate_with_anthropic(prompt)
+            elif self.provider == "gemini":
+                result_personas = await self._generate_with_gemini(prompt)
             else:
                 raise ValueError(f"Unknown LLM provider: {self.provider}")
 
