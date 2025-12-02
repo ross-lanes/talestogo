@@ -16,6 +16,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, Cart
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
+import BrandedLoader from '../components/BrandedLoader';
 import { useTaskStatus } from '../contexts/TaskStatusContext';
 import BatchSelector from '../components/BatchSelector';
 import { captureAndUploadCharts } from '../utils/chartCapture';
@@ -41,7 +42,7 @@ interface DashboardMetrics {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { activeBrand } = useBrand();
+  const { activeBrand, loading: brandLoading } = useBrand();
   const { tasks } = useTaskStatus();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
@@ -173,8 +174,8 @@ export default function Dashboard() {
     enabled: batchInitialized,
   });
 
-  // Combined loading state - wait for both batches and metrics
-  const isLoading = batchesLoading || !batchInitialized || metricsLoading;
+  // Combined loading state - wait for brand context, batches, and metrics
+  const isLoading = brandLoading || batchesLoading || !batchInitialized || metricsLoading;
 
   // Fetch sentiment breakdown - only after batch selection is initialized
   const { data: sentimentData } = useQuery({
@@ -316,11 +317,7 @@ export default function Dashboard() {
   };
 
   if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <BrandedLoader message="Loading dashboard..." />;
   }
 
   if (error) {
