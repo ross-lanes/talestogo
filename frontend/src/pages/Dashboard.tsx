@@ -54,6 +54,13 @@ export default function Dashboard() {
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [dismissedTaskId, setDismissedTaskId] = useState<number | null>(null);
 
+  // Minimum loading time to ensure smooth UX
+  const [minLoadingComplete, setMinLoadingComplete] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setMinLoadingComplete(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const brandName = activeBrand?.brand_name || 'Your Brand';
 
   // Responsive chart heights and sizes
@@ -175,7 +182,7 @@ export default function Dashboard() {
   });
 
   // Combined loading state - wait for brand context, batches, and metrics
-  const isLoading = brandLoading || batchesLoading || !batchInitialized || metricsLoading;
+  const isLoading = !minLoadingComplete || brandLoading || batchesLoading || !batchInitialized || metricsLoading;
 
   // Fetch sentiment breakdown - only after batch selection is initialized
   const { data: sentimentData } = useQuery({
