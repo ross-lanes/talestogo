@@ -271,60 +271,49 @@ def get_recommendations(
                 break
     elif "### 7. Recommendations" in report_content:
         # Newest format: ### 7. Recommendations (with LLM breakdown section)
-        sections = report_content.split("\n### ")
-        for section in sections:
-            if section.startswith("7. Recommendations"):
-                # Get everything until the next ## or ### section or end
-                recommendations_text = section
-                # Look for next section (could be ## or ###)
-                next_section_pos = min(
-                    [pos for pos in [
-                        recommendations_text.find("\n## ", 3),
-                        recommendations_text.find("\n### ", 3)
-                    ] if pos > 0] or [len(recommendations_text)]
-                )
-                if next_section_pos < len(recommendations_text):
-                    recommendations_text = recommendations_text[:next_section_pos]
+        # This is typically the LAST section, so we take everything after the header
+        start_pos = report_content.find("### 7. Recommendations")
+        if start_pos >= 0:
+            recommendations_text = report_content[start_pos:]
 
-                # Remove the numbered header
-                recommendations_text = recommendations_text.replace("7. Recommendations\n\n", "", 1)
-                recommendations_text = recommendations_text.replace("7. Recommendations\n", "", 1)
-                recommendations_text = recommendations_text.replace("7. Recommendations", "", 1)
+            # Only look for the NEXT ### section (another triple-hash section)
+            # NOT ## sections, as the recommendations themselves use ## for numbered items
+            next_section_pos = recommendations_text.find("\n### ", 5)
+            if next_section_pos > 0:
+                recommendations_text = recommendations_text[:next_section_pos]
 
-                # Remove the trailing horizontal rule (---) if present at the end
-                recommendations_text = recommendations_text.rstrip()
-                if recommendations_text.endswith("---"):
-                    recommendations_text = recommendations_text[:-3].rstrip()
+            # Remove the section header
+            recommendations_text = recommendations_text.replace("### 7. Recommendations\n\n", "", 1)
+            recommendations_text = recommendations_text.replace("### 7. Recommendations\n", "", 1)
+            recommendations_text = recommendations_text.replace("### 7. Recommendations", "", 1)
 
-                break
+            # Remove the trailing horizontal rule (---) if present at the end
+            recommendations_text = recommendations_text.rstrip()
+            if recommendations_text.endswith("---"):
+                recommendations_text = recommendations_text[:-3].rstrip()
+
     elif "### 6. Recommendations" in report_content:
         # Old format: ### 6. Recommendations (without LLM breakdown section)
-        sections = report_content.split("\n### ")
-        for section in sections:
-            if section.startswith("6. Recommendations"):
-                # Get everything until the next ## or ### section or end
-                recommendations_text = section
-                # Look for next section (could be ## or ###)
-                next_section_pos = min(
-                    [pos for pos in [
-                        recommendations_text.find("\n## ", 3),
-                        recommendations_text.find("\n### ", 3)
-                    ] if pos > 0] or [len(recommendations_text)]
-                )
-                if next_section_pos < len(recommendations_text):
-                    recommendations_text = recommendations_text[:next_section_pos]
+        # This is typically the LAST section, so we take everything after the header
+        start_pos = report_content.find("### 6. Recommendations")
+        if start_pos >= 0:
+            recommendations_text = report_content[start_pos:]
 
-                # Remove the numbered header
-                recommendations_text = recommendations_text.replace("6. Recommendations\n\n", "", 1)
-                recommendations_text = recommendations_text.replace("6. Recommendations\n", "", 1)
-                recommendations_text = recommendations_text.replace("6. Recommendations", "", 1)
+            # Only look for the NEXT ### section (another triple-hash section)
+            # NOT ## sections, as the recommendations themselves use ## for numbered items
+            next_section_pos = recommendations_text.find("\n### ", 5)
+            if next_section_pos > 0:
+                recommendations_text = recommendations_text[:next_section_pos]
 
-                # Remove the trailing horizontal rule (---) if present at the end
-                recommendations_text = recommendations_text.rstrip()
-                if recommendations_text.endswith("---"):
-                    recommendations_text = recommendations_text[:-3].rstrip()
+            # Remove the section header
+            recommendations_text = recommendations_text.replace("### 6. Recommendations\n\n", "", 1)
+            recommendations_text = recommendations_text.replace("### 6. Recommendations\n", "", 1)
+            recommendations_text = recommendations_text.replace("### 6. Recommendations", "", 1)
 
-                break
+            # Remove the trailing horizontal rule (---) if present at the end
+            recommendations_text = recommendations_text.rstrip()
+            if recommendations_text.endswith("---"):
+                recommendations_text = recommendations_text[:-3].rstrip()
 
     return {
         "has_recommendations": bool(recommendations_text),
