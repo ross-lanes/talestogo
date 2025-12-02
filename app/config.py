@@ -75,6 +75,25 @@ class _Settings:
 settings = _Settings()
 
 
+# NSTXView Configuration
+NSTXVIEW_DRIVE_FOLDER_ID = os.getenv("NSTXVIEW_DRIVE_FOLDER_ID", "1XLpytG-6s8ZWOjYmoPFynhqmlPIMowuC")
+"""Google Drive folder ID containing NSTX papers."""
+
+NSTXVIEW_STORAGE_BUCKET = os.getenv("NSTXVIEW_STORAGE_BUCKET", "")
+"""S3/GCS bucket for cached PDFs. If empty, uses local storage."""
+
+CHROMADB_HOST = os.getenv("CHROMADB_HOST", "")
+"""ChromaDB server host. If empty, uses local persistent storage."""
+
+CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8000"))
+"""ChromaDB server port."""
+
+# Get project root for default persist directory
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CHROMADB_PERSIST_DIR = os.getenv("CHROMADB_PERSIST_DIR", os.path.join(_PROJECT_ROOT, "data", "chromadb"))
+"""Directory for ChromaDB persistent storage. Used when CHROMADB_HOST is empty."""
+
+
 # Tenant Product Access Configuration
 class TenantConfig:
     """Configuration for tenant-specific product access"""
@@ -82,7 +101,7 @@ class TenantConfig:
     # Map tenant names to allowed products
     TENANT_PRODUCTS: Dict[str, List[str]] = {
         "Solstice HC": ["tales", "heads", "vision", "pulse", "voice", "guardian"],
-        "Princeton University": ["tales"],  # Tales only
+        "Princeton University": ["tales", "nstxview"],  # Tales and NSTXView
         # Default for any other tenant
         "default": ["tales"]
     }

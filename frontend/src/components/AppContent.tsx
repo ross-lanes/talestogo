@@ -42,6 +42,8 @@ import {
   CanonDocuments,
   CanonSavedSearches,
 } from '../pages/canon';
+// NSTXView - NSTX-U Research Analysis pages
+import { NSTXViewDashboard } from '../pages/nstxview';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
@@ -431,6 +433,68 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <CanonSavedSearches />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* NSTXView - NSTX-U Research Analysis Routes */}
+          <Route
+            path="/nstxview"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/papers"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/shots"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/parameters"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/phenomena"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/processing"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewDashboard />
                 </Layout>
               </ProtectedRoute>
             }

@@ -478,6 +478,254 @@ class Persona(Base):
         Index('idx_persona_user_brand', 'user_id', 'brand_id'),
     )
 
+# ============================================================================
+# NSTXVIEW - Plasma Physics Research Paper Analysis Models
+# ============================================================================
+
+class NSTXProcessingStatus(str, enum.Enum):
+    """Processing status for NSTXView papers"""
+    PENDING = "pending"
+    DOWNLOADING = "downloading"
+    EXTRACTING_TEXT = "extracting_text"
+    EXTRACTING_DATA = "extracting_data"
+    GENERATING_EMBEDDINGS = "generating_embeddings"
+    COMPLETED = "completed"
+    ERROR = "error"
+
+
+class NSTXShotRole(str, enum.Enum):
+    """Role of a shot in a paper"""
+    PRIMARY = "primary"  # Main focus of analysis
+    COMPARISON = "comparison"  # Used for comparison
+    REFERENCE = "reference"  # Referenced but not analyzed
+
+
+class NSTXParameterCategory(str, enum.Enum):
+    """Categories of plasma parameters"""
+    PLASMA = "plasma"  # Ion/electron temp, density, pressure
+    OPERATIONAL = "operational"  # Current, field, heating power
+    PERFORMANCE = "performance"  # Confinement, H-factors, beta
+
+
+class NSTXPhenomenonCategory(str, enum.Enum):
+    """Categories of plasma phenomena"""
+    INSTABILITY = "instability"  # ELMs, kink modes, tearing modes
+    CONFINEMENT = "confinement"  # H-mode, L-mode, improved confinement
+    TRANSPORT = "transport"  # Energy/particle transport
+    HEATING = "heating"  # NBI, RF heating effects
+    DISRUPTION = "disruption"  # Disruptions, runaway electrons
+    DIVERTOR = "divertor"  # Divertor physics, heat flux
+
+
+class NSTXPaper(Base):
+    """
+    Represents a journal article about NSTX/NSTX-U experiments.
+    Papers are synced from Google Drive and processed to extract structured data.
+    """
+    __tablename__ = "nstx_papers"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Source tracking
+    drive_file_id = Column(String(255), unique=True, nullable=False, index=True)
+    original_filename = Column(String(500), nullable=False)
+    subfolder = Column(String(255), nullable=True)  # Folder path in Drive
+    storage_path = Column(String(500), nullable=True)  # Path in cloud storage
+
+    # Extracted metadata
+    title = Column(Text, nullable=True)
+    authors = Column(Text, nullable=True)  # JSON array of author names
+    journal = Column(String(255), nullable=True)
+    publication_date = Column(Date, nullable=True)
+    doi = Column(String(255), nullable=True, index=True)
+    abstract = Column(Text, nullable=True)
+
+    # Extracted content
+    extracted_text = Column(Text, nullable=True)  # Raw extracted text from PDF
+    key_findings = Column(Text, nullable=True)  # JSON array of key findings
+    experiment_type = Column(String(100), nullable=True)  # confinement, stability, heating, etc.
+
+    # Processing status
+    status = Column(String(50), default=NSTXProcessingStatus.PENDING.value, index=True)
+    error_message = Column(Text, nullable=True)
+    text_extraction_date = Column(DateTime, nullable=True)
+    data_extraction_date = Column(DateTime, nullable=True)
+    embedding_date = Column(DateTime, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Relationships
+    shots = relationship("NSTXShot", back_populates="paper", cascade="all, delete-orphan")
+    parameters = relationship("NSTXParameter", back_populates="paper", cascade="all, delete-orphan")
+    phenomena = relationship("NSTXPhenomenon", back_populates="paper", cascade="all, delete-orphan")
+    chunks = relationship("NSTXPaperChunk", back_populates="paper", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('idx_nstx_paper_status_date', 'status', 'created_at'),
+    )
+
+
+class NSTXShot(Base):
+    """
+    Represents a plasma shot mentioned in a paper.
+    Shot numbers are 6-digit integers starting with 1 (range: 100000-199999).
+    """
+    __tablename__ = "nstx_shots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    paper_id = Column(Integer, ForeignKey("nstx_papers.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Shot identification - 6-digit numbers starting with 1
+    shot_number = Column(Integer, nullable=False, index=True)
+    role = Column(String(50), default=NSTXShotRole.PRIMARY.value)  # primary, comparison, reference
+
+    # Context
+    context = Column(Text, nullable=True)  # Why this shot was mentioned
+    characteristics = Column(Text, nullable=True)  # JSON object of extracted characteristics
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    paper = relationship("NSTXPaper", back_populates="shots")
+    parameters = relationship("NSTXParameter", back_populates="shot", cascade="all, delete-orphan")
+    phenomena = relationship("NSTXPhenomenon", back_populates="shot", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('idx_nstx_shot_number_paper', 'shot_number', 'paper_id'),
+        Index('idx_nstx_shot_role', 'role', 'shot_number'),
+    )
+
+
+class NSTXParameter(Base):
+    """
+    Represents a plasma parameter value extracted from a paper.
+    Stores both original values and normalized values for comparison.
+    Multiple papers may report different values for the same parameter on the same shot.
+    """
+    __tablename__ = "nstx_parameters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    paper_id = Column(Integer, ForeignKey("nstx_papers.id", ondelete="CASCADE"), nullable=False, index=True)
+    shot_id = Column(Integer, ForeignKey("nstx_shots.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Parameter identification
+    parameter_name = Column(String(100), nullable=False, index=True)  # e.g., 'ion_temperature'
+    parameter_category = Column(String(50), nullable=True)  # plasma, operational, performance
+
+    # Values (original as reported)
+    value = Column(Float, nullable=True)
+    value_min = Column(Float, nullable=True)  # For ranges
+    value_max = Column(Float, nullable=True)
+    unit = Column(String(50), nullable=True)  # e.g., 'keV', 'MA'
+    uncertainty = Column(Float, nullable=True)
+
+    # Normalized values (for comparison across papers)
+    normalized_value = Column(Float, nullable=True)
+    normalized_unit = Column(String(50), nullable=True)
+
+    # Context
+    context = Column(Text, nullable=True)  # Where in the paper this appeared
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    paper = relationship("NSTXPaper", back_populates="parameters")
+    shot = relationship("NSTXShot", back_populates="parameters")
+
+    __table_args__ = (
+        Index('idx_nstx_param_name_paper', 'parameter_name', 'paper_id'),
+        Index('idx_nstx_param_category', 'parameter_category', 'parameter_name'),
+    )
+
+
+class NSTXPhenomenon(Base):
+    """
+    Represents a plasma phenomenon observed and discussed in a paper.
+    """
+    __tablename__ = "nstx_phenomena"
+
+    id = Column(Integer, primary_key=True, index=True)
+    paper_id = Column(Integer, ForeignKey("nstx_papers.id", ondelete="CASCADE"), nullable=False, index=True)
+    shot_id = Column(Integer, ForeignKey("nstx_shots.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Phenomenon identification
+    phenomenon_type = Column(String(100), nullable=False, index=True)  # e.g., 'H-mode_transition'
+    phenomenon_category = Column(String(50), nullable=True)  # instability, confinement, transport
+    description = Column(Text, nullable=True)
+    is_primary_focus = Column(Boolean, default=False)  # Main topic of paper
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    paper = relationship("NSTXPaper", back_populates="phenomena")
+    shot = relationship("NSTXShot", back_populates="phenomena")
+
+    __table_args__ = (
+        Index('idx_nstx_phenom_type_paper', 'phenomenon_type', 'paper_id'),
+        Index('idx_nstx_phenom_category', 'phenomenon_category', 'phenomenon_type'),
+    )
+
+
+class NSTXPaperChunk(Base):
+    """
+    Represents a chunk of paper text for vector search / RAG.
+    Metadata stored in PostgreSQL, embeddings stored in ChromaDB.
+    """
+    __tablename__ = "nstx_paper_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    paper_id = Column(Integer, ForeignKey("nstx_papers.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    section = Column(String(100), nullable=True)  # abstract, introduction, methods, results, etc.
+    chromadb_id = Column(String(255), unique=True, nullable=False, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    paper = relationship("NSTXPaper", back_populates="chunks")
+
+    __table_args__ = (
+        Index('idx_nstx_chunk_paper_index', 'paper_id', 'chunk_index'),
+    )
+
+
+class NSTXProcessingTask(Base):
+    """
+    Tracks background processing tasks for NSTXView (similar to TaskStatus).
+    """
+    __tablename__ = "nstx_processing_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Task identification
+    task_type = Column(String(50), nullable=False)  # sync, extract_text, extract_data, generate_embeddings
+    status = Column(String(20), nullable=False, default='pending', index=True)  # pending, running, completed, failed
+
+    # Progress tracking
+    total_items = Column(Integer, default=0)
+    processed_items = Column(Integer, default=0)
+    message = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Timestamps
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_nstx_task_status_type', 'status', 'task_type'),
+    )
+
+
 # --- End of Models ---
 
 # You can create the database file and tables by running this:

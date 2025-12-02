@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Product types in the Solstice AI Suite
-export type ProductType = 'tales' | 'heads' | 'canon' | 'vision' | 'pulse' | 'voice' | 'guardian';
+export type ProductType = 'tales' | 'heads' | 'canon' | 'nstxview' | 'vision' | 'pulse' | 'voice' | 'guardian';
 
 interface ProductInfo {
   id: ProductType;
@@ -12,6 +12,7 @@ interface ProductInfo {
   logoPath: string;
   enabled: boolean;
   requiredTenants?: string[]; // Optional list of tenants that can access this product
+  requiresUserAccess?: boolean; // If true, only available via user's allowed_products (no tenant fallback)
 }
 
 // Product catalog - will expand as we add more products
@@ -39,6 +40,14 @@ const PRODUCTS: ProductInfo[] = [
     logoPath: '/canon_logo_white.png',
     enabled: true,
     // No requiredTenants = available to all tenants
+  },
+  {
+    id: 'nstxview',
+    name: 'NSTXView',
+    description: 'NSTX-U Research Analysis',
+    logoPath: '/nstxview_white.png',
+    enabled: true,
+    requiresUserAccess: true,  // Only available via user's allowed_products
   },
   {
     id: 'vision',
@@ -105,6 +114,11 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
 
   // Helper function to check if a product is accessible to the current user
   const isProductAccessible = (product: ProductInfo): boolean => {
+    // If product requires explicit user access, only check allowed_products
+    if (product.requiresUserAccess) {
+      return userAllowedProducts?.includes(product.id) ?? false;
+    }
+
     // If we have user-specific allowed products, use that
     if (userAllowedProducts && userAllowedProducts.length > 0) {
       return userAllowedProducts.includes(product.id);
@@ -164,6 +178,8 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
       detectedProductId = 'canon';
     } else if (path.startsWith('/heads')) {
       detectedProductId = 'heads';
+    } else if (path.startsWith('/nstxview')) {
+      detectedProductId = 'nstxview';
     } else if (path === '/' || path.startsWith('/manage') || path.startsWith('/analytics') || path.startsWith('/collect') || path.startsWith('/reports') || path.startsWith('/settings')) {
       detectedProductId = 'tales';
     }
