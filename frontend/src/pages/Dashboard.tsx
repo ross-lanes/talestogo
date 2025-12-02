@@ -182,8 +182,8 @@ export default function Dashboard() {
   });
 
   // Combined loading state - wait for brand context to finish AND have an active brand,
-  // then wait for batches to initialize, then wait for metrics
-  const isLoading = !minLoadingComplete || brandLoading || !activeBrand || batchesLoading || !batchInitialized || metricsLoading;
+  // then wait for batches to initialize, then wait for metrics to actually load
+  const isLoading = !minLoadingComplete || brandLoading || !activeBrand || batchesLoading || !batchInitialized || metricsLoading || !metrics;
 
   // Fetch sentiment breakdown - only after brand is loaded and batch selection is initialized
   const { data: sentimentData } = useQuery({
