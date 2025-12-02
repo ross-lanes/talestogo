@@ -5,3 +5,8 @@
  */
 
 export { default as NSTXViewDashboard } from './Dashboard';
+export { default as PaperBrowser } from './PaperBrowser';
+export { default as ShotExplorer } from './ShotExplorer';
+export { default as ParameterAnalysis } from './ParameterAnalysis';
+export { default as PhenomenaExplorer } from './PhenomenaExplorer';
+export { default as ProcessingStatus } from './ProcessingStatus';

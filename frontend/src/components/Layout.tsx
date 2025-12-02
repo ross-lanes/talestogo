@@ -133,11 +133,6 @@ export default function Layout({ children }: LayoutProps) {
     handleUserMenuClose();
   };
 
-  const handleHowTalesWorks = () => {
-    navigate('/how-tales-works');
-    handleUserMenuClose();
-  };
-
   const handleHelp = () => {
     navigate('/help');
     handleUserMenuClose();
@@ -157,6 +152,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Sentiment', icon: <SentimentIcon />, path: '/analytics/sentiment', indent: true },
     { text: 'Threats', icon: <WarningIcon />, path: '/analytics/threats', indent: true },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports', indent: false },
+    { text: 'How Tales Works', icon: <InfoIcon />, path: '/how-tales-works', indent: false },
   ];
 
   // Canon navigation menu items
@@ -165,11 +161,13 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Ask a Question', icon: <ResponseIcon />, path: '/canon/ask', indent: false },
     { text: 'Check a Document', icon: <ReportIcon />, path: '/canon/documents', indent: false },
     { text: 'Compare Drugs', icon: <CompareIcon />, path: '/canon/compare', indent: false },
+    { text: 'How Canon Works', icon: <InfoIcon />, path: '/how-canon-works', indent: false },
   ];
 
   // Heads navigation menu items
   const headsMenuItems = [
     { text: 'Generate Personas', icon: <AutoAwesomeIcon />, path: '/heads', indent: false },
+    { text: 'How Heads Works', icon: <InfoIcon />, path: '/how-heads-works', indent: false },
   ];
 
   // NSTXView navigation menu items
@@ -180,6 +178,7 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Analyze Parameters', icon: <AnalyticsIcon />, path: '/nstxview/parameters', indent: false },
     { text: 'Phenomena', icon: <AutoAwesomeIcon />, path: '/nstxview/phenomena', indent: false },
     { text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false },
+    { text: 'How NSTXView Works', icon: <InfoIcon />, path: '/how-nstxview-works', indent: false },
   ];
 
   // Select menu items based on current product
@@ -549,12 +548,6 @@ export default function Layout({ children }: LayoutProps) {
               <HelpIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>Help & Support</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={handleHowTalesWorks}>
-            <ListItemIcon>
-              <InfoIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>How Tales Works</ListItemText>
           </MenuItem>
           <Divider />
           <MenuItem onClick={handleLogout}>

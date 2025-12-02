@@ -56,9 +56,16 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ## Available Tools
 
 ### search_papers
-Search across paper content using text matching.
+Search across paper content using semantic or text search.
 - **query**: Natural language search query
 - **limit**: Maximum results (default 10)
+- **use_semantic**: Use semantic search via ChromaDB if available (default True)
+
+### semantic_search
+Perform dedicated semantic search across paper chunks using vector embeddings.
+- **query**: Natural language search query
+- **limit**: Maximum results (default 10)
+- **section**: Filter by section (abstract, introduction, results, etc.)
 
 ### get_paper_details
 Get full extracted information for a specific paper including shots, parameters, and phenomena.
@@ -84,6 +91,9 @@ Get all unique parameter names with counts and categories.
 
 ### list_phenomena
 Get all unique phenomenon types with counts and categories.
+
+### get_database_stats
+Get overall statistics about the NSTXView database including paper counts, processing status, and vector store info.
 
 ### find_related_collision_data
 Suggest CollisionDB queries based on species mentioned in a paper.

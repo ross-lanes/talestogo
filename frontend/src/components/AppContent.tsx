@@ -23,6 +23,9 @@ import DescriptorAnalysis from '../pages/analytics/DescriptorAnalysis';
 import CompetitorThreats from '../pages/analytics/CompetitorThreats';
 import Recommendations from '../pages/analytics/Recommendations';
 import HowTalesWorks from '../pages/HowTalesWorks';
+import HowHeadsWorks from '../pages/HowHeadsWorks';
+import HowCanonWorks from '../pages/HowCanonWorks';
+import HowNSTXViewWorks from '../pages/HowNSTXViewWorks';
 import Help from '../pages/Help';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
@@ -43,7 +46,14 @@ import {
   CanonSavedSearches,
 } from '../pages/canon';
 // NSTXView - NSTX-U Research Analysis pages
-import { NSTXViewDashboard } from '../pages/nstxview';
+import {
+  NSTXViewDashboard,
+  PaperBrowser,
+  ShotExplorer,
+  ParameterAnalysis,
+  PhenomenaExplorer,
+  ProcessingStatus,
+} from '../pages/nstxview';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
@@ -236,13 +246,43 @@ const AppRoutes: React.FC = () => {
             }
           />
 
-          {/* How Tales Works Route */}
+          {/* How It Works Routes */}
           <Route
             path="/how-tales-works"
             element={
               <ProtectedRoute>
                 <Layout>
                   <HowTalesWorks />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/how-heads-works"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HowHeadsWorks />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/how-canon-works"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HowCanonWorks />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/how-nstxview-works"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HowNSTXViewWorks />
                 </Layout>
               </ProtectedRoute>
             }
@@ -454,7 +494,7 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <NSTXViewDashboard />
+                  <PaperBrowser />
                 </Layout>
               </ProtectedRoute>
             }
@@ -464,7 +504,7 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <NSTXViewDashboard />
+                  <ShotExplorer />
                 </Layout>
               </ProtectedRoute>
             }
@@ -474,7 +514,7 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <NSTXViewDashboard />
+                  <ParameterAnalysis />
                 </Layout>
               </ProtectedRoute>
             }
@@ -484,7 +524,7 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <NSTXViewDashboard />
+                  <PhenomenaExplorer />
                 </Layout>
               </ProtectedRoute>
             }
@@ -494,7 +534,7 @@ const AppRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <NSTXViewDashboard />
+                  <ProcessingStatus />
                 </Layout>
               </ProtectedRoute>
             }

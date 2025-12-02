@@ -20,8 +20,41 @@ from sqlalchemy.orm import sessionmaker
 
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "")
-CHROMADB_HOST = os.getenv("CHROMADB_HOST", "localhost")
+CHROMADB_HOST = os.getenv("CHROMADB_HOST", "")
 CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8000"))
+CHROMADB_PERSIST_DIR = os.getenv("CHROMADB_PERSIST_DIR", "")
+
+# Try to import ChromaDB
+try:
+    import chromadb
+    from chromadb.config import Settings
+    HAS_CHROMADB = True
+except ImportError:
+    HAS_CHROMADB = False
+
+# ChromaDB helper
+def get_chromadb_collection():
+    """Get ChromaDB collection for semantic search"""
+    if not HAS_CHROMADB:
+        return None
+
+    try:
+        if CHROMADB_PERSIST_DIR:
+            client = chromadb.PersistentClient(
+                path=CHROMADB_PERSIST_DIR,
+                settings=Settings(anonymized_telemetry=False)
+            )
+        elif CHROMADB_HOST:
+            client = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+        else:
+            return None
+
+        return client.get_or_create_collection(
+            name="nstxview_papers",
+            metadata={"description": "NSTX/NSTX-U paper chunks for semantic search"}
+        )
+    except Exception:
+        return None
 
 
 # Initialize MCP server
@@ -82,14 +115,16 @@ def get_db_session():
 @mcp.tool()
 def search_papers(
     query: str,
-    limit: int = 10
+    limit: int = 10,
+    use_semantic: bool = True
 ) -> str:
     """
-    Search across paper content using semantic search.
+    Search across paper content using semantic or text search.
 
     Args:
         query: Natural language search query
         limit: Maximum number of results (default 10)
+        use_semantic: Use semantic search via ChromaDB if available (default True)
 
     Returns:
         JSON with matching papers and relevant excerpts
@@ -99,33 +134,85 @@ def search_papers(
         return json.dumps({"error": "Database not configured"})
 
     try:
-        # Simple text search fallback (ChromaDB integration would be better)
-        search_term = f"%{query}%"
-        result = db.execute(text("""
-            SELECT id, title, authors, abstract, doi, journal
-            FROM nstx_papers
-            WHERE title ILIKE :search
-               OR abstract ILIKE :search
-               OR extracted_text ILIKE :search
-            LIMIT :limit
-        """), {"search": search_term, "limit": limit})
+        # Try semantic search first if requested and available
+        collection = get_chromadb_collection() if use_semantic else None
 
-        papers = []
-        for row in result:
-            papers.append({
-                "id": row.id,
-                "title": row.title,
-                "authors": json.loads(row.authors) if row.authors else None,
-                "abstract": row.abstract[:500] + "..." if row.abstract and len(row.abstract) > 500 else row.abstract,
-                "doi": row.doi,
-                "journal": row.journal
-            })
+        if collection and collection.count() > 0:
+            # Semantic search via ChromaDB
+            results = collection.query(
+                query_texts=[query],
+                n_results=limit * 2,  # Get more to deduplicate papers
+                include=["documents", "metadatas", "distances"]
+            )
 
-        return json.dumps({
-            "query": query,
-            "count": len(papers),
-            "papers": papers
-        }, indent=2)
+            # Deduplicate by paper_id and get paper details
+            seen_papers = set()
+            papers = []
+
+            for i, doc in enumerate(results["documents"][0] if results["documents"] else []):
+                metadata = results["metadatas"][0][i] if results["metadatas"] else {}
+                paper_id = metadata.get("paper_id")
+
+                if paper_id and paper_id not in seen_papers and len(papers) < limit:
+                    seen_papers.add(paper_id)
+
+                    # Get paper details from database
+                    paper_result = db.execute(text("""
+                        SELECT id, title, authors, abstract, doi, journal
+                        FROM nstx_papers WHERE id = :id
+                    """), {"id": paper_id})
+                    paper_row = paper_result.fetchone()
+
+                    if paper_row:
+                        distance = results["distances"][0][i] if results["distances"] else 0
+                        papers.append({
+                            "id": paper_row.id,
+                            "title": paper_row.title,
+                            "authors": json.loads(paper_row.authors) if paper_row.authors else None,
+                            "abstract": paper_row.abstract[:500] + "..." if paper_row.abstract and len(paper_row.abstract) > 500 else paper_row.abstract,
+                            "doi": paper_row.doi,
+                            "journal": paper_row.journal,
+                            "relevance_score": round(1 - distance, 3) if distance else 1.0,
+                            "matching_excerpt": doc[:300] + "..." if len(doc) > 300 else doc,
+                            "section": metadata.get("section")
+                        })
+
+            return json.dumps({
+                "query": query,
+                "search_type": "semantic",
+                "count": len(papers),
+                "papers": papers
+            }, indent=2)
+
+        else:
+            # Fallback to text search
+            search_term = f"%{query}%"
+            result = db.execute(text("""
+                SELECT id, title, authors, abstract, doi, journal
+                FROM nstx_papers
+                WHERE title ILIKE :search
+                   OR abstract ILIKE :search
+                   OR extracted_text ILIKE :search
+                LIMIT :limit
+            """), {"search": search_term, "limit": limit})
+
+            papers = []
+            for row in result:
+                papers.append({
+                    "id": row.id,
+                    "title": row.title,
+                    "authors": json.loads(row.authors) if row.authors else None,
+                    "abstract": row.abstract[:500] + "..." if row.abstract and len(row.abstract) > 500 else row.abstract,
+                    "doi": row.doi,
+                    "journal": row.journal
+                })
+
+            return json.dumps({
+                "query": query,
+                "search_type": "text",
+                "count": len(papers),
+                "papers": papers
+            }, indent=2)
 
     except Exception as e:
         return json.dumps({"error": str(e)})
@@ -628,6 +715,155 @@ def find_related_collision_data(paper_id: int) -> str:
             "found_species": found_species,
             "has_impurity_content": has_impurity_content,
             "collisiondb_note": "Use these species with the CollisionDB MCP server to find relevant collision cross sections and rate coefficients."
+        }, indent=2)
+
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def get_database_stats() -> str:
+    """
+    Get overall statistics about the NSTXView database.
+
+    Returns:
+        JSON with counts of papers, shots, parameters, phenomena, and processing status
+    """
+    db = get_db_session()
+    if not db:
+        return json.dumps({"error": "Database not configured"})
+
+    try:
+        # Paper stats
+        paper_stats = db.execute(text("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as errors
+            FROM nstx_papers
+        """)).fetchone()
+
+        # Shot stats
+        shot_stats = db.execute(text("""
+            SELECT
+                COUNT(*) as total,
+                COUNT(DISTINCT shot_number) as unique_shots
+            FROM nstx_shots
+        """)).fetchone()
+
+        # Parameter stats
+        param_count = db.execute(text("SELECT COUNT(*) FROM nstx_parameters")).scalar()
+
+        # Phenomenon stats
+        phenom_count = db.execute(text("SELECT COUNT(*) FROM nstx_phenomena")).scalar()
+
+        # ChromaDB stats
+        chromadb_count = 0
+        collection = get_chromadb_collection()
+        if collection:
+            chromadb_count = collection.count()
+
+        return json.dumps({
+            "papers": {
+                "total": paper_stats.total or 0,
+                "completed": paper_stats.completed or 0,
+                "pending": paper_stats.pending or 0,
+                "errors": paper_stats.errors or 0
+            },
+            "shots": {
+                "total_mentions": shot_stats.total or 0,
+                "unique_shots": shot_stats.unique_shots or 0
+            },
+            "parameters": param_count or 0,
+            "phenomena": phenom_count or 0,
+            "vector_store": {
+                "available": HAS_CHROMADB,
+                "documents": chromadb_count
+            }
+        }, indent=2)
+
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+    finally:
+        db.close()
+
+
+@mcp.tool()
+def semantic_search(
+    query: str,
+    limit: int = 10,
+    section: Optional[str] = None
+) -> str:
+    """
+    Perform semantic search across paper chunks using vector embeddings.
+
+    This finds conceptually similar content even if exact words don't match.
+    Requires ChromaDB to be configured with embeddings.
+
+    Args:
+        query: Natural language search query
+        limit: Maximum number of results (default 10)
+        section: Filter by section (abstract, introduction, results, etc.)
+
+    Returns:
+        JSON with matching excerpts, their papers, and relevance scores
+    """
+    collection = get_chromadb_collection()
+    if not collection or collection.count() == 0:
+        return json.dumps({
+            "error": "Semantic search not available",
+            "reason": "ChromaDB not configured or no embeddings generated yet"
+        })
+
+    db = get_db_session()
+    if not db:
+        return json.dumps({"error": "Database not configured"})
+
+    try:
+        # Build where filter
+        where_filter = None
+        if section:
+            where_filter = {"section": section}
+
+        results = collection.query(
+            query_texts=[query],
+            n_results=limit,
+            where=where_filter,
+            include=["documents", "metadatas", "distances"]
+        )
+
+        excerpts = []
+        for i, doc in enumerate(results["documents"][0] if results["documents"] else []):
+            metadata = results["metadatas"][0][i] if results["metadatas"] else {}
+            distance = results["distances"][0][i] if results["distances"] else 0
+            paper_id = metadata.get("paper_id")
+
+            # Get paper title
+            paper_title = None
+            if paper_id:
+                paper_result = db.execute(text(
+                    "SELECT title FROM nstx_papers WHERE id = :id"
+                ), {"id": paper_id})
+                row = paper_result.fetchone()
+                paper_title = row.title if row else None
+
+            excerpts.append({
+                "paper_id": paper_id,
+                "paper_title": paper_title,
+                "section": metadata.get("section"),
+                "chunk_index": metadata.get("chunk_index"),
+                "content": doc,
+                "relevance_score": round(1 - distance, 3) if distance else 1.0
+            })
+
+        return json.dumps({
+            "query": query,
+            "section_filter": section,
+            "count": len(excerpts),
+            "excerpts": excerpts
         }, indent=2)
 
     except Exception as e:
