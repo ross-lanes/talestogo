@@ -70,7 +70,7 @@ const PRODUCT_TAGLINES: Record<string, string> = {
   tales: 'Shape your AI story.',
   heads: 'Know your audience.',
   canon: 'Research FDA data.',
-  nstxview: 'Explore plasma physics.',
+  nstxview: 'Call the shots.',
   vision: 'See the market clearly.',
   pulse: 'Measure what matters.',
   voice: 'Optimize every word.',
