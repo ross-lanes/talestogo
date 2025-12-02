@@ -77,6 +77,21 @@ export const BrandProvider: React.FC<BrandProviderProps> = ({ children }) => {
 
       // Find and set the active brand
       const active = brandsData.find(brand => brand.is_active);
+
+      // IMPORTANT: If we found an active brand, call the activate endpoint to ensure
+      // the backend is in sync. This is necessary because shared brands may have
+      // is_active=True (from their owner) but the backend's get_active_brand_id
+      // might return a different brand (owned brands take precedence).
+      if (active) {
+        try {
+          console.log('[BrandContext] Syncing active brand with backend:', active.id);
+          await api.post(`/brands/${active.id}/activate`);
+        } catch (syncErr) {
+          // If sync fails, still set the brand locally - user can manually switch
+          console.warn('[BrandContext] Failed to sync active brand with backend:', syncErr);
+        }
+      }
+
       setActiveBrand(active || null);
     } catch (err: any) {
       console.error('Error fetching brands:', err);
