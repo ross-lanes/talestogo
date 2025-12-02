@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TALES Report Generation Script
-Generates professional analysis reports from analyzed response data using Perplexity API.
+Generates professional analysis reports from analyzed response data using Gemini 2.5 Pro.
 Brand-aware version that generates reports for specific brands.
 """
 
@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 
 from app.database import SessionLocal
 from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User, TaskStatus
@@ -42,16 +42,13 @@ from app.services.cached_metrics import (
 
 # Load environment variables
 load_dotenv()
-PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not PERPLEXITY_API_KEY:
-    raise ValueError("PERPLEXITY_API_KEY not found in environment variables")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in environment variables")
 
-# Initialize Perplexity client (OpenAI-compatible)
-perplexity_client = OpenAI(
-    api_key=PERPLEXITY_API_KEY,
-    base_url="https://api.perplexity.ai"
-)
+# Configure Gemini
+genai.configure(api_key=GEMINI_API_KEY)
 
 
 # ==================== DATA COLLECTION ====================
@@ -508,7 +505,7 @@ def generate_competitor_threat_analysis(
     competitive_losses: List[Response]
 ) -> str:
     """
-    Use Perplexity to generate enhanced competitor threat analysis.
+    Use Gemini to generate enhanced competitor threat analysis.
     Focuses on the top 3 threats as calculated by calculate_competitor_threats().
     """
 
@@ -598,14 +595,10 @@ Be ruthlessly specific. Use actual data and examples. No generic advice like "im
 Do NOT use emojis or icons.
 Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",  # Using Perplexity Sonar Pro for competitive analysis
-        max_tokens=4000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 def generate_strategic_priorities(
@@ -619,7 +612,7 @@ def generate_strategic_priorities(
     best_responses: List[Response],
     worst_responses: List[Response]
 ) -> str:
-    """Use Claude to generate enhanced strategic priorities with rich context."""
+    """Use Gemini to generate enhanced strategic priorities with rich context."""
 
     # Build strengths and weaknesses from actual responses
     strengths = ""
@@ -636,18 +629,14 @@ def generate_strategic_priorities(
         if resp.competitors:
             weaknesses += f"   Competitors mentioned instead: {resp.competitors}\n"
 
-    # Fetch recent industry news using Perplexity's real-time search
+    # Fetch recent industry news using Gemini
     industry = brand_info.industry if brand_info and brand_info.industry else "the industry"
     news_query = f"Recent news and developments in {industry} in the last 30 days, particularly related to {brand_name} or its competitors"
 
     try:
-        news_completion = perplexity_client.chat.completions.create(
-            model="sonar-pro",
-            max_tokens=800,
-            messages=[{"role": "user", "content": news_query}],
-            temperature=0.3
-        )
-        recent_news = news_completion.choices[0].message.content
+        news_model = genai.GenerativeModel('gemini-2.5-pro')
+        news_response = news_model.generate_content(news_query)
+        recent_news = news_response.text
     except Exception as e:
         print(f"Warning: Could not fetch recent news: {e}")
         recent_news = "No recent news data available."
@@ -738,14 +727,10 @@ Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements 
 
 IMPORTANT - Citations: DO NOT include any citations, references, or external sources. Base all analysis solely on the data provided above. Do NOT add a "References" section at the end."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",  # Using Perplexity Sonar Pro for strategic depth
-        max_tokens=5000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 def generate_executive_summary(
@@ -759,7 +744,7 @@ def generate_executive_summary(
     descriptor_context: str,
     competitor_context: str
 ) -> str:
-    """Use Claude to generate an enhanced executive summary with rich context."""
+    """Use Gemini to generate an enhanced executive summary with rich context."""
 
     prompt = f"""You are a strategic communications analyst writing an executive summary for a major client.
 
@@ -797,14 +782,10 @@ Do NOT use emojis or icons.
 Do NOT use phrases like "This report" or "This analysis" - write directly about the findings.
 Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",  # Using Perplexity Sonar Pro for strategic analysis
-        max_tokens=3000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 def generate_positioning_insights(
@@ -838,14 +819,10 @@ Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
 Do NOT use multiple pound signs or asterisks as decorative elements."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 def generate_share_of_voice_insights(
@@ -879,14 +856,10 @@ Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
 Do NOT use multiple pound signs or asterisks as decorative elements."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 def generate_descriptor_insights(
@@ -925,14 +898,10 @@ Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
 Do NOT use multiple pound signs or asterisks as decorative elements."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 def generate_sentiment_insights(
@@ -974,14 +943,10 @@ Do NOT include an appendix section.
 Do NOT list individual AI responses or statements.
 ONLY provide the paragraph analysis - nothing else after your analysis."""
 
-    completion = perplexity_client.chat.completions.create(
-        model="sonar-pro",
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    response = model.generate_content(prompt)
 
-    return completion.choices[0].message.content
+    return response.text
 
 
 # ==================== REPORT GENERATION ====================
@@ -1424,7 +1389,7 @@ def generate_report_main(user_id: int, brand_id: int):
             print(f"  - Top 3 threats: {', '.join([t['name'] for t in competitor_threats_data[:3]])}")
 
         # Step 4: Generate AI insights with enhanced prompts
-        print("\nGenerating AI-powered insights with Claude Sonnet 3.5...")
+        print("\nGenerating AI-powered insights with Gemini 2.5 Pro...")
         print("  - Executive summary...")
         executive_summary = generate_executive_summary(
             metrics_summary=metrics_summary,

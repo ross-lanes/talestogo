@@ -5,6 +5,7 @@ This will be removed after running the rollback migration
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+import re
 
 from ..database import get_db
 from ..auth import get_current_user
@@ -14,6 +15,31 @@ router = APIRouter(
     prefix="/migration",
     tags=["Migration Helper"]
 )
+
+# Hardcoded whitelist of valid table names (prevents SQL injection)
+VALID_TABLES = {
+    'users', 'queries', 'responses', 'target_descriptors', 'competitors',
+    'brand_info', 'brand_shares', 'task_status', 'reports',
+    'collection_batches', 'scheduled_tasks', 'tenants'
+}
+
+def validate_table_name(table: str) -> str:
+    """Validate and sanitize table name to prevent SQL injection."""
+    if table not in VALID_TABLES:
+        raise ValueError(f"Invalid table name: {table}")
+    return table
+
+def validate_sequence_name(sequence_name: str) -> str:
+    """Validate PostgreSQL sequence name format to prevent SQL injection."""
+    if not sequence_name:
+        raise ValueError("Empty sequence name")
+
+    # PostgreSQL sequence names follow pattern: schema.sequence_name or sequence_name
+    # Allow only alphanumeric, underscore, and dot (for schema.table format)
+    if not re.match(r'^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?$', sequence_name):
+        raise ValueError(f"Invalid sequence name format: {sequence_name}")
+
+    return sequence_name
 
 
 @router.post("/rollback-pending-shares")
@@ -96,22 +122,36 @@ def reset_sequences(
     try:
         for table in tables:
             try:
+                # Validate table name against whitelist
+                validated_table = validate_table_name(table)
+
                 # Get the sequence name for this table's id column
-                result = db.execute(text(f"SELECT pg_get_serial_sequence('{table}', 'id')"))
+                # Use parameterized query where possible
+                result = db.execute(
+                    text("SELECT pg_get_serial_sequence(:table_name, 'id')"),
+                    {"table_name": validated_table}
+                )
                 sequence_name = result.scalar()
 
                 if sequence_name:
+                    # Validate sequence name format
+                    validated_sequence = validate_sequence_name(sequence_name)
+
                     # Reset the sequence to max(id) + 1
+                    # Note: PostgreSQL doesn't allow parameterized sequence names in setval
+                    # But we've validated the sequence name format, so this is safe
                     db.execute(text(f"""
                         SELECT setval(
-                            '{sequence_name}',
-                            COALESCE((SELECT MAX(id) FROM {table}), 1),
+                            '{validated_sequence}',
+                            COALESCE((SELECT MAX(id) FROM {validated_table}), 1),
                             true
                         )
                     """))
                     results[table] = "reset"
                 else:
                     results[table] = "no sequence"
+            except ValueError as e:
+                results[table] = f"validation error: {str(e)}"
             except Exception as e:
                 results[table] = f"error: {str(e)}"
 
@@ -155,7 +195,11 @@ def debug_brand_shares(
 
         seq_value = None
         if sequence_name:
-            seq_val_result = db.execute(text(f"SELECT last_value FROM {sequence_name}"))
+            # Validate sequence name format before using in query
+            validated_sequence = validate_sequence_name(sequence_name)
+            # PostgreSQL doesn't allow parameterized identifiers for FROM clause
+            # But we've validated the format, so this is safe
+            seq_val_result = db.execute(text(f"SELECT last_value FROM {validated_sequence}"))
             seq_value = seq_val_result.scalar()
 
         return {

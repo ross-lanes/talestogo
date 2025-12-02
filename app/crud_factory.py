@@ -185,140 +185,109 @@ def create_crud_router(config: CrudConfig) -> APIRouter:
 
     # --- GET BY ID endpoint (optional) ---
     if config.crud_get_by_id:
-        # Use exec to create endpoint with dynamic parameter name
-        endpoint_code = f"""
-@router.get("/{{{config.id_field_name}}}", response_model=config.schema)
-async def get_resource_by_id(
-    {config.id_field_name}: {config.id_field_type.__name__} = Path(...),
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
-):
-    result = config.crud_get_by_id(
-        db,
-        {config.id_field_name}={config.id_field_name},
-        user_id=current_user.id,
-        brand_id=brand_id
-    )
+        # Create endpoint using closure to capture config
+        def make_get_endpoint(cfg: CrudConfig):
+            async def get_resource_by_id(
+                resource_id: cfg.id_field_type = Path(..., alias=cfg.id_field_name),
+                current_user: models.User = Depends(get_current_user),
+                db: Session = Depends(get_db),
+                brand_id: Optional[int] = Depends(get_active_brand_id)
+            ):
+                result = cfg.crud_get_by_id(
+                    db,
+                    **{cfg.id_field_name: resource_id},
+                    user_id=current_user.id,
+                    brand_id=brand_id
+                )
 
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="{config.resource_display_name} not found"
+                if result is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"{cfg.resource_display_name} not found"
+                    )
+
+                return result
+            return get_resource_by_id
+
+        # Register the endpoint
+        router.add_api_route(
+            path=f"/{{{config.id_field_name}}}",
+            endpoint=make_get_endpoint(config),
+            methods=["GET"],
+            response_model=config.schema
         )
-
-    return result
-"""
-        # Execute the code to create the endpoint
-        local_vars = {
-            'router': router,
-            'config': config,
-            'models': models,
-            'Depends': Depends,
-            'get_current_user': get_current_user,
-            'Session': Session,
-            'get_db': get_db,
-            'Optional': Optional,
-            'get_active_brand_id': get_active_brand_id,
-            'HTTPException': HTTPException,
-            'status': status,
-            'Path': Path,
-            'int': int,
-            'str': str
-        }
-        exec(endpoint_code, local_vars)
 
     # --- UPDATE endpoint (optional) ---
     if config.crud_update:
         update_param_name = f"{config.resource_name}_update"
 
-        # Use exec to create endpoint with dynamic parameter names
-        endpoint_code = f"""
-@router.put("/{{{config.id_field_name}}}", response_model=config.schema)
-async def update_resource(
-    {config.id_field_name}: {config.id_field_type.__name__} = Path(...),
-    {update_param_name}: config.schema_update = None,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
-):
-    result = config.crud_update(
-        db,
-        {config.id_field_name}={config.id_field_name},
-        {update_param_name}={update_param_name},
-        user_id=current_user.id,
-        brand_id=brand_id
-    )
+        # Create endpoint using closure to capture config and param names
+        def make_update_endpoint(cfg: CrudConfig, update_key: str):
+            async def update_resource(
+                resource_id: cfg.id_field_type = Path(..., alias=cfg.id_field_name),
+                resource_update: cfg.schema_update = None,
+                current_user: models.User = Depends(get_current_user),
+                db: Session = Depends(get_db),
+                brand_id: Optional[int] = Depends(get_active_brand_id)
+            ):
+                result = cfg.crud_update(
+                    db,
+                    **{cfg.id_field_name: resource_id},
+                    **{update_key: resource_update},
+                    user_id=current_user.id,
+                    brand_id=brand_id
+                )
 
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="{config.resource_display_name} not found"
+                if result is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"{cfg.resource_display_name} not found"
+                    )
+
+                return result
+            return update_resource
+
+        # Register the endpoint
+        router.add_api_route(
+            path=f"/{{{config.id_field_name}}}",
+            endpoint=make_update_endpoint(config, update_param_name),
+            methods=["PUT"],
+            response_model=config.schema
         )
-
-    return result
-"""
-        local_vars = {
-            'router': router,
-            'config': config,
-            'models': models,
-            'Depends': Depends,
-            'get_current_user': get_current_user,
-            'Session': Session,
-            'get_db': get_db,
-            'Optional': Optional,
-            'get_active_brand_id': get_active_brand_id,
-            'HTTPException': HTTPException,
-            'status': status,
-            'Path': Path,
-            'int': int,
-            'str': str
-        }
-        exec(endpoint_code, local_vars)
 
     # --- DELETE endpoint (optional) ---
     if config.crud_delete:
-        # Use exec to create endpoint with dynamic parameter name
-        endpoint_code = f"""
-@router.delete("/{{{config.id_field_name}}}", response_model=config.schema)
-async def delete_resource(
-    {config.id_field_name}: {config.id_field_type.__name__} = Path(...),
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
-):
-    result = config.crud_delete(
-        db,
-        {config.id_field_name}={config.id_field_name},
-        user_id=current_user.id,
-        brand_id=brand_id
-    )
+        # Create endpoint using closure to capture config
+        def make_delete_endpoint(cfg: CrudConfig):
+            async def delete_resource(
+                resource_id: cfg.id_field_type = Path(..., alias=cfg.id_field_name),
+                current_user: models.User = Depends(get_current_user),
+                db: Session = Depends(get_db),
+                brand_id: Optional[int] = Depends(get_active_brand_id)
+            ):
+                result = cfg.crud_delete(
+                    db,
+                    **{cfg.id_field_name: resource_id},
+                    user_id=current_user.id,
+                    brand_id=brand_id
+                )
 
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="{config.resource_display_name} not found"
+                if result is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"{cfg.resource_display_name} not found"
+                    )
+
+                return result
+            return delete_resource
+
+        # Register the endpoint
+        router.add_api_route(
+            path=f"/{{{config.id_field_name}}}",
+            endpoint=make_delete_endpoint(config),
+            methods=["DELETE"],
+            response_model=config.schema
         )
-
-    return result
-"""
-        local_vars = {
-            'router': router,
-            'config': config,
-            'models': models,
-            'Depends': Depends,
-            'get_current_user': get_current_user,
-            'Session': Session,
-            'get_db': get_db,
-            'Optional': Optional,
-            'get_active_brand_id': get_active_brand_id,
-            'HTTPException': HTTPException,
-            'status': status,
-            'Path': Path,
-            'int': int,
-            'str': str
-        }
-        exec(endpoint_code, local_vars)
 
     # --- UPLOAD endpoint (optional) ---
     if config.upload_config:

@@ -11,6 +11,7 @@ from .. import crud, models, schemas
 from ..auth import get_current_user, get_current_admin_user
 from ..database import get_db
 from ..routers.analytics import get_active_brand_id
+from ..utils.file_validation import validate_excel_upload_with_size_limit
 
 router = APIRouter(
     prefix="/descriptors",
@@ -106,12 +107,20 @@ async def upload_descriptors(
     if not brand_id:
         raise HTTPException(status_code=400, detail="No active brand selected")
 
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="File must be an Excel file (.xlsx or .xls)")
+    # Get the brand to determine the owner's user_id
+    brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail="Brand not found")
+
+    # Use the brand owner's user_id, not the admin's user_id
+    # This ensures data ownership remains with the brand owner
+    owner_user_id = brand.user_id
 
     try:
+        # Validate file type and size using magic byte checking
+        contents = await validate_excel_upload_with_size_limit(file)
+
         # Read the Excel file
-        contents = await file.read()
         wb = load_workbook(io.BytesIO(contents))
         ws = wb.active
 
@@ -140,7 +149,7 @@ async def upload_descriptors(
                 # Check if descriptor already exists
                 existing_descriptor = db.query(models.TargetDescriptor).filter(
                     models.TargetDescriptor.descriptor == row_data['descriptor'],
-                    models.TargetDescriptor.user_id == current_user.id,
+                    models.TargetDescriptor.user_id == owner_user_id,
                     models.TargetDescriptor.brand_id == brand_id
                 ).first()
 
@@ -158,7 +167,7 @@ async def upload_descriptors(
                 else:
                     # Create new descriptor
                     new_descriptor = models.TargetDescriptor(
-                        user_id=current_user.id,
+                        user_id=owner_user_id,  # Use brand owner's ID, not admin's ID
                         brand_id=brand_id,
                         descriptor=row_data['descriptor'],
                         is_target=row_data.get('is_target', True) if row_data.get('is_target') is not None else True,
