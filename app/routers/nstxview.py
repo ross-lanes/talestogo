@@ -874,6 +874,62 @@ async def search_papers(
     return results
 
 
+# === Chat Endpoint ===
+
+class ChatRequest(BaseModel):
+    """Chat request with user message"""
+    message: str = Field(..., min_length=1, max_length=2000)
+    conversation_history: Optional[List[dict]] = None
+
+
+class ChatResponse(BaseModel):
+    """Chat response"""
+    response: str
+    tool_calls: List[dict] = []
+    error: Optional[str] = None
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Chat with the NSTXView AI assistant.
+
+    Send a natural language question about NSTX/NSTX-U plasma physics research
+    and get an AI-powered response based on the database.
+
+    Example questions:
+    - "What papers discuss H-mode transitions?"
+    - "What are the typical ion temperatures in NSTX experiments?"
+    - "Find papers about lithium wall conditioning"
+    - "What phenomena are most commonly studied?"
+    """
+    from app.services.nstxview.chat_service import NSTXViewChatService
+
+    try:
+        chat_service = NSTXViewChatService(db=db)
+        result = chat_service.chat(
+            user_message=request.message,
+            conversation_history=request.conversation_history
+        )
+
+        return ChatResponse(
+            response=result.get("response", ""),
+            tool_calls=result.get("tool_calls", []),
+            error=result.get("error")
+        )
+
+    except Exception as e:
+        return ChatResponse(
+            response="I encountered an error processing your request. Please try again.",
+            tool_calls=[],
+            error=str(e)
+        )
+
+
 # === Dashboard/Stats Endpoints ===
 
 @router.get("/stats")

@@ -7,8 +7,6 @@ import {
   Card,
   CardContent,
   Button,
-  TextField,
-  InputAdornment,
   CircularProgress,
   Alert,
   Chip,
@@ -19,7 +17,6 @@ import {
   LinearProgress,
 } from '@mui/material';
 import {
-  Search as SearchIcon,
   Description as PaperIcon,
   Bolt as ShotIcon,
   Analytics as ParameterIcon,
@@ -27,6 +24,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import NSTXViewChat from './NSTXViewChat';
 import {
   BarChart,
   Bar,
@@ -124,7 +122,6 @@ const NSTXViewDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatus | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -167,13 +164,6 @@ const NSTXViewDashboard: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/nstxview/papers?search=${encodeURIComponent(searchQuery)}`);
-    }
-  };
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -210,24 +200,10 @@ const NSTXViewDashboard: React.FC = () => {
         </Alert>
       )}
 
-      {/* Search Bar */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <form onSubmit={handleSearch}>
-          <TextField
-            fullWidth
-            placeholder="Search papers, shots, parameters, or phenomena..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </form>
-      </Paper>
+      {/* AI Chat Interface */}
+      <Box sx={{ mb: 3 }}>
+        <NSTXViewChat />
+      </Box>
 
       {/* Processing Status Banner */}
       {processingStatus && (processingStatus.processing > 0 || processingStatus.pending > 0) && (
