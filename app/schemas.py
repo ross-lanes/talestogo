@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from typing import Optional, List, Any
 import datetime
 from app.models import PersonaType
 
@@ -389,15 +389,15 @@ class User(UserBase):
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator('allowed_products', mode='before')
     @classmethod
-    def model_validate(cls, obj, **kwargs):
+    def convert_allowed_products(cls, v: Any) -> Optional[List[str]]:
         """Convert comma-separated string to list for allowed_products."""
-        if hasattr(obj, 'allowed_products') and isinstance(obj.allowed_products, str):
-            # Convert "tales,heads,canon" to ["tales", "heads", "canon"]
-            obj_dict = {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
-            obj_dict['allowed_products'] = obj.allowed_products.split(',') if obj.allowed_products else ['tales']
-            return super().model_validate(obj_dict, **kwargs)
-        return super().model_validate(obj, **kwargs)
+        if v is None:
+            return ['tales']  # Default to tales if not set
+        if isinstance(v, str):
+            return v.split(',') if v else ['tales']
+        return v
 
 class Token(BaseModel):
     access_token: str
