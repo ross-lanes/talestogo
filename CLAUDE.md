@@ -62,10 +62,12 @@ cd frontend && npm run dev
 **Development** (dev branch):
 - Frontend: https://tales-frontend-development.up.railway.app
 - Backend: https://tales-backend-development.up.railway.app
+- Database: `postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway`
 
 **Production** (main branch):
 - Frontend: https://apps.robotrachel.com
 - Backend: https://apps.robotrachel.com
+- Database: `postgresql://postgres:REDACTED_RAILWAY_PASSWORD@tramway.proxy.rlwy.net:47287/railway`
 
 ### Deploy to Production
 ```bash
