@@ -169,7 +169,7 @@ export default function Dashboard() {
   // This was causing database connection pool exhaustion by polling every 3-30 seconds
   // TaskStatusContext already provides global task status with optimized polling
 
-  // Fetch dashboard metrics - only after batch selection is initialized
+  // Fetch dashboard metrics - only after brand is loaded and batch selection is initialized
   const { data: metrics, isLoading: metricsLoading, error } = useQuery<DashboardMetrics>({
     queryKey: ['dashboard-metrics', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
@@ -177,14 +177,15 @@ export default function Dashboard() {
       const response = await api.get('/analytics/dashboard', { params });
       return response.data;
     },
-    // Only fetch metrics after batch selection is initialized
-    enabled: batchInitialized,
+    // Only fetch metrics after brand is loaded and batch selection is initialized
+    enabled: !!activeBrand && batchInitialized,
   });
 
-  // Combined loading state - wait for brand context, batches, and metrics
-  const isLoading = !minLoadingComplete || brandLoading || batchesLoading || !batchInitialized || metricsLoading;
+  // Combined loading state - wait for brand context to finish AND have an active brand,
+  // then wait for batches to initialize, then wait for metrics
+  const isLoading = !minLoadingComplete || brandLoading || !activeBrand || batchesLoading || !batchInitialized || metricsLoading;
 
-  // Fetch sentiment breakdown - only after batch selection is initialized
+  // Fetch sentiment breakdown - only after brand is loaded and batch selection is initialized
   const { data: sentimentData } = useQuery({
     queryKey: ['sentiment-breakdown', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
@@ -192,10 +193,10 @@ export default function Dashboard() {
       const response = await api.get('/analytics/sentiment/breakdown', { params });
       return response.data;
     },
-    enabled: batchInitialized,
+    enabled: !!activeBrand && batchInitialized,
   });
 
-  // Fetch share of voice - only after batch selection is initialized
+  // Fetch share of voice - only after brand is loaded and batch selection is initialized
   const { data: shareOfVoice } = useQuery({
     queryKey: ['share-of-voice-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
@@ -203,10 +204,10 @@ export default function Dashboard() {
       const response = await api.get('/analytics/share-of-voice', { params });
       return response.data;
     },
-    enabled: batchInitialized,
+    enabled: !!activeBrand && batchInitialized,
   });
 
-  // Fetch positioning data - only after batch selection is initialized
+  // Fetch positioning data - only after brand is loaded and batch selection is initialized
   const { data: positioningData } = useQuery({
     queryKey: ['positioning-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
@@ -214,10 +215,10 @@ export default function Dashboard() {
       const response = await api.get('/analytics/positioning/breakdown', { params });
       return response.data;
     },
-    enabled: batchInitialized,
+    enabled: !!activeBrand && batchInitialized,
   });
 
-  // Fetch competitor threats (calculated server-side) - only after batch selection is initialized
+  // Fetch competitor threats (calculated server-side) - only after brand is loaded and batch selection is initialized
   const { data: competitorThreats } = useQuery({
     queryKey: ['competitor-threats-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
@@ -225,7 +226,7 @@ export default function Dashboard() {
       const response = await api.get('/analytics/competitor-threats', { params });
       return response.data;
     },
-    enabled: batchInitialized,
+    enabled: !!activeBrand && batchInitialized,
   });
 
   // Collection mutation
