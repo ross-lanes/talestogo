@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import api from '../../services/api';
 import { formatMarkdown } from './utils/formatMarkdown';
+import { formatDateEST } from '../../utils/dateUtils';
 
 interface DrugComparisonData {
   drug_name: string;
@@ -118,7 +119,7 @@ const CanonCompare: React.FC = () => {
 
     // Build document content
     let content = `Drug Comparison Report\n${'='.repeat(50)}\n\n`;
-    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    content += `Generated: ${formatDateEST(new Date(), 'long')}\n\n`;
     content += `Drugs Compared: ${result.drugs.map(d => d.brand_name || d.drug_name).join(', ')}\n\n`;
 
     // Add drug details

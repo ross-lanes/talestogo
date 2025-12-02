@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import api from '../../services/api';
 import { formatMarkdown } from './utils/formatMarkdown';
+import { formatDateEST } from '../../utils/dateUtils';
 
 interface QuestionResponse {
   answer: string;
@@ -81,7 +82,7 @@ const CanonQuery: React.FC = () => {
     if (!response) return;
 
     let content = `Canon FDA Drug Data Query\n${'='.repeat(50)}\n\n`;
-    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    content += `Generated: ${formatDateEST(new Date(), 'long')}\n\n`;
     content += `QUESTION\n${'-'.repeat(30)}\n`;
     content += question + '\n\n';
     content += `ANSWER\n${'-'.repeat(30)}\n`;

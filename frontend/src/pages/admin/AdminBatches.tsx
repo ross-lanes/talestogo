@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatDateEST } from '../../utils/dateUtils';
 
 interface Batch {
   id: number;
@@ -88,18 +89,12 @@ const AdminBatches: React.FC = () => {
 
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleString();
+    return formatDateEST(dateString, 'full');
   };
 
   const formatDateShort = (dateString: string | null) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return formatDateEST(dateString, 'short');
   };
 
   const handleDeleteClick = (batch: Batch) => {

@@ -30,6 +30,7 @@ import {
   Download as DownloadIcon,
 } from '@mui/icons-material';
 import { formatMarkdown } from './utils/formatMarkdown';
+import { formatDateEST } from '../../utils/dateUtils';
 
 // OpenFDA API base URL
 const OPENFDA_BASE_URL = 'https://api.fda.gov';
@@ -59,7 +60,7 @@ const formatFDADate = (dateStr: string | null): string | null => {
   const month = dateStr.substring(4, 6);
   const day = dateStr.substring(6, 8);
   const date = new Date(`${year}-${month}-${day}`);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return formatDateEST(date, 'long');
 };
 
 interface AdverseEventCount {
@@ -322,7 +323,7 @@ const LabelResults: React.FC<{ label: DrugLabel }> = ({ label }) => {
 
   const downloadAsWord = () => {
     let content = `FDA Drug Label: ${label.brand_name || label.generic_name || 'Unknown Drug'}\n${'='.repeat(50)}\n\n`;
-    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    content += `Generated: ${formatDateEST(new Date(), 'long')}\n\n`;
 
     if (label.brand_name) content += `Brand Name: ${label.brand_name}\n`;
     if (label.generic_name) content += `Generic Name: ${label.generic_name}\n`;
@@ -555,7 +556,7 @@ const AdverseEventsResults: React.FC<{
 
   const downloadAsWord = () => {
     let content = `FDA Adverse Event Reports: ${drugName}\n${'='.repeat(50)}\n\n`;
-    content += `Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+    content += `Generated: ${formatDateEST(new Date(), 'long')}\n\n`;
     content += `Drug: ${drugName}\n`;
     content += `Total Reports in Top 20: ${data.total.toLocaleString()}\n\n`;
 

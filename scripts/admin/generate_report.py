@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 from app.database import SessionLocal
+from app.utils.timezone import now_eastern, format_eastern, format_eastern_date
 from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User, TaskStatus
 from app import crud, schemas
 from app.services.chart_generator import generate_all_charts
@@ -1515,7 +1516,7 @@ def generate_report_main(user_id: int, brand_id: int):
 
         # Step 6: Generate charts
         print("\nGenerating visualization charts...")
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = now_eastern().strftime('%Y%m%d_%H%M%S')
         chart_paths = generate_all_charts(
             mention_metrics=mention_metrics,
             positioning_metrics=positioning_metrics,
@@ -1534,7 +1535,7 @@ def generate_report_main(user_id: int, brand_id: int):
 
         # Step 6: Generate report
         print("\nGenerating markdown report...")
-        report_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+        report_date = format_eastern(now_eastern(), "%B %d, %Y at %I:%M %p EST")
         period = "Last analysis run"  # Could be made dynamic
 
         markdown_report = generate_markdown_report(
@@ -1577,7 +1578,7 @@ def generate_report_main(user_id: int, brand_id: int):
             task.message = "Saving report to database..."
             db.commit()
 
-        report_title = f"{brand_name} AI Reputation Analysis - {datetime.now().strftime('%Y-%m-%d')}"
+        report_title = f"{brand_name} AI Reputation Analysis - {format_eastern_date(now_eastern())}"
 
         report_obj = Report(
             user_id=user_id,
@@ -1595,7 +1596,7 @@ def generate_report_main(user_id: int, brand_id: int):
         print(f"Report saved to database (ID: {report_obj.id})")
 
         # Step 6: Save to file
-        filename = f"report_{brand_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        filename = f"report_{brand_name.replace(' ', '_')}_{now_eastern().strftime('%Y%m%d_%H%M%S')}.md"
         with open(filename, 'w') as f:
             f.write(markdown_report)
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { formatDateEST } from '../utils/dateUtils';
 import {
   Box,
   Container,
@@ -136,8 +137,7 @@ export default function AdminSchedulerDashboard() {
 
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return 'Never';
-    const date = new Date(dateString);
-    return date.toLocaleString();
+    return formatDateEST(dateString, 'full');
   };
 
   const handleRunNow = async (userId: number, brandId: number, userEmail: string | null, brandName: string | null) => {
@@ -157,8 +157,7 @@ export default function AdminSchedulerDashboard() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatDateEST(dateString, 'full');
   };
 
   if (loading) {

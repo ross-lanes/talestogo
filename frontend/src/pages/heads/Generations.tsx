@@ -13,6 +13,7 @@ import {
 import { Download as DownloadIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { headsAPI } from '../../services/api';
 import type { PersonaGeneration } from '../../types';
+import { formatDateEST } from '../../utils/dateUtils';
 
 export default function Generations() {
   const [generations, setGenerations] = useState<PersonaGeneration[]>([]);
@@ -93,11 +94,11 @@ export default function Generations() {
                         Generation #{generation.id}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Created: {new Date(generation.created_at).toLocaleString()}
+                        Created: {formatDateEST(generation.created_at, 'full')}
                       </Typography>
                       {generation.completed_at && (
                         <Typography variant="body2" color="text.secondary">
-                          Completed: {new Date(generation.completed_at).toLocaleString()}
+                          Completed: {formatDateEST(generation.completed_at, 'full')}
                         </Typography>
                       )}
                     </Box>

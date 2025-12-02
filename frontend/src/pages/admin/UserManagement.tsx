@@ -43,6 +43,7 @@ import {
 import { adminAPI, api } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useImpersonation } from '../../contexts/ImpersonationContext';
+import { formatDateEST } from '../../utils/dateUtils';
 
 interface User {
   id: number;
@@ -194,7 +195,7 @@ const UserManagement: React.FC = () => {
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    return date.toLocaleString();
+    return formatDateEST(dateString, 'full');
   };
 
   const handleInviteUser = async () => {

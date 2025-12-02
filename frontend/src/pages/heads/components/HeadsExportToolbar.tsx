@@ -19,6 +19,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import PptxGenJS from 'pptxgenjs';
 import type { Persona, HeadsFormData } from '../../../types/heads';
+import { formatDateEST } from '../../../utils/dateUtils';
 
 interface HeadsExportToolbarProps {
   personas: Persona[];
@@ -103,7 +104,7 @@ const HeadsExportToolbar: React.FC<HeadsExportToolbarProps> = ({
         align: 'center',
         fontFace: 'Arial',
       });
-      titleSlide.addText(`Generated on ${new Date().toLocaleDateString()}`, {
+      titleSlide.addText(`Generated on ${formatDateEST(new Date(), 'long')}`, {
         x: 0,
         y: 5,
         w: '100%',

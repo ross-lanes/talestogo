@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { adminAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatDateEST } from '../../utils/dateUtils';
 
 interface Tenant {
   id: number;
@@ -331,7 +332,7 @@ const TenantManagement: React.FC = () => {
                         </Typography>
                       )}
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Created: {new Date(tenant.created_at).toLocaleDateString()}
+                        Created: {formatDateEST(tenant.created_at, 'short')}
                       </Typography>
                     </Box>
                     <Box>
