@@ -629,67 +629,72 @@ export default function Dashboard() {
                     {metrics.change_leadership_visibility > 0 ? '↑' : '↓'} {metrics.change_leadership_visibility > 0 ? '+' : ''}{Math.round(metrics.change_leadership_visibility)}% vs last period
                   </Typography>
                 )}
-                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5, fontSize: '10px' }}>
-                  % of responses where brand is Leader or Featured
-                </Typography>
               </Box>
             </Box>
             {positioningData && positioningData.total > 0 ? (
               (() => {
-                const maxValue = Math.max(
-                  positioningData.leader || 0,
-                  positioningData.featured || 0,
-                  positioningData.listed || 0,
-                  positioningData.not_mentioned || 0
-                );
-                const minYAxis = maxValue + 2;
-                // Round up to next 5 or 10
+                const total = positioningData.total;
+                const leaderPct = total > 0 ? Math.round((positioningData.leader || 0) / total * 100) : 0;
+                const featuredPct = total > 0 ? Math.round((positioningData.featured || 0) / total * 100) : 0;
+                const listedPct = total > 0 ? Math.round((positioningData.listed || 0) / total * 100) : 0;
+                const notMentionedPct = total > 0 ? Math.round((positioningData.not_mentioned || 0) / total * 100) : 0;
+
+                const chartData = [
+                  { position: 'Leader ★', fullName: 'Leader (contributes to Leadership Visibility)', percentage: leaderPct, fill: '#116C29', isLeadership: true },
+                  { position: 'Featured ★', fullName: 'Featured (contributes to Leadership Visibility)', percentage: featuredPct, fill: '#75C9C8', isLeadership: true },
+                  { position: 'Listed', fullName: 'Listed', percentage: listedPct, fill: '#80A1D4', isLeadership: false },
+                  { position: 'Not Mentioned', fullName: 'Not Mentioned', percentage: notMentionedPct, fill: '#003e60', isLeadership: false },
+                ];
+
+                const maxValue = Math.max(leaderPct, featuredPct, listedPct, notMentionedPct);
+                const minYAxis = maxValue + 5;
+                // Round up to next 10 or 25
                 let roundedMax;
-                if (minYAxis <= 5) {
-                  roundedMax = 5;
-                } else if (minYAxis <= 10) {
-                  roundedMax = 10;
+                if (minYAxis <= 25) {
+                  roundedMax = 25;
+                } else if (minYAxis <= 50) {
+                  roundedMax = 50;
+                } else if (minYAxis <= 75) {
+                  roundedMax = 75;
                 } else {
-                  // Round up to next multiple of 5 or 10
-                  const remainder = minYAxis % 10;
-                  if (remainder === 0) {
-                    roundedMax = minYAxis;
-                  } else if (remainder <= 5) {
-                    roundedMax = minYAxis - remainder + 5;
-                  } else {
-                    roundedMax = minYAxis - remainder + 10;
-                  }
+                  roundedMax = 100;
                 }
+
                 return (
                 <ChartContainer width="100%" height={positioningChartHeight}>
                   <BarChart
-                    data={[
-                      { position: 'Leader', fullName: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                      { position: 'Featured', fullName: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
-                      { position: 'Listed', fullName: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                      { position: 'Not Mentioned', fullName: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
-                    ]}
-                    margin={{ top: 5, right: 20, left: 10, bottom: 40 }}
+                    data={chartData}
+                    margin={{ top: 20, right: 20, left: 10, bottom: 50 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="position" angle={-45} textAnchor="end" height={50} />
-                    <YAxis domain={[0, roundedMax]} allowDecimals={false} />
+                    <XAxis
+                      dataKey="position"
+                      angle={-35}
+                      textAnchor="end"
+                      height={60}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis
+                      domain={[0, roundedMax]}
+                      tickFormatter={(value) => `${value}%`}
+                      tick={{ fontSize: 11 }}
+                    />
                     <Tooltip
                       formatter={(value: number, name: string, props: any) => [
-                        value,
+                        `${value}%`,
                         props.payload.fullName || name
                       ]}
                     />
-                    <Bar dataKey="count">
-                      {[
-                        { position: 'Leader', count: positioningData.leader || 0, fill: '#116C29' },
-                        { position: 'Featured', count: positioningData.featured || 0, fill: '#75C9C8' },
-                        { position: 'Listed', count: positioningData.listed || 0, fill: '#80A1D4' },
-                        { position: 'Not Mentioned', count: positioningData.not_mentioned || 0, fill: '#003e60' },
-                      ].map((entry, index) => (
+                    <Bar dataKey="percentage">
+                      {chartData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
-                      <LabelList dataKey="count" position="top" />
+                      <LabelList
+                        dataKey="percentage"
+                        position="top"
+                        formatter={(value) => `${value}%`}
+                        style={{ fontSize: 11, fontWeight: 500 }}
+                      />
                     </Bar>
                   </BarChart>
                 </ChartContainer>
