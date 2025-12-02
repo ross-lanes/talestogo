@@ -474,7 +474,8 @@ export default function Layout({ children }: LayoutProps) {
                   '& *': { color: 'common.white' },
                 }}
               >
-                <BrandSwitcher />
+                {/* Hide BrandSwitcher for non-Tales products */}
+                {currentProduct.id === 'tales' && <BrandSwitcher />}
                 <ProductSwitcher />
                 <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>

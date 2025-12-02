@@ -45,10 +45,12 @@ const ProductSwitcher: React.FC = () => {
       case 'canon':
         navigate('/canon');
         break;
+      case 'nstxview':
+        navigate('/nstxview');
+        break;
       case 'tales':
         navigate('/');
         break;
-      // Add other products as they become available
       default:
         navigate('/');
     }
