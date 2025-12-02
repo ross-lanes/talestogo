@@ -42,7 +42,7 @@ interface DashboardMetrics {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { activeBrand, loading: brandLoading } = useBrand();
+  const { activeBrand, brands, loading: brandLoading } = useBrand();
   const { tasks } = useTaskStatus();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
@@ -431,8 +431,8 @@ export default function Dashboard() {
 
       {/* Dashboard Content Wrapper for Screenshot */}
       <Box ref={dashboardRef} id="dashboard-main" sx={{ p: 2 }}>
-        {/* Show message if no data */}
-        {metrics.total_responses === 0 && (
+        {/* Show message only if user has no brands set up at all */}
+        {brands.length === 0 && (
           <Paper sx={{ p: 3, mb: 4, backgroundColor: 'info.light' }}>
             <Typography variant="h6" gutterBottom>
               New to TALES?
