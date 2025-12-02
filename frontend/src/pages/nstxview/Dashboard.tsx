@@ -456,38 +456,6 @@ const NSTXViewDashboard: React.FC = () => {
         </Grid>
       )}
 
-      {/* Quick Actions */}
-      <Paper sx={{ p: 2, mt: 3 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Quick Actions
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            onClick={() => navigate('/nstxview/papers')}
-          >
-            Browse Papers
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/nstxview/shots')}
-          >
-            Explore Shots
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/nstxview/parameters')}
-          >
-            Analyze Parameters
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/nstxview/processing')}
-          >
-            Processing Status
-          </Button>
-        </Box>
-      </Paper>
     </Box>
   );
 };
