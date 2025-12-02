@@ -462,6 +462,95 @@ def get_scheduler_history(
     return result
 
 
+@router.post("/scheduler/clear-overdue/{schedule_id}")
+def clear_overdue_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Clear an overdue schedule by updating its next_run_at to the next scheduled time.
+    This marks the schedule as having been manually handled.
+    """
+    from dateutil.relativedelta import relativedelta
+
+    schedule = db.query(models.ScheduledTask).filter(
+        models.ScheduledTask.id == schedule_id
+    ).first()
+
+    if not schedule:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+
+    if not schedule.next_run_at:
+        raise HTTPException(status_code=400, detail="Schedule has no next_run_at set")
+
+    # Check if actually overdue
+    if schedule.next_run_at >= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Schedule is not overdue")
+
+    # Calculate the next run time based on schedule_type
+    now = datetime.utcnow()
+    old_next_run = schedule.next_run_at
+
+    if schedule.schedule_type == "first_day":
+        # First day of each month - move to first day of next month
+        if now.day == 1:
+            # If today is the 1st, schedule for next month's 1st
+            new_next_run = (now + relativedelta(months=1)).replace(
+                day=1, hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+            )
+        else:
+            # Schedule for the 1st of the following month
+            new_next_run = (now + relativedelta(months=1)).replace(
+                day=1, hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+            )
+    elif schedule.schedule_type == "middle":
+        # Middle of each month (15th)
+        if now.day <= 15:
+            # Schedule for the 15th of this month
+            new_next_run = now.replace(
+                day=15, hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+            )
+        else:
+            # Schedule for the 15th of next month
+            new_next_run = (now + relativedelta(months=1)).replace(
+                day=15, hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+            )
+    elif schedule.schedule_type == "weekly":
+        # Weekly - schedule for next week same time
+        new_next_run = now + timedelta(days=7)
+        new_next_run = new_next_run.replace(
+            hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+        )
+    elif schedule.schedule_type == "biweekly":
+        # Biweekly - schedule for 2 weeks from now
+        new_next_run = now + timedelta(days=14)
+        new_next_run = new_next_run.replace(
+            hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+        )
+    else:
+        # Default: monthly from now
+        new_next_run = now + relativedelta(months=1)
+        new_next_run = new_next_run.replace(
+            hour=old_next_run.hour, minute=old_next_run.minute, second=0, microsecond=0
+        )
+
+    # Update the schedule
+    schedule.next_run_at = new_next_run
+    schedule.last_run_at = now  # Mark as if it ran now
+    db.commit()
+
+    # Get brand name for response
+    brand = db.query(models.BrandInfo).filter_by(id=schedule.brand_id).first()
+
+    return {
+        "message": f"Cleared overdue schedule for {brand.brand_name if brand else 'Unknown'}",
+        "schedule_id": schedule_id,
+        "old_next_run": old_next_run.isoformat(),
+        "new_next_run": new_next_run.isoformat()
+    }
+
+
 @router.post("/run-collection-for-user")
 def admin_run_collection_for_user(
     user_id: int,

@@ -155,6 +155,21 @@ export default function AdminSchedulerDashboard() {
     }
   };
 
+  const handleClearOverdue = async (scheduleId: number, brandName: string | null) => {
+    if (!window.confirm(`Clear overdue schedule for ${brandName || 'Unknown'}? This will reschedule it for the next regular run time.`)) {
+      return;
+    }
+
+    try {
+      const response = await api.post(`/admin/scheduler/clear-overdue/${scheduleId}`);
+      alert(`${response.data.message}\nNew scheduled time: ${formatDateTime(response.data.new_next_run)}`);
+      // Refresh dashboard
+      fetchDashboard();
+    } catch (err: any) {
+      alert(`Error: ${err.response?.data?.detail || 'Failed to clear overdue schedule'}`);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
     return formatDateEST(dateString, 'full');
@@ -223,12 +238,34 @@ export default function AdminSchedulerDashboard() {
               <li>{dashboardData.health.failed_tasks.length} failed/partial task(s)</li>
             )}
             {dashboardData.health.overdue_tasks.length > 0 && (
-              <li>{dashboardData.health.overdue_tasks.length} overdue schedule(s)</li>
+              <li>
+                {dashboardData.health.overdue_tasks.length} overdue schedule(s):
+                <Box component="ul" sx={{ mt: 0.5, mb: 0 }}>
+                  {dashboardData.health.overdue_tasks.map((task) => (
+                    <li key={task.id}>
+                      <Typography variant="body2" component="span">
+                        {task.brand_name} ({task.schedule_type})
+                      </Typography>
+                      <Button
+                        size="small"
+                        color="warning"
+                        sx={{ ml: 1, py: 0, minHeight: 'auto' }}
+                        onClick={() => handleClearOverdue(task.id, task.brand_name)}
+                      >
+                        Clear
+                      </Button>
+                    </li>
+                  ))}
+                </Box>
+              </li>
             )}
             {dashboardData.health.stalled_tasks.length > 0 && (
               <li>{dashboardData.health.stalled_tasks.length} stalled task(s) (running &gt; 2 hours)</li>
             )}
           </Box>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            <Button size="small" onClick={() => setActiveTab(3)}>View Health tab for details</Button>
+          </Typography>
         </Alert>
       )}
 
@@ -583,6 +620,7 @@ export default function AdminSchedulerDashboard() {
                               <TableCell>Brand</TableCell>
                               <TableCell>Type</TableCell>
                               <TableCell>Next Run (Missed)</TableCell>
+                              <TableCell align="center">Actions</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -592,6 +630,26 @@ export default function AdminSchedulerDashboard() {
                                 <TableCell>{schedule.brand_name}</TableCell>
                                 <TableCell>{schedule.schedule_type}</TableCell>
                                 <TableCell>{formatDate(schedule.next_run_at)}</TableCell>
+                                <TableCell align="center">
+                                  <Stack direction="row" spacing={1} justifyContent="center">
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      color="primary"
+                                      onClick={() => handleRunNow(schedule.user_id, schedule.brand_id, schedule.user_email, schedule.brand_name)}
+                                    >
+                                      Run Now
+                                    </Button>
+                                    <Button
+                                      variant="outlined"
+                                      size="small"
+                                      color="warning"
+                                      onClick={() => handleClearOverdue(schedule.id, schedule.brand_name)}
+                                    >
+                                      Clear
+                                    </Button>
+                                  </Stack>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
