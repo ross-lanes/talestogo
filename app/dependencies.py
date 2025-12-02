@@ -15,25 +15,39 @@ from .database import get_db
 
 def check_product_access(product: str):
     """
-    Dependency factory to verify user's tenant has access to a product.
+    Dependency factory to verify user has access to a product.
+
+    Checks access in this order:
+    1. User's allowed_products array (if set)
+    2. Tenant-level product configuration (fallback)
 
     Usage:
         @router.get("/some-endpoint", dependencies=[Depends(check_product_access("heads"))])
 
     Args:
-        product: The product ID to check (e.g., "tales", "heads", "vision")
+        product: The product ID to check (e.g., "tales", "heads", "nstxview")
 
     Returns:
         A dependency function that validates product access
 
     Raises:
-        HTTPException: 403 if tenant doesn't have access to the product
+        HTTPException: 403 if user doesn't have access to the product
     """
     def _check(
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ) -> User:
-        # Get user's tenant name
+        # First check user-level allowed_products
+        if current_user.allowed_products:
+            if product in current_user.allowed_products:
+                return current_user
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Product '{product}' is not available for your account"
+                )
+
+        # Fall back to tenant-level access
         tenant_name = None
         if current_user.tenant_id:
             tenant = db.query(Tenant).filter(
