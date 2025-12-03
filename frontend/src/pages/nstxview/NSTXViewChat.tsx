@@ -600,12 +600,17 @@ const NSTXViewChat: React.FC = () => {
       {/* Saved Conversations Drawer */}
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Box sx={{ width: 350, p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="h6">Saved Conversations</Typography>
             <IconButton onClick={() => setDrawerOpen(false)} size="small">
               <CloseIcon />
             </IconButton>
           </Box>
+          {conversationUsage && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {conversationUsage.saved_count} of {conversationUsage.max_allowed} saved
+            </Typography>
+          )}
           <Divider sx={{ mb: 2 }} />
 
           {loadingConversations ? (

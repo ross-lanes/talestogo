@@ -10,3 +10,4 @@ export { default as ShotExplorer } from './ShotExplorer';
 export { default as ParameterAnalysis } from './ParameterAnalysis';
 export { default as PhenomenaExplorer } from './PhenomenaExplorer';
 export { default as ProcessingStatus } from './ProcessingStatus';
+export { default as NSTXViewConversations } from './NSTXViewConversations';

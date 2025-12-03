@@ -731,7 +731,7 @@ class NSTXProcessingTask(Base):
 # ============================================================================
 
 # Constants for conversation limits
-MAX_SAVED_CONVERSATIONS_PER_USER = 20
+MAX_SAVED_CONVERSATIONS_PER_USER = 30
 MAX_MESSAGES_PER_CONVERSATION = 100
 
 

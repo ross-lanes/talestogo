@@ -53,6 +53,7 @@ import {
   ParameterAnalysis,
   PhenomenaExplorer,
   ProcessingStatus,
+  NSTXViewConversations,
 } from '../pages/nstxview';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
@@ -535,6 +536,16 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <ProcessingStatus />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/conversations"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NSTXViewConversations />
                 </Layout>
               </ProtectedRoute>
             }
