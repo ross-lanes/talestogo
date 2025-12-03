@@ -48,6 +48,7 @@ const NSTXViewChat: React.FC = () => {
   const [showTools, setShowTools] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const getLastAssistantMessage = (): string | null => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -68,7 +69,10 @@ const NSTXViewChat: React.FC = () => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll within the container only, not the whole page
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -162,6 +166,7 @@ const NSTXViewChat: React.FC = () => {
 
       {/* Messages Container */}
       <Box
+        ref={messagesContainerRef}
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
