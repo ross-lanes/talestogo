@@ -26,6 +26,7 @@ from app.models import (
     NSTXConversation, NSTXConversationMessage,
     MAX_SAVED_CONVERSATIONS_PER_USER, MAX_MESSAGES_PER_CONVERSATION
 )
+from app.services.nstxview.processing_service import perform_drive_sync, perform_extraction
 from pydantic import BaseModel, Field
 
 
@@ -890,8 +891,8 @@ async def sync_with_drive(
     db.commit()
     db.refresh(task)
 
-    # TODO: Add background task to perform sync
-    # background_tasks.add_task(perform_drive_sync, task.id)
+    # Add background task to perform sync
+    background_tasks.add_task(perform_drive_sync, task.id)
 
     return {
         "message": "Sync task queued",
@@ -942,8 +943,8 @@ async def start_extraction(
     db.commit()
     db.refresh(task)
 
-    # TODO: Add background task to perform extraction
-    # background_tasks.add_task(perform_extraction, task.id, [p.id for p in papers])
+    # Add background task to perform extraction
+    background_tasks.add_task(perform_extraction, task.id, [p.id for p in papers])
 
     return {
         "message": f"Extraction task queued for {len(papers)} papers",

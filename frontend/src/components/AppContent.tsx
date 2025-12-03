@@ -533,7 +533,7 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/nstxview/processing"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireAdmin>
                 <Layout>
                   <ProcessingStatus />
                 </Layout>

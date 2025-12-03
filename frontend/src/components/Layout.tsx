@@ -177,7 +177,8 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Explore Shots', icon: <TrendingUpIcon />, path: '/nstxview/shots', indent: false },
     { text: 'Analyze Parameters', icon: <AnalyticsIcon />, path: '/nstxview/parameters', indent: false },
     { text: 'Phenomena', icon: <AutoAwesomeIcon />, path: '/nstxview/phenomena', indent: false },
-    { text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false },
+    // Processing Status is admin-only
+    ...(isAdmin ? [{ text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false }] : []),
     { text: 'Saved Conversations', icon: <BookmarkIcon />, path: '/nstxview/conversations', indent: false },
     { text: 'How NSTXView Works', icon: <InfoIcon />, path: '/how-nstxview-works', indent: false },
   ];
