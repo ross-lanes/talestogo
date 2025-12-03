@@ -530,3 +530,73 @@ class NSTXViewChatService:
                 "tool_calls": tool_calls_made,
                 "error": str(e)
             }
+
+    def generate_conversation_title(self, first_user_message: str) -> str:
+        """
+        Generate a short title for the conversation based on the first user message.
+
+        Args:
+            first_user_message: The first message from the user
+
+        Returns:
+            A short (3-6 word) title summarizing the conversation topic
+        """
+        prompt = f"""Generate a short (3-6 words) title summarizing this plasma physics research question.
+
+Question: {first_user_message[:500]}
+
+Return ONLY the title, no quotes or punctuation at the end. Examples of good titles:
+- H-mode Transition Analysis
+- Lithium Wall Conditioning Effects
+- Ion Temperature in NSTX-U
+- ELM Stability Studies"""
+
+        try:
+            response = self.client.messages.create(
+                model=self.MODEL,
+                max_tokens=50,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            title = response.content[0].text.strip()
+            # Clean up common issues
+            title = title.strip('"\'')
+            if title.endswith('.'):
+                title = title[:-1]
+            return title[:255]  # Ensure within DB limit
+        except Exception as e:
+            logger.error(f"Error generating title: {e}")
+            return None
+
+    def generate_conversation_summary(self, messages: List[Dict]) -> str:
+        """
+        Generate a 1-2 sentence summary of the conversation for list view.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content' keys
+
+        Returns:
+            A brief summary (max 150 chars) of the conversation
+        """
+        # Format messages for summarization (limit to first 6 messages to keep prompt small)
+        formatted = "\n".join([
+            f"{m['role'].upper()}: {m['content'][:300]}"
+            for m in messages[:6]
+        ])
+
+        prompt = f"""Summarize this plasma physics research conversation in 1-2 sentences (max 150 characters).
+
+{formatted}
+
+Return ONLY the summary, nothing else."""
+
+        try:
+            response = self.client.messages.create(
+                model=self.MODEL,
+                max_tokens=100,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            summary = response.content[0].text.strip()
+            return summary[:150]  # Ensure within limit
+        except Exception as e:
+            logger.error(f"Error generating summary: {e}")
+            return None

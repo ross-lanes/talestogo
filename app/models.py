@@ -726,6 +726,63 @@ class NSTXProcessingTask(Base):
     )
 
 
+# ============================================================================
+# NSTXVIEW - Conversation Memory Models
+# ============================================================================
+
+# Constants for conversation limits
+MAX_SAVED_CONVERSATIONS_PER_USER = 20
+MAX_MESSAGES_PER_CONVERSATION = 100
+
+
+class NSTXConversation(Base):
+    """Saved conversation for NSTXView chat - only explicitly saved conversations are stored"""
+    __tablename__ = "nstx_conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Conversation metadata
+    title = Column(String(255), nullable=False)  # Auto-generated from first exchange
+    summary = Column(Text, nullable=True)  # LLM-generated summary when saved
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Relationships
+    messages = relationship("NSTXConversationMessage", back_populates="conversation", cascade="all, delete-orphan", order_by="NSTXConversationMessage.sequence")
+
+    __table_args__ = (
+        Index('idx_nstx_conv_user_created', 'user_id', 'created_at'),
+    )
+
+
+class NSTXConversationMessage(Base):
+    """Individual message in a saved conversation"""
+    __tablename__ = "nstx_conversation_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("nstx_conversations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Message content
+    role = Column(String(20), nullable=False)  # 'user' or 'assistant'
+    content = Column(Text, nullable=False)
+
+    # Ordering
+    sequence = Column(Integer, nullable=False)
+
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # Relationships
+    conversation = relationship("NSTXConversation", back_populates="messages")
+
+    __table_args__ = (
+        Index('idx_nstx_msg_conv_seq', 'conversation_id', 'sequence'),
+    )
+
+
 # --- End of Models ---
 
 # You can create the database file and tables by running this:

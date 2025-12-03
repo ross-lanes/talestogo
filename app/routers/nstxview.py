@@ -22,7 +22,9 @@ from app.auth import get_current_user
 from app.dependencies import check_product_access
 from app.models import (
     User, NSTXPaper, NSTXShot, NSTXParameter, NSTXPhenomenon,
-    NSTXPaperChunk, NSTXProcessingTask, NSTXProcessingStatus
+    NSTXPaperChunk, NSTXProcessingTask, NSTXProcessingStatus,
+    NSTXConversation, NSTXConversationMessage,
+    MAX_SAVED_CONVERSATIONS_PER_USER, MAX_MESSAGES_PER_CONVERSATION
 )
 from pydantic import BaseModel, Field
 
@@ -1126,3 +1128,306 @@ async def get_stats(
             "top": [{"type": p.phenomenon_type, "count": p.count} for p in top_phenomena]
         }
     }
+
+
+# === Conversation Memory Endpoints ===
+
+class ConversationMessageInput(BaseModel):
+    """Input schema for a single message when saving a conversation"""
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., min_length=1)
+
+
+class SaveConversationRequest(BaseModel):
+    """Request to save current frontend conversation to database"""
+    messages: List[ConversationMessageInput] = Field(..., min_items=2)
+    title: Optional[str] = Field(None, max_length=255)
+
+
+class ConversationSummaryResponse(BaseModel):
+    """Summary of a conversation for list views"""
+    id: int
+    title: str
+    summary: Optional[str]
+    message_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationMessageResponse(BaseModel):
+    """Single message in a conversation response"""
+    role: str
+    content: str
+    sequence: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationDetailResponse(BaseModel):
+    """Full conversation with all messages"""
+    id: int
+    title: str
+    summary: Optional[str]
+    messages: List[ConversationMessageResponse]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationUsageResponse(BaseModel):
+    """Usage statistics for conversations"""
+    saved_count: int
+    max_allowed: int
+
+
+class UpdateConversationRequest(BaseModel):
+    """Request to update conversation title"""
+    title: str = Field(..., min_length=1, max_length=255)
+
+
+@router.get("/conversations", response_model=List[ConversationSummaryResponse])
+async def list_conversations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all saved conversations for the current user.
+    Returns conversations ordered by most recently updated.
+    """
+    conversations = db.query(NSTXConversation).filter(
+        NSTXConversation.user_id == current_user.id
+    ).order_by(NSTXConversation.updated_at.desc()).all()
+
+    results = []
+    for conv in conversations:
+        message_count = db.query(func.count(NSTXConversationMessage.id)).filter(
+            NSTXConversationMessage.conversation_id == conv.id
+        ).scalar()
+
+        results.append(ConversationSummaryResponse(
+            id=conv.id,
+            title=conv.title,
+            summary=conv.summary,
+            message_count=message_count,
+            created_at=conv.created_at,
+            updated_at=conv.updated_at
+        ))
+
+    return results
+
+
+@router.get("/conversations/usage", response_model=ConversationUsageResponse)
+async def get_conversation_usage(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get conversation usage statistics for the current user.
+    Shows how many conversations they've saved vs the maximum allowed.
+    """
+    saved_count = db.query(func.count(NSTXConversation.id)).filter(
+        NSTXConversation.user_id == current_user.id
+    ).scalar()
+
+    return ConversationUsageResponse(
+        saved_count=saved_count,
+        max_allowed=MAX_SAVED_CONVERSATIONS_PER_USER
+    )
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetailResponse)
+async def get_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a specific conversation with all its messages.
+    """
+    conversation = db.query(NSTXConversation).filter(
+        NSTXConversation.id == conversation_id,
+        NSTXConversation.user_id == current_user.id
+    ).first()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    messages = db.query(NSTXConversationMessage).filter(
+        NSTXConversationMessage.conversation_id == conversation_id
+    ).order_by(NSTXConversationMessage.sequence).all()
+
+    return ConversationDetailResponse(
+        id=conversation.id,
+        title=conversation.title,
+        summary=conversation.summary,
+        messages=[
+            ConversationMessageResponse(
+                role=msg.role,
+                content=msg.content,
+                sequence=msg.sequence,
+                created_at=msg.created_at
+            )
+            for msg in messages
+        ],
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at
+    )
+
+
+@router.post("/conversations", response_model=ConversationSummaryResponse)
+async def save_conversation(
+    request: SaveConversationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Save a new conversation from frontend state.
+
+    - Generates title automatically if not provided
+    - Generates summary using Claude
+    - Enforces limits (20 conversations per user, 100 messages per conversation)
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Check conversation limit
+    current_count = db.query(func.count(NSTXConversation.id)).filter(
+        NSTXConversation.user_id == current_user.id
+    ).scalar()
+
+    if current_count >= MAX_SAVED_CONVERSATIONS_PER_USER:
+        raise HTTPException(
+            status_code=400,
+            detail=f"You have reached the maximum of {MAX_SAVED_CONVERSATIONS_PER_USER} saved conversations. Please delete some to save new ones."
+        )
+
+    # Check message limit
+    if len(request.messages) > MAX_MESSAGES_PER_CONVERSATION:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Conversation exceeds the maximum of {MAX_MESSAGES_PER_CONVERSATION} messages."
+        )
+
+    # Generate title if not provided
+    title = request.title
+    summary = None
+
+    try:
+        from app.services.nstxview.chat_service import NSTXViewChatService
+        from app.config import ANTHROPIC_API_KEY
+
+        if ANTHROPIC_API_KEY:
+            chat_service = NSTXViewChatService(db=db)
+
+            # Generate title from first exchange if not provided
+            if not title and len(request.messages) >= 2:
+                first_user_msg = next((m.content for m in request.messages if m.role == "user"), "")
+                title = chat_service.generate_conversation_title(first_user_msg)
+
+            # Generate summary
+            messages_for_summary = [{"role": m.role, "content": m.content} for m in request.messages]
+            summary = chat_service.generate_conversation_summary(messages_for_summary)
+
+    except Exception as e:
+        logger.warning(f"Failed to generate title/summary: {e}")
+
+    # Fallback title if generation failed
+    if not title:
+        title = f"Conversation from {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+    # Create conversation
+    conversation = NSTXConversation(
+        user_id=current_user.id,
+        title=title,
+        summary=summary
+    )
+    db.add(conversation)
+    db.flush()  # Get the ID
+
+    # Create messages
+    for i, msg in enumerate(request.messages):
+        db_message = NSTXConversationMessage(
+            conversation_id=conversation.id,
+            role=msg.role,
+            content=msg.content,
+            sequence=i
+        )
+        db.add(db_message)
+
+    db.commit()
+    db.refresh(conversation)
+
+    return ConversationSummaryResponse(
+        id=conversation.id,
+        title=conversation.title,
+        summary=conversation.summary,
+        message_count=len(request.messages),
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at
+    )
+
+
+@router.put("/conversations/{conversation_id}", response_model=ConversationSummaryResponse)
+async def update_conversation(
+    conversation_id: int,
+    request: UpdateConversationRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update a conversation's title.
+    """
+    conversation = db.query(NSTXConversation).filter(
+        NSTXConversation.id == conversation_id,
+        NSTXConversation.user_id == current_user.id
+    ).first()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    conversation.title = request.title
+    db.commit()
+    db.refresh(conversation)
+
+    message_count = db.query(func.count(NSTXConversationMessage.id)).filter(
+        NSTXConversationMessage.conversation_id == conversation.id
+    ).scalar()
+
+    return ConversationSummaryResponse(
+        id=conversation.id,
+        title=conversation.title,
+        summary=conversation.summary,
+        message_count=message_count,
+        created_at=conversation.created_at,
+        updated_at=conversation.updated_at
+    )
+
+
+@router.delete("/conversations/{conversation_id}")
+async def delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Delete a saved conversation.
+    """
+    conversation = db.query(NSTXConversation).filter(
+        NSTXConversation.id == conversation_id,
+        NSTXConversation.user_id == current_user.id
+    ).first()
+
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.delete(conversation)
+    db.commit()
+
+    return {"message": "Conversation deleted successfully"}
