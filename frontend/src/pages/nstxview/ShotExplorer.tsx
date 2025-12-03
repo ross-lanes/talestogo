@@ -136,8 +136,18 @@ const ShotExplorer: React.FC = () => {
     fetchShots();
   }, [roleFilter]);
 
+  const isValidShotNumber = (value: string): boolean => {
+    if (!value.trim()) return true; // Empty is valid (shows all)
+    const num = parseInt(value, 10);
+    return !isNaN(num) && num >= 100000 && num <= 199999;
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidShotNumber(searchQuery)) {
+      setError('Shot numbers must be 6 digits starting with 1 (e.g., 141234). Use the NSTXView chat on the dashboard for natural language questions.');
+      return;
+    }
     setPage(0);
     fetchShots();
   };
