@@ -25,11 +25,24 @@ import {
   Grid,
   Switch,
   FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  LinearProgress,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Refresh as RefreshIcon,
   Star as PrimaryIcon,
+  Close as CloseIcon,
+  Bolt as ShotIcon,
+  Link as LinkIcon,
+  Analytics as ParameterIcon,
 } from '@mui/icons-material';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -49,6 +62,40 @@ interface PhenomenonSummary {
   paper_id: number;
   paper_title: string | null;
   shot_number: number | null;
+}
+
+interface ShotCharacteristic {
+  shot_number: number;
+  role: string | null;
+  context: string;
+}
+
+interface CoOccurringPhenomenon {
+  type: string;
+  count: number;
+  category: string | null;
+}
+
+interface RelatedParameter {
+  name: string;
+  count: number;
+  category: string | null;
+  unit: string | null;
+  min_value?: number;
+  max_value?: number;
+  avg_value?: number;
+}
+
+interface PhenomenonDetails {
+  phenomenon_type: string;
+  category: string | null;
+  occurrence_count: number;
+  paper_count: number;
+  shot_count: number;
+  shot_roles: Record<string, number>;
+  shot_characteristics: ShotCharacteristic[];
+  co_occurring_phenomena: CoOccurringPhenomenon[];
+  related_parameters: RelatedParameter[];
 }
 
 const categoryColors: Record<string, 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'default'> = {
@@ -72,6 +119,46 @@ const PhenomenaExplorer: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [viewMode, setViewMode] = useState<'types' | 'all'>('types');
+
+  // Modal state
+  const [selectedPhenomenon, setSelectedPhenomenon] = useState<string | null>(null);
+  const [phenomenonDetails, setPhenomenonDetails] = useState<PhenomenonDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const fetchPhenomenonDetails = async (phenomenonType: string) => {
+    try {
+      setDetailsLoading(true);
+      const token = localStorage.getItem('tales_access_token');
+      const encodedType = encodeURIComponent(phenomenonType);
+      const response = await fetch(`${API_BASE}/nstxview/phenomena/details/${encodedType}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch phenomenon details');
+      }
+
+      const data = await response.json();
+      setPhenomenonDetails(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const handleCardClick = (phenomenonType: string) => {
+    setSelectedPhenomenon(phenomenonType);
+    fetchPhenomenonDetails(phenomenonType);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedPhenomenon(null);
+    setPhenomenonDetails(null);
+  };
 
   const fetchPhenomenaTypes = async () => {
     try {
@@ -269,7 +356,17 @@ const PhenomenaExplorer: React.FC = () => {
         <Grid container spacing={2}>
           {paginatedTypes.map((phenom) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={phenom.type}>
-              <Card>
+              <Card
+                sx={{
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: 3,
+                  },
+                }}
+                onClick={() => handleCardClick(phenom.type)}
+              >
                 <CardContent>
                   <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                     {phenom.type.replace(/_/g, ' ')}
@@ -380,6 +477,219 @@ const PhenomenaExplorer: React.FC = () => {
           />
         </TableContainer>
       )}
+
+      {/* Phenomenon Details Modal */}
+      <Dialog
+        open={!!selectedPhenomenon}
+        onClose={handleCloseModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h6" component="span">
+              {selectedPhenomenon?.replace(/_/g, ' ')}
+            </Typography>
+            {phenomenonDetails?.category && (
+              <Chip
+                label={phenomenonDetails.category}
+                size="small"
+                color={categoryColors[phenomenonDetails.category] || 'default'}
+                sx={{ ml: 1 }}
+              />
+            )}
+          </Box>
+          <IconButton onClick={handleCloseModal} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {detailsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : phenomenonDetails ? (
+            <Box>
+              {/* Summary Stats */}
+              <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+                <Chip
+                  label={`${phenomenonDetails.occurrence_count} occurrences`}
+                  variant="outlined"
+                />
+                <Chip
+                  label={`${phenomenonDetails.paper_count} papers`}
+                  variant="outlined"
+                />
+                <Chip
+                  label={`${phenomenonDetails.shot_count} shots`}
+                  variant="outlined"
+                />
+              </Box>
+
+              {/* Section 1: Shot Characteristics */}
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <ShotIcon color="primary" />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    Shot Characteristics
+                  </Typography>
+                </Box>
+                {phenomenonDetails.shot_count > 0 ? (
+                  <>
+                    {/* Shot roles breakdown */}
+                    {Object.keys(phenomenonDetails.shot_roles).length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+                        {Object.entries(phenomenonDetails.shot_roles).map(([role, count]) => (
+                          <Chip
+                            key={role}
+                            label={`${role}: ${count}`}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        ))}
+                      </Box>
+                    )}
+                    {phenomenonDetails.shot_characteristics.length > 0 ? (
+                      <List dense sx={{ bgcolor: 'grey.50', borderRadius: 1 }}>
+                        {phenomenonDetails.shot_characteristics.map((shot, idx) => (
+                          <ListItem key={idx} divider={idx < phenomenonDetails.shot_characteristics.length - 1}>
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Chip
+                                    label={`Shot ${shot.shot_number}`}
+                                    size="small"
+                                    sx={{ fontFamily: 'monospace' }}
+                                  />
+                                  {shot.role && (
+                                    <Typography variant="caption" color="textSecondary">
+                                      ({shot.role})
+                                    </Typography>
+                                  )}
+                                </Box>
+                              }
+                              secondary={shot.context}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" color="textSecondary">
+                        No detailed shot context available
+                      </Typography>
+                    )}
+                  </>
+                ) : (
+                  <Typography variant="body2" color="textSecondary">
+                    No associated shots found
+                  </Typography>
+                )}
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Section 2: Co-occurring Phenomena */}
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <LinkIcon color="secondary" />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    Often Discussed With
+                  </Typography>
+                </Box>
+                {phenomenonDetails.co_occurring_phenomena.length > 0 ? (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {phenomenonDetails.co_occurring_phenomena.map((coPhenom, idx) => (
+                      <Chip
+                        key={idx}
+                        label={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <span>{coPhenom.type.replace(/_/g, ' ')}</span>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              sx={{ opacity: 0.7, ml: 0.5 }}
+                            >
+                              ({coPhenom.count})
+                            </Typography>
+                          </Box>
+                        }
+                        size="small"
+                        color={categoryColors[coPhenom.category || ''] || 'default'}
+                        onClick={() => {
+                          handleCloseModal();
+                          setTimeout(() => handleCardClick(coPhenom.type), 100);
+                        }}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="textSecondary">
+                    No co-occurring phenomena found
+                  </Typography>
+                )}
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Section 3: Related Parameters */}
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <ParameterIcon color="success" />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    Related Plasma Parameters
+                  </Typography>
+                </Box>
+                {phenomenonDetails.related_parameters.length > 0 ? (
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Parameter</TableCell>
+                          <TableCell>Count</TableCell>
+                          <TableCell>Range</TableCell>
+                          <TableCell>Unit</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {phenomenonDetails.related_parameters.map((param, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {param.name.replace(/_/g, ' ')}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>{param.count}</TableCell>
+                            <TableCell>
+                              {param.min_value !== undefined && param.max_value !== undefined ? (
+                                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                                  {param.min_value.toFixed(2)} - {param.max_value.toFixed(2)}
+                                </Typography>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+                            <TableCell>{param.unit || '-'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ) : (
+                  <Typography variant="body2" color="textSecondary">
+                    No related parameters found
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="textSecondary">
+              No data available
+            </Typography>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

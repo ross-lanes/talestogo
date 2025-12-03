@@ -692,6 +692,120 @@ async def list_phenomenon_types(
     ]
 
 
+@router.get("/phenomena/details/{phenomenon_type}")
+async def get_phenomenon_details(
+    phenomenon_type: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get detailed insights about a specific phenomenon type.
+
+    Returns:
+    - Shot characteristics when this phenomenon occurs
+    - Co-occurring phenomena (other phenomena discussed alongside)
+    - Related plasma parameters typically measured
+    """
+    # URL decode the phenomenon type (handle spaces as %20 or +)
+    from urllib.parse import unquote
+    phenomenon_type = unquote(phenomenon_type)
+
+    # Get all occurrences of this phenomenon
+    phenomena = db.query(NSTXPhenomenon).filter(
+        NSTXPhenomenon.phenomenon_type == phenomenon_type
+    ).all()
+
+    if not phenomena:
+        raise HTTPException(status_code=404, detail=f"Phenomenon not found: {phenomenon_type}")
+
+    # Get basic info
+    first = phenomena[0]
+    occurrence_count = len(phenomena)
+    paper_ids = set(p.paper_id for p in phenomena)
+    shot_ids = set(p.shot_id for p in phenomena if p.shot_id)
+
+    # 1. Shot characteristics when this phenomenon occurs
+    shot_characteristics = []
+    shot_roles = {}
+    if shot_ids:
+        shots = db.query(NSTXShot).filter(NSTXShot.id.in_(shot_ids)).all()
+        for shot in shots:
+            role = shot.role or 'unspecified'
+            shot_roles[role] = shot_roles.get(role, 0) + 1
+            if shot.context:
+                shot_characteristics.append({
+                    "shot_number": shot.shot_number,
+                    "role": shot.role,
+                    "context": shot.context[:200] + "..." if len(shot.context) > 200 else shot.context
+                })
+
+    # 2. Co-occurring phenomena (other phenomena in the same papers)
+    co_occurring = {}
+    for paper_id in paper_ids:
+        other_phenomena = db.query(NSTXPhenomenon).filter(
+            NSTXPhenomenon.paper_id == paper_id,
+            NSTXPhenomenon.phenomenon_type != phenomenon_type
+        ).all()
+        for other in other_phenomena:
+            key = other.phenomenon_type
+            if key not in co_occurring:
+                co_occurring[key] = {"count": 0, "category": other.phenomenon_category}
+            co_occurring[key]["count"] += 1
+
+    # Sort co-occurring by count and take top 10
+    co_occurring_list = [
+        {"type": k, "count": v["count"], "category": v["category"]}
+        for k, v in sorted(co_occurring.items(), key=lambda x: x[1]["count"], reverse=True)[:10]
+    ]
+
+    # 3. Related plasma parameters typically measured
+    related_parameters = {}
+    for paper_id in paper_ids:
+        params = db.query(NSTXParameter).filter(
+            NSTXParameter.paper_id == paper_id
+        ).all()
+        for param in params:
+            key = param.parameter_name
+            if key not in related_parameters:
+                related_parameters[key] = {
+                    "count": 0,
+                    "category": param.parameter_category,
+                    "values": [],
+                    "unit": param.unit
+                }
+            related_parameters[key]["count"] += 1
+            if param.value is not None:
+                related_parameters[key]["values"].append(param.value)
+
+    # Calculate statistics for each parameter and take top 10
+    related_parameters_list = []
+    for name, data in sorted(related_parameters.items(), key=lambda x: x[1]["count"], reverse=True)[:10]:
+        values = data["values"]
+        entry = {
+            "name": name,
+            "count": data["count"],
+            "category": data["category"],
+            "unit": data["unit"]
+        }
+        if values:
+            entry["min_value"] = min(values)
+            entry["max_value"] = max(values)
+            entry["avg_value"] = sum(values) / len(values)
+        related_parameters_list.append(entry)
+
+    return {
+        "phenomenon_type": phenomenon_type,
+        "category": first.phenomenon_category,
+        "occurrence_count": occurrence_count,
+        "paper_count": len(paper_ids),
+        "shot_count": len(shot_ids),
+        "shot_roles": shot_roles,
+        "shot_characteristics": shot_characteristics[:5],  # Limit to 5 examples
+        "co_occurring_phenomena": co_occurring_list,
+        "related_parameters": related_parameters_list
+    }
+
+
 # === Processing Endpoints ===
 
 @router.get("/processing/status", response_model=ProcessingStatus)
