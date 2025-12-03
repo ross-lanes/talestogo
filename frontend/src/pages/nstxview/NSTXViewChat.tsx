@@ -118,16 +118,23 @@ const NSTXViewChat: React.FC = () => {
 
   return (
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography
-        variant="h5"
-        sx={{
-          mb: 2,
-          fontWeight: 700,
-          letterSpacing: '-0.5px',
-        }}
-      >
-        Ask NSTXView
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+        <Box
+          component="img"
+          src="/RobotRachel Icon.png"
+          alt="NSTXView"
+          sx={{ width: 36, height: 36 }}
+        />
+        <Typography
+          variant="h5"
+          sx={{
+            fontWeight: 700,
+            letterSpacing: '-0.5px',
+          }}
+        >
+          Ask NSTXView
+        </Typography>
+      </Box>
 
       {/* Messages Container */}
       <Box
@@ -192,9 +199,9 @@ const NSTXViewChat: React.FC = () => {
                 ) : (
                   <Box
                     component="img"
-                    src="/tales_favicon.png"
-                    alt="RobotRachel"
-                    sx={{ width: 18, height: 18 }}
+                    src="/RobotRachel Icon.png"
+                    alt="NSTXView"
+                    sx={{ width: 24, height: 24 }}
                   />
                 )}
               </Box>
@@ -274,9 +281,9 @@ const NSTXViewChat: React.FC = () => {
             >
               <Box
                 component="img"
-                src="/tales_favicon.png"
-                alt="RobotRachel"
-                sx={{ width: 18, height: 18 }}
+                src="/RobotRachel Icon.png"
+                alt="NSTXView"
+                sx={{ width: 24, height: 24 }}
               />
             </Box>
             <Box
