@@ -15,6 +15,8 @@ import {
   Person as PersonIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  ContentCopy as CopyIcon,
+  Check as CheckIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../../services/api';
@@ -44,7 +46,26 @@ const NSTXViewChat: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTools, setShowTools] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const getLastAssistantMessage = (): string | null => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') {
+        return messages[i].content;
+      }
+    }
+    return null;
+  };
+
+  const handleCopy = async () => {
+    const lastMessage = getLastAssistantMessage();
+    if (lastMessage) {
+      await navigator.clipboard.writeText(lastMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,22 +127,37 @@ const NSTXViewChat: React.FC = () => {
 
   return (
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-        <Box
-          component="img"
-          src="/RobotRachel Icon.png"
-          alt="NSTXView"
-          sx={{ width: 36, height: 36 }}
-        />
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 700,
-            letterSpacing: '-0.5px',
-          }}
-        >
-          Ask NSTXView
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            component="img"
+            src="/RobotRachel Icon.png"
+            alt="NSTXView"
+            sx={{ width: 36, height: 36 }}
+          />
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 700,
+              letterSpacing: '-0.5px',
+            }}
+          >
+            Ask NSTXView
+          </Typography>
+        </Box>
+        {messages.some(m => m.role === 'assistant') && (
+          <IconButton
+            onClick={handleCopy}
+            size="small"
+            title={copied ? 'Copied!' : 'Copy last answer'}
+            sx={{
+              color: copied ? 'success.main' : 'text.secondary',
+              '&:hover': { bgcolor: 'grey.100' },
+            }}
+          >
+            {copied ? <CheckIcon fontSize="small" /> : <CopyIcon fontSize="small" />}
+          </IconButton>
+        )}
       </Box>
 
       {/* Messages Container */}

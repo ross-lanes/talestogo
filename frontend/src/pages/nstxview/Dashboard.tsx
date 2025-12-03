@@ -10,10 +10,6 @@ import {
   CircularProgress,
   Alert,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
   LinearProgress,
 } from '@mui/material';
 import {
@@ -25,21 +21,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import NSTXViewChat from './NSTXViewChat';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from 'recharts';
-
-const CHART_COLORS = ['#2196f3', '#ff9800', '#4caf50', '#9c27b0', '#f44336', '#00bcd4'];
 
 // API base URL
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -282,152 +263,6 @@ const NSTXViewDashboard: React.FC = () => {
               color="#9c27b0"
               onClick={() => navigate('/nstxview/phenomena')}
             />
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Charts Section */}
-      {stats && (stats.parameters.top.length > 0 || stats.phenomena.top.length > 0) && (
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          {/* Top Parameters Chart */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Top Parameters
-              </Typography>
-              {stats.parameters.top.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart
-                    data={stats.parameters.top.map(p => ({
-                      name: p.name.replace(/_/g, ' ').substring(0, 15) + (p.name.length > 15 ? '...' : ''),
-                      count: p.count,
-                    }))}
-                    layout="vertical"
-                    margin={{ left: 80, right: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={75} />
-                    <Tooltip formatter={(value: number) => [`${value} values`, 'Count']} />
-                    <Bar dataKey="count" fill="#2196f3" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <Typography variant="body2" color="textSecondary" sx={{ py: 4, textAlign: 'center' }}>
-                  No parameters extracted yet
-                </Typography>
-              )}
-            </Paper>
-          </Grid>
-
-          {/* Top Phenomena Chart */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Top Phenomena
-              </Typography>
-              {stats.phenomena.top.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={stats.phenomena.top.map(p => ({
-                        name: p.type.replace(/_/g, ' '),
-                        value: p.count,
-                      }))}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} (${((percent as number) * 100).toFixed(0)}%)`}
-                      labelLine={false}
-                    >
-                      {stats.phenomena.top.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => [`${value} occurrences`, 'Count']} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <Typography variant="body2" color="textSecondary" sx={{ py: 4, textAlign: 'center' }}>
-                  No phenomena extracted yet
-                </Typography>
-              )}
-            </Paper>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Top Lists - Text version for details */}
-      {stats && (
-        <Grid container spacing={3}>
-          {/* Top Parameters List */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Parameter Details
-              </Typography>
-              <List dense>
-                {stats.parameters.top.length > 0 ? (
-                  stats.parameters.top.map((param, index) => (
-                    <React.Fragment key={param.name}>
-                      <ListItem>
-                        <ListItemText
-                          primary={param.name.replace(/_/g, ' ')}
-                          secondary={`${param.count} occurrences`}
-                        />
-                        <Chip
-                          label={param.count}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </ListItem>
-                      {index < stats.parameters.top.length - 1 && <Divider />}
-                    </React.Fragment>
-                  ))
-                ) : (
-                  <ListItem>
-                    <ListItemText primary="No parameters extracted yet" />
-                  </ListItem>
-                )}
-              </List>
-            </Paper>
-          </Grid>
-
-          {/* Top Phenomena List */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Phenomena Details
-              </Typography>
-              <List dense>
-                {stats.phenomena.top.length > 0 ? (
-                  stats.phenomena.top.map((phenom, index) => (
-                    <React.Fragment key={phenom.type}>
-                      <ListItem>
-                        <ListItemText
-                          primary={phenom.type.replace(/_/g, ' ')}
-                          secondary={`${phenom.count} occurrences`}
-                        />
-                        <Chip
-                          label={phenom.count}
-                          size="small"
-                          color="secondary"
-                          variant="outlined"
-                        />
-                      </ListItem>
-                      {index < stats.phenomena.top.length - 1 && <Divider />}
-                    </React.Fragment>
-                  ))
-                ) : (
-                  <ListItem>
-                    <ListItemText primary="No phenomena extracted yet" />
-                  </ListItem>
-                )}
-              </List>
-            </Paper>
           </Grid>
         </Grid>
       )}
