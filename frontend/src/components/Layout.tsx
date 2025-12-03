@@ -246,17 +246,33 @@ export default function Layout({ children }: LayoutProps) {
       color: 'common.white',             // ensure secondary text is white
     }}
   >
-    <Box
-      component="img"
-      src={PRODUCT_LOGOS[currentProduct.id] || currentProduct.logoPath}
-      alt={currentProduct.name}
-      sx={{
-        width: { xs: 100, sm: 120 }, // Smaller logo on mobile
-        maxWidth: '100%',
-        display: 'block',
-        margin: '0 auto',
-      }}
-    />
+    {currentProduct.id === 'nstxview' ? (
+      <Typography
+        variant="h4"
+        component="div"
+        sx={{
+          fontWeight: 900,
+          letterSpacing: '-0.5px',
+          color: 'common.white',
+          textAlign: 'center',
+          fontSize: { xs: '1.5rem', sm: '2rem' },
+        }}
+      >
+        NSTXView
+      </Typography>
+    ) : (
+      <Box
+        component="img"
+        src={PRODUCT_LOGOS[currentProduct.id] || currentProduct.logoPath}
+        alt={currentProduct.name}
+        sx={{
+          width: { xs: 100, sm: 120 }, // Smaller logo on mobile
+          maxWidth: '100%',
+          display: 'block',
+          margin: '0 auto',
+        }}
+      />
+    )}
     {PRODUCT_TAGLINES[currentProduct.id] || 'Solstice AI Suite'}
   </Typography>
 </Toolbar>
