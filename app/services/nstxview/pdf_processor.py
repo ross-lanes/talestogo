@@ -7,7 +7,7 @@ Handles complex layouts common in plasma physics publications.
 
 import re
 import logging
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 from pathlib import Path
 import io
@@ -20,7 +20,11 @@ try:
     HAS_PYMUPDF = True
 except ImportError:
     HAS_PYMUPDF = False
+    fitz = None  # type: ignore
     logger.warning("PyMuPDF not installed. PDF processing will be limited.")
+
+# Type alias for fitz.Document - use Any to avoid import errors at runtime
+FitzDocument = Any
 
 
 @dataclass
@@ -149,7 +153,7 @@ class PDFProcessor:
         finally:
             doc.close()
 
-    def _extract_metadata(self, doc: fitz.Document) -> PDFMetadata:
+    def _extract_metadata(self, doc: FitzDocument) -> PDFMetadata:
         """Extract metadata from PDF document"""
         meta = doc.metadata
 
@@ -175,7 +179,7 @@ class PDFProcessor:
             page_count=len(doc)
         )
 
-    def _extract_title_from_first_page(self, doc: fitz.Document) -> Optional[str]:
+    def _extract_title_from_first_page(self, doc: FitzDocument) -> Optional[str]:
         """Try to extract title from the first page by finding largest text"""
         if len(doc) == 0:
             return None
@@ -211,7 +215,7 @@ class PDFProcessor:
 
         return None
 
-    def _extract_text(self, doc: fitz.Document) -> Tuple[str, List[Dict]]:
+    def _extract_text(self, doc: FitzDocument) -> Tuple[str, List[Dict]]:
         """
         Extract all text from document.
 
@@ -310,7 +314,7 @@ class PDFProcessor:
 
         return None
 
-    def _extract_tables(self, doc: fitz.Document) -> List[ExtractedTable]:
+    def _extract_tables(self, doc: FitzDocument) -> List[ExtractedTable]:
         """
         Extract tables from the document.
 

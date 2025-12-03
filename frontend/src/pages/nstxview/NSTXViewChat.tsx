@@ -118,13 +118,14 @@ const NSTXViewChat: React.FC = () => {
 
   return (
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box
-          component="img"
-          src="/tales_favicon.png"
-          alt="RobotRachel"
-          sx={{ width: 24, height: 24 }}
-        />
+      <Typography
+        variant="h5"
+        sx={{
+          mb: 2,
+          fontWeight: 700,
+          letterSpacing: '-0.5px',
+        }}
+      >
         Ask NSTXView
       </Typography>
 
