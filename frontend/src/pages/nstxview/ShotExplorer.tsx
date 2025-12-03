@@ -192,6 +192,16 @@ const ShotExplorer: React.FC = () => {
   const uniqueShots = new Set(shots.map(s => s.shot_number)).size;
   const paginatedShots = shots.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  // Group paginated shots by shot number for display
+  const groupedShots = paginatedShots.reduce((acc, shot) => {
+    const key = shot.shot_number;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(shot);
+    return acc;
+  }, {} as Record<number, ShotSummary[]>);
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -265,60 +275,89 @@ const ShotExplorer: React.FC = () => {
           <Table sx={{ width: '100%', tableLayout: 'fixed' }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: '12%' }}>Shot Number</TableCell>
+                <TableCell sx={{ width: '15%' }}>Shot Number</TableCell>
                 <TableCell sx={{ width: '10%' }}>Role</TableCell>
-                <TableCell sx={{ width: '25%' }}>Paper</TableCell>
-                <TableCell sx={{ width: '28%' }}>Context</TableCell>
+                <TableCell sx={{ width: '28%' }}>Paper</TableCell>
+                <TableCell sx={{ width: '27%' }}>Context</TableCell>
                 <TableCell align="center" sx={{ width: '10%' }}>Parameters</TableCell>
                 <TableCell align="center" sx={{ width: '10%' }}>Phenomena</TableCell>
-                <TableCell align="center" sx={{ width: '5%' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {paginatedShots.map((shot) => (
-                <TableRow key={shot.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
-                      {shot.shot_number}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={shot.role}
-                      size="small"
-                      color={roleColors[shot.role] || 'default'}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 250 }}>
-                    <Typography variant="body2" noWrap title={shot.paper_title || ''}>
-                      {shot.paper_title || 'Unknown'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 300 }}>
-                    <Typography variant="body2" noWrap title={shot.context || ''}>
-                      {shot.context || '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip label={shot.parameter_count} size="small" variant="outlined" />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip label={shot.phenomenon_count} size="small" variant="outlined" />
-                  </TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleViewShot(shot.shot_number)}
-                      title="View All Data for This Shot"
-                    >
-                      <ViewIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
+              {Object.entries(groupedShots).map(([shotNumber, shotsInGroup], groupIndex) => (
+                shotsInGroup.map((shot, idx) => (
+                  <TableRow
+                    key={shot.id}
+                    hover
+                    sx={{
+                      // Add top border to separate groups (except first group)
+                      ...(idx === 0 && groupIndex > 0 && {
+                        '& td': { borderTop: '2px solid', borderTopColor: 'divider' },
+                      }),
+                      // Light background for multi-paper shots
+                      ...(shotsInGroup.length > 1 && {
+                        bgcolor: 'action.hover',
+                      }),
+                    }}
+                  >
+                    {/* Shot number cell - only render on first row of group */}
+                    {idx === 0 && (
+                      <TableCell
+                        rowSpan={shotsInGroup.length}
+                        sx={{
+                          verticalAlign: 'top',
+                          borderRight: '1px solid',
+                          borderRightColor: 'divider',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewShot(shot.shot_number)}
+                            title="View All Data for This Shot"
+                          >
+                            <ViewIcon fontSize="small" />
+                          </IconButton>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                            {shot.shot_number}
+                          </Typography>
+                        </Box>
+                        {shotsInGroup.length > 1 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
+                            {shotsInGroup.length} papers
+                          </Typography>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <Chip
+                        label={shot.role}
+                        size="small"
+                        color={roleColors[shot.role] || 'default'}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap title={shot.paper_title || ''}>
+                        {shot.paper_title || 'Unknown'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap title={shot.context || ''}>
+                        {shot.context || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip label={shot.parameter_count} size="small" variant="outlined" />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip label={shot.phenomenon_count} size="small" variant="outlined" />
+                    </TableCell>
+                  </TableRow>
+                ))
               ))}
               {paginatedShots.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={6} align="center">
                     <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
                       No shots found
                     </Typography>
