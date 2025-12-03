@@ -16,10 +16,6 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Button,
   Dialog,
   DialogTitle,
@@ -88,7 +84,6 @@ const PaperBrowser: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('completed');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -105,7 +100,7 @@ const PaperBrowser: React.FC = () => {
       const token = localStorage.getItem('tales_access_token');
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
-      if (statusFilter) params.append('status', statusFilter);
+      params.append('status', 'completed');
       params.append('limit', '200');
 
       const response = await fetch(`${API_BASE}/nstxview/papers?${params}`, {
@@ -130,7 +125,7 @@ const PaperBrowser: React.FC = () => {
 
   useEffect(() => {
     fetchPapers();
-  }, [statusFilter]);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,39 +199,24 @@ const PaperBrowser: React.FC = () => {
         </Alert>
       )}
 
-      {/* Search and Filters */}
+      {/* Search */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <form onSubmit={handleSearch} style={{ flex: 1, minWidth: 300 }}>
-            <TextField
-              fullWidth
-              placeholder="Search by title, authors, or abstract..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-              size="small"
-            />
-          </form>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={statusFilter}
-              label="Status"
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="error">Error</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
+        <form onSubmit={handleSearch}>
+          <TextField
+            fullWidth
+            placeholder="Search by title, authors, or abstract..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            size="small"
+          />
+        </form>
       </Paper>
 
       {/* Papers Table */}
