@@ -249,43 +249,51 @@ const PaperBrowser: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Title</TableCell>
+                <TableCell>Summary</TableCell>
                 <TableCell>Authors</TableCell>
                 <TableCell>Journal</TableCell>
                 <TableCell align="center">Shots</TableCell>
                 <TableCell align="center">Parameters</TableCell>
-                <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {paginatedPapers.map((paper) => (
                 <TableRow key={paper.id} hover>
-                  <TableCell sx={{ maxWidth: 300 }}>
-                    {paper.doi ? (
-                      <Typography
-                        variant="body2"
-                        component="a"
-                        href={paper.doi.startsWith('http') ? paper.doi : `https://doi.org/${paper.doi}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                          color: 'primary.main',
-                          textDecoration: 'none',
-                          display: 'block',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          '&:hover': { textDecoration: 'underline' },
-                        }}
-                        title={paper.title || 'Untitled'}
+                  <TableCell sx={{ maxWidth: 350 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleViewPaper(paper.id)}
+                        title="View Summary"
+                        sx={{ flexShrink: 0 }}
                       >
-                        {paper.title || 'Untitled'}
-                      </Typography>
-                    ) : (
-                      <Typography variant="body2" noWrap title={paper.title || 'Untitled'}>
-                        {paper.title || 'Untitled'}
-                      </Typography>
-                    )}
+                        <ViewIcon fontSize="small" />
+                      </IconButton>
+                      {paper.doi ? (
+                        <Typography
+                          variant="body2"
+                          component="a"
+                          href={paper.doi.startsWith('http') ? paper.doi : `https://doi.org/${paper.doi}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{
+                            color: 'primary.main',
+                            textDecoration: 'none',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            '&:hover': { textDecoration: 'underline' },
+                          }}
+                          title={paper.title || 'Untitled'}
+                        >
+                          {paper.title || 'Untitled'}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" noWrap title={paper.title || 'Untitled'}>
+                          {paper.title || 'Untitled'}
+                        </Typography>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell sx={{ maxWidth: 200 }}>
                     <Typography variant="body2" noWrap>
@@ -314,20 +322,11 @@ const PaperBrowser: React.FC = () => {
                       variant="outlined"
                     />
                   </TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleViewPaper(paper.id)}
-                      title="View Details"
-                    >
-                      <ViewIcon />
-                    </IconButton>
-                  </TableCell>
                 </TableRow>
               ))}
               {paginatedPapers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={5} align="center">
                     <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
                       No papers found
                     </Typography>
