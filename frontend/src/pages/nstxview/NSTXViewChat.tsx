@@ -12,7 +12,6 @@ import {
 } from '@mui/material';
 import {
   Send as SendIcon,
-  SmartToy as BotIcon,
   Person as PersonIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -120,7 +119,12 @@ const NSTXViewChat: React.FC = () => {
   return (
     <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <BotIcon color="primary" />
+        <Box
+          component="img"
+          src="/tales_favicon.png"
+          alt="RobotRachel"
+          sx={{ width: 24, height: 24 }}
+        />
         Ask NSTXView
       </Typography>
 
@@ -185,7 +189,12 @@ const NSTXViewChat: React.FC = () => {
                 {msg.role === 'user' ? (
                   <PersonIcon fontSize="small" />
                 ) : (
-                  <BotIcon fontSize="small" />
+                  <Box
+                    component="img"
+                    src="/tales_favicon.png"
+                    alt="RobotRachel"
+                    sx={{ width: 18, height: 18 }}
+                  />
                 )}
               </Box>
               <Box
@@ -262,7 +271,12 @@ const NSTXViewChat: React.FC = () => {
                 bgcolor: 'grey.300',
               }}
             >
-              <BotIcon fontSize="small" />
+              <Box
+                component="img"
+                src="/tales_favicon.png"
+                alt="RobotRachel"
+                sx={{ width: 18, height: 18 }}
+              />
             </Box>
             <Box
               sx={{
@@ -294,7 +308,15 @@ const NSTXViewChat: React.FC = () => {
       )}
 
       {/* Input */}
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          p: 0.5,
+          borderRadius: 2,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+        }}
+      >
         <TextField
           fullWidth
           placeholder="Ask a question about NSTX/NSTX-U research..."
@@ -305,13 +327,31 @@ const NSTXViewChat: React.FC = () => {
           size="small"
           multiline
           maxRows={3}
+          sx={{
+            bgcolor: 'white',
+            borderRadius: 1.5,
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                border: 'none',
+              },
+            },
+          }}
         />
         <IconButton
-          color="primary"
           onClick={() => handleSend()}
           disabled={!inputValue.trim() || isLoading}
+          sx={{
+            bgcolor: 'white',
+            borderRadius: 1.5,
+            '&:hover': {
+              bgcolor: 'grey.100',
+            },
+            '&.Mui-disabled': {
+              bgcolor: 'white',
+            },
+          }}
         >
-          <SendIcon />
+          <SendIcon sx={{ color: '#667eea' }} />
         </IconButton>
       </Box>
     </Paper>

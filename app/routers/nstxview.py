@@ -907,24 +907,54 @@ async def chat(
     - "Find papers about lithium wall conditioning"
     - "What phenomena are most commonly studied?"
     """
-    from app.services.nstxview.chat_service import NSTXViewChatService
+    import logging
+    import traceback
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Chat request received: {request.message[:100]}...")
 
     try:
+        from app.services.nstxview.chat_service import NSTXViewChatService
+        from app.config import ANTHROPIC_API_KEY
+
+        # Check if API key is configured
+        if not ANTHROPIC_API_KEY:
+            logger.error("ANTHROPIC_API_KEY not configured")
+            return ChatResponse(
+                response="The AI chat service is not configured. Please contact the administrator.",
+                tool_calls=[],
+                error="ANTHROPIC_API_KEY not configured"
+            )
+
+        logger.info("Initializing chat service...")
         chat_service = NSTXViewChatService(db=db)
+
+        logger.info("Calling chat service...")
         result = chat_service.chat(
             user_message=request.message,
             conversation_history=request.conversation_history
         )
 
+        logger.info(f"Chat response received, tool_calls: {len(result.get('tool_calls', []))}")
         return ChatResponse(
             response=result.get("response", ""),
             tool_calls=result.get("tool_calls", []),
             error=result.get("error")
         )
 
-    except Exception as e:
+    except ValueError as e:
+        logger.error(f"Configuration error in chat: {e}")
+        logger.error(traceback.format_exc())
         return ChatResponse(
-            response="I encountered an error processing your request. Please try again.",
+            response="The AI chat service is not properly configured. Please contact the administrator.",
+            tool_calls=[],
+            error=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
+        logger.error(traceback.format_exc())
+        return ChatResponse(
+            response=f"I encountered an error processing your request: {str(e)}",
             tool_calls=[],
             error=str(e)
         )

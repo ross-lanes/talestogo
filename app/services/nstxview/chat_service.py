@@ -171,7 +171,8 @@ Common phenomena include: H-mode, L-mode, ELM, disruption, kink_mode, tearing_mo
 class NSTXViewChatService:
     """Chat service for NSTXView using Claude with tool use."""
 
-    MODEL = "claude-sonnet-4-20250514"
+    # Use Claude 3.5 Sonnet for broader compatibility
+    MODEL = "claude-3-5-sonnet-20241022"
     MAX_TOKENS = 4096
 
     def __init__(self, db: Session, api_key: Optional[str] = None):
