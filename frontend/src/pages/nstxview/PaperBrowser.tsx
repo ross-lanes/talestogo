@@ -36,6 +36,7 @@ import {
   Visibility as ViewIcon,
   Science as ShotIcon,
   Analytics as ParamIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -251,7 +252,6 @@ const PaperBrowser: React.FC = () => {
                 <TableCell>Title</TableCell>
                 <TableCell>Authors</TableCell>
                 <TableCell>Journal</TableCell>
-                <TableCell align="center">Status</TableCell>
                 <TableCell align="center">Shots</TableCell>
                 <TableCell align="center">Parameters</TableCell>
                 <TableCell align="center">Actions</TableCell>
@@ -261,9 +261,31 @@ const PaperBrowser: React.FC = () => {
               {paginatedPapers.map((paper) => (
                 <TableRow key={paper.id} hover>
                   <TableCell sx={{ maxWidth: 300 }}>
-                    <Typography variant="body2" noWrap title={paper.title || 'Untitled'}>
-                      {paper.title || 'Untitled'}
-                    </Typography>
+                    {paper.doi ? (
+                      <Typography
+                        variant="body2"
+                        component="a"
+                        href={paper.doi.startsWith('http') ? paper.doi : `https://doi.org/${paper.doi}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          color: 'primary.main',
+                          textDecoration: 'none',
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                        title={paper.title || 'Untitled'}
+                      >
+                        {paper.title || 'Untitled'}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" noWrap title={paper.title || 'Untitled'}>
+                        {paper.title || 'Untitled'}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell sx={{ maxWidth: 200 }}>
                     <Typography variant="body2" noWrap>
@@ -275,13 +297,6 @@ const PaperBrowser: React.FC = () => {
                     <Typography variant="body2" noWrap>
                       {paper.journal || '-'}
                     </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip
-                      label={paper.status}
-                      size="small"
-                      color={statusColors[paper.status] || 'default'}
-                    />
                   </TableCell>
                   <TableCell align="center">
                     <Chip
@@ -312,7 +327,7 @@ const PaperBrowser: React.FC = () => {
               ))}
               {paginatedPapers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={6} align="center">
                     <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
                       No papers found
                     </Typography>
@@ -336,7 +351,28 @@ const PaperBrowser: React.FC = () => {
       {/* Paper Detail Dialog */}
       <Dialog open={detailOpen} onClose={() => setDetailOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          {detailLoading ? 'Loading...' : selectedPaper?.title || 'Paper Details'}
+          {detailLoading ? (
+            'Loading...'
+          ) : selectedPaper?.doi ? (
+            <Typography
+              component="a"
+              href={selectedPaper.doi.startsWith('http') ? selectedPaper.doi : `https://doi.org/${selectedPaper.doi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                color: 'primary.main',
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'underline' },
+                fontSize: 'inherit',
+                fontWeight: 'inherit',
+              }}
+            >
+              {selectedPaper?.title || 'Paper Details'}
+              <OpenInNewIcon sx={{ fontSize: 16, ml: 0.5, verticalAlign: 'middle' }} />
+            </Typography>
+          ) : (
+            selectedPaper?.title || 'Paper Details'
+          )}
         </DialogTitle>
         <DialogContent>
           {detailLoading ? (

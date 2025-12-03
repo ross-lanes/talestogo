@@ -450,8 +450,26 @@ const NSTXViewChat: React.FC = () => {
                 }}
               >
                 {msg.role === 'assistant' ? (
-                  <Box sx={{ '& p': { m: 0 }, '& ul, & ol': { pl: 2, m: 0 } }}>
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <Box sx={{
+                    '& p': { m: 0 },
+                    '& ul, & ol': { pl: 2, m: 0 },
+                    '& a': {
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      '&:hover': { textDecoration: 'underline' },
+                    },
+                  }}>
+                    <ReactMarkdown
+                      components={{
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer">
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   </Box>
                 ) : (
                   <Typography variant="body2">{msg.content}</Typography>
