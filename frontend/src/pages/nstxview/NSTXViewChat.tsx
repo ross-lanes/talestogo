@@ -17,8 +17,7 @@ import {
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { api } from '../../services/api';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -66,23 +65,11 @@ const NSTXViewChat: React.FC = () => {
     setError(null);
 
     try {
-      const token = localStorage.getItem('tales_access_token');
-      const response = await fetch(`${API_BASE}/nstxview/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: messageToSend,
-        }),
+      const response = await api.post<ChatResponse>('/nstxview/chat', {
+        message: messageToSend,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const data: ChatResponse = await response.json();
+      const data = response.data;
 
       const assistantMessage: Message = {
         role: 'assistant',
@@ -95,8 +82,9 @@ const NSTXViewChat: React.FC = () => {
       if (data.error) {
         setError(data.error);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
       setMessages((prev) => [
         ...prev,
         {
@@ -322,7 +310,7 @@ const NSTXViewChat: React.FC = () => {
           gap: 1,
           p: 0.5,
           borderRadius: 2,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+          background: '#764ba2',
         }}
       >
         <TextField
