@@ -225,15 +225,15 @@ const PaperBrowser: React.FC = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} sx={{ width: '100%' }}>
+          <Table sx={{ width: '100%', tableLayout: 'fixed' }}>
             <TableHead>
               <TableRow>
-                <TableCell>Summary</TableCell>
-                <TableCell>Authors</TableCell>
-                <TableCell>Journal</TableCell>
-                <TableCell align="center">Shots</TableCell>
-                <TableCell align="center">Parameters</TableCell>
+                <TableCell sx={{ width: '40%' }}>Summary</TableCell>
+                <TableCell sx={{ width: '20%' }}>Authors</TableCell>
+                <TableCell sx={{ width: '15%' }}>Journal</TableCell>
+                <TableCell align="center" sx={{ width: '12.5%' }}>Shots</TableCell>
+                <TableCell align="center" sx={{ width: '12.5%' }}>Parameters</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

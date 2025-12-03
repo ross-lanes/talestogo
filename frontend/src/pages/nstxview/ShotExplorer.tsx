@@ -261,17 +261,17 @@ const ShotExplorer: React.FC = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} sx={{ width: '100%' }}>
+          <Table sx={{ width: '100%', tableLayout: 'fixed' }}>
             <TableHead>
               <TableRow>
-                <TableCell>Shot Number</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Paper</TableCell>
-                <TableCell>Context</TableCell>
-                <TableCell align="center">Parameters</TableCell>
-                <TableCell align="center">Phenomena</TableCell>
-                <TableCell align="center">Actions</TableCell>
+                <TableCell sx={{ width: '12%' }}>Shot Number</TableCell>
+                <TableCell sx={{ width: '10%' }}>Role</TableCell>
+                <TableCell sx={{ width: '25%' }}>Paper</TableCell>
+                <TableCell sx={{ width: '28%' }}>Context</TableCell>
+                <TableCell align="center" sx={{ width: '10%' }}>Parameters</TableCell>
+                <TableCell align="center" sx={{ width: '10%' }}>Phenomena</TableCell>
+                <TableCell align="center" sx={{ width: '5%' }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
