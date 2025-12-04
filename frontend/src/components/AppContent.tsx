@@ -54,6 +54,8 @@ import {
   PhenomenaExplorer,
   ProcessingStatus,
   NSTXViewConversations,
+  OutlierReview,
+  ThresholdManagement,
 } from '../pages/nstxview';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
@@ -546,6 +548,26 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <NSTXViewConversations />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/outliers"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Layout>
+                  <OutlierReview />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/nstxview/thresholds"
+            element={
+              <ProtectedRoute requireAdmin>
+                <Layout>
+                  <ThresholdManagement />
                 </Layout>
               </ProtectedRoute>
             }

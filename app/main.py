@@ -36,6 +36,8 @@ from app.routers import (
     heads,  # Heads - Marketing Persona Generation
     canon,  # Canon - FDA Drug Data Research
     nstxview,  # NSTXView - NSTX-U Research Analysis
+    outliers,  # NSTXView - Outlier Detection & Review
+    thresholds,  # NSTXView - Threshold Management
     migration_helper  # Temporary migration helper
 )
 
@@ -145,6 +147,8 @@ app.include_router(canon.router)
 
 # NSTXView - NSTX-U Research Analysis
 app.include_router(nstxview.router)
+app.include_router(outliers.router)
+app.include_router(thresholds.router)
 
 # Analytics and admin routers
 app.include_router(analytics.router)

@@ -11,3 +11,5 @@ export { default as ParameterAnalysis } from './ParameterAnalysis';
 export { default as PhenomenaExplorer } from './PhenomenaExplorer';
 export { default as ProcessingStatus } from './ProcessingStatus';
 export { default as NSTXViewConversations } from './NSTXViewConversations';
+export { default as OutlierReview } from './OutlierReview';
+export { default as ThresholdManagement } from './ThresholdManagement';

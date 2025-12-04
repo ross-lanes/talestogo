@@ -628,6 +628,23 @@ class NSTXParameter(Base):
 
     # Context
     context = Column(Text, nullable=True)  # Where in the paper this appeared
+    page_number = Column(Integer, nullable=True)  # Page in paper where this appeared
+
+    # Outlier detection fields
+    batch_id = Column(Integer, ForeignKey("ingestion_batches.id"), nullable=True, index=True, default=1)
+    is_outlier = Column(Boolean, default=False, index=True)
+    outlier_reason = Column(Text, nullable=True)
+    flagged_at = Column(DateTime, nullable=True)
+    flagged_by_threshold_id = Column(Integer, ForeignKey("parameter_thresholds.id"), nullable=True)
+
+    # Review workflow fields
+    reviewed = Column(Boolean, default=False, index=True)
+    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    review_action = Column(String(20), nullable=True)  # 'correct', 'dismiss', 'delete'
+    review_notes = Column(Text, nullable=True)
+    corrected_value = Column(Float, nullable=True)
+    corrected_unit = Column(String(50), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -781,6 +798,74 @@ class NSTXConversationMessage(Base):
     __table_args__ = (
         Index('idx_nstx_msg_conv_seq', 'conversation_id', 'sequence'),
     )
+
+
+class ParameterThreshold(Base):
+    """
+    Defines acceptable ranges for NSTX/NSTX-U parameters for outlier detection.
+    Based on published machine specifications and operating ranges.
+    """
+    __tablename__ = "parameter_thresholds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    parameter_name = Column(String(100), nullable=False)
+    parameter_pattern = Column(String(200), nullable=True)  # SQL LIKE pattern for matching
+    min_value = Column(Float, nullable=True)
+    max_value = Column(Float, nullable=True)
+    expected_unit = Column(String(50), nullable=True)
+    category = Column(String(50), nullable=True)  # operational, plasma, performance
+    reason_below = Column(Text, nullable=True)
+    reason_above = Column(Text, nullable=True)
+    flag_all = Column(Boolean, default=False)  # Flag all instances (e.g., fusion power)
+    special_case = Column(String(50), nullable=True)  # e.g., 'check_wrong_units'
+    source = Column(String(200), nullable=True)  # Citation for threshold
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    __table_args__ = (
+        Index('idx_param_threshold_active', 'parameter_name', unique=True, postgresql_where=Column('active') == True),
+    )
+
+
+class ThresholdHistory(Base):
+    """
+    Audit trail for threshold changes.
+    Records who changed what and when for accountability.
+    """
+    __tablename__ = "threshold_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    parameter_name = Column(String(100), nullable=False, index=True)
+    old_min = Column(Float, nullable=True)
+    old_max = Column(Float, nullable=True)
+    new_min = Column(Float, nullable=True)
+    new_max = Column(Float, nullable=True)
+    changed_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    changed_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    reason = Column(Text, nullable=True)
+    reprocessing_triggered = Column(Boolean, default=False)
+
+
+class IngestionBatch(Base):
+    """
+    Tracks batches of paper ingestion/processing.
+    Enables reprocessing papers with updated thresholds.
+    """
+    __tablename__ = "ingestion_batches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_name = Column(String(100), nullable=True)
+    papers_processed = Column(Integer, default=0)
+    measurements_extracted = Column(Integer, default=0)
+    outliers_flagged = Column(Integer, default=0)
+    started_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    completed_at = Column(DateTime, nullable=True)
+    status = Column(String(20), default='processing', index=True)  # processing, completed, failed
+    error_message = Column(Text, nullable=True)
+    triggered_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    notes = Column(Text, nullable=True)
 
 
 # --- End of Models ---

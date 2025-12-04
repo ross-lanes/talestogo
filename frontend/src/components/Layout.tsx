@@ -47,6 +47,8 @@ import {
   Bookmark as BookmarkIcon,
   AutoAwesome as AutoAwesomeIcon,
   Storage as StorageIcon,
+  FlagOutlined as OutlierIcon,
+  Speed as ThresholdIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -177,9 +179,13 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Explore Shots', icon: <TrendingUpIcon />, path: '/nstxview/shots', indent: false },
     { text: 'Analyze Parameters', icon: <AnalyticsIcon />, path: '/nstxview/parameters', indent: false },
     { text: 'Phenomena', icon: <AutoAwesomeIcon />, path: '/nstxview/phenomena', indent: false },
-    // Processing Status is admin-only
-    ...(isAdmin ? [{ text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false }] : []),
     { text: 'Saved Conversations', icon: <BookmarkIcon />, path: '/nstxview/conversations', indent: false },
+    // Admin-only items
+    ...(isAdmin ? [
+      { text: 'Outlier Review', icon: <OutlierIcon />, path: '/nstxview/outliers', indent: false },
+      { text: 'Threshold Management', icon: <ThresholdIcon />, path: '/nstxview/thresholds', indent: false },
+      { text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false },
+    ] : []),
     { text: 'How NSTXView Works', icon: <InfoIcon />, path: '/how-nstxview-works', indent: false },
   ];
 
