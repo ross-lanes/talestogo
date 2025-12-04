@@ -220,6 +220,38 @@ async def startup_event():
     start_scheduler()
     print("✅ Scheduler check complete\n")
 
+    # NSTXView component health check
+    print("\n🔬 NSTXView Component Status:")
+
+    # Check RAG/Embedding service
+    try:
+        from app.services.nstxview.embedding_service import is_available as embeddings_available
+        if embeddings_available():
+            print("   ✅ RAG Embeddings: ENABLED (sentence-transformers installed)")
+        else:
+            print("   ❌ RAG Embeddings: DISABLED (sentence-transformers not installed)")
+    except Exception as e:
+        print(f"   ❌ RAG Embeddings: ERROR ({e})")
+
+    # Check Vector Store
+    try:
+        from app.services.nstxview.vector_store import is_available as vector_store_available
+        if vector_store_available():
+            print("   ✅ Vector Store: ENABLED (ChromaDB installed)")
+        else:
+            print("   ❌ Vector Store: DISABLED (ChromaDB not installed)")
+    except Exception as e:
+        print(f"   ❌ Vector Store: ERROR ({e})")
+
+    # Check Anthropic API key for chat
+    from app.config import ANTHROPIC_API_KEY
+    if ANTHROPIC_API_KEY:
+        print("   ✅ Chat Service: ENABLED (Anthropic API key configured)")
+    else:
+        print("   ❌ Chat Service: DISABLED (ANTHROPIC_API_KEY not set)")
+
+    print("✅ NSTXView check complete\n")
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Stop the background scheduler when the app shuts down"""

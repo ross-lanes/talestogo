@@ -1117,6 +1117,102 @@ async def chat(
         )
 
 
+# === System Status Endpoint ===
+
+class ComponentStatus(BaseModel):
+    """Status of a single system component"""
+    name: str
+    enabled: bool
+    message: str
+
+
+class SystemStatusResponse(BaseModel):
+    """System status for all NSTXView components"""
+    components: List[ComponentStatus]
+    all_operational: bool
+
+
+@router.get("/system-status", response_model=SystemStatusResponse)
+async def get_system_status(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the operational status of NSTXView system components.
+
+    Returns status of:
+    - RAG Embeddings (sentence-transformers)
+    - Vector Store (ChromaDB)
+    - Chat Service (Anthropic API)
+    """
+    components = []
+
+    # Check RAG/Embedding service
+    try:
+        from app.services.nstxview.embedding_service import is_available as embeddings_available
+        if embeddings_available():
+            components.append(ComponentStatus(
+                name="RAG Embeddings",
+                enabled=True,
+                message="Semantic search available"
+            ))
+        else:
+            components.append(ComponentStatus(
+                name="RAG Embeddings",
+                enabled=False,
+                message="sentence-transformers not installed"
+            ))
+    except Exception as e:
+        components.append(ComponentStatus(
+            name="RAG Embeddings",
+            enabled=False,
+            message=f"Error: {str(e)}"
+        ))
+
+    # Check Vector Store
+    try:
+        from app.services.nstxview.vector_store import is_available as vector_store_available
+        if vector_store_available():
+            components.append(ComponentStatus(
+                name="Vector Store",
+                enabled=True,
+                message="ChromaDB operational"
+            ))
+        else:
+            components.append(ComponentStatus(
+                name="Vector Store",
+                enabled=False,
+                message="ChromaDB not installed"
+            ))
+    except Exception as e:
+        components.append(ComponentStatus(
+            name="Vector Store",
+            enabled=False,
+            message=f"Error: {str(e)}"
+        ))
+
+    # Check Anthropic API key for chat
+    from app.config import ANTHROPIC_API_KEY
+    if ANTHROPIC_API_KEY:
+        components.append(ComponentStatus(
+            name="Chat Service",
+            enabled=True,
+            message="AI chat operational"
+        ))
+    else:
+        components.append(ComponentStatus(
+            name="Chat Service",
+            enabled=False,
+            message="Anthropic API key not configured"
+        ))
+
+    all_operational = all(c.enabled for c in components)
+
+    return SystemStatusResponse(
+        components=components,
+        all_operational=all_operational
+    )
+
+
 # === Dashboard/Stats Endpoints ===
 
 @router.get("/stats")

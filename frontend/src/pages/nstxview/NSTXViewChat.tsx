@@ -35,6 +35,8 @@ import {
   Bookmark as BookmarkIcon,
   Delete as DeleteIcon,
   Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../../services/api';
@@ -79,6 +81,17 @@ interface ConversationUsage {
   max_allowed: number;
 }
 
+interface ComponentStatus {
+  name: string;
+  enabled: boolean;
+  message: string;
+}
+
+interface SystemStatus {
+  components: ComponentStatus[];
+  all_operational: boolean;
+}
+
 const EXAMPLE_QUESTIONS = [
   'What papers discuss H-mode transitions?',
   'What are the typical ion temperatures in NSTX experiments?',
@@ -110,10 +123,23 @@ const NSTXViewChat: React.FC = () => {
     severity: 'success',
   });
 
-  // Fetch conversation usage on mount
+  // System status state
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+
+  // Fetch conversation usage and system status on mount
   useEffect(() => {
     fetchConversationUsage();
+    fetchSystemStatus();
   }, []);
+
+  const fetchSystemStatus = async () => {
+    try {
+      const response = await api.get<SystemStatus>('/nstxview/system-status');
+      setSystemStatus(response.data);
+    } catch (err) {
+      console.error('Failed to fetch system status:', err);
+    }
+  };
 
   const fetchConversationUsage = async () => {
     try {
@@ -316,6 +342,60 @@ const NSTXViewChat: React.FC = () => {
           >
             Ask NSTXView
           </Typography>
+          {/* System Status Indicator */}
+          {systemStatus && (
+            <Tooltip
+              title={
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    System Status
+                  </Typography>
+                  {systemStatus.components.map((c) => (
+                    <Box key={c.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                      {c.enabled ? (
+                        <CheckCircleIcon sx={{ fontSize: 14, color: 'success.light' }} />
+                      ) : (
+                        <WarningIcon sx={{ fontSize: 14, color: 'warning.light' }} />
+                      )}
+                      <Typography variant="caption">
+                        {c.name}: {c.message}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              }
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 1,
+                  bgcolor: systemStatus.all_operational ? 'success.50' : 'warning.50',
+                  border: '1px solid',
+                  borderColor: systemStatus.all_operational ? 'success.200' : 'warning.200',
+                  cursor: 'help',
+                }}
+              >
+                {systemStatus.all_operational ? (
+                  <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                ) : (
+                  <WarningIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                )}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 500,
+                    color: systemStatus.all_operational ? 'success.dark' : 'warning.dark',
+                  }}
+                >
+                  {systemStatus.all_operational ? 'All Systems' : 'Degraded'}
+                </Typography>
+              </Box>
+            </Tooltip>
+          )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {/* Usage indicator */}
