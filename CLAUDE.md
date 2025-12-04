@@ -42,6 +42,30 @@ Current LLM usage (as of Nov 2025):
 - **Data Collection**: Queries sent to ChatGPT, Claude, Gemini, Perplexity
 - **Response Analysis**: Gemini 2.5 Pro (`analyze_raw_response` in llm_service.py)
 - **Report Writing**: Gemini 2.5 Pro (generate_report.py)
+- **NSTXView Chat**: Claude Sonnet 3.5 with hybrid MCP + RAG architecture
+
+### NSTXView Hybrid Query Architecture
+
+NSTXView uses a hybrid approach combining two complementary technologies:
+
+**MCP (Model Context Protocol)** for structured queries:
+- Specific shot lookups (e.g., "What happened in shot 141234?")
+- Parameter statistics (e.g., "What's the average ion temperature?")
+- Quantitative queries (e.g., "Papers with beta > 0.3")
+- Precise data extraction (shots, parameters, phenomena)
+- Tools: `search_papers`, `query_shots`, `get_shot_details`, `get_parameter_statistics`, `list_parameters`, `list_phenomena`
+
+**RAG (Retrieval Augmented Generation)** for semantic queries:
+- Conceptual questions (e.g., "Explain H-mode transitions")
+- Finding relevant passages (e.g., "How does lithium coating affect performance?")
+- Cross-paper synthesis (e.g., "What are common ELM mitigation techniques?")
+- Open-ended exploration (e.g., "What do we know about disruption prediction?")
+- Method comparisons (e.g., "Different approaches to plasma heating")
+- Uses ChromaDB vector store with sentence-transformers embeddings (all-MiniLM-L6-v2)
+- ~500-word chunks with 50-word overlap, section-aware when possible
+
+Claude intelligently routes queries to the appropriate system based on intent, and can use both for complex questions that combine concepts and data.
+
 ## Development Commands
 
 ```bash

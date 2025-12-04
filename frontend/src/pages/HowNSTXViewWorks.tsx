@@ -227,36 +227,74 @@ export default function HowNSTXViewWorks() {
         </TableContainer>
       </Paper>
 
-      {/* MCP Integration */}
+      {/* AI Query System */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'secondary.main' }}>
-          MCP Server Integration
+          AI Query System: Hybrid MCP + RAG Architecture
         </Typography>
         <Typography variant="body1" paragraph>
-          NSTXView includes a Model Context Protocol (MCP) server that enables AI assistants like Claude to directly query the extracted data. Available tools include:
+          NSTXView's "Ask NSTXView" chat feature uses a hybrid approach that intelligently combines two complementary technologies to answer different types of research questions:
+        </Typography>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 3 }}>
+          MCP (Model Context Protocol) for Structured Queries
+        </Typography>
+        <Typography variant="body1" paragraph>
+          MCP provides structured database tools for quantitative and precise queries:
         </Typography>
         <Box component="ul" sx={{ pl: 3, mb: 2 }}>
           <Typography component="li" variant="body1">
-            <strong>search_papers:</strong> Semantic search across paper content
+            <strong>Specific shot lookups:</strong> "What happened in shot 141234?"
           </Typography>
           <Typography component="li" variant="body1">
-            <strong>get_paper_details:</strong> Full extraction data for a paper
+            <strong>Parameter statistics:</strong> "What's the average ion temperature in H-mode?"
           </Typography>
           <Typography component="li" variant="body1">
-            <strong>query_shots:</strong> Find shots matching specific criteria
+            <strong>Quantitative queries:</strong> "Find papers with beta greater than 0.3"
           </Typography>
           <Typography component="li" variant="body1">
-            <strong>get_shot_details:</strong> All data for a specific shot number
-          </Typography>
-          <Typography component="li" variant="body1">
-            <strong>get_parameter_statistics:</strong> Aggregate stats for parameters
-          </Typography>
-          <Typography component="li" variant="body1">
-            <strong>list_parameters / list_phenomena:</strong> Browse available types
+            <strong>Data extraction:</strong> Get exact values for shots, parameters, and phenomena
           </Typography>
         </Box>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          <strong>Available MCP tools:</strong> search_papers, query_shots, get_shot_details, get_parameter_statistics, list_parameters, list_phenomena, search_by_phenomenon, get_database_stats
+        </Typography>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 3 }}>
+          RAG (Retrieval Augmented Generation) for Semantic Search
+        </Typography>
         <Typography variant="body1" paragraph>
-          The MCP server can be used alongside CollisionDB MCP to cross-reference paper findings with atomic collision data, enabling comprehensive plasma physics research queries.
+          RAG uses semantic search to find relevant passages for conceptual questions:
+        </Typography>
+        <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+          <Typography component="li" variant="body1">
+            <strong>Conceptual explanations:</strong> "Explain how H-mode transitions occur"
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Finding relevant passages:</strong> "What do papers say about lithium coating effects?"
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Cross-paper synthesis:</strong> "What are common ELM mitigation techniques?"
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Method comparisons:</strong> "Different approaches to disruption prediction"
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Open-ended exploration:</strong> "What factors affect plasma confinement time?"
+          </Typography>
+        </Box>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          <strong>Technical details:</strong> Uses ChromaDB vector store with sentence-transformers embeddings (all-MiniLM-L6-v2 model, 384 dimensions). Papers are chunked into ~500-word segments with 50-word overlap, preserving section context when possible.
+        </Typography>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 3 }}>
+          Intelligent Query Routing
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Claude Sonnet 3.5 intelligently routes your questions to the appropriate system based on query type. For complex questions that combine concepts and quantitative data, Claude uses both systems together to provide comprehensive answers with proper citations.
+        </Typography>
+        <Typography variant="body1" paragraph>
+          The MCP server can also be used alongside CollisionDB MCP to cross-reference paper findings with atomic collision data, enabling comprehensive plasma physics research queries.
         </Typography>
       </Paper>
 
