@@ -337,12 +337,32 @@ const ShotExplorer: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" noWrap title={shot.paper_title || ''}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                        title={shot.paper_title || ''}
+                      >
                         {shot.paper_title || 'Unknown'}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" noWrap title={shot.context || ''}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                        title={shot.context || ''}
+                      >
                         {shot.context || '-'}
                       </Typography>
                     </TableCell>
