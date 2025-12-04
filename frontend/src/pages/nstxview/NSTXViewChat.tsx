@@ -32,7 +32,7 @@ import {
   Check as CheckIcon,
   Save as SaveIcon,
   Add as AddIcon,
-  History as HistoryIcon,
+  Bookmark as BookmarkIcon,
   Delete as DeleteIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
@@ -328,7 +328,7 @@ const NSTXViewChat: React.FC = () => {
           {/* Saved Conversations button */}
           <Tooltip title="Saved Conversations">
             <IconButton onClick={handleOpenDrawer} size="small">
-              <HistoryIcon fontSize="small" />
+              <BookmarkIcon fontSize="small" />
             </IconButton>
           </Tooltip>
 
