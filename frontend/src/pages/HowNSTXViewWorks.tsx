@@ -3,12 +3,6 @@ import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material';
 
 export default function HowNSTXViewWorks() {
@@ -116,6 +110,73 @@ export default function HowNSTXViewWorks() {
         </Box>
       </Paper>
 
+      {/* Text Chunking for RAG */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'secondary.main' }}>
+          Text Chunking for Semantic Search
+        </Typography>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 2 }}>
+          The Chunking Strategy
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Papers in NSTXView are broken into chunks (smaller text segments) to enable precise semantic search. Each paper is divided into approximately 500-word segments with 50-word overlap between consecutive chunks. This approach allows the system to retrieve specific relevant passages rather than entire papers when answering conceptual questions.
+        </Typography>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 2 }}>
+          Two Chunking Methods
+        </Typography>
+        <Typography variant="body1" paragraph>
+          <strong>Section-Aware Chunking (Preferred):</strong> When the PDF processor can identify section boundaries (Introduction, Methods, Results, Discussion, etc.), chunks respect these boundaries and are labeled with their section names. This preserves document structure and provides valuable context about where each passage originated.
+        </Typography>
+        <Typography variant="body1" paragraph>
+          <strong>Simple Sliding Window (Fallback):</strong> When sections cannot be identified, the system uses a sliding window approach that moves through the text in 500-word increments with 50-word overlap. This ensures complete coverage while maintaining context across chunk boundaries.
+        </Typography>
+        <Typography variant="body1" paragraph>
+          The 50-word overlap is crucial for preventing important context from being split awkwardly. For example, a sentence like "investigated disruption mitigation using lithium wall conditioning" won't be broken across chunks, ensuring coherent search results.
+        </Typography>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 2 }}>
+          What Happens After Chunking
+        </Typography>
+        <Box component="ol" sx={{ pl: 3, mb: 2 }}>
+          <Typography component="li" variant="body1" paragraph>
+            <strong>Embedding Generation:</strong> Each chunk is converted to a 384-dimensional vector using the sentence-transformers model (all-MiniLM-L6-v2).
+          </Typography>
+          <Typography component="li" variant="body1" paragraph>
+            <strong>Storage:</strong> Vectors are stored in ChromaDB for fast semantic search, while metadata (paper ID, chunk index, section name) is stored in PostgreSQL.
+          </Typography>
+          <Typography component="li" variant="body1" paragraph>
+            <strong>Semantic Search:</strong> When you ask a conceptual question, the system converts your question to a vector, finds the 5 most similar chunk vectors in ChromaDB, and returns the actual text passages with proper citations.
+          </Typography>
+        </Box>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 2 }}>
+          Impact of This Approach
+        </Typography>
+        <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+          <Typography component="li" variant="body1">
+            <strong>Precise retrieval:</strong> Returns specific relevant passages rather than entire papers, making answers more focused and useful.
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Better relevance:</strong> 500-word chunks provide enough context to understand the passage without including irrelevant information.
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Section context:</strong> Knowing whether a passage comes from Results, Methods, or Discussion helps interpret its significance.
+          </Typography>
+          <Typography component="li" variant="body1">
+            <strong>Scalability:</strong> For 1,500 papers at approximately 20 chunks per paper, the system manages about 30,000 searchable chunks (approximately 150 MB of embeddings) with sub-second query performance.
+          </Typography>
+        </Box>
+
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 2 }}>
+          Why 500 Words?
+        </Typography>
+        <Typography variant="body1" paragraph>
+          The 500-word chunk size (approximately 2-3 paragraphs) represents an optimal balance based on research best practices. Smaller chunks (100-200 words) tend to lose important context and contain incomplete thoughts, while larger chunks (1,000+ words) include too much irrelevant information and reduce search precision. At 500 words, chunks typically contain complete ideas while remaining focused enough to provide relevant, targeted search results.
+        </Typography>
+      </Paper>
+
       {/* Features */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'secondary.main' }}>
@@ -156,75 +217,6 @@ export default function HowNSTXViewWorks() {
         <Typography variant="body1" paragraph>
           Monitor the data processing pipeline, view progress of paper extraction, and trigger sync/extraction operations. Track errors and processing logs.
         </Typography>
-      </Paper>
-
-      {/* Typical Parameter Ranges */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'secondary.main' }}>
-          Typical NSTX-U Parameter Ranges
-        </Typography>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>Parameter</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Symbol</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Typical Range</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Unit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              <TableRow>
-                <TableCell>Ion Temperature</TableCell>
-                <TableCell>Ti</TableCell>
-                <TableCell>0.5 - 5</TableCell>
-                <TableCell>keV</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Electron Temperature</TableCell>
-                <TableCell>Te</TableCell>
-                <TableCell>0.5 - 3</TableCell>
-                <TableCell>keV</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Electron Density</TableCell>
-                <TableCell>ne</TableCell>
-                <TableCell>1 - 10 × 10¹⁹</TableCell>
-                <TableCell>m⁻³</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Plasma Current</TableCell>
-                <TableCell>Ip</TableCell>
-                <TableCell>0.3 - 1.5</TableCell>
-                <TableCell>MA</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Toroidal Field</TableCell>
-                <TableCell>Bt</TableCell>
-                <TableCell>0.3 - 0.55</TableCell>
-                <TableCell>T</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>NBI Power</TableCell>
-                <TableCell>PNBI</TableCell>
-                <TableCell>2 - 7</TableCell>
-                <TableCell>MW</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Normalized Beta</TableCell>
-                <TableCell>βN</TableCell>
-                <TableCell>3 - 6</TableCell>
-                <TableCell>-</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Energy Confinement Time</TableCell>
-                <TableCell>τE</TableCell>
-                <TableCell>20 - 100</TableCell>
-                <TableCell>ms</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </TableContainer>
       </Paper>
 
       {/* AI Query System */}
@@ -296,28 +288,6 @@ export default function HowNSTXViewWorks() {
         <Typography variant="body1" paragraph>
           The MCP server can also be used alongside CollisionDB MCP to cross-reference paper findings with atomic collision data, enabling comprehensive plasma physics research queries.
         </Typography>
-      </Paper>
-
-      {/* About NSTX-U */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: 'secondary.main' }}>
-          About NSTX-U
-        </Typography>
-        <Typography variant="body1" paragraph>
-          NSTX and NSTX-U are spherical tokamaks—fusion devices with a compact, spherical shape (aspect ratio ~1.3) compared to conventional tokamaks. This geometry offers potential advantages for future fusion power plants including higher plasma pressure (beta) limits, better confinement at high beta, more compact design, and natural divertor solutions.
-        </Typography>
-        <Typography variant="body1" paragraph>
-          Key NSTX-U specifications:
-        </Typography>
-        <Box component="ul" sx={{ pl: 3, mb: 2 }}>
-          <Typography component="li" variant="body1">Major radius: 0.93 m</Typography>
-          <Typography component="li" variant="body1">Minor radius: 0.6 m</Typography>
-          <Typography component="li" variant="body1">Aspect ratio: 1.55</Typography>
-          <Typography component="li" variant="body1">Toroidal field: up to 1 T</Typography>
-          <Typography component="li" variant="body1">Plasma current: up to 2 MA</Typography>
-          <Typography component="li" variant="body1">NBI power: up to 10 MW</Typography>
-          <Typography component="li" variant="body1">RF power: up to 6 MW</Typography>
-        </Box>
       </Paper>
     </Box>
   );
