@@ -268,7 +268,7 @@ const ThresholdManagement: React.FC = () => {
   };
 
   const filteredThresholds = thresholds.filter(t =>
-    t.parameter_name.toLowerCase().includes(searchTerm.toLowerCase())
+    t.parameter_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
