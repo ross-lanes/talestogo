@@ -196,7 +196,7 @@ const PhenomenaExplorer: React.FC = () => {
       if (searchQuery) params.append('type', searchQuery);
       if (categoryFilter) params.append('category', categoryFilter);
       if (primaryOnly) params.append('primary_only', 'true');
-      params.append('limit', '200');
+      params.append('limit', '5000'); // High limit to ensure all phenomena are included
 
       const response = await fetch(`${API_BASE}/nstxview/phenomena?${params}`, {
         headers: {
