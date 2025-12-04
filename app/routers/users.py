@@ -180,7 +180,7 @@ async def send_invitation_email(
 ):
     """
     Send invitation email to a user (admin only).
-    Generates domain-specific email content and sends via SMTP.
+    Generates product-specific and domain-specific email content.
     """
     from ..email import send_email
 
@@ -189,49 +189,71 @@ async def send_invitation_email(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Determine email domain and type
+    # Determine email domain
     domain = user.email.split('@')[1].lower()
     production_url = 'https://apps.robotrachel.com'
 
-    # Generate email content based on domain
+    # Determine which product(s) user has access to
+    allowed_products = (user.allowed_products or "tales").split(",")
+    primary_product = allowed_products[0].strip().lower()
+
+    # Determine login method based on domain
     if domain == 'solsticehc.net':
-        subject = 'Welcome to Tales - Shape Your AI story'
-        body = f"""Hi {user.full_name or user.email},
-
-You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
-
-Your story starts at {production_url}.
-- Click "Sign in with Microsoft."
-- Log in with {user.email}.
-- Click on Customize and start adding information about your brands!
-
-Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
-
-May your metrics be ever in your favor,
-RobotRachel"""
+        login_instruction = f'- Click "Sign in with Microsoft."\n- Log in with {user.email}.'
     elif domain == 'gmail.com':
-        subject = 'Welcome to Tales - Shape Your AI story'
-        body = f"""Hi {user.full_name or user.email},
-
-You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
-
-Your story starts at {production_url}.
-- Click "Sign in with Google."
-- Log in with {user.email}.
-- Click on Customize and start adding information about your brands!
-
-Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
-
-May your metrics be ever in your favor,
-RobotRachel"""
+        login_instruction = f'- Click "Sign in with Google."\n- Log in with {user.email}.'
     else:
-        subject = 'Welcome to Tales - Shape Your AI story'
+        login_instruction = f'- Sign in with {user.email} using the Google or Microsoft login buttons.'
+
+    # Generate email content based on primary product
+    if primary_product == 'nstxview':
+        subject = 'Welcome to NSTXView - Your NSTX Research Portal'
+        body = f"""Hi {user.full_name or user.email},
+
+You've been invited to NSTXView, a research tool for exploring NSTX and NSTX-U scientific papers with AI-powered search and analysis.
+
+Access NSTXView at {production_url}.
+{login_instruction}
+
+Features:
+- Browse 90+ NSTX/NSTX-U papers with full-text search
+- AI chat powered by Claude with paper context
+- Query shots, parameters, and phenomena
+- Search by author, year, or topic
+
+Questions? Contact admin@robotrachel.com.
+
+Best regards,
+The NSTXView Team"""
+
+    elif primary_product == 'heads':
+        subject = 'Welcome to Heads - Patient & HCP Voice Intelligence'
+        body = f"""Hi {user.full_name or user.email},
+
+You've been invited to Heads, where healthcare meets AI intelligence. Track what AI platforms are saying about conditions, treatments, and patient experiences.
+
+Your portal starts at {production_url}.
+{login_instruction}
+
+Features:
+- Track patient and HCP personas
+- Monitor AI responses about conditions and treatments
+- Analyze sentiment and positioning
+- Generate reports and insights
+
+Questions? Contact admin@robotrachel.com.
+
+Best regards,
+The Heads Team"""
+
+    else:  # tales (default)
+        subject = 'Welcome to Tales - Shape Your AI Story'
         body = f"""Hi {user.full_name or user.email},
 
 You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your brands!
 
 Your story starts at {production_url}.
-- Sign in with {user.email} using the Google or Microsoft login buttons.
+{login_instruction}
 - Click on Customize and start adding information about your brands!
 
 Questions? Ideas? Plot twists? Reach out to admin@robotrachel.com.
