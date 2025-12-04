@@ -905,7 +905,7 @@ async def chat(
     - "What papers discuss H-mode transitions?"
     - "What are the typical ion temperatures in NSTX experiments?"
     - "Find papers about lithium wall conditioning"
-    - "What phenomena are most commonly studied?"
+    - "Give a detailed account for what happened in shot 107352, using citations."
     """
     import logging
     import traceback

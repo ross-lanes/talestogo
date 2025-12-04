@@ -35,7 +35,7 @@ interface ChatResponse {
 const EXAMPLE_QUESTIONS = [
   'What papers discuss H-mode transitions?',
   'What are the typical ion temperatures in NSTX experiments?',
-  'What phenomena are most commonly studied?',
+  'Give a detailed account for what happened in shot 107352, using citations.',
   'Find papers about lithium wall conditioning',
 ];
 
