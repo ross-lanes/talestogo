@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -9,7 +8,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
-import { useAuth } from '../../contexts/AuthContext';
 import type { Persona, HeadsFormData, Source } from '../../types/heads';
 import { DEFAULT_FORM_DATA, ExportFormat } from '../../types/heads';
 import {
@@ -18,15 +16,14 @@ import {
   saveGenerationToStorage,
   loadGenerationFromStorage,
   hasStoredGeneration,
+  checkApiStatus,
 } from '../../services/headsService';
 import HeadsInputForm from './components/HeadsInputForm';
 import PersonaCard from './components/PersonaCard';
 import HeadsExportToolbar from './components/HeadsExportToolbar';
+import axios from 'axios';
 
 export default function HeadsDashboard() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-
   const [formData, setFormData] = useState<HeadsFormData>(DEFAULT_FORM_DATA);
   const [currentView, setCurrentView] = useState<'input' | 'results'>('input');
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -35,38 +32,47 @@ export default function HeadsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [hasSavedData, setHasSavedData] = useState(false);
   const [generatingImageFor, setGeneratingImageFor] = useState<string | null>(null);
-
-  const geminiApiKey = user?.gemini_api_key || '';
+  const [apiConfigured, setApiConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     setHasSavedData(hasStoredGeneration());
+
+    // Check if Gemini API is configured on the server
+    checkApiStatus()
+      .then((status) => {
+        setApiConfigured(status.gemini_configured);
+      })
+      .catch(() => {
+        // If we can't check, assume it's configured (will fail gracefully on generate)
+        setApiConfigured(true);
+      });
   }, []);
 
   const handleGenerate = useCallback(async () => {
-    if (!geminiApiKey) {
-      setError('Please add your Gemini API key in Settings to generate personas.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setPersonas([]);
     setSources([]);
 
     try {
-      const result = await generatePersonas(formData, geminiApiKey);
+      const result = await generatePersonas(formData);
       setPersonas(result.personas);
       setSources(result.sources);
       setCurrentView('results');
       saveGenerationToStorage(result.personas, result.sources, formData);
       setHasSavedData(true);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      let errorMessage = 'An unexpected error occurred.';
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [formData, geminiApiKey]);
+  }, [formData]);
 
   const handleLoadRecent = () => {
     const saved = loadGenerationFromStorage();
@@ -89,17 +95,17 @@ export default function HeadsDashboard() {
   };
 
   const handleGenerateImage = async (persona: Persona, styleKeywords?: string) => {
-    if (!geminiApiKey) {
-      setError('Please add your Gemini API key in Settings to generate images.');
-      return;
-    }
-
     setGeneratingImageFor(persona.id);
     try {
-      const imageBase64 = await generatePersonaImage(persona, geminiApiKey, styleKeywords);
+      const imageBase64 = await generatePersonaImage(persona, styleKeywords);
       handleUpdatePersona({ ...persona, avatarBase64: imageBase64 });
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate image.';
+      let errorMessage = 'Failed to generate image.';
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
       setError(errorMessage);
     } finally {
       setGeneratingImageFor(null);
@@ -179,17 +185,9 @@ MARKETING STRATEGY: ${p.marketingStrategy}
               actionable user personas to guide your marketing strategy.
             </Typography>
 
-            {!geminiApiKey && (
+            {apiConfigured === false && (
               <Alert severity="warning" sx={{ maxWidth: 600, mx: 'auto', mb: 3 }}>
-                Please add your Gemini API key in{' '}
-                <Button
-                  size="small"
-                  onClick={() => navigate('/settings')}
-                  sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
-                >
-                  Settings
-                </Button>{' '}
-                to generate personas.
+                The Gemini API is not configured on the server. Please contact the administrator.
               </Alert>
             )}
 
