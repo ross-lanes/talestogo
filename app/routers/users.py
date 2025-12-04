@@ -145,6 +145,12 @@ def create_invitation(
     # Use specified tenant_id or default to admin's tenant
     tenant_id = invitation.tenant_id if invitation.tenant_id is not None else current_user.tenant_id
 
+    # Convert allowed_products list to comma-separated string for storage
+    # Database stores as TEXT field, not JSON array
+    allowed_products_str = None
+    if invitation.allowed_products:
+        allowed_products_str = ','.join(invitation.allowed_products)
+
     new_user = models.User(
         email=invitation.email,
         full_name=invitation.full_name,
@@ -154,7 +160,7 @@ def create_invitation(
         invitation_token=None,
         invitation_expires_at=None,
         tenant_id=tenant_id,  # Use specified tenant or admin's tenant
-        allowed_products=invitation.allowed_products  # Set product access at invite time
+        allowed_products=allowed_products_str  # Store as comma-separated string
     )
     db.add(new_user)
     db.commit()
