@@ -26,7 +26,7 @@ export default function HowNSTXViewWorks() {
           Overview
         </Typography>
         <Typography variant="body1" paragraph>
-          NSTXView is a research analysis platform for scholarly papers about plasma physics experiments conducted on NSTX (National Spherical Torus Experiment) and NSTX-U (Upgrade) at Princeton Plasma Physics Laboratory. It extracts structured information from hundreds of research papers to help scientists understand what characteristics make plasma "shots" scientifically interesting.
+          NSTXView is a research analysis platform for scholarly papers about plasma physics experiments conducted on National Spherical Torus Experiment (NSTX) and National Spherical Torus Experiment-Upgrade (NSTX-U) at Princeton Plasma Physics Laboratory (PPPL). It extracts structured information from hundreds of research papers to help scientists understand what characteristics make plasma "shots" scientifically interesting.
         </Typography>
         <Typography variant="body1" paragraph>
           The core hypothesis: If researchers wrote a paper about a particular shot or set of shots, those shots must have been interesting in some way. By analyzing what papers say about these shots, NSTXView identifies patterns that define "interestingness" and can potentially apply these criteria to future NSTX-U experiments.
@@ -72,13 +72,13 @@ export default function HowNSTXViewWorks() {
         </Typography>
         <Box component="ul" sx={{ pl: 3, mb: 2 }}>
           <Typography component="li" variant="body1">
-            <strong>Instabilities:</strong> ELMs, kink modes, tearing modes, Alfvén eigenmodes
+            <strong>Instabilities:</strong> Edge-localized modes (ELMs), kink modes, tearing modes, Alfvén eigenmodes
           </Typography>
           <Typography component="li" variant="body1">
-            <strong>Confinement:</strong> H-mode, L-mode, transport barriers
+            <strong>Confinement:</strong> High-confinement mode (H-mode), low-confinement mode (L-mode), transport barriers
           </Typography>
           <Typography component="li" variant="body1">
-            <strong>Disruptions:</strong> VDEs, runaway electrons, thermal quench
+            <strong>Disruptions:</strong> Vertical displacement events (VDEs), runaway electrons, thermal quench
           </Typography>
           <Typography component="li" variant="body1">
             <strong>Divertor:</strong> Detachment, snowflake configurations, lithium conditioning
@@ -99,7 +99,7 @@ export default function HowNSTXViewWorks() {
             <strong>PDF Ingestion:</strong> Papers are ingested from the source folder, and text is extracted preserving structure (sections, tables, figure captions).
           </Typography>
           <Typography component="li" variant="body1" paragraph>
-            <strong>Metadata Extraction:</strong> AI extracts paper metadata including title, authors, journal, DOI, publication year, and abstract.
+            <strong>Metadata Extraction:</strong> Artificial intelligence (AI) extracts paper metadata including title, authors, journal, digital object identifier (DOI), publication year, and abstract.
           </Typography>
           <Typography component="li" variant="body1" paragraph>
             <strong>Shot Extraction:</strong> Shot numbers are identified with their role in the paper (primary focus, comparison, or reference) and associated context.
@@ -237,7 +237,7 @@ export default function HowNSTXViewWorks() {
         </Typography>
 
         <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 3 }}>
-          MCP (Model Context Protocol) for Structured Queries
+          Model Context Protocol (MCP) for Structured Queries
         </Typography>
         <Typography variant="body1" paragraph>
           MCP provides structured database tools for quantitative and precise queries:
@@ -261,20 +261,20 @@ export default function HowNSTXViewWorks() {
         </Typography>
 
         <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mt: 3 }}>
-          RAG (Retrieval Augmented Generation) for Semantic Search
+          Retrieval Augmented Generation (RAG) for Semantic Search
         </Typography>
         <Typography variant="body1" paragraph>
           RAG uses semantic search to find relevant passages for conceptual questions:
         </Typography>
         <Box component="ul" sx={{ pl: 3, mb: 2 }}>
           <Typography component="li" variant="body1">
-            <strong>Conceptual explanations:</strong> "Explain how H-mode transitions occur"
+            <strong>Conceptual explanations:</strong> "Explain how high-confinement mode (H-mode) transitions occur"
           </Typography>
           <Typography component="li" variant="body1">
             <strong>Finding relevant passages:</strong> "What do papers say about lithium coating effects?"
           </Typography>
           <Typography component="li" variant="body1">
-            <strong>Cross-paper synthesis:</strong> "What are common ELM mitigation techniques?"
+            <strong>Cross-paper synthesis:</strong> "What are common edge-localized mode (ELM) mitigation techniques?"
           </Typography>
           <Typography component="li" variant="body1">
             <strong>Method comparisons:</strong> "Different approaches to disruption prediction"
