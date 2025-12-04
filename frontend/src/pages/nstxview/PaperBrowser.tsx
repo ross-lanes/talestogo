@@ -233,7 +233,7 @@ const PaperBrowser: React.FC = () => {
                 <TableCell sx={{ width: '20%' }}>Authors</TableCell>
                 <TableCell sx={{ width: '15%' }}>Journal</TableCell>
                 <TableCell align="center" sx={{ width: '12.5%' }}>Shots</TableCell>
-                <TableCell align="center" sx={{ width: '12.5%' }}>Parameters</TableCell>
+                <TableCell align="center" sx={{ width: '12.5%', pr: '5px' }}>Parameters</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -294,7 +294,7 @@ const PaperBrowser: React.FC = () => {
                       variant="outlined"
                     />
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell align="center" sx={{ pr: '5px' }}>
                     <Chip
                       icon={<ParamIcon />}
                       label={paper.parameter_count}

@@ -280,7 +280,7 @@ const ShotExplorer: React.FC = () => {
                 <TableCell sx={{ width: '28%' }}>Paper</TableCell>
                 <TableCell sx={{ width: '27%' }}>Context</TableCell>
                 <TableCell align="center" sx={{ width: '10%' }}>Parameters</TableCell>
-                <TableCell align="center" sx={{ width: '10%' }}>Phenomena</TableCell>
+                <TableCell align="center" sx={{ width: '10%', pr: '5px' }}>Phenomena</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -349,7 +349,7 @@ const ShotExplorer: React.FC = () => {
                     <TableCell align="center">
                       <Chip label={shot.parameter_count} size="small" variant="outlined" />
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sx={{ pr: '5px' }}>
                       <Chip label={shot.phenomenon_count} size="small" variant="outlined" />
                     </TableCell>
                   </TableRow>
