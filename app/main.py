@@ -32,7 +32,8 @@ from app.routers import (
     brands,
     operations,
     tenants,
-    personas,  # Heads - Persona Intelligence Platform
+    personas,  # Heads - Persona Intelligence Platform (Pharma)
+    heads,  # Heads - Marketing Persona Generation
     canon,  # Canon - FDA Drug Data Research
     nstxview,  # NSTXView - NSTX-U Research Analysis
     migration_helper  # Temporary migration helper
@@ -133,8 +134,11 @@ app.include_router(reports.router)
 app.include_router(reports.how_tales_works_router)
 app.include_router(operations.router)
 
-# Heads - Persona Intelligence Platform
+# Heads - Persona Intelligence Platform (Pharma)
 app.include_router(personas.router)
+
+# Heads - Marketing Persona Generation
+app.include_router(heads.router)
 
 # Canon - FDA Drug Data Research
 app.include_router(canon.router)
