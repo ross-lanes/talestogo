@@ -206,7 +206,7 @@ def validate_shot_number(shot_number: int) -> bool:
 async def list_papers(
     status: Optional[str] = None,
     search: Optional[str] = None,
-    limit: int = Query(default=50, le=200),
+    limit: int = Query(default=50, le=2500),
     offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -216,7 +216,7 @@ async def list_papers(
 
     - **status**: Filter by processing status
     - **search**: Search in title, authors, abstract
-    - **limit**: Maximum number of results (default 50, max 200)
+    - **limit**: Maximum number of results (default 50, max 2500)
     - **offset**: Offset for pagination
     """
     query = db.query(NSTXPaper)
