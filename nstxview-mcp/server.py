@@ -91,11 +91,27 @@ mcp = FastMCP(
     - Look up rate coefficients for impurity species
     - Cross-reference plasma temperatures with collision energy ranges
 
-    ## Common Queries
-    - "What papers discuss H-mode transitions?"
-    - "Show parameters for shot 141234"
-    - "What phenomena are associated with high beta?"
-    - "Find papers about lithium wall conditioning"
+    ## Tool Selection Guide
+
+    Use **semantic_search** for:
+    - Conceptual explanations and understanding
+    - Finding relevant passages across papers
+    - Method comparisons and synthesis
+    - Open-ended exploration of topics
+    - When exact terminology varies across papers
+
+    Use **structured tools** (search_papers, get_shot_details, etc.) for:
+    - Specific shot numbers or quantitative data
+    - Parameter statistics and aggregations
+    - Finding papers by metadata (author, journal, etc.)
+    - Precise data extraction
+
+    ## Common Query Examples
+    - "What papers discuss H-mode transitions?" → search_papers or semantic_search
+    - "Show parameters for shot 141234" → get_shot_details
+    - "Explain how lithium coating affects performance" → semantic_search
+    - "What phenomena are associated with high beta?" → search_phenomena or semantic_search
+    - "Compare different ELM control methods" → semantic_search
     """
 )
 

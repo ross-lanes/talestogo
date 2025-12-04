@@ -143,6 +143,30 @@ NSTXVIEW_TOOLS = [
             },
             "required": ["phenomenon_type"]
         }
+    },
+    {
+        "name": "semantic_search",
+        "description": "Semantic search across paper content for conceptual questions, finding relevant passages, comparing methods, or exploring topics. Use this for qualitative/conceptual information. Returns relevant text excerpts with citations. Do NOT use for quantitative queries - use structured tools instead.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Natural language query describing what to search for"
+                },
+                "top_k": {
+                    "type": "integer",
+                    "description": "Number of relevant passages to return (default 5, max 10)",
+                    "default": 5
+                },
+                "paper_ids": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "Optional: Limit search to specific paper IDs"
+                }
+            },
+            "required": ["query"]
+        }
     }
 ]
 
@@ -175,15 +199,34 @@ You can help researchers:
 - Look up plasma parameter values (temperatures, densities, currents, etc.)
 - Explore phenomena studied in the papers (H-mode, ELMs, instabilities, etc.)
 - Get statistics and summaries from the database
+- Find relevant passages and conceptual explanations across papers
+
+TOOL SELECTION GUIDANCE:
+
+Use **semantic_search** for:
+- Conceptual explanations (e.g., "Explain H-mode transitions", "How does lithium coating work?")
+- Finding relevant passages across papers (e.g., "What do papers say about disruption prediction?")
+- Method comparisons (e.g., "Different approaches to ELM control")
+- Cross-paper synthesis (e.g., "Common challenges in achieving high beta")
+- Open-ended exploration (e.g., "What factors affect confinement time?")
+
+Use **structured tools** (search_papers, query_shots, get_parameter_statistics, etc.) for:
+- Specific shot data (e.g., "What were the parameters for shot 141234?")
+- Quantitative queries (e.g., "Average ion temperature in H-mode")
+- Statistics and aggregations (e.g., "How many papers discuss ELMs?")
+- Finding papers by metadata (e.g., "Papers by author X")
+
+You can use BOTH types of tools together for complex questions that combine concepts and data.
 
 When answering questions:
-1. Use the available tools to query the database for accurate information
+1. Choose the appropriate tool(s) based on the query type
 2. Always cite specific papers with clickable DOI links when available
-3. Provide quantitative data with uncertainty when available
-4. Be precise about plasma physics terminology
-5. Clearly distinguish between what the database shows and what you cannot determine
-6. If the database lacks information to answer a question, say so directly
-7. End with a References section listing all cited papers
+3. When citing from semantic_search results, include the section name if provided
+4. Provide quantitative data with uncertainty when available
+5. Be precise about plasma physics terminology
+6. Clearly distinguish between what the database shows and what you cannot determine
+7. If the database lacks information to answer a question, say so directly
+8. End with a References section listing all cited papers
 
 Shot numbers are 6-digit integers starting with 1 (e.g., 141234).
 Common plasma parameters include: ion_temperature, electron_temperature, electron_density, plasma_current, magnetic_field, beta, confinement_time.
@@ -239,6 +282,12 @@ class NSTXViewChatService:
                 return self._search_by_phenomenon(
                     tool_input.get("phenomenon_type", ""),
                     tool_input.get("limit", 10)
+                )
+            elif tool_name == "semantic_search":
+                return self._semantic_search(
+                    tool_input.get("query", ""),
+                    tool_input.get("top_k", 5),
+                    tool_input.get("paper_ids")
                 )
             else:
                 return json.dumps({"error": f"Unknown tool: {tool_name}"})
@@ -448,6 +497,88 @@ class NSTXViewChatService:
             })
 
         return json.dumps({"phenomena": results, "count": len(results)})
+
+    def _semantic_search(self, query: str, top_k: int, paper_ids: Optional[List[int]]) -> str:
+        """
+        Semantic search across paper chunks using RAG.
+
+        Args:
+            query: Natural language search query
+            top_k: Number of relevant chunks to return
+            paper_ids: Optional list of paper IDs to filter by
+
+        Returns:
+            JSON string with search results including passages and citations
+        """
+        from app.services.nstxview.vector_store import get_vector_store, is_available
+        from app.config import RAG_TOP_K
+
+        # Check if vector store is available
+        if not is_available():
+            return json.dumps({
+                "error": "Semantic search not available. Vector store is not configured."
+            })
+
+        try:
+            vector_store = get_vector_store()
+
+            # Limit top_k to reasonable max
+            top_k = min(top_k, 10)
+            if top_k < 1:
+                top_k = RAG_TOP_K
+
+            # Perform semantic search
+            search_results = vector_store.search(
+                query=query,
+                n_results=top_k,
+                paper_ids=paper_ids
+            )
+
+            # Format results with paper information
+            passages = []
+            for i, (doc_id, content, metadata, distance) in enumerate(zip(
+                search_results["ids"],
+                search_results["documents"],
+                search_results["metadatas"],
+                search_results["distances"]
+            )):
+                paper_id = metadata.get("paper_id")
+                chunk_index = metadata.get("chunk_index")
+                section = metadata.get("section", "")
+
+                # Get paper details
+                paper = self.db.query(NSTXPaper).filter(NSTXPaper.id == paper_id).first()
+
+                passage = {
+                    "rank": i + 1,
+                    "content": content,
+                    "paper_id": paper_id,
+                    "paper_title": paper.title if paper else "Unknown",
+                    "doi": paper.doi if paper else None,
+                    "section": section,
+                    "relevance_score": 1.0 - distance  # Convert distance to similarity
+                }
+
+                # Add authors if available
+                if paper and paper.authors:
+                    try:
+                        authors = json.loads(paper.authors)
+                        if isinstance(authors, list):
+                            passage["authors"] = authors
+                    except:
+                        pass
+
+                passages.append(passage)
+
+            return json.dumps({
+                "query": query,
+                "passages": passages,
+                "count": len(passages)
+            })
+
+        except Exception as e:
+            logger.error(f"Error in semantic search: {e}")
+            return json.dumps({"error": f"Semantic search failed: {str(e)}"})
 
     def chat(self, user_message: str, conversation_history: Optional[List[Dict]] = None) -> Dict[str, Any]:
         """

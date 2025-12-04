@@ -968,11 +968,47 @@ async def search_papers(
     - **limit**: Maximum results (default 10, max 100)
     - **include_content**: Include full chunk content in results
     """
-    # TODO: Implement ChromaDB search
-    # For now, return a placeholder
-    # This will be implemented when ChromaDB integration is complete
+    from app.services.nstxview.vector_store import get_vector_store, is_available
 
-    # Fallback to simple text search
+    # Try ChromaDB first
+    if is_available():
+        try:
+            vector_store = get_vector_store()
+
+            # Perform semantic search
+            search_results = vector_store.search(
+                query=query.query,
+                n_results=query.limit
+            )
+
+            results = []
+            for doc_id, content, metadata, distance in zip(
+                search_results["ids"],
+                search_results["documents"],
+                search_results["metadatas"],
+                search_results["distances"]
+            ):
+                paper_id = metadata.get("paper_id")
+                paper = db.query(NSTXPaper).filter(NSTXPaper.id == paper_id).first()
+
+                chunk_content = content
+                if not query.include_content and len(content) > 500:
+                    chunk_content = content[:500] + "..."
+
+                results.append(SearchResult(
+                    paper_id=paper_id,
+                    paper_title=paper.title if paper else "Unknown",
+                    chunk_content=chunk_content,
+                    section=metadata.get("section"),
+                    relevance_score=1.0 - distance  # Convert distance to similarity score
+                ))
+
+            return results
+
+        except Exception as e:
+            logger.error(f"ChromaDB search failed, falling back to SQL: {e}")
+
+    # Fallback to simple text search if ChromaDB unavailable
     search_term = f"%{query.query}%"
     chunks = db.query(NSTXPaperChunk).join(NSTXPaper).filter(
         NSTXPaperChunk.content.ilike(search_term)
@@ -980,12 +1016,16 @@ async def search_papers(
 
     results = []
     for chunk in chunks:
+        chunk_content = chunk.content
+        if not query.include_content and len(chunk.content) > 500:
+            chunk_content = chunk.content[:500] + "..."
+
         results.append(SearchResult(
             paper_id=chunk.paper_id,
             paper_title=chunk.paper.title,
-            chunk_content=chunk.content[:500] + "..." if len(chunk.content) > 500 else chunk.content,
+            chunk_content=chunk_content,
             section=chunk.section,
-            relevance_score=1.0  # Placeholder
+            relevance_score=0.5  # Lower score for SQL fallback
         ))
 
     return results
@@ -1110,11 +1150,23 @@ async def get_stats(
         func.count(NSTXParameter.id).desc()
     ).limit(5).all()
 
+    # Get embedding statistics
+    papers_with_embeddings = db.query(func.count(NSTXPaper.id)).filter(
+        NSTXPaper.embedding_date.isnot(None)
+    ).scalar()
+    total_chunks = db.query(func.count(NSTXPaperChunk.id)).scalar()
+
+    # Calculate average chunks per paper (for papers with chunks)
+    avg_chunks = 0
+    if papers_with_embeddings > 0:
+        avg_chunks = total_chunks / papers_with_embeddings
+
     return {
         "papers": {
             "total": total_papers,
             "completed": completed_papers,
-            "processing": total_papers - completed_papers
+            "processing": total_papers - completed_papers,
+            "with_embeddings": papers_with_embeddings
         },
         "shots": {
             "total": total_shots,
@@ -1127,6 +1179,11 @@ async def get_stats(
         "phenomena": {
             "total": total_phenomena,
             "top": [{"type": p.phenomenon_type, "count": p.count} for p in top_phenomena]
+        },
+        "embeddings": {
+            "papers_with_embeddings": papers_with_embeddings,
+            "total_chunks": total_chunks,
+            "avg_chunks_per_paper": round(avg_chunks, 1)
         }
     }
 
