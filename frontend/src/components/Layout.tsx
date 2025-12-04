@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isDataReviewer } = useAuth();
   const { tenant } = useTenant();
   const { currentProduct } = useProduct();
 
@@ -180,10 +180,13 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Analyze Parameters', icon: <AnalyticsIcon />, path: '/nstxview/parameters', indent: false },
     { text: 'Phenomena', icon: <AutoAwesomeIcon />, path: '/nstxview/phenomena', indent: false },
     { text: 'Saved Conversations', icon: <BookmarkIcon />, path: '/nstxview/conversations', indent: false },
-    // Admin-only items
-    ...(isAdmin ? [
+    // Data reviewer and admin items
+    ...(isAdmin || isDataReviewer ? [
       { text: 'Outlier Review', icon: <OutlierIcon />, path: '/nstxview/outliers', indent: false },
       { text: 'Threshold Management', icon: <ThresholdIcon />, path: '/nstxview/thresholds', indent: false },
+    ] : []),
+    // Admin-only items
+    ...(isAdmin ? [
       { text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false },
     ] : []),
     { text: 'How NSTXView Works', icon: <InfoIcon />, path: '/how-nstxview-works', indent: false },

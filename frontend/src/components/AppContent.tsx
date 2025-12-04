@@ -555,7 +555,7 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/nstxview/outliers"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireDataReviewer>
                 <Layout>
                   <OutlierReview />
                 </Layout>
@@ -565,7 +565,7 @@ const AppRoutes: React.FC = () => {
           <Route
             path="/nstxview/thresholds"
             element={
-              <ProtectedRoute requireAdmin>
+              <ProtectedRoute requireDataReviewer>
                 <Layout>
                   <ThresholdManagement />
                 </Layout>

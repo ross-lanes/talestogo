@@ -6,10 +6,15 @@ import { useAuth } from '../contexts/AuthContext';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  requireDataReviewer?: boolean;  // Allows both admin and data_reviewer roles
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin = false }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requireAdmin = false,
+  requireDataReviewer = false
+}) => {
+  const { isAuthenticated, isAdmin, isDataReviewer, loading } = useAuth();
 
   if (loading) {
     return (
@@ -31,6 +36,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
   }
 
   if (requireAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requireDataReviewer && !(isAdmin || isDataReviewer)) {
     return <Navigate to="/" replace />;
   }
 

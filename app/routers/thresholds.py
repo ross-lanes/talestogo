@@ -122,7 +122,11 @@ async def list_thresholds(
     List all parameter thresholds.
 
     Returns thresholds ordered by parameter name.
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     query = db.query(ParameterThreshold)
 
     if active_only:
@@ -160,7 +164,11 @@ async def get_threshold_detail(
 ):
     """
     Get full details for a specific threshold.
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     threshold = db.query(ParameterThreshold).filter(
         ParameterThreshold.id == threshold_id
     ).first()
@@ -260,7 +268,11 @@ async def get_threshold_history(
 ):
     """
     Get change history for a specific threshold.
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     # Get threshold
     threshold = db.query(ParameterThreshold).filter(
         ParameterThreshold.id == threshold_id

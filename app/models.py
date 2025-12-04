@@ -38,6 +38,7 @@ class User(Base):
     full_name = Column(String(200))
     organization = Column(String(200))  # The brand/org they're tracking (e.g., "PPPL", "MIT", etc.)
     is_admin = Column(Boolean, default=False)
+    is_data_reviewer = Column(Boolean, default=False)  # Can review outliers and manage thresholds (NSTXView only)
     is_active = Column(Boolean, default=False)  # Must be approved by admin to use system
     is_invited = Column(Boolean, default=False)  # Has received invite email
     # Invitation fields

@@ -122,7 +122,11 @@ async def list_outliers(
     List flagged outliers with optional filters.
 
     Returns a paginated list of parameter measurements flagged as outliers.
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     query = db.query(NSTXParameter).filter(NSTXParameter.is_outlier == True)
 
     # Apply filters
@@ -172,7 +176,11 @@ async def get_outlier_detail(
 ):
     """
     Get full details for a specific outlier including paper context and threshold information.
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     outlier = db.query(NSTXParameter).filter(
         NSTXParameter.id == measurement_id,
         NSTXParameter.is_outlier == True
@@ -246,8 +254,13 @@ async def review_outlier(
     Actions:
     - 'correct': Update with corrected value/unit
     - 'dismiss': Mark as reviewed but keep original value (false positive)
-    - 'delete': Mark for deletion (not implemented yet - requires admin approval)
+    - 'delete': Mark for deletion (requires admin approval)
+
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     # Validate action
     if review.action not in ['correct', 'dismiss', 'delete']:
         raise HTTPException(status_code=400, detail="Invalid action. Must be 'correct', 'dismiss', or 'delete'")
@@ -295,7 +308,11 @@ async def get_outlier_statistics(
 ):
     """
     Get summary statistics about outliers.
+    Requires admin or data_reviewer role.
     """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
     from datetime import timedelta
 
     # Total outliers

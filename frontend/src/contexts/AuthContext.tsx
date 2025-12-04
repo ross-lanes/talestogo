@@ -8,6 +8,7 @@ interface User {
   full_name?: string;
   organization?: string;
   is_admin: boolean;
+  is_data_reviewer: boolean;  // Can review outliers and manage thresholds (NSTXView)
   is_active: boolean;
   is_invited: boolean;
   allowed_products?: string[];  // List of product IDs user can access (e.g., ['tales', 'heads', 'canon'])
@@ -30,6 +31,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isDataReviewer: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -134,6 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     refreshUser,
     isAuthenticated: !!user,
     isAdmin: user?.is_admin || false,
+    isDataReviewer: user?.is_data_reviewer || false,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
