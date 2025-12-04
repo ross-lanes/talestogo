@@ -174,7 +174,7 @@ const ParameterAnalysis: React.FC = () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append('name', searchQuery);
       if (categoryFilter) params.append('category', categoryFilter);
-      params.append('limit', '5000'); // High limit to ensure all parameters are included
+      params.append('limit', '10000'); // High limit to ensure all parameters are included
 
       const response = await fetch(`${API_BASE}/nstxview/parameters?${params}`, {
         headers: {

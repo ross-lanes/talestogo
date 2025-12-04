@@ -101,7 +101,7 @@ const PaperBrowser: React.FC = () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
       params.append('status', 'completed');
-      params.append('limit', '2500');
+      params.append('limit', '10000'); // High limit to ensure all papers are included
 
       const response = await fetch(`${API_BASE}/nstxview/papers?${params}`, {
         headers: {
