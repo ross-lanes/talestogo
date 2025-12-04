@@ -239,8 +239,8 @@ const PaperBrowser: React.FC = () => {
             <TableBody>
               {paginatedPapers.map((paper) => (
                 <TableRow key={paper.id} hover>
-                  <TableCell sx={{ maxWidth: 350 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                       <IconButton
                         size="small"
                         onClick={() => handleViewPaper(paper.id)}
@@ -261,7 +261,9 @@ const PaperBrowser: React.FC = () => {
                             textDecoration: 'none',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
                             '&:hover': { textDecoration: 'underline' },
                           }}
                           title={paper.title || 'Untitled'}
@@ -269,16 +271,34 @@ const PaperBrowser: React.FC = () => {
                           {paper.title || 'Untitled'}
                         </Typography>
                       ) : (
-                        <Typography variant="body2" noWrap title={paper.title || 'Untitled'}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                          title={paper.title || 'Untitled'}
+                        >
                           {paper.title || 'Untitled'}
                         </Typography>
                       )}
                     </Box>
                   </TableCell>
                   <TableCell sx={{ maxWidth: 200 }}>
-                    <Typography variant="body2" noWrap>
-                      {paper.authors?.slice(0, 2).join(', ')}
-                      {paper.authors && paper.authors.length > 2 && ' et al.'}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      {paper.authors?.join(', ') || '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
