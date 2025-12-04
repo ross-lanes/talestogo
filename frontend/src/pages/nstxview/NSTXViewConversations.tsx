@@ -21,6 +21,7 @@ import {
 import {
   Delete as DeleteIcon,
   Chat as ChatIcon,
+  Forum as ForumIcon,
 } from '@mui/icons-material';
 import { api } from '../../services/api';
 
@@ -150,6 +151,13 @@ const NSTXViewConversations: React.FC = () => {
                     onClick={() => handleLoadConversation(conv.id)}
                     sx={{ py: 2 }}
                   >
+                    <ForumIcon
+                      sx={{
+                        mr: 2,
+                        color: 'primary.main',
+                        fontSize: 28,
+                      }}
+                    />
                     <ListItemText
                       primary={conv.title}
                       secondary={
