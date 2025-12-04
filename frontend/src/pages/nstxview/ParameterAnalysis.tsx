@@ -288,7 +288,7 @@ const ParameterAnalysis: React.FC = () => {
 
   const filteredNames = parameterNames.filter(p => {
     if (categoryFilter && p.category !== categoryFilter) return false;
-    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !p.name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 

@@ -248,7 +248,7 @@ const PhenomenaExplorer: React.FC = () => {
 
   const filteredTypes = phenomenaTypes.filter(p => {
     if (categoryFilter && p.category !== categoryFilter) return false;
-    if (searchQuery && !p.type.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !p.type?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
