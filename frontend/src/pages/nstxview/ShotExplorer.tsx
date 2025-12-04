@@ -275,7 +275,7 @@ const ShotExplorer: React.FC = () => {
           <Table sx={{ width: '100%', tableLayout: 'fixed' }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: '15%' }}>Shot Number</TableCell>
+                <TableCell sx={{ width: '15%' }}>Summary</TableCell>
                 <TableCell sx={{ width: '10%' }}>Role</TableCell>
                 <TableCell sx={{ width: '28%' }}>Paper</TableCell>
                 <TableCell sx={{ width: '27%' }}>Context</TableCell>
