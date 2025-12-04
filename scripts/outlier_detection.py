@@ -160,12 +160,28 @@ class OutlierDetector:
 
         # Get measurements to check
         with self.engine.connect() as conn:
-            query = f"""
-                SELECT id, paper_id, parameter_name, parameter_category, value, unit, context, page_number
-                FROM nstx_parameters
-                WHERE {where_clause} AND value IS NOT NULL
-                ORDER BY parameter_name, value DESC
-            """
+            # Check if page_number column exists
+            has_page_number = conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'nstx_parameters'
+                AND column_name = 'page_number'
+            """)).fetchone() is not None
+
+            if has_page_number:
+                query = f"""
+                    SELECT id, paper_id, parameter_name, parameter_category, value, unit, context, page_number
+                    FROM nstx_parameters
+                    WHERE {where_clause} AND value IS NOT NULL
+                    ORDER BY parameter_name, value DESC
+                """
+            else:
+                query = f"""
+                    SELECT id, paper_id, parameter_name, parameter_category, value, unit, context, NULL as page_number
+                    FROM nstx_parameters
+                    WHERE {where_clause} AND value IS NOT NULL
+                    ORDER BY parameter_name, value DESC
+                """
 
             result = conn.execute(text(query), params)
             measurements = result.fetchall()
