@@ -126,7 +126,7 @@ const OutlierReview: React.FC = () => {
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const params = new URLSearchParams();
 
       if (reviewStatusFilter === 'reviewed') {
@@ -162,7 +162,7 @@ const OutlierReview: React.FC = () => {
 
   const fetchStatistics = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const response = await fetch(`${API_BASE}/api/nstxview/outliers/statistics/summary`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -180,7 +180,7 @@ const OutlierReview: React.FC = () => {
 
   const viewOutlierDetail = async (outlierId: number) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const response = await fetch(`${API_BASE}/api/nstxview/outliers/${outlierId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -208,7 +208,7 @@ const OutlierReview: React.FC = () => {
     if (!selectedOutlier) return;
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const payload: any = {
         action: reviewAction,
         notes: reviewNotes,

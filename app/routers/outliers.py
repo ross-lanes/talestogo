@@ -158,10 +158,10 @@ async def list_outliers(
             paper_id=outlier.paper_id,
             paper_title=paper.title if paper else None,
             paper_doi=paper.doi if paper else None,
-            page_number=outlier.page_number,
+            page_number=getattr(outlier, 'page_number', None),
             outlier_reason=outlier.outlier_reason,
             flagged_at=outlier.flagged_at,
-            reviewed=outlier.reviewed,
+            reviewed=outlier.reviewed if outlier.reviewed is not None else False,
             review_action=outlier.review_action
         ))
 
@@ -223,7 +223,7 @@ async def get_outlier_detail(
         paper_title=paper.title if paper else None,
         paper_doi=paper.doi if paper else None,
         paper_authors=authors,
-        page_number=outlier.page_number,
+        page_number=getattr(outlier, 'page_number', None),
         context=outlier.context,
         outlier_reason=outlier.outlier_reason,
         flagged_at=outlier.flagged_at,
@@ -231,7 +231,7 @@ async def get_outlier_detail(
         threshold_min=threshold.min_value if threshold else None,
         threshold_max=threshold.max_value if threshold else None,
         threshold_unit=threshold.expected_unit if threshold else None,
-        reviewed=outlier.reviewed,
+        reviewed=outlier.reviewed if outlier.reviewed is not None else False,
         reviewed_by=outlier.reviewed_by,
         reviewed_at=outlier.reviewed_at,
         review_action=outlier.review_action,
