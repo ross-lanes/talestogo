@@ -168,6 +168,93 @@ async def list_outliers(
     return results
 
 
+# NOTE: /statistics/summary must be defined BEFORE /{measurement_id}
+# to avoid FastAPI treating "statistics" as a measurement_id parameter
+@router.get("/statistics/summary", response_model=OutlierStatistics)
+async def get_outlier_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get summary statistics about outliers.
+    Requires admin or data_reviewer role.
+    """
+    # Check access permissions
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
+    from datetime import timedelta
+
+    # Total outliers
+    total = db.query(func.count(NSTXParameter.id)).filter(
+        NSTXParameter.is_outlier == True
+    ).scalar()
+
+    # Reviewed vs unreviewed
+    unreviewed = db.query(func.count(NSTXParameter.id)).filter(
+        NSTXParameter.is_outlier == True,
+        NSTXParameter.reviewed == False
+    ).scalar()
+
+    reviewed = total - unreviewed
+
+    # By parameter
+    by_param = db.query(
+        NSTXParameter.parameter_name,
+        func.count(NSTXParameter.id).label('count')
+    ).filter(
+        NSTXParameter.is_outlier == True
+    ).group_by(
+        NSTXParameter.parameter_name
+    ).order_by(
+        desc('count')
+    ).all()
+
+    by_parameter = [
+        {"parameter_name": p[0], "count": p[1]}
+        for p in by_param
+    ]
+
+    # By review action
+    by_act = db.query(
+        NSTXParameter.review_action,
+        func.count(NSTXParameter.id).label('count')
+    ).filter(
+        NSTXParameter.is_outlier == True,
+        NSTXParameter.reviewed == True
+    ).group_by(
+        NSTXParameter.review_action
+    ).all()
+
+    by_action = {
+        action: count for action, count in by_act if action
+    }
+
+    # Flagged today
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
+    flagged_today = db.query(func.count(NSTXParameter.id)).filter(
+        NSTXParameter.is_outlier == True,
+        NSTXParameter.flagged_at >= today_start
+    ).scalar()
+
+    # Flagged this week
+    week_start = now - timedelta(days=7)
+    flagged_this_week = db.query(func.count(NSTXParameter.id)).filter(
+        NSTXParameter.is_outlier == True,
+        NSTXParameter.flagged_at >= week_start
+    ).scalar()
+
+    return OutlierStatistics(
+        total_outliers=total,
+        unreviewed_outliers=unreviewed,
+        reviewed_outliers=reviewed,
+        by_parameter=by_parameter,
+        by_action=by_action,
+        flagged_today=flagged_today,
+        flagged_this_week=flagged_this_week
+    )
+
+
 @router.get("/{measurement_id}", response_model=OutlierDetail)
 async def get_outlier_detail(
     measurement_id: int,
@@ -299,88 +386,3 @@ async def review_outlier(
         "measurement_id": measurement_id,
         "action": review.action
     }
-
-
-@router.get("/statistics/summary", response_model=OutlierStatistics)
-async def get_outlier_statistics(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get summary statistics about outliers.
-    Requires admin or data_reviewer role.
-    """
-    # Check access permissions
-    if not (current_user.is_admin or current_user.is_data_reviewer):
-        raise HTTPException(status_code=403, detail="Data reviewer or admin privileges required")
-    from datetime import timedelta
-
-    # Total outliers
-    total = db.query(func.count(NSTXParameter.id)).filter(
-        NSTXParameter.is_outlier == True
-    ).scalar()
-
-    # Reviewed vs unreviewed
-    unreviewed = db.query(func.count(NSTXParameter.id)).filter(
-        NSTXParameter.is_outlier == True,
-        NSTXParameter.reviewed == False
-    ).scalar()
-
-    reviewed = total - unreviewed
-
-    # By parameter
-    by_param = db.query(
-        NSTXParameter.parameter_name,
-        func.count(NSTXParameter.id).label('count')
-    ).filter(
-        NSTXParameter.is_outlier == True
-    ).group_by(
-        NSTXParameter.parameter_name
-    ).order_by(
-        desc('count')
-    ).all()
-
-    by_parameter = [
-        {"parameter_name": p[0], "count": p[1]}
-        for p in by_param
-    ]
-
-    # By review action
-    by_act = db.query(
-        NSTXParameter.review_action,
-        func.count(NSTXParameter.id).label('count')
-    ).filter(
-        NSTXParameter.is_outlier == True,
-        NSTXParameter.reviewed == True
-    ).group_by(
-        NSTXParameter.review_action
-    ).all()
-
-    by_action = {
-        action: count for action, count in by_act if action
-    }
-
-    # Flagged today
-    now = datetime.utcnow()
-    today_start = datetime(now.year, now.month, now.day)
-    flagged_today = db.query(func.count(NSTXParameter.id)).filter(
-        NSTXParameter.is_outlier == True,
-        NSTXParameter.flagged_at >= today_start
-    ).scalar()
-
-    # Flagged this week
-    week_start = now - timedelta(days=7)
-    flagged_this_week = db.query(func.count(NSTXParameter.id)).filter(
-        NSTXParameter.is_outlier == True,
-        NSTXParameter.flagged_at >= week_start
-    ).scalar()
-
-    return OutlierStatistics(
-        total_outliers=total,
-        unreviewed_outliers=unreviewed,
-        reviewed_outliers=reviewed,
-        by_parameter=by_parameter,
-        by_action=by_action,
-        flagged_today=flagged_today,
-        flagged_this_week=flagged_this_week
-    )
