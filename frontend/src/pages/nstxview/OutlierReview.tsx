@@ -141,7 +141,7 @@ const OutlierReview: React.FC = () => {
 
       params.append('limit', '1000');
 
-      const response = await fetch(`${API_BASE}/api/nstxview/outliers?${params}`, {
+      const response = await fetch(`${API_BASE}/nstxview/outliers?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -163,7 +163,7 @@ const OutlierReview: React.FC = () => {
   const fetchStatistics = async () => {
     try {
       const token = localStorage.getItem('tales_access_token');
-      const response = await fetch(`${API_BASE}/api/nstxview/outliers/statistics/summary`, {
+      const response = await fetch(`${API_BASE}/nstxview/outliers/statistics/summary`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -181,7 +181,7 @@ const OutlierReview: React.FC = () => {
   const viewOutlierDetail = async (outlierId: number) => {
     try {
       const token = localStorage.getItem('tales_access_token');
-      const response = await fetch(`${API_BASE}/api/nstxview/outliers/${outlierId}`, {
+      const response = await fetch(`${API_BASE}/nstxview/outliers/${outlierId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -219,7 +219,7 @@ const OutlierReview: React.FC = () => {
         payload.corrected_unit = correctedUnit;
       }
 
-      const response = await fetch(`${API_BASE}/api/nstxview/outliers/${selectedOutlier.id}/review`, {
+      const response = await fetch(`${API_BASE}/nstxview/outliers/${selectedOutlier.id}/review`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

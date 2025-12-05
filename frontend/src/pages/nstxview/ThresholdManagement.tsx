@@ -129,7 +129,7 @@ const ThresholdManagement: React.FC = () => {
         params.append('category', categoryFilter);
       }
 
-      const response = await fetch(`${API_BASE}/api/nstxview/thresholds?${params}`, {
+      const response = await fetch(`${API_BASE}/nstxview/thresholds?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -151,7 +151,7 @@ const ThresholdManagement: React.FC = () => {
   const viewThresholdDetail = async (thresholdId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/nstxview/thresholds/${thresholdId}`, {
+      const response = await fetch(`${API_BASE}/nstxview/thresholds/${thresholdId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -202,7 +202,7 @@ const ThresholdManagement: React.FC = () => {
         payload.max_value = parseFloat(editMaxValue);
       }
 
-      const response = await fetch(`${API_BASE}/api/nstxview/thresholds/${selectedThreshold.id}`, {
+      const response = await fetch(`${API_BASE}/nstxview/thresholds/${selectedThreshold.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -228,7 +228,7 @@ const ThresholdManagement: React.FC = () => {
   const viewHistory = async (thresholdId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/nstxview/thresholds/${thresholdId}/history`, {
+      const response = await fetch(`${API_BASE}/nstxview/thresholds/${thresholdId}/history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -249,7 +249,7 @@ const ThresholdManagement: React.FC = () => {
   const triggerManualReprocessing = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/nstxview/thresholds/reprocess`, {
+      const response = await fetch(`${API_BASE}/nstxview/thresholds/reprocess`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

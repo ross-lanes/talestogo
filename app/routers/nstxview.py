@@ -496,9 +496,10 @@ async def get_parameter_statistics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get aggregate statistics for a specific parameter across all papers"""
+    """Get aggregate statistics for a specific parameter across all papers (excluding outliers)"""
     params = db.query(NSTXParameter).filter(
-        NSTXParameter.parameter_name == parameter_name
+        NSTXParameter.parameter_name == parameter_name,
+        or_(NSTXParameter.is_outlier == False, NSTXParameter.is_outlier.is_(None))
     ).all()
 
     if not params:
@@ -532,13 +533,14 @@ async def get_parameter_histogram(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get histogram data for a specific parameter.
+    Get histogram data for a specific parameter (excluding outliers).
 
     Returns binned value distribution for visualization.
     """
     params = db.query(NSTXParameter).filter(
         NSTXParameter.parameter_name == parameter_name,
-        NSTXParameter.value.isnot(None)
+        NSTXParameter.value.isnot(None),
+        or_(NSTXParameter.is_outlier == False, NSTXParameter.is_outlier.is_(None))
     ).all()
 
     if not params:
@@ -761,11 +763,12 @@ async def get_phenomenon_details(
         for k, v in sorted(co_occurring.items(), key=lambda x: x[1]["count"], reverse=True)[:10]
     ]
 
-    # 3. Related plasma parameters typically measured
+    # 3. Related plasma parameters typically measured (excluding outliers)
     related_parameters = {}
     for paper_id in paper_ids:
         params = db.query(NSTXParameter).filter(
-            NSTXParameter.paper_id == paper_id
+            NSTXParameter.paper_id == paper_id,
+            or_(NSTXParameter.is_outlier == False, NSTXParameter.is_outlier.is_(None))
         ).all()
         for param in params:
             key = param.parameter_name
