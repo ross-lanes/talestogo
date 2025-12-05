@@ -53,6 +53,7 @@ interface OutlierSummary {
   paper_id: number;
   paper_title: string | null;
   paper_doi: string | null;
+  paper_drive_file_id: string | null;
   page_number: number | null;
   outlier_reason: string | null;
   flagged_at: string | null;
@@ -419,17 +420,30 @@ const OutlierReview: React.FC = () => {
                       <Typography variant="body2" noWrap>
                         {outlier.paper_title || 'Unknown'}
                       </Typography>
-                      {outlier.paper_doi && (
-                        <Link
-                          href={formatDOI(outlier.paper_doi) || '#'}
-                          target="_blank"
-                          rel="noopener"
-                          variant="caption"
-                          sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-                        >
-                          View Paper <OpenIcon sx={{ fontSize: 12 }} />
-                        </Link>
-                      )}
+                      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                        {outlier.paper_drive_file_id && (
+                          <Link
+                            href={`https://drive.google.com/file/d/${outlier.paper_drive_file_id}/view`}
+                            target="_blank"
+                            rel="noopener"
+                            variant="caption"
+                            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                          >
+                            View PDF <OpenIcon sx={{ fontSize: 12 }} />
+                          </Link>
+                        )}
+                        {outlier.paper_doi && (
+                          <Link
+                            href={formatDOI(outlier.paper_doi) || '#'}
+                            target="_blank"
+                            rel="noopener"
+                            variant="caption"
+                            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                          >
+                            DOI <OpenIcon sx={{ fontSize: 12 }} />
+                          </Link>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell sx={{ maxWidth: 350 }}>
                       <Typography variant="caption" color="text.secondary">

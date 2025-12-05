@@ -35,6 +35,7 @@ class OutlierSummary(BaseModel):
     paper_id: int
     paper_title: Optional[str]
     paper_doi: Optional[str]
+    paper_drive_file_id: Optional[str]  # For linking to Google Drive PDF
     page_number: Optional[int]
     outlier_reason: Optional[str]
     flagged_at: Optional[datetime]
@@ -173,6 +174,7 @@ async def list_outliers(
             paper_id=outlier.paper_id,
             paper_title=paper.title if paper else None,
             paper_doi=paper.doi if paper else None,
+            paper_drive_file_id=paper.drive_file_id if paper else None,
             page_number=getattr(outlier, 'page_number', None),
             outlier_reason=outlier.outlier_reason,
             flagged_at=outlier.flagged_at,
