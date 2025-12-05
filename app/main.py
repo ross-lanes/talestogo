@@ -272,14 +272,44 @@ if FRONTEND_DIST.exists():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
 
     # Serve other static files from dist root
+    # NOTE: This must be defined AFTER all API routers to avoid intercepting API calls
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
         """Serve the React frontend for all non-API routes"""
         from fastapi.responses import FileResponse
+        from fastapi import HTTPException
 
-        # If path starts with /api/, let FastAPI handle it (shouldn't reach here)
-        if full_path.startswith("api/"):
-            return {"message": "API endpoint not found"}, 404
+        # List of API path prefixes that should NOT be served by frontend
+        # These are handled by FastAPI routers and should return 404 if not found
+        api_prefixes = (
+            "api/",
+            "auth/",
+            "admin/",
+            "brands/",
+            "brand-info/",
+            "queries/",
+            "responses/",
+            "competitors/",
+            "descriptors/",
+            "reports/",
+            "operations/",
+            "tenants/",
+            "personas/",
+            "heads/",
+            "canon/",
+            "nstxview/",
+            "analytics/",
+            "batches/",
+            "scheduled-tasks/",
+            "help/",
+            "tasks/",
+            "docs",
+            "openapi.json",
+            "redoc",
+        )
+
+        if full_path.startswith(api_prefixes):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
 
         # Try to serve the specific file if it exists
         file_path = FRONTEND_DIST / full_path
