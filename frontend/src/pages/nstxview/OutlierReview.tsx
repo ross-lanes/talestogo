@@ -141,7 +141,7 @@ const OutlierReview: React.FC = () => {
 
       params.append('limit', '1000');
 
-      const response = await fetch(`${API_BASE}/nstxview/outliers?${params}`, {
+      const response = await fetch(`${API_BASE}/nstxview/outliers/?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

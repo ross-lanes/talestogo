@@ -129,7 +129,7 @@ const ThresholdManagement: React.FC = () => {
         params.append('category', categoryFilter);
       }
 
-      const response = await fetch(`${API_BASE}/nstxview/thresholds?${params}`, {
+      const response = await fetch(`${API_BASE}/nstxview/thresholds/?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
