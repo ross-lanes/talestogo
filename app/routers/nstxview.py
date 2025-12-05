@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 class PaperSummary(BaseModel):
     """Summary of a paper for list views"""
     id: int
+    drive_file_id: str
     title: Optional[str]
     authors: Optional[List[str]]
     journal: Optional[str]
@@ -79,6 +80,8 @@ class ShotSummary(BaseModel):
     role: str
     paper_id: int
     paper_title: Optional[str]
+    paper_doi: Optional[str]
+    paper_drive_file_id: Optional[str]
     context: Optional[str]
     parameter_count: int
     phenomenon_count: int
@@ -96,6 +99,8 @@ class ShotDetail(BaseModel):
     characteristics: Optional[dict]
     paper_id: int
     paper_title: Optional[str]
+    paper_doi: Optional[str]
+    paper_drive_file_id: Optional[str]
     parameters: List[dict]
     phenomena: List[dict]
 
@@ -116,6 +121,8 @@ class ParameterSummary(BaseModel):
     shot_number: Optional[int]
     paper_id: int
     paper_title: Optional[str]
+    paper_doi: Optional[str]
+    paper_drive_file_id: Optional[str]
 
     class Config:
         from_attributes = True
@@ -142,6 +149,8 @@ class PhenomenonSummary(BaseModel):
     is_primary_focus: bool
     paper_id: int
     paper_title: Optional[str]
+    paper_doi: Optional[str]
+    paper_drive_file_id: Optional[str]
     shot_number: Optional[int]
 
     class Config:
@@ -244,6 +253,7 @@ async def list_papers(
 
         results.append(PaperSummary(
             id=paper.id,
+            drive_file_id=paper.drive_file_id,
             title=paper.title,
             authors=parse_json_field(paper.authors),
             journal=paper.journal,
@@ -361,6 +371,8 @@ async def list_shots(
             role=shot.role,
             paper_id=shot.paper_id,
             paper_title=shot.paper.title,
+            paper_doi=shot.paper.doi,
+            paper_drive_file_id=shot.paper.drive_file_id,
             context=shot.context,
             parameter_count=param_count,
             phenomenon_count=phenom_count
@@ -425,6 +437,8 @@ async def get_shot(
             characteristics=parse_json_field(shot.characteristics) if shot.characteristics else None,
             paper_id=shot.paper_id,
             paper_title=shot.paper.title,
+            paper_doi=shot.paper.doi,
+            paper_drive_file_id=shot.paper.drive_file_id,
             parameters=param_list,
             phenomena=phenom_list
         ))
@@ -484,7 +498,9 @@ async def list_parameters(
             uncertainty=p.uncertainty,
             shot_number=shot_num,
             paper_id=p.paper_id,
-            paper_title=p.paper.title
+            paper_title=p.paper.title,
+            paper_doi=p.paper.doi,
+            paper_drive_file_id=p.paper.drive_file_id
         ))
 
     return results
@@ -666,6 +682,8 @@ async def list_phenomena(
             is_primary_focus=ph.is_primary_focus,
             paper_id=ph.paper_id,
             paper_title=ph.paper.title,
+            paper_doi=ph.paper.doi,
+            paper_drive_file_id=ph.paper.drive_file_id,
             shot_number=shot_num
         ))
 

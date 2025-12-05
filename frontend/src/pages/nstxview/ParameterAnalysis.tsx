@@ -35,6 +35,7 @@ import {
   Refresh as RefreshIcon,
   BarChart as ChartIcon,
   PieChart as PieChartIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -70,6 +71,8 @@ interface ParameterValue {
   shot_number: number | null;
   paper_id: number;
   paper_title: string | null;
+  paper_doi: string | null;
+  paper_drive_file_id: string | null;
 }
 
 interface ParameterStatistics {
@@ -581,9 +584,51 @@ const ParameterAnalysis: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell sx={{ maxWidth: 200 }}>
-                    <Typography variant="body2" noWrap>
-                      {param.paper_title || '-'}
-                    </Typography>
+                    <Box>
+                      <Typography variant="body2" noWrap>
+                        {param.paper_title || '-'}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
+                        {param.paper_drive_file_id && (
+                          <Typography
+                            variant="caption"
+                            component="a"
+                            href={`https://drive.google.com/file/d/${param.paper_drive_file_id}/view`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            PDF <OpenInNewIcon sx={{ fontSize: 12 }} />
+                          </Typography>
+                        )}
+                        {param.paper_doi && (
+                          <Typography
+                            variant="caption"
+                            component="a"
+                            href={param.paper_doi.startsWith('http') ? param.paper_doi : `https://doi.org/${param.paper_doi}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            DOI <OpenInNewIcon sx={{ fontSize: 12 }} />
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}

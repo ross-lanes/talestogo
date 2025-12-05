@@ -43,6 +43,7 @@ import {
   Bolt as ShotIcon,
   Link as LinkIcon,
   Analytics as ParameterIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -61,6 +62,8 @@ interface PhenomenonSummary {
   is_primary_focus: boolean;
   paper_id: number;
   paper_title: string | null;
+  paper_doi: string | null;
+  paper_drive_file_id: string | null;
   shot_number: number | null;
 }
 
@@ -449,9 +452,51 @@ const PhenomenaExplorer: React.FC = () => {
                     )}
                   </TableCell>
                   <TableCell sx={{ maxWidth: 200 }}>
-                    <Typography variant="body2" noWrap>
-                      {phenom.paper_title || '-'}
-                    </Typography>
+                    <Box>
+                      <Typography variant="body2" noWrap>
+                        {phenom.paper_title || '-'}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
+                        {phenom.paper_drive_file_id && (
+                          <Typography
+                            variant="caption"
+                            component="a"
+                            href={`https://drive.google.com/file/d/${phenom.paper_drive_file_id}/view`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            PDF <OpenInNewIcon sx={{ fontSize: 12 }} />
+                          </Typography>
+                        )}
+                        {phenom.paper_doi && (
+                          <Typography
+                            variant="caption"
+                            component="a"
+                            href={phenom.paper_doi.startsWith('http') ? phenom.paper_doi : `https://doi.org/${phenom.paper_doi}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            DOI <OpenInNewIcon sx={{ fontSize: 12 }} />
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ))}

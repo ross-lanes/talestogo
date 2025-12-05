@@ -38,6 +38,7 @@ import {
   Refresh as RefreshIcon,
   Visibility as ViewIcon,
   Description as PaperIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -49,6 +50,8 @@ interface ShotSummary {
   role: string;
   paper_id: number;
   paper_title: string | null;
+  paper_doi: string | null;
+  paper_drive_file_id: string | null;
   context: string | null;
   parameter_count: number;
   phenomenon_count: number;
@@ -62,6 +65,8 @@ interface ShotDetail {
   characteristics: Record<string, any> | null;
   paper_id: number;
   paper_title: string | null;
+  paper_doi: string | null;
+  paper_drive_file_id: string | null;
   parameters: Array<{
     name: string;
     category: string | null;
@@ -337,19 +342,63 @@ const ShotExplorer: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                        }}
-                        title={shot.paper_title || ''}
-                      >
-                        {shot.paper_title || 'Unknown'}
-                      </Typography>
+                      <Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                          title={shot.paper_title || ''}
+                        >
+                          {shot.paper_title || 'Unknown'}
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
+                          {shot.paper_drive_file_id && (
+                            <Typography
+                              variant="caption"
+                              component="a"
+                              href={`https://drive.google.com/file/d/${shot.paper_drive_file_id}/view`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{
+                                color: 'primary.main',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                '&:hover': { textDecoration: 'underline' },
+                              }}
+                            >
+                              PDF <OpenInNewIcon sx={{ fontSize: 12 }} />
+                            </Typography>
+                          )}
+                          {shot.paper_doi && (
+                            <Typography
+                              variant="caption"
+                              component="a"
+                              href={shot.paper_doi.startsWith('http') ? shot.paper_doi : `https://doi.org/${shot.paper_doi}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{
+                                color: 'primary.main',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                '&:hover': { textDecoration: 'underline' },
+                              }}
+                            >
+                              DOI <OpenInNewIcon sx={{ fontSize: 12 }} />
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Typography
@@ -418,16 +467,58 @@ const ShotExplorer: React.FC = () => {
                 <Card key={shot.id} sx={{ mb: 2 }}>
                   <CardContent>
                     {/* Paper Reference */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                      <PaperIcon color="action" />
-                      <Typography variant="subtitle1">
-                        {shot.paper_title || 'Unknown Paper'}
-                      </Typography>
-                      <Chip
-                        label={shot.role}
-                        size="small"
-                        color={roleColors[shot.role] || 'default'}
-                      />
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PaperIcon color="action" />
+                        <Typography variant="subtitle1">
+                          {shot.paper_title || 'Unknown Paper'}
+                        </Typography>
+                        <Chip
+                          label={shot.role}
+                          size="small"
+                          color={roleColors[shot.role] || 'default'}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1.5, ml: 4, mt: 0.5 }}>
+                        {shot.paper_drive_file_id && (
+                          <Typography
+                            variant="caption"
+                            component="a"
+                            href={`https://drive.google.com/file/d/${shot.paper_drive_file_id}/view`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            View PDF <OpenInNewIcon sx={{ fontSize: 12 }} />
+                          </Typography>
+                        )}
+                        {shot.paper_doi && (
+                          <Typography
+                            variant="caption"
+                            component="a"
+                            href={shot.paper_doi.startsWith('http') ? shot.paper_doi : `https://doi.org/${shot.paper_doi}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              color: 'primary.main',
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5,
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            DOI <OpenInNewIcon sx={{ fontSize: 12 }} />
+                          </Typography>
+                        )}
+                      </Box>
                     </Box>
 
                     {/* Context */}

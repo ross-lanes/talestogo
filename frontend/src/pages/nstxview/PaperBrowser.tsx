@@ -39,6 +39,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 interface PaperSummary {
   id: number;
+  drive_file_id: string;
   title: string | null;
   authors: string[] | null;
   journal: string | null;
@@ -249,28 +250,7 @@ const PaperBrowser: React.FC = () => {
                       >
                         <ViewIcon fontSize="small" />
                       </IconButton>
-                      {paper.doi ? (
-                        <Typography
-                          variant="body2"
-                          component="a"
-                          href={paper.doi.startsWith('http') ? paper.doi : `https://doi.org/${paper.doi}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          sx={{
-                            color: 'primary.main',
-                            textDecoration: 'none',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            '&:hover': { textDecoration: 'underline' },
-                          }}
-                          title={paper.title || 'Untitled'}
-                        >
-                          {paper.title || 'Untitled'}
-                        </Typography>
-                      ) : (
+                      <Box sx={{ overflow: 'hidden' }}>
                         <Typography
                           variant="body2"
                           sx={{
@@ -284,7 +264,47 @@ const PaperBrowser: React.FC = () => {
                         >
                           {paper.title || 'Untitled'}
                         </Typography>
-                      )}
+                        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5 }}>
+                          {paper.drive_file_id && (
+                            <Typography
+                              variant="caption"
+                              component="a"
+                              href={`https://drive.google.com/file/d/${paper.drive_file_id}/view`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                color: 'primary.main',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                '&:hover': { textDecoration: 'underline' },
+                              }}
+                            >
+                              PDF <OpenInNewIcon sx={{ fontSize: 12 }} />
+                            </Typography>
+                          )}
+                          {paper.doi && (
+                            <Typography
+                              variant="caption"
+                              component="a"
+                              href={paper.doi.startsWith('http') ? paper.doi : `https://doi.org/${paper.doi}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                color: 'primary.main',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                '&:hover': { textDecoration: 'underline' },
+                              }}
+                            >
+                              DOI <OpenInNewIcon sx={{ fontSize: 12 }} />
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
                     </Box>
                   </TableCell>
                   <TableCell sx={{ maxWidth: 200 }}>
@@ -352,25 +372,52 @@ const PaperBrowser: React.FC = () => {
         <DialogTitle>
           {detailLoading ? (
             'Loading...'
-          ) : selectedPaper?.doi ? (
-            <Typography
-              component="a"
-              href={selectedPaper.doi.startsWith('http') ? selectedPaper.doi : `https://doi.org/${selectedPaper.doi}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                color: 'primary.main',
-                textDecoration: 'none',
-                '&:hover': { textDecoration: 'underline' },
-                fontSize: 'inherit',
-                fontWeight: 'inherit',
-              }}
-            >
-              {selectedPaper?.title || 'Paper Details'}
-              <OpenInNewIcon sx={{ fontSize: 16, ml: 0.5, verticalAlign: 'middle' }} />
-            </Typography>
           ) : (
-            selectedPaper?.title || 'Paper Details'
+            <Box>
+              <Typography variant="h6" component="span">
+                {selectedPaper?.title || 'Paper Details'}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                {selectedPaper?.drive_file_id && (
+                  <Typography
+                    variant="caption"
+                    component="a"
+                    href={`https://drive.google.com/file/d/${selectedPaper.drive_file_id}/view`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                  >
+                    View PDF <OpenInNewIcon sx={{ fontSize: 12 }} />
+                  </Typography>
+                )}
+                {selectedPaper?.doi && (
+                  <Typography
+                    variant="caption"
+                    component="a"
+                    href={selectedPaper.doi.startsWith('http') ? selectedPaper.doi : `https://doi.org/${selectedPaper.doi}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                  >
+                    DOI <OpenInNewIcon sx={{ fontSize: 12 }} />
+                  </Typography>
+                )}
+              </Box>
+            </Box>
           )}
         </DialogTitle>
         <DialogContent>

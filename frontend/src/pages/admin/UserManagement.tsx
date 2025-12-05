@@ -52,6 +52,7 @@ interface User {
   organization?: string;
   tenant_id?: number;
   is_admin: boolean;
+  is_data_reviewer: boolean;
   is_active: boolean;
   is_invited: boolean;
   allowed_products?: string[];  // List of product IDs user can access
@@ -519,10 +520,19 @@ RobotRachel`;
     },
     {
       field: 'is_admin',
-      headerName: 'Admin',
-      width: 100,
-      renderCell: (params) =>
-        params.value ? <Chip label="Admin" color="primary" size="small" /> : null,
+      headerName: 'Type',
+      width: 150,
+      renderCell: (params) => {
+        const user = params.row as User;
+        const chips = [];
+        if (user.is_admin) {
+          chips.push(<Chip key="admin" label="Admin" color="primary" size="small" sx={{ mr: 0.5 }} />);
+        }
+        if (user.is_data_reviewer) {
+          chips.push(<Chip key="reviewer" label="Data Reviewer" color="secondary" size="small" />);
+        }
+        return chips.length > 0 ? <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{chips}</Box> : null;
+      },
     },
     {
       field: 'allowed_products',

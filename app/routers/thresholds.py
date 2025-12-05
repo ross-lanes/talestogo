@@ -208,11 +208,11 @@ async def update_threshold(
     Update a threshold's min/max values.
 
     Creates a history record and optionally triggers reprocessing.
-    Requires admin privileges.
+    Requires admin or data_reviewer privileges.
     """
-    # Check admin permission
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin privileges required")
+    # Check permission - admin or data_reviewer can update thresholds
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Admin or data reviewer privileges required")
 
     # Find threshold
     threshold = db.query(ParameterThreshold).filter(
@@ -317,11 +317,11 @@ async def trigger_reprocessing(
     """
     Trigger reprocessing of all measurements with current thresholds.
 
-    Requires admin privileges.
+    Requires admin or data_reviewer privileges.
     """
-    # Check admin permission
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin privileges required")
+    # Check permission - admin or data_reviewer can trigger reprocessing
+    if not (current_user.is_admin or current_user.is_data_reviewer):
+        raise HTTPException(status_code=403, detail="Admin or data reviewer privileges required")
 
     # Run outlier detection script in background
     background_tasks.add_task(

@@ -381,11 +381,6 @@ const ThresholdManagement: React.FC = () => {
                     <Typography variant="body2" fontWeight="medium">
                       {threshold.parameter_name}
                     </Typography>
-                    {threshold.parameter_pattern && (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        Pattern: {threshold.parameter_pattern}
-                      </Typography>
-                    )}
                   </TableCell>
                   <TableCell>
                     {threshold.min_value !== null ? threshold.min_value : '—'}

@@ -377,6 +377,7 @@ class UserUpdate(BaseModel):
 class User(UserBase):
     id: int
     is_admin: bool
+    is_data_reviewer: bool = False  # Can review outliers and manage thresholds (NSTXView only)
     is_active: bool
     is_invited: bool
     google_id: Optional[str] = None
