@@ -121,7 +121,7 @@ const ThresholdManagement: React.FC = () => {
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const params = new URLSearchParams();
       params.append('active_only', 'true');
 
@@ -150,7 +150,7 @@ const ThresholdManagement: React.FC = () => {
 
   const viewThresholdDetail = async (thresholdId: number) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const response = await fetch(`${API_BASE}/nstxview/thresholds/${thresholdId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -189,7 +189,7 @@ const ThresholdManagement: React.FC = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const payload: any = {
         reason: editReason,
         trigger_reprocessing: triggerReprocessing,
@@ -227,7 +227,7 @@ const ThresholdManagement: React.FC = () => {
 
   const viewHistory = async (thresholdId: number) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const response = await fetch(`${API_BASE}/nstxview/thresholds/${thresholdId}/history`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -248,7 +248,7 @@ const ThresholdManagement: React.FC = () => {
 
   const triggerManualReprocessing = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('tales_access_token');
       const response = await fetch(`${API_BASE}/nstxview/thresholds/reprocess`, {
         method: 'POST',
         headers: {

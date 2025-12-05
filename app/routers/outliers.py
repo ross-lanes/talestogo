@@ -40,6 +40,9 @@ class OutlierSummary(BaseModel):
     flagged_at: Optional[datetime]
     reviewed: bool
     review_action: Optional[str]
+    # Threshold info for context
+    threshold_min: Optional[float]
+    threshold_max: Optional[float]
 
     class Config:
         from_attributes = True
@@ -145,10 +148,22 @@ async def list_outliers(
     # Apply pagination
     outliers = query.offset(offset).limit(limit).all()
 
-    # Build response with paper info
+    # Build response with paper and threshold info
     results = []
     for outlier in outliers:
         paper = db.query(NSTXPaper).filter(NSTXPaper.id == outlier.paper_id).first()
+
+        # Get threshold info if available
+        threshold_min = None
+        threshold_max = None
+        if outlier.flagged_by_threshold_id:
+            threshold = db.query(ParameterThreshold).filter(
+                ParameterThreshold.id == outlier.flagged_by_threshold_id
+            ).first()
+            if threshold:
+                threshold_min = threshold.min_value
+                threshold_max = threshold.max_value
+
         results.append(OutlierSummary(
             id=outlier.id,
             parameter_name=outlier.parameter_name,
@@ -162,7 +177,9 @@ async def list_outliers(
             outlier_reason=outlier.outlier_reason,
             flagged_at=outlier.flagged_at,
             reviewed=outlier.reviewed if outlier.reviewed is not None else False,
-            review_action=outlier.review_action
+            review_action=outlier.review_action,
+            threshold_min=threshold_min,
+            threshold_max=threshold_max
         ))
 
     return results

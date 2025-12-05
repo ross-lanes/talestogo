@@ -58,6 +58,8 @@ interface OutlierSummary {
   flagged_at: string | null;
   reviewed: boolean;
   review_action: string | null;
+  threshold_min: number | null;
+  threshold_max: number | null;
 }
 
 interface OutlierDetail {
@@ -399,11 +401,16 @@ const OutlierReview: React.FC = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" color="error">
+                      <Typography variant="body2" color="error" fontWeight="medium">
                         {outlier.value} {outlier.unit}
                       </Typography>
+                      {(outlier.threshold_min !== null || outlier.threshold_max !== null) && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          Normal: {outlier.threshold_min ?? '—'} – {outlier.threshold_max ?? '—'} {outlier.unit}
+                        </Typography>
+                      )}
                       {outlier.page_number && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                           Page {outlier.page_number}
                         </Typography>
                       )}
