@@ -75,45 +75,6 @@ class _Settings:
 settings = _Settings()
 
 
-# NSTXView Configuration
-NSTXVIEW_DRIVE_FOLDER_ID = os.getenv("NSTXVIEW_DRIVE_FOLDER_ID", "1XLpytG-6s8ZWOjYmoPFynhqmlPIMowuC")
-"""Google Drive folder ID containing NSTX papers."""
-
-NSTXVIEW_STORAGE_BUCKET = os.getenv("NSTXVIEW_STORAGE_BUCKET", "")
-"""S3/GCS bucket for cached PDFs. If empty, uses local storage."""
-
-CHROMADB_HOST = os.getenv("CHROMADB_HOST", "")
-"""ChromaDB server host. If empty, uses local persistent storage."""
-
-CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8000"))
-"""ChromaDB server port."""
-
-# Get project root for default persist directory
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROMADB_PERSIST_DIR = os.getenv("CHROMADB_PERSIST_DIR", os.path.join(_PROJECT_ROOT, "data", "chromadb"))
-"""Directory for ChromaDB persistent storage. Used when CHROMADB_HOST is empty."""
-
-# Embedding Configuration for RAG
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-"""
-Sentence transformer model for generating embeddings.
-
-Options:
-- all-MiniLM-L6-v2: Fast, good quality (384 dimensions) - RECOMMENDED
-- all-mpnet-base-v2: Higher quality (768 dimensions, slower)
-- multi-qa-mpnet-base-dot-v1: Optimized for Q&A tasks
-"""
-
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))
-"""Target chunk size in words (default 500 = approximately 2-3 paragraphs)."""
-
-CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "50"))
-"""Number of words to overlap between chunks for context preservation."""
-
-RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
-"""Number of relevant chunks to retrieve for RAG queries."""
-
-
 # Tenant Product Access Configuration
 class TenantConfig:
     """Configuration for tenant-specific product access"""
@@ -121,7 +82,7 @@ class TenantConfig:
     # Map tenant names to allowed products
     TENANT_PRODUCTS: Dict[str, List[str]] = {
         "Solstice HC": ["tales", "heads", "vision", "pulse", "voice", "guardian"],
-        "Princeton University": ["tales", "nstxview"],  # Tales and NSTXView
+        "Princeton University": ["tales"],
         # Default for any other tenant
         "default": ["tales"]
     }

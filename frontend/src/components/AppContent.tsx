@@ -25,7 +25,6 @@ import Recommendations from '../pages/analytics/Recommendations';
 import HowTalesWorks from '../pages/HowTalesWorks';
 import HowHeadsWorks from '../pages/HowHeadsWorks';
 import HowCanonWorks from '../pages/HowCanonWorks';
-import HowNSTXViewWorks from '../pages/HowNSTXViewWorks';
 import Help from '../pages/Help';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
@@ -45,18 +44,6 @@ import {
   CanonDocuments,
   CanonSavedSearches,
 } from '../pages/canon';
-// NSTXView - NSTX-U Research Analysis pages
-import {
-  NSTXViewDashboard,
-  PaperBrowser,
-  ShotExplorer,
-  ParameterAnalysis,
-  PhenomenaExplorer,
-  ProcessingStatus,
-  NSTXViewConversations,
-  OutlierReview,
-  ThresholdManagement,
-} from '../pages/nstxview';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
@@ -280,16 +267,6 @@ const AppRoutes: React.FC = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/how-nstxview-works"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <HowNSTXViewWorks />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
 
           {/* Help Route */}
           <Route
@@ -476,98 +453,6 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <CanonSavedSearches />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* NSTXView - NSTX-U Research Analysis Routes */}
-          <Route
-            path="/nstxview"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <NSTXViewDashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/papers"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <PaperBrowser />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/shots"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ShotExplorer />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/parameters"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ParameterAnalysis />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/phenomena"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <PhenomenaExplorer />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/processing"
-            element={
-              <ProtectedRoute requireAdmin>
-                <Layout>
-                  <ProcessingStatus />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/conversations"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <NSTXViewConversations />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/outliers"
-            element={
-              <ProtectedRoute requireDataReviewer>
-                <Layout>
-                  <OutlierReview />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/nstxview/thresholds"
-            element={
-              <ProtectedRoute requireDataReviewer>
-                <Layout>
-                  <ThresholdManagement />
                 </Layout>
               </ProtectedRoute>
             }

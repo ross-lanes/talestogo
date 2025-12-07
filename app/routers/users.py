@@ -212,27 +212,7 @@ async def send_invitation_email(
         login_instruction = f'- Sign in with {user.email} using the Google or Microsoft login buttons.'
 
     # Generate email content based on primary product
-    if primary_product == 'nstxview':
-        subject = 'Welcome to NSTXView - Your NSTX Research Portal'
-        body = f"""Hi {user.full_name or user.email},
-
-You've been invited to NSTXView, a research tool for exploring NSTX and NSTX-U scientific papers with AI-powered search and analysis.
-
-Access NSTXView at {production_url}.
-{login_instruction}
-
-Features:
-- Browse 90+ NSTX/NSTX-U papers with full-text search
-- AI chat powered by Claude with paper context
-- Query shots, parameters, and phenomena
-- Search by author, year, or topic
-
-Questions? Contact admin@robotrachel.com.
-
-Best regards,
-The NSTXView Team"""
-
-    elif primary_product == 'heads':
+    if primary_product == 'heads':
         subject = 'Welcome to Heads - Patient & HCP Voice Intelligence'
         body = f"""Hi {user.full_name or user.email},
 

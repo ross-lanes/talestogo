@@ -52,7 +52,6 @@ interface User {
   organization?: string;
   tenant_id?: number;
   is_admin: boolean;
-  is_data_reviewer: boolean;
   is_active: boolean;
   is_invited: boolean;
   allowed_products?: string[];  // List of product IDs user can access
@@ -117,7 +116,6 @@ const UserManagement: React.FC = () => {
     { id: 'tales', name: 'Tales', description: 'Brand Reputation Monitor' },
     { id: 'heads', name: 'Heads', description: 'AI-Powered Persona Generator' },
     { id: 'canon', name: 'Canon', description: 'FDA Drug Data Research' },
-    { id: 'nstxview', name: 'NSTXView', description: 'NSTX-U Research Analysis' },
   ];
 
   // Menu state
@@ -524,14 +522,10 @@ RobotRachel`;
       width: 150,
       renderCell: (params) => {
         const user = params.row as User;
-        const chips = [];
         if (user.is_admin) {
-          chips.push(<Chip key="admin" label="Admin" color="primary" size="small" sx={{ mr: 0.5 }} />);
+          return <Chip label="Admin" color="primary" size="small" />;
         }
-        if (user.is_data_reviewer) {
-          chips.push(<Chip key="reviewer" label="Data Reviewer" color="secondary" size="small" />);
-        }
-        return chips.length > 0 ? <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>{chips}</Box> : null;
+        return null;
       },
     },
     {

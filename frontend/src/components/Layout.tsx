@@ -44,11 +44,8 @@ import {
   Business as BusinessIcon,
   Search as SearchIcon,
   CompareArrows as CompareIcon,
-  Bookmark as BookmarkIcon,
   AutoAwesome as AutoAwesomeIcon,
   Storage as StorageIcon,
-  FlagOutlined as OutlierIcon,
-  Speed as ThresholdIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,7 +69,6 @@ const PRODUCT_TAGLINES: Record<string, string> = {
   tales: 'Shape your AI story.',
   heads: 'Know your audience.',
   canon: 'Research FDA data.',
-  nstxview: 'Call the shots.',
   vision: 'See the market clearly.',
   pulse: 'Measure what matters.',
   voice: 'Optimize every word.',
@@ -88,7 +84,7 @@ export default function Layout({ children }: LayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isAdmin, isDataReviewer } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { tenant } = useTenant();
   const { currentProduct } = useProduct();
 
@@ -172,26 +168,6 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'How Heads Works', icon: <InfoIcon />, path: '/how-heads-works', indent: false },
   ];
 
-  // NSTXView navigation menu items
-  const nstxviewMenuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/nstxview', indent: false },
-    { text: 'Browse Papers', icon: <ReportIcon />, path: '/nstxview/papers', indent: false },
-    { text: 'Explore Shots', icon: <TrendingUpIcon />, path: '/nstxview/shots', indent: false },
-    { text: 'Analyze Parameters', icon: <AnalyticsIcon />, path: '/nstxview/parameters', indent: false },
-    { text: 'Phenomena', icon: <AutoAwesomeIcon />, path: '/nstxview/phenomena', indent: false },
-    { text: 'Saved Conversations', icon: <BookmarkIcon />, path: '/nstxview/conversations', indent: false },
-    // Data reviewer and admin items
-    ...(isAdmin || isDataReviewer ? [
-      { text: 'Outlier Review', icon: <OutlierIcon />, path: '/nstxview/outliers', indent: false },
-      { text: 'Threshold Management', icon: <ThresholdIcon />, path: '/nstxview/thresholds', indent: false },
-    ] : []),
-    // Admin-only items
-    ...(isAdmin ? [
-      { text: 'Processing Status', icon: <SettingsIcon />, path: '/nstxview/processing', indent: false },
-    ] : []),
-    { text: 'How NSTXView Works', icon: <InfoIcon />, path: '/how-nstxview-works', indent: false },
-  ];
-
   // Select menu items based on current product
   const getMenuItems = () => {
     switch (currentProduct.id) {
@@ -199,8 +175,6 @@ export default function Layout({ children }: LayoutProps) {
         return canonMenuItems;
       case 'heads':
         return headsMenuItems;
-      case 'nstxview':
-        return nstxviewMenuItems;
       default:
         return talesMenuItems;
     }
@@ -257,33 +231,17 @@ export default function Layout({ children }: LayoutProps) {
       color: 'common.white',             // ensure secondary text is white
     }}
   >
-    {currentProduct.id === 'nstxview' ? (
-      <Typography
-        variant="h4"
-        component="div"
-        sx={{
-          fontWeight: 900,
-          letterSpacing: '-0.5px',
-          color: 'common.white',
-          textAlign: 'center',
-          fontSize: { xs: '1.5rem', sm: '2rem' },
-        }}
-      >
-        NSTXView
-      </Typography>
-    ) : (
-      <Box
-        component="img"
-        src={PRODUCT_LOGOS[currentProduct.id] || currentProduct.logoPath}
-        alt={currentProduct.name}
-        sx={{
-          width: { xs: 100, sm: 120 }, // Smaller logo on mobile
-          maxWidth: '100%',
-          display: 'block',
-          margin: '0 auto',
-        }}
-      />
-    )}
+    <Box
+      component="img"
+      src={PRODUCT_LOGOS[currentProduct.id] || currentProduct.logoPath}
+      alt={currentProduct.name}
+      sx={{
+        width: { xs: 100, sm: 120 }, // Smaller logo on mobile
+        maxWidth: '100%',
+        display: 'block',
+        margin: '0 auto',
+      }}
+    />
     {PRODUCT_TAGLINES[currentProduct.id] || 'Solstice AI Suite'}
   </Typography>
 </Toolbar>

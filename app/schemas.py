@@ -377,7 +377,6 @@ class UserUpdate(BaseModel):
 class User(UserBase):
     id: int
     is_admin: bool
-    is_data_reviewer: bool = False  # Can review outliers and manage thresholds (NSTXView only)
     is_active: bool
     is_invited: bool
     google_id: Optional[str] = None
@@ -426,7 +425,7 @@ class InvitationCreate(BaseModel):
     full_name: str
     organization: Optional[str] = None
     tenant_id: Optional[int] = None  # Optional: assign to specific tenant, defaults to admin's tenant
-    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales", "heads", "canon", "nstxview"]
+    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales", "heads", "canon"]
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""

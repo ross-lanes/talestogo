@@ -35,9 +35,6 @@ from app.routers import (
     personas,  # Heads - Persona Intelligence Platform (Pharma)
     heads,  # Heads - Marketing Persona Generation
     canon,  # Canon - FDA Drug Data Research
-    nstxview,  # NSTXView - NSTX-U Research Analysis
-    outliers,  # NSTXView - Outlier Detection & Review
-    thresholds,  # NSTXView - Threshold Management
     migration_helper  # Temporary migration helper
 )
 
@@ -145,11 +142,6 @@ app.include_router(heads.router)
 # Canon - FDA Drug Data Research
 app.include_router(canon.router)
 
-# NSTXView - NSTX-U Research Analysis
-app.include_router(nstxview.router)
-app.include_router(outliers.router)
-app.include_router(thresholds.router)
-
 # Analytics and admin routers
 app.include_router(analytics.router)
 app.include_router(admin.router)
@@ -220,38 +212,6 @@ async def startup_event():
     start_scheduler()
     print("✅ Scheduler check complete\n")
 
-    # NSTXView component health check
-    print("\n🔬 NSTXView Component Status:")
-
-    # Check RAG/Embedding service
-    try:
-        from app.services.nstxview.embedding_service import is_available as embeddings_available
-        if embeddings_available():
-            print("   ✅ RAG Embeddings: ENABLED (sentence-transformers installed)")
-        else:
-            print("   ❌ RAG Embeddings: DISABLED (sentence-transformers not installed)")
-    except Exception as e:
-        print(f"   ❌ RAG Embeddings: ERROR ({e})")
-
-    # Check Vector Store
-    try:
-        from app.services.nstxview.vector_store import is_available as vector_store_available
-        if vector_store_available():
-            print("   ✅ Vector Store: ENABLED (ChromaDB installed)")
-        else:
-            print("   ❌ Vector Store: DISABLED (ChromaDB not installed)")
-    except Exception as e:
-        print(f"   ❌ Vector Store: ERROR ({e})")
-
-    # Check Anthropic API key for chat
-    from app.config import ANTHROPIC_API_KEY
-    if ANTHROPIC_API_KEY:
-        print("   ✅ Chat Service: ENABLED (Anthropic API key configured)")
-    else:
-        print("   ❌ Chat Service: DISABLED (ANTHROPIC_API_KEY not set)")
-
-    print("✅ NSTXView check complete\n")
-
 @app.on_event("shutdown")
 async def shutdown_event():
     """Stop the background scheduler when the app shuts down"""
@@ -297,7 +257,6 @@ if FRONTEND_DIST.exists():
             "personas/",
             "heads/",
             "canon/",
-            "nstxview/",
             "analytics/",
             "batches/",
             "scheduled-tasks/",
