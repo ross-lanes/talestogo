@@ -57,3 +57,26 @@ backupfiles/
 test_analytics.py
 test_api_responses.py
 upload_pppl_data.py
+
+# NSTXView planning files (large PDFs, local reference docs)
+app/services/nstxview/planning/
+
+# Google service account credentials
+**/talesai111-*.json
+*.credentials.json
+
+# NSTXView data and processing artifacts
+data/
+logs/
+
+# Test artifacts
+frontend/playwright-report/
+frontend/test-results/
+
+# Local test scripts
+test_email*.py
+test_smtp*.py
+
+# Security remediation docs (local only)
+*_FIXES_APPLIED.md
+SECURITY_REMEDIATION.md

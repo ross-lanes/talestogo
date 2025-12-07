@@ -65,7 +65,7 @@ DATABASE_URL = os.environ.get(
 # Google credentials
 GOOGLE_CREDENTIALS_PATH = os.environ.get(
     "GOOGLE_APPLICATION_CREDENTIALS",
-    "/Users/rachelkremen/Documents/Code/NSTXView/talesai111-c6195629d677.json"
+    os.path.join(PROJECT_ROOT, "app", "services", "nstxview", "talesai111-c6195629d677.json")
 )
 
 # Storage directory for downloaded PDFs
@@ -405,23 +405,117 @@ def process_pending_papers(db, limit: int = None):
     return success_count, error_count
 
 
+def generate_embeddings(db, paper):
+    """Generate embeddings for a paper and store in ChromaDB"""
+    from app.services.nstxview.pdf_processor import PDFProcessor
+    from app.services.nstxview.vector_store import get_vector_store, is_available
+    from app.models import NSTXPaperChunk, NSTXProcessingStatus
+
+    if not is_available():
+        logger.warning("ChromaDB not available, skipping embedding generation")
+        return False
+
+    if not paper.extracted_text:
+        logger.warning(f"No extracted text for paper {paper.id}")
+        return False
+
+    logger.info(f"Generating embeddings for: {paper.original_filename}")
+
+    try:
+        # Initialize processor and vector store
+        processor = PDFProcessor()
+        vector_store = get_vector_store()
+
+        # Chunk the text
+        chunks = processor.chunk_text(paper.extracted_text, chunk_size=500, overlap=50)
+        logger.info(f"Created {len(chunks)} chunks for paper {paper.id}")
+
+        if not chunks:
+            logger.warning(f"No chunks created for paper {paper.id}")
+            return False
+
+        # Delete any existing chunks for this paper (in case of re-processing)
+        db.query(NSTXPaperChunk).filter(NSTXPaperChunk.paper_id == paper.id).delete()
+        vector_store.delete_paper(paper.id)
+
+        # Add chunks to ChromaDB (it will generate embeddings automatically)
+        chromadb_ids = vector_store.add_paper_chunks(paper.id, chunks)
+
+        # Create database records for the chunks
+        for chunk, chromadb_id in zip(chunks, chromadb_ids):
+            chunk_record = NSTXPaperChunk(
+                paper_id=paper.id,
+                chunk_index=chunk['index'],
+                content=chunk['content'],
+                section=chunk.get('section'),
+                chromadb_id=chromadb_id
+            )
+            db.add(chunk_record)
+
+        paper.embedding_date = datetime.now(timezone.utc)
+        db.commit()
+
+        logger.info(f"Successfully generated {len(chunks)} embeddings for paper {paper.id}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error generating embeddings for paper {paper.id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def generate_embeddings_for_completed(db, limit: int = None):
+    """Generate embeddings for all completed papers that don't have them yet"""
+    from app.models import NSTXPaper, NSTXProcessingStatus
+
+    # Find completed papers without embeddings
+    query = db.query(NSTXPaper).filter(
+        NSTXPaper.status == NSTXProcessingStatus.COMPLETED.value,
+        NSTXPaper.embedding_date.is_(None)
+    )
+
+    if limit:
+        query = query.limit(limit)
+
+    papers = query.all()
+    logger.info(f"Found {len(papers)} papers needing embeddings")
+
+    success_count = 0
+    error_count = 0
+
+    for i, paper in enumerate(papers):
+        logger.info(f"Generating embeddings {i+1}/{len(papers)}: {paper.original_filename}")
+
+        if generate_embeddings(db, paper):
+            success_count += 1
+        else:
+            error_count += 1
+
+    logger.info(f"Embedding generation complete. Success: {success_count}, Errors: {error_count}")
+    return success_count, error_count
+
+
 def show_status(db):
     """Show current processing status"""
-    from app.models import NSTXPaper, NSTXShot, NSTXParameter, NSTXPhenomenon
+    from app.models import NSTXPaper, NSTXShot, NSTXParameter, NSTXPhenomenon, NSTXPaperChunk
     from sqlalchemy import func
 
     total = db.query(func.count(NSTXPaper.id)).scalar()
     pending = db.query(func.count(NSTXPaper.id)).filter(NSTXPaper.status == 'pending').scalar()
     completed = db.query(func.count(NSTXPaper.id)).filter(NSTXPaper.status == 'completed').scalar()
     errors = db.query(func.count(NSTXPaper.id)).filter(NSTXPaper.status == 'error').scalar()
+    with_embeddings = db.query(func.count(NSTXPaper.id)).filter(NSTXPaper.embedding_date.isnot(None)).scalar()
 
     shots = db.query(func.count(NSTXShot.id)).scalar()
     unique_shots = db.query(func.count(func.distinct(NSTXShot.shot_number))).scalar()
     params = db.query(func.count(NSTXParameter.id)).scalar()
     phenomena = db.query(func.count(NSTXPhenomenon.id)).scalar()
+    chunks = db.query(func.count(NSTXPaperChunk.id)).scalar()
 
     print("\n=== NSTXView Processing Status ===")
     print(f"Papers: {total} total, {pending} pending, {completed} completed, {errors} errors")
+    print(f"Embeddings: {with_embeddings} papers with embeddings, {chunks} total chunks")
     print(f"Shots: {shots} mentions, {unique_shots} unique")
     print(f"Parameters: {params}")
     print(f"Phenomena: {phenomena}")
@@ -432,7 +526,8 @@ def main():
     parser = argparse.ArgumentParser(description="Process NSTXView papers")
     parser.add_argument("--sync", action="store_true", help="Sync papers from Google Drive")
     parser.add_argument("--extract", action="store_true", help="Extract from pending papers")
-    parser.add_argument("--all", action="store_true", help="Full pipeline: sync + extract")
+    parser.add_argument("--embeddings", action="store_true", help="Generate embeddings for completed papers")
+    parser.add_argument("--all", action="store_true", help="Full pipeline: sync + extract + embeddings")
     parser.add_argument("--paper-id", type=int, help="Process a specific paper by ID")
     parser.add_argument("--limit", type=int, help="Limit number of papers to process")
     parser.add_argument("--status", action="store_true", help="Show current status")
@@ -440,7 +535,7 @@ def main():
     args = parser.parse_args()
 
     # Default to showing status if no args
-    if not any([args.sync, args.extract, args.all, args.paper_id, args.status]):
+    if not any([args.sync, args.extract, args.embeddings, args.all, args.paper_id, args.status]):
         args.status = True
 
     db = get_db_session()
@@ -457,7 +552,10 @@ def main():
         elif args.extract or args.all:
             process_pending_papers(db, limit=args.limit)
 
-        if args.sync or args.extract or args.all or args.paper_id:
+        if args.embeddings or args.all:
+            generate_embeddings_for_completed(db, limit=args.limit)
+
+        if args.sync or args.extract or args.embeddings or args.all or args.paper_id:
             show_status(db)
 
     finally:

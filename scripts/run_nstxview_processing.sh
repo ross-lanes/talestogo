@@ -30,7 +30,7 @@ PYTHON="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
 export DATABASE_URL="postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway"
 
 # Google credentials
-export GOOGLE_APPLICATION_CREDENTIALS="/Users/rachelkremen/Documents/Code/NSTXView/talesai111-c6195629d677.json"
+export GOOGLE_APPLICATION_CREDENTIALS="$PROJECT_ROOT/app/services/nstxview/talesai111-c6195629d677.json"
 
 # Create logs directory
 mkdir -p "$LOG_DIR"
