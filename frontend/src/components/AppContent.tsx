@@ -1,5 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+
+// Component to redirect to external URLs
+const ExternalRedirect: React.FC<{ url: string }> = ({ url }) => {
+  useEffect(() => {
+    window.location.href = url;
+  }, [url]);
+  return null;
+};
 import Layout from './Layout';
 import Dashboard from '../pages/Dashboard';
 import Queries from '../pages/manage/Queries';
@@ -394,6 +402,16 @@ const AppRoutes: React.FC = () => {
                 </Layout>
               </ProtectedRoute>
             }
+          />
+
+          {/* NSTXView redirect - external app */}
+          <Route
+            path="/nstxview"
+            element={<ExternalRedirect url="https://nstxview.robotrachel.com" />}
+          />
+          <Route
+            path="/nstxview/*"
+            element={<ExternalRedirect url="https://nstxview.robotrachel.com" />}
           />
 
           {/* Canon - FDA Drug Data Research Routes */}
