@@ -14,6 +14,7 @@ import {
   Apps as ProductIcon,
   Check as CheckIcon,
   Lock as LockIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useProduct } from '../contexts/ProductContext';
@@ -33,7 +34,14 @@ const ProductSwitcher: React.FC = () => {
     setAnchorEl(null);
   };
 
-  const handleSwitchProduct = (productId: string) => {
+  const handleSwitchProduct = (productId: string, externalUrl?: string) => {
+    // If product has an external URL, open it in a new tab
+    if (externalUrl) {
+      window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      handleClose();
+      return;
+    }
+
     switchProduct(productId as any);
     handleClose();
 
@@ -115,8 +123,8 @@ const ProductSwitcher: React.FC = () => {
         {availableProducts.map((product) => (
           <MenuItem
             key={product.id}
-            onClick={() => handleSwitchProduct(product.id)}
-            selected={product.id === currentProduct.id}
+            onClick={() => handleSwitchProduct(product.id, product.externalUrl)}
+            selected={!product.externalUrl && product.id === currentProduct.id}
             sx={{
               py: 1.5,
               px: 2,
@@ -126,7 +134,9 @@ const ProductSwitcher: React.FC = () => {
             }}
           >
             <ListItemIcon sx={{ minWidth: 36 }}>
-              {product.id === currentProduct.id ? (
+              {product.externalUrl ? (
+                <OpenInNewIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              ) : product.id === currentProduct.id ? (
                 <CheckIcon fontSize="small" sx={{ color: '#75C9C8' }} />
               ) : (
                 <ProductIcon fontSize="small" />
@@ -134,7 +144,7 @@ const ProductSwitcher: React.FC = () => {
             </ListItemIcon>
             <ListItemText
               primary={
-                <Typography variant="body2" fontWeight={product.id === currentProduct.id ? 600 : 400}>
+                <Typography variant="body2" fontWeight={!product.externalUrl && product.id === currentProduct.id ? 600 : 400}>
                   {product.name}
                 </Typography>
               }

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Product types in the Solstice AI Suite
-export type ProductType = 'tales' | 'heads' | 'canon' | 'vision' | 'pulse' | 'voice' | 'guardian';
+export type ProductType = 'tales' | 'heads' | 'canon' | 'nstxview' | 'vision' | 'pulse' | 'voice' | 'guardian';
 
 interface ProductInfo {
   id: ProductType;
@@ -13,6 +13,7 @@ interface ProductInfo {
   enabled: boolean;
   requiredTenants?: string[]; // Optional list of tenants that can access this product
   requiresUserAccess?: boolean; // If true, only available via user's allowed_products (no tenant fallback)
+  externalUrl?: string; // If set, product opens in external URL instead of internal route
 }
 
 // Product catalog - will expand as we add more products
@@ -40,6 +41,15 @@ const PRODUCTS: ProductInfo[] = [
     logoPath: '/canon_logo_white.png',
     enabled: true,
     // No requiredTenants = available to all tenants
+  },
+  {
+    id: 'nstxview',
+    name: 'NSTXView',
+    description: 'NSTX-U Research Database',
+    logoPath: '/nstxview_white.png',
+    enabled: true,
+    requiresUserAccess: true, // Only show to users with explicit access
+    externalUrl: 'https://nstxview.robotrachel.com',
   },
   {
     id: 'vision',
