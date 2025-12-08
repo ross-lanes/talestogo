@@ -56,6 +56,7 @@ interface User {
   is_invited: boolean;
   allowed_products?: string[];  // List of product IDs user can access
   invitation_expires_at?: string;
+  last_login?: string;
   created_at: string;
 }
 
@@ -548,6 +549,18 @@ RobotRachel`;
             ))}
           </Box>
         );
+      },
+    },
+    {
+      field: 'last_login',
+      headerName: 'Last Login',
+      width: 150,
+      renderCell: (params) => {
+        const user = params.row as User;
+        if (!user.last_login) {
+          return <Typography variant="body2" color="text.secondary">Never</Typography>;
+        }
+        return formatDateEST(user.last_login, 'full');
       },
     },
     {

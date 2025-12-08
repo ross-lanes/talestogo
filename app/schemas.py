@@ -385,6 +385,7 @@ class User(UserBase):
     invitation_expires_at: Optional[datetime.datetime] = None
     tenant_id: Optional[int] = None
     allowed_products: Optional[List[str]] = None  # List of product IDs user can access
+    last_login: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)

@@ -57,6 +57,7 @@ class User(Base):
     allowed_products = Column(Text, nullable=True, default="tales")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    last_login = Column(DateTime, nullable=True)  # Last successful login timestamp
 
 class Query(Base):
     __tablename__ = "queries"

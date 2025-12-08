@@ -4,7 +4,7 @@ Handles user registration, login (email/password, Google, Microsoft OAuth), and 
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import List
 
 from .. import crud, models, schemas
@@ -67,6 +67,10 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Account is not active. Please contact admin for approval."
         )
 
+    # Update last_login timestamp
+    user.last_login = datetime.utcnow()
+    db.commit()
+
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -103,6 +107,10 @@ def google_login(google_token: schemas.GoogleLogin, db: Session = Depends(get_db
             detail="Account is not active. Please contact admin for approval."
         )
 
+    # Update last_login timestamp
+    user.last_login = datetime.utcnow()
+    db.commit()
+
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -138,6 +146,10 @@ def microsoft_login(microsoft_token: schemas.MicrosoftLogin, db: Session = Depen
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is not active. Please contact admin for approval."
         )
+
+    # Update last_login timestamp
+    user.last_login = datetime.utcnow()
+    db.commit()
 
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
