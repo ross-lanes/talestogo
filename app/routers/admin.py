@@ -580,6 +580,63 @@ def admin_run_collection_for_user(
     }
 
 
+@router.post("/generate-report-for-user")
+def admin_generate_report_for_user(
+    user_id: int,
+    brand_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(get_current_admin_user)
+) -> Dict[str, Any]:
+    """
+    Admin endpoint to manually trigger ONLY report generation for any user/brand.
+    Use this when data is already collected and analyzed but report generation failed.
+    """
+    import subprocess
+    import os
+    import threading
+
+    # Verify user and brand exist
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == brand_id).first()
+    if not brand:
+        raise HTTPException(status_code=404, detail=f"Brand {brand_id} not found")
+
+    # Check that analyzed responses exist
+    analyzed_count = db.query(models.Response).filter(
+        models.Response.user_id == user_id,
+        models.Response.brand_id == brand_id,
+        models.Response.analyzed_at.isnot(None)
+    ).count()
+
+    if analyzed_count == 0:
+        raise HTTPException(status_code=400, detail="No analyzed responses found. Run collection and analysis first.")
+
+    # Get project root and script path
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
+
+    # Run report generation in background thread
+    def run_report():
+        env = os.environ.copy()
+        env['PYTHONPATH'] = project_root
+        subprocess.run(
+            ["python3", report_script, "--user-id", str(user_id), "--brand-id", str(brand_id)],
+            env=env,
+            cwd=project_root
+        )
+
+    thread = threading.Thread(target=run_report, daemon=True)
+    thread.start()
+
+    return {
+        "message": f"Report generation started for {user.email} - {brand.brand_name}",
+        "analyzed_responses": analyzed_count
+    }
+
+
 @router.post("/login-as-user/{user_id}")
 def admin_login_as_user(
     user_id: int,
