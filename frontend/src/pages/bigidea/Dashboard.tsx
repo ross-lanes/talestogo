@@ -11,6 +11,8 @@ import {
 import HistoryIcon from '@mui/icons-material/History';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { saveAs } from 'file-saver';
 import type {
   BigIdeaFormData,
   GeneratedResponse,
@@ -186,18 +188,168 @@ export default function BigIdeaDashboard() {
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const handleExportJson = () => {
+  const handleDownloadWord = async () => {
     if (!response) return;
-    const dataStr = JSON.stringify(response, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${formData.clientName.replace(/\s+/g, '_')}_big_ideas.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    const children: Paragraph[] = [];
+
+    // Title
+    children.push(
+      new Paragraph({
+        text: `Big Ideas for ${formData.clientName}`,
+        heading: HeadingLevel.TITLE,
+        spacing: { after: 400 },
+      })
+    );
+
+    // Generated date
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Generated: ${new Date().toLocaleDateString()}`,
+            italics: true,
+            color: '666666',
+          }),
+        ],
+        spacing: { after: 400 },
+      })
+    );
+
+    // Ideas section
+    children.push(
+      new Paragraph({
+        text: 'Marketing Ideas',
+        heading: HeadingLevel.HEADING_1,
+        spacing: { before: 400, after: 200 },
+      })
+    );
+
+    response.ideas.forEach((idea, index) => {
+      // Idea title
+      children.push(
+        new Paragraph({
+          text: `${index + 1}. ${idea.title}`,
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 300, after: 100 },
+        })
+      );
+
+      // Area and Scale
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Area: ', bold: true }),
+            new TextRun({ text: idea.area }),
+            new TextRun({ text: '  |  ' }),
+            new TextRun({ text: 'Scale: ', bold: true }),
+            new TextRun({ text: idea.scale }),
+          ],
+          spacing: { after: 100 },
+        })
+      );
+
+      // Description
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Description:', bold: true }),
+          ],
+          spacing: { before: 100 },
+        })
+      );
+      children.push(
+        new Paragraph({
+          text: idea.description,
+          spacing: { after: 100 },
+        })
+      );
+
+      // Rationale
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Rationale:', bold: true }),
+          ],
+          spacing: { before: 100 },
+        })
+      );
+      children.push(
+        new Paragraph({
+          text: idea.rationale,
+          spacing: { after: 200 },
+        })
+      );
+    });
+
+    // Competitor Analysis section
+    if (response.competitorAnalysis) {
+      children.push(
+        new Paragraph({
+          text: 'Competitor Analysis',
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 400, after: 200 },
+        })
+      );
+
+      if (response.competitorAnalysis.competitors.length > 0) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Key Competitors: ', bold: true }),
+              new TextRun({ text: response.competitorAnalysis.competitors.join(', ') }),
+            ],
+            spacing: { after: 100 },
+          })
+        );
+      }
+
+      if (response.competitorAnalysis.competitorStrategies) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Competitor Strategies:', bold: true }),
+            ],
+            spacing: { before: 100 },
+          })
+        );
+        children.push(
+          new Paragraph({
+            text: response.competitorAnalysis.competitorStrategies,
+            spacing: { after: 100 },
+          })
+        );
+      }
+
+      if (response.competitorAnalysis.differentiationStrategies) {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Differentiation Strategies:', bold: true }),
+            ],
+            spacing: { before: 100 },
+          })
+        );
+        children.push(
+          new Paragraph({
+            text: response.competitorAnalysis.differentiationStrategies,
+            spacing: { after: 200 },
+          })
+        );
+      }
+    }
+
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children,
+        },
+      ],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${formData.clientName.replace(/\s+/g, '_')}_big_ideas.docx`);
   };
 
   return (
@@ -292,9 +444,9 @@ export default function BigIdeaDashboard() {
             <Button
               variant="outlined"
               startIcon={<DownloadIcon />}
-              onClick={handleExportJson}
+              onClick={handleDownloadWord}
             >
-              Export JSON
+              Download
             </Button>
           </Box>
 
