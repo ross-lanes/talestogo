@@ -4,34 +4,40 @@
  * Types for the marketing idea generation feature.
  */
 
-// --- Enums ---
+// --- Constants (replacing enums for erasableSyntaxOnly compatibility) ---
 
-export enum IdeaScale {
-  SAFE = 'Safe',
-  AMBITIOUS = 'Ambitious',
-  VERY_AMBITIOUS = 'Very Ambitious',
-  INCREDIBLY_AMBITIOUS = 'Incredibly Ambitious',
-}
+export const IdeaScale = {
+  SAFE: 'Safe',
+  AMBITIOUS: 'Ambitious',
+  VERY_AMBITIOUS: 'Very Ambitious',
+  INCREDIBLY_AMBITIOUS: 'Incredibly Ambitious',
+} as const;
 
-export enum CampaignGoal {
-  BRAND_AWARENESS = 'Brand Awareness',
-  LEAD_GENERATION = 'Lead Generation',
-  SALES_GROWTH = 'Sales Growth',
-  CUSTOMER_RETENTION = 'Customer Retention',
-  MARKET_EXPANSION = 'Market Expansion',
-  PRODUCT_LAUNCH = 'Product Launch',
-  WEBSITE_TRAFFIC = 'Website Traffic',
-  APP_INSTALLS = 'App Installs',
-  ENGAGEMENT = 'Engagement',
-  OTHER = 'Other',
-}
+export type IdeaScale = (typeof IdeaScale)[keyof typeof IdeaScale];
 
-export enum BudgetIndicator {
-  LOW = 'Low',
-  MEDIUM = 'Medium',
-  HIGH = 'High',
-  PREMIUM = 'Premium',
-}
+export const CampaignGoal = {
+  BRAND_AWARENESS: 'Brand Awareness',
+  LEAD_GENERATION: 'Lead Generation',
+  SALES_GROWTH: 'Sales Growth',
+  CUSTOMER_RETENTION: 'Customer Retention',
+  MARKET_EXPANSION: 'Market Expansion',
+  PRODUCT_LAUNCH: 'Product Launch',
+  WEBSITE_TRAFFIC: 'Website Traffic',
+  APP_INSTALLS: 'App Installs',
+  ENGAGEMENT: 'Engagement',
+  OTHER: 'Other',
+} as const;
+
+export type CampaignGoal = (typeof CampaignGoal)[keyof typeof CampaignGoal];
+
+export const BudgetIndicator = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  PREMIUM: 'Premium',
+} as const;
+
+export type BudgetIndicator = (typeof BudgetIndicator)[keyof typeof BudgetIndicator];
 
 // --- Interfaces ---
 
