@@ -35,6 +35,7 @@ from app.routers import (
     personas,  # Heads - Persona Intelligence Platform (Pharma)
     heads,  # Heads - Marketing Persona Generation
     canon,  # Canon - FDA Drug Data Research
+    bigidea,  # Big Idea Generator - Marketing Idea Generation
     migration_helper  # Temporary migration helper
 )
 
@@ -141,6 +142,9 @@ app.include_router(heads.router)
 
 # Canon - FDA Drug Data Research
 app.include_router(canon.router)
+
+# Big Idea Generator - Marketing Idea Generation
+app.include_router(bigidea.router)
 
 # Analytics and admin routers
 app.include_router(analytics.router)
@@ -257,6 +261,7 @@ if FRONTEND_DIST.exists():
             "personas/",
             "heads/",
             "canon/",
+            "bigidea/",
             "analytics/",
             "batches/",
             "scheduled-tasks/",

@@ -69,6 +69,7 @@ const PRODUCT_TAGLINES: Record<string, string> = {
   tales: 'Shape your AI story.',
   heads: 'Know your audience.',
   canon: 'Research FDA data.',
+  bigidea: 'Spark big ideas.',
   vision: 'See the market clearly.',
   pulse: 'Measure what matters.',
   voice: 'Optimize every word.',
@@ -168,6 +169,11 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'How Heads Works', icon: <InfoIcon />, path: '/how-heads-works', indent: false },
   ];
 
+  // Big Idea Generator navigation menu items
+  const bigIdeaMenuItems = [
+    { text: 'Generate Ideas', icon: <AutoAwesomeIcon />, path: '/bigidea', indent: false },
+  ];
+
   // Select menu items based on current product
   const getMenuItems = () => {
     switch (currentProduct.id) {
@@ -175,6 +181,8 @@ export default function Layout({ children }: LayoutProps) {
         return canonMenuItems;
       case 'heads':
         return headsMenuItems;
+      case 'bigidea':
+        return bigIdeaMenuItems;
       default:
         return talesMenuItems;
     }
@@ -217,6 +225,7 @@ export default function Layout({ children }: LayoutProps) {
   onClick={() => {
     if (currentProduct.id === 'canon') navigate('/canon');
     else if (currentProduct.id === 'heads') navigate('/heads');
+    else if (currentProduct.id === 'bigidea') navigate('/bigidea');
     else navigate('/');
   }}
 >

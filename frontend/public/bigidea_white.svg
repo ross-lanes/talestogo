@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
+  <!-- Lightbulb icon -->
+  <g fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Bulb outline -->
+    <path d="M50 10 Q70 10 70 30 Q70 42 60 48 L60 55 L40 55 L40 48 Q30 42 30 30 Q30 10 50 10" fill="white" fill-opacity="0.1"/>
+    <!-- Bulb base lines -->
+    <line x1="42" y1="58" x2="58" y2="58"/>
+    <line x1="44" y1="62" x2="56" y2="62"/>
+    <!-- Filament/rays -->
+    <path d="M45 28 Q50 22 55 28" stroke="white" stroke-width="1.5"/>
+    <line x1="50" y1="5" x2="50" y2="0"/>
+    <line x1="72" y1="20" x2="78" y2="16"/>
+    <line x1="28" y1="20" x2="22" y2="16"/>
+  </g>
+  <!-- "B" -->
+  <text x="90" y="48" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold" fill="white">B</text>
+  <!-- Upside down exclamation point for "i" in "big" -->
+  <g fill="white">
+    <!-- Dot at bottom -->
+    <circle cx="117" cy="47" r="3"/>
+    <!-- Stem going up -->
+    <rect x="114.5" y="22" width="5" height="20" rx="2"/>
+  </g>
+  <!-- "g" -->
+  <text x="125" y="48" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold" fill="white">g</text>
+  <!-- Space and "I" as exclamation point (rightside up) -->
+  <g fill="white">
+    <!-- Dot at bottom -->
+    <circle cx="168" cy="47" r="3"/>
+    <!-- Stem going up -->
+    <rect x="165.5" y="22" width="5" height="20" rx="2"/>
+  </g>
+  <!-- "dea" -->
+  <text x="176" y="48" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="bold" fill="white">dea</text>
+</svg>

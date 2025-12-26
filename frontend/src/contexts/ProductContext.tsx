@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Product types in the Solstice AI Suite
-export type ProductType = 'tales' | 'heads' | 'canon' | 'nstxview' | 'vision' | 'pulse' | 'voice' | 'guardian';
+export type ProductType = 'tales' | 'heads' | 'canon' | 'bigidea' | 'nstxview' | 'vision' | 'pulse' | 'voice' | 'guardian';
 
 interface ProductInfo {
   id: ProductType;
@@ -39,6 +39,14 @@ const PRODUCTS: ProductInfo[] = [
     name: 'Canon',
     description: 'FDA Drug Data Research',
     logoPath: '/canon_logo_white.png',
+    enabled: true,
+    // No requiredTenants = available to all tenants
+  },
+  {
+    id: 'bigidea',
+    name: 'Big Idea',
+    description: 'Marketing Idea Generator',
+    logoPath: '/bigidea_white.svg',
     enabled: true,
     // No requiredTenants = available to all tenants
   },
@@ -180,6 +188,8 @@ export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tena
       detectedProductId = 'canon';
     } else if (path.startsWith('/heads')) {
       detectedProductId = 'heads';
+    } else if (path.startsWith('/bigidea')) {
+      detectedProductId = 'bigidea';
     } else if (path === '/' || path.startsWith('/manage') || path.startsWith('/analytics') || path.startsWith('/collect') || path.startsWith('/reports') || path.startsWith('/settings')) {
       detectedProductId = 'tales';
     }
