@@ -1,22 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
-  <!-- "B" -->
-  <text x="10" y="60" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="bold" fill="white">B</text>
-  <!-- Upside down exclamation point for "i" in "big" -->
-  <g fill="white">
-    <!-- Dot at bottom -->
-    <circle cx="52" cy="58" r="5"/>
-    <!-- Stem going up -->
-    <rect x="48" y="18" width="8" height="32" rx="3"/>
-  </g>
-  <!-- "g" -->
-  <text x="62" y="60" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="bold" fill="white">g</text>
-  <!-- "I" as exclamation point (rightside up) -->
-  <g fill="white">
-    <!-- Dot at bottom -->
-    <circle cx="138" cy="58" r="5"/>
-    <!-- Stem going up -->
-    <rect x="134" y="18" width="8" height="32" rx="3"/>
-  </g>
-  <!-- "dea" -->
-  <text x="150" y="60" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="bold" fill="white">dea</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 50" width="320" height="50">
+  <text x="0" y="38" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="32" font-weight="900" fill="white">Big Idea Generator</text>
 </svg>
