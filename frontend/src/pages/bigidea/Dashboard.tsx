@@ -65,6 +65,18 @@ export default function BigIdeaDashboard() {
       .catch(() => {
         setApiConfigured(true);
       });
+
+    // Check if we're editing an idea from the library
+    const editFormData = sessionStorage.getItem('bigidea_edit_formdata');
+    if (editFormData) {
+      try {
+        const parsedFormData = JSON.parse(editFormData);
+        setFormData(parsedFormData);
+        sessionStorage.removeItem('bigidea_edit_formdata');
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
   }, []);
 
   const handleGenerate = useCallback(async () => {
@@ -151,6 +163,7 @@ export default function BigIdeaDashboard() {
       notes,
       tags,
       projectId: '',
+      formData, // Include the form data for editing later
     };
 
     const existingProjectIndex = projects.findIndex(

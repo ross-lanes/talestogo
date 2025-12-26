@@ -114,6 +114,7 @@ export interface SavedIdea extends Idea {
   notes: string;
   tags: string[];
   projectId: string;
+  formData?: BigIdeaFormData; // Original form inputs used to generate this idea
 }
 
 /**

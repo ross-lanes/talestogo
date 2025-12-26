@@ -172,6 +172,7 @@ export default function Layout({ children }: LayoutProps) {
   // Big Idea Generator navigation menu items
   const bigIdeaMenuItems = [
     { text: 'Generate Ideas', icon: <AutoAwesomeIcon />, path: '/bigidea', indent: false },
+    { text: 'Ideas Library', icon: <StorageIcon />, path: '/bigidea/library', indent: false },
   ];
 
   // Select menu items based on current product

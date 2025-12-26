@@ -53,7 +53,7 @@ import {
   CanonSavedSearches,
 } from '../pages/canon';
 // Big Idea Generator - Marketing Idea Generation pages
-import { BigIdeaDashboard } from '../pages/bigidea';
+import { BigIdeaDashboard, IdeasLibrary } from '../pages/bigidea';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
@@ -485,6 +485,16 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute>
                 <Layout>
                   <BigIdeaDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bigidea/library"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IdeasLibrary />
                 </Layout>
               </ProtectedRoute>
             }
