@@ -116,14 +116,20 @@ interface ProductProviderProps {
   children: ReactNode;
   tenantName?: string;
   userAllowedProducts?: string[];  // User-specific product access list
+  isAdmin?: boolean;  // Admin users have access to ALL apps by default
 }
 
-export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName, userAllowedProducts }) => {
+export const ProductProvider: React.FC<ProductProviderProps> = ({ children, tenantName, userAllowedProducts, isAdmin }) => {
   // Check if user is in Solstice HC tenant
   const isSolsticeHC = tenantName === 'Solstice HC';
 
   // Helper function to check if a product is accessible to the current user
   const isProductAccessible = (product: ProductInfo): boolean => {
+    // Admins have access to ALL enabled apps
+    if (isAdmin) {
+      return true;
+    }
+
     // If product requires explicit user access, only check allowed_products
     if (product.requiresUserAccess) {
       return userAllowedProducts?.includes(product.id) ?? false;

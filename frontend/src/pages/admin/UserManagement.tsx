@@ -117,6 +117,7 @@ const UserManagement: React.FC = () => {
     { id: 'tales', name: 'Tales', description: 'Brand Reputation Monitor' },
     { id: 'heads', name: 'Heads', description: 'AI-Powered Persona Generator' },
     { id: 'canon', name: 'Canon', description: 'FDA Drug Data Research' },
+    { id: 'bigidea', name: 'Big Idea', description: 'Marketing Idea Generator' },
     { id: 'nstxview', name: 'NSTXView', description: 'NSTX-U Research Database' },
   ];
 

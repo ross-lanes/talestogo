@@ -68,7 +68,7 @@ const AppRoutes: React.FC = () => {
   const { user } = useAuth();
 
   return (
-    <ProductProvider tenantName={tenant?.tenant_name} userAllowedProducts={user?.allowed_products}>
+    <ProductProvider tenantName={tenant?.tenant_name} userAllowedProducts={user?.allowed_products} isAdmin={user?.is_admin}>
       <TenantThemeProvider>
         <ImpersonationBanner />
         <TaskStatusBanner />
