@@ -15,12 +15,14 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  Snackbar,
 } from '@mui/material';
 import {
   Description as WordIcon,
   Download as DownloadIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -32,6 +34,7 @@ interface Report {
   id: number;
   title: string;
   report_content: string;
+  report_type?: string;
   start_date?: string;
   end_date?: string;
   total_responses: number;
@@ -45,6 +48,8 @@ export default function ReportsPage() {
   const queryClient = useQueryClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // Fetch reports
   const { data: reports = [], isLoading } = useQuery({
@@ -64,6 +69,26 @@ export default function ReportsPage() {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       setDeleteDialogOpen(false);
       setReportToDelete(null);
+    },
+  });
+
+  // Generate all-data report mutation
+  const generateAllDataMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.post('/tasks/generate-all-data-report/');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setSnackbarMessage(data.message || 'Comprehensive report generation started. Refresh the page in a few minutes.');
+      setSnackbarOpen(true);
+      // Refresh reports list after a delay
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['reports'] });
+      }, 5000);
+    },
+    onError: (error: any) => {
+      setSnackbarMessage(error.response?.data?.detail || 'Failed to start report generation');
+      setSnackbarOpen(true);
     },
   });
 
@@ -174,13 +199,25 @@ export default function ReportsPage() {
         <Typography variant="h4" component="h1">
           Reports
         </Typography>
-        <IconButton
-          color="primary"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['reports'] })}
-          title="Refresh"
-        >
-          <RefreshIcon />
-        </IconButton>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={generateAllDataMutation.isPending ? <CircularProgress size={16} /> : <AssessmentIcon />}
+            onClick={() => generateAllDataMutation.mutate()}
+            disabled={generateAllDataMutation.isPending}
+            size="small"
+          >
+            {generateAllDataMutation.isPending ? 'Generating...' : 'Generate Report All Data'}
+          </Button>
+          <IconButton
+            color="primary"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['reports'] })}
+            title="Refresh"
+          >
+            <RefreshIcon />
+          </IconButton>
+        </Box>
       </Box>
 
       {reports.length === 0 ? (
@@ -298,6 +335,14 @@ export default function ReportsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+      />
     </Box>
   );
 }

@@ -261,6 +261,128 @@ async def run_analysis(
         db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start analysis: {str(e)}")
 
+@router.post("/generate-all-data-report/", status_code=202)
+async def generate_all_data_report(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Generate a comprehensive report using ALL historical data.
+    This does NOT re-analyze responses, it just generates a report from existing analysis.
+    """
+    if not brand_id:
+        raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
+
+    # Count analyzed responses
+    analyzed_count = db.query(models.Response).filter(
+        models.Response.user_id == current_user.id,
+        models.Response.brand_id == brand_id,
+        models.Response.analyzed_at.isnot(None)
+    ).count()
+
+    if analyzed_count == 0:
+        raise HTTPException(status_code=404, detail="No analyzed responses found. Please run data collection and analysis first.")
+
+    # Create task status for report generation
+    task_status = models.TaskStatus(
+        user_id=current_user.id,
+        brand_id=brand_id,
+        task_type="all_data_report",
+        status="running",
+        total_items=analyzed_count,
+        processed_items=0,
+        message=f"Generating comprehensive report from {analyzed_count} responses...",
+        started_at=utcnow()
+    )
+    db.add(task_status)
+    db.commit()
+    db.refresh(task_status)
+
+    # Get project root and script path
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
+
+    try:
+        report_cmd = [
+            "python3", report_script,
+            "--user-id", str(current_user.id),
+            "--brand-id", str(brand_id),
+            "--report-type", "all_data"
+        ]
+
+        def run_report_task():
+            """Run report generation, updating task status on completion."""
+            db_task = SessionLocal()
+            try:
+                env = os.environ.copy()
+                env['PYTHONPATH'] = project_root
+
+                report_process = subprocess.run(
+                    report_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=project_root,
+                    timeout=600,  # 10 minute timeout
+                    env=env
+                )
+
+                if report_process.returncode != 0:
+                    task = db_task.query(models.TaskStatus).filter(
+                        models.TaskStatus.id == task_status.id
+                    ).first()
+                    if task:
+                        task.status = "failed"
+                        task.error_message = f"Report generation failed: {report_process.stderr[-500:] if report_process.stderr else 'Unknown error'}"
+                        db_task.commit()
+                    return
+
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "completed"
+                    task.message = "Comprehensive report generated successfully"
+                    db_task.commit()
+
+            except subprocess.TimeoutExpired as e:
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Report generation timed out: {str(e)}"
+                    db_task.commit()
+            except Exception as e:
+                task = db_task.query(models.TaskStatus).filter(
+                    models.TaskStatus.id == task_status.id
+                ).first()
+                if task:
+                    task.status = "failed"
+                    task.error_message = f"Unexpected error: {str(e)}"
+                    db_task.commit()
+            finally:
+                db_task.close()
+
+        # Start the background thread
+        thread = threading.Thread(target=run_report_task, daemon=True)
+        thread.start()
+
+        return {
+            "message": f"Comprehensive report generation started for {analyzed_count} responses.",
+            "status": "running",
+            "task_id": task_status.id,
+            "count": analyzed_count,
+            "note": "Generating comprehensive report using all historical data."
+        }
+    except Exception as e:
+        task_status.status = "failed"
+        task_status.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Failed to start report generation: {str(e)}")
+
+
 @router.post("/rerun-analysis/", status_code=202)
 async def rerun_analysis(
     start_date: Optional[str] = None,

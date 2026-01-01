@@ -3,12 +3,16 @@
 TALES Report Generation Script
 Generates professional analysis reports from analyzed response data using Gemini 2.5 Pro.
 Brand-aware version that generates reports for specific brands.
+
+Report Types:
+- monthly: Focuses on the latest month of data, with historical context for trends
+- all_data: Comprehensive analysis using all historical data (legacy behavior)
 """
 
 import os
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
@@ -16,7 +20,7 @@ import google.generativeai as genai
 
 from app.database import SessionLocal
 from app.utils.timezone import now_eastern, format_eastern, format_eastern_date
-from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User, TaskStatus
+from app.models import Response, Query, Competitor, TargetDescriptor, Report, BrandInfo, User, TaskStatus, CollectionBatch, BatchAnalytics
 from app import crud, schemas
 from app.services.chart_generator import generate_all_charts
 from app.services.metrics import (
@@ -54,13 +58,108 @@ genai.configure(api_key=GEMINI_API_KEY)
 
 # ==================== DATA COLLECTION ====================
 
-def get_brand_analyzed_responses(db, user_id: int, brand_id: int) -> List[Response]:
-    """Fetch all responses that have been analyzed for specific brand."""
-    return db.query(Response).filter(
+def get_brand_analyzed_responses(
+    db,
+    user_id: int,
+    brand_id: int,
+    days_back: Optional[int] = None,
+    batch_ids: Optional[List[int]] = None
+) -> List[Response]:
+    """
+    Fetch analyzed responses for specific brand.
+
+    Args:
+        db: Database session
+        user_id: User ID
+        brand_id: Brand ID
+        days_back: If set, only return responses from the last N days
+        batch_ids: If set, only return responses from these batch IDs
+
+    Returns:
+        List of Response objects
+    """
+    query = db.query(Response).filter(
         Response.user_id == user_id,
         Response.brand_id == brand_id,
         Response.analyzed_at.isnot(None)
+    )
+
+    # Filter by date if specified
+    if days_back is not None:
+        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        query = query.filter(Response.timestamp >= cutoff_date)
+
+    # Filter by batch IDs if specified
+    if batch_ids:
+        query = query.filter(Response.batch_id.in_(batch_ids))
+
+    return query.all()
+
+
+def get_latest_batch_ids(db, user_id: int, brand_id: int, days_back: int = 30) -> List[int]:
+    """
+    Get batch IDs for collections within the last N days.
+
+    Args:
+        db: Database session
+        user_id: User ID
+        brand_id: Brand ID
+        days_back: Number of days to look back (default 30)
+
+    Returns:
+        List of batch IDs
+    """
+    cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+
+    batches = db.query(CollectionBatch).filter(
+        CollectionBatch.user_id == user_id,
+        CollectionBatch.brand_id == brand_id,
+        CollectionBatch.status == 'completed',
+        CollectionBatch.started_at >= cutoff_date
     ).all()
+
+    return [batch.id for batch in batches]
+
+
+def get_historical_metrics_summary(db, user_id: int, brand_id: int, brand_name: str) -> Dict[str, Any]:
+    """
+    Get historical metrics from BatchAnalytics for trend comparison.
+
+    Returns a summary of all-time performance to compare against monthly metrics.
+    """
+    all_analytics = db.query(BatchAnalytics).filter(
+        BatchAnalytics.user_id == user_id,
+        BatchAnalytics.brand_id == brand_id
+    ).order_by(BatchAnalytics.collection_date).all()
+
+    if not all_analytics:
+        return None
+
+    # Calculate averages across all time
+    total_responses = sum(a.total_responses for a in all_analytics)
+    total_mentions = sum(a.mention_count for a in all_analytics)
+
+    # Weighted average mention rate
+    avg_mention_rate = round((total_mentions / total_responses * 100)) if total_responses > 0 else 0
+
+    # Average sentiment (weighted by mentions)
+    total_positive = sum(a.very_positive_count + a.positive_count for a in all_analytics)
+    avg_positive_rate = round((total_positive / total_mentions * 100)) if total_mentions > 0 else 0
+
+    # Get earliest and latest dates
+    earliest_date = all_analytics[0].collection_date
+    latest_date = all_analytics[-1].collection_date
+
+    return {
+        'total_batches': len(all_analytics),
+        'total_responses': total_responses,
+        'total_mentions': total_mentions,
+        'avg_mention_rate': avg_mention_rate,
+        'avg_positive_rate': avg_positive_rate,
+        'earliest_date': earliest_date,
+        'latest_date': latest_date,
+        'date_range_days': (latest_date - earliest_date).days if earliest_date and latest_date else 0
+    }
 
 
 def get_brand_queries(db, user_id: int, brand_id: int) -> List[Query]:
@@ -743,21 +842,55 @@ def generate_executive_summary(
     platform_performance: str,
     response_examples: str,
     descriptor_context: str,
-    competitor_context: str
+    competitor_context: str,
+    report_type: str = 'monthly',
+    historical_summary: Dict[str, Any] = None
 ) -> str:
     """Use Gemini to generate an enhanced executive summary with rich context."""
+
+    # Build period context based on report type
+    if report_type == 'monthly':
+        period_context = "This analysis covers the LAST 30 DAYS of data collection."
+        if historical_summary:
+            historical_context = f"""
+HISTORICAL COMPARISON (for context):
+- All-time average mention rate: {historical_summary['avg_mention_rate']}%
+- All-time average positive sentiment: {historical_summary['avg_positive_rate']}%
+- Total data collection batches: {historical_summary['total_batches']}
+- Data collection period: {historical_summary['date_range_days']} days
+"""
+        else:
+            historical_context = ""
+        analysis_focus = """
+Focus your analysis on:
+- Current month's performance and what's driving the numbers
+- How this month compares to historical averages (better, worse, or stable)
+- Month-specific trends or notable changes
+- Immediate actionable insights for the next 30 days"""
+    else:
+        period_context = "This comprehensive analysis covers ALL historical data to date."
+        historical_context = ""
+        analysis_focus = """
+Focus your analysis on:
+- Long-term performance patterns and trends
+- Overall strategic positioning across time
+- Cumulative strengths and persistent challenges
+- Strategic recommendations for sustained improvement"""
 
     prompt = f"""You are a strategic communications analyst writing an executive summary for a major client.
 
 {brand_context_str}
 
-PERFORMANCE METRICS:
+{period_context}
+
+CURRENT PERIOD PERFORMANCE METRICS:
 - Total Responses Analyzed: {total_responses}
 - Brand Mention Rate: {metrics_summary['mention_metrics']['yes_pct']}% (explicit mentions)
 - Positive Sentiment Rate: {metrics_summary['positive_sentiment_rate']}%
 - Share of Voice: {metrics_summary['share_of_voice']['brand_sov']}%
 - Average Positioning Score: {metrics_summary['positioning_average']} out of 5.0
 - Target Descriptor Match Rate: {metrics_summary['descriptor_match_rate']}%
+{historical_context}
 
 PLATFORM-BY-PLATFORM PERFORMANCE:
 {platform_performance}
@@ -776,6 +909,7 @@ Based on this comprehensive analysis, write a 4-6 sentence executive summary tha
 3. Compares performance against the brand's stated strategic messages and goals
 4. Provides strategic context about competitive positioning with concrete examples
 5. Highlights ONE concrete opportunity and ONE concrete risk based on actual response data
+{analysis_focus}
 
 Be specific, cite examples from the data above, and focus on actionable insights NOT generic observations.
 Write in a professional, analytical tone.
@@ -994,13 +1128,30 @@ def generate_markdown_report(
     competitors: List[Any] = None,
     competitor_threats_data: List[Dict[str, Any]] = None,
     llm_breakdown_data: Dict[str, Any] = None,
+    report_type: str = 'monthly',
+    historical_summary: Dict[str, Any] = None,
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
-    # Build brand header with context
-    brand_header = f"# {brand_name} - AI Reputation Analysis Report"
+    # Build report title based on type
+    if report_type == 'monthly':
+        report_title = f"# {brand_name} - Monthly AI Reputation Analysis"
+        period_note = f"**Analysis Period:** {period} | **Generated:** {report_date}"
+    else:
+        report_title = f"# {brand_name} - Comprehensive AI Reputation Analysis"
+        period_note = f"**Analysis Period:** All Data to Date | **Generated:** {report_date}"
 
-    report = f"""{brand_header}
+    # Add historical context note for monthly reports
+    historical_context_note = ""
+    if report_type == 'monthly' and historical_summary:
+        historical_context_note = f"""
+> **Historical Context:** This monthly report analyzes the last 30 days of data. For comparison, your all-time average mention rate is {historical_summary['avg_mention_rate']}% across {historical_summary['total_batches']} data collection batches spanning {historical_summary['date_range_days']} days.
+"""
+
+    report = f"""{report_title}
+
+{period_note}
+{historical_context_note}
 
 ## Executive Summary
 
@@ -1282,9 +1433,17 @@ All metrics are based on actual AI platform responses collected during the analy
 
 # ==================== MAIN FUNCTION ====================
 
-def generate_report_main(user_id: int, brand_id: int):
-    """Main function to generate the complete report for a specific brand."""
+def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthly'):
+    """
+    Main function to generate the complete report for a specific brand.
+
+    Args:
+        user_id: User ID
+        brand_id: Brand ID
+        report_type: 'monthly' (last 30 days, matches web analytics) or 'all_data' (all historical data)
+    """
     print(f"Starting TALES Report Generation for Brand ID {brand_id}...")
+    print(f"Report Type: {report_type}")
 
     db = SessionLocal()
     task = None  # Initialize to avoid UnboundLocalError
@@ -1316,9 +1475,35 @@ def generate_report_main(user_id: int, brand_id: int):
             task.processed_items = task.total_items  # Analysis is complete
             db.commit()
 
-        # Step 1: Collect data
+        # Step 1: Collect data based on report type
         print("\nCollecting data from database...")
-        responses = get_brand_analyzed_responses(db, user_id, brand_id)
+
+        historical_summary = None
+        report_period_description = ""
+
+        if report_type == 'monthly':
+            # Get batch IDs from last 30 days and filter responses accordingly
+            batch_ids = get_latest_batch_ids(db, user_id, brand_id, days_back=30)
+            print(f"  - Found {len(batch_ids)} collection batches in the last 30 days")
+
+            if batch_ids:
+                responses = get_brand_analyzed_responses(db, user_id, brand_id, batch_ids=batch_ids)
+            else:
+                # Fallback: use date-based filtering if no batches found
+                print("  - No batches found, using date-based filtering")
+                responses = get_brand_analyzed_responses(db, user_id, brand_id, days_back=30)
+
+            # Get historical summary for context
+            historical_summary = get_historical_metrics_summary(db, user_id, brand_id, brand_name)
+            if historical_summary:
+                print(f"  - Historical context: {historical_summary['total_batches']} batches spanning {historical_summary['date_range_days']} days")
+
+            report_period_description = "Last 30 Days"
+        else:
+            # all_data mode: get all responses
+            responses = get_brand_analyzed_responses(db, user_id, brand_id)
+            report_period_description = "All Data to Date"
+
         queries = get_brand_queries(db, user_id, brand_id)
         competitors = get_brand_competitors(db, user_id, brand_id)
         descriptors = get_brand_descriptors(db, user_id, brand_id)
@@ -1401,7 +1586,9 @@ def generate_report_main(user_id: int, brand_id: int):
             platform_performance=platform_performance,
             response_examples=response_examples,
             descriptor_context=descriptor_context,
-            competitor_context=competitor_context
+            competitor_context=competitor_context,
+            report_type=report_type,
+            historical_summary=historical_summary
         )
 
         print("  - Competitor threat analysis (top 3 threats)...")
@@ -1536,7 +1723,7 @@ def generate_report_main(user_id: int, brand_id: int):
         # Step 6: Generate report
         print("\nGenerating markdown report...")
         report_date = format_eastern(now_eastern(), "%B %d, %Y at %I:%M %p EST")
-        period = "Last analysis run"  # Could be made dynamic
+        period = report_period_description
 
         markdown_report = generate_markdown_report(
             mention_metrics=mention_metrics,
@@ -1568,6 +1755,8 @@ def generate_report_main(user_id: int, brand_id: int):
             competitors=competitors,
             competitor_threats_data=competitor_threats_data,
             llm_breakdown_data=llm_breakdown_data,
+            report_type=report_type,
+            historical_summary=historical_summary,
         )
 
         # Step 5: Save to database
@@ -1578,12 +1767,17 @@ def generate_report_main(user_id: int, brand_id: int):
             task.message = "Saving report to database..."
             db.commit()
 
-        report_title = f"{brand_name} AI Reputation Analysis - {format_eastern_date(now_eastern())}"
+        # Create title based on report type
+        if report_type == 'monthly':
+            report_title = f"{brand_name} Monthly AI Reputation Analysis - {format_eastern_date(now_eastern())}"
+        else:
+            report_title = f"{brand_name} Comprehensive AI Reputation Analysis - {format_eastern_date(now_eastern())}"
 
         report_obj = Report(
             user_id=user_id,
             brand_id=brand_id,
             title=report_title,
+            report_type=report_type,
             report_content=markdown_report,
             total_responses=len(responses),
             mention_rate=metrics_summary.get('mention_rate', 0),
@@ -1636,6 +1830,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TALES Report Generation Tool')
     parser.add_argument('--user-id', type=int, required=True, help='User ID to generate report for')
     parser.add_argument('--brand-id', type=int, required=True, help='Brand ID to generate report for')
+    parser.add_argument('--report-type', type=str, default='monthly', choices=['monthly', 'all_data'],
+                        help='Report type: monthly (last 30 days) or all_data (comprehensive)')
     args = parser.parse_args()
 
-    generate_report_main(args.user_id, args.brand_id)
+    generate_report_main(args.user_id, args.brand_id, args.report_type)

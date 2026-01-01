@@ -235,6 +235,7 @@ class BatchAnalytics(BatchAnalyticsBase):
 class ReportBase(BaseModel):
     title: str
     report_content: str
+    report_type: str = 'monthly'  # 'monthly' or 'all_data'
     start_date: Optional[datetime.datetime] = None
     end_date: Optional[datetime.datetime] = None
     total_responses: int = 0
