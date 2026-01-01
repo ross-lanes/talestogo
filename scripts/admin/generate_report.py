@@ -5,7 +5,7 @@ Generates professional analysis reports from analyzed response data using Gemini
 Brand-aware version that generates reports for specific brands.
 
 Report Types:
-- monthly: Focuses on the latest month of data, with historical context for trends
+- monthly: Focuses on the last complete calendar month of data, with historical context for trends
 - all_data: Comprehensive analysis using all historical data (legacy behavior)
 """
 
@@ -13,6 +13,7 @@ import os
 import json
 import sys
 from datetime import datetime, timedelta
+from calendar import monthrange
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
@@ -63,7 +64,9 @@ def get_brand_analyzed_responses(
     user_id: int,
     brand_id: int,
     days_back: Optional[int] = None,
-    batch_ids: Optional[List[int]] = None
+    batch_ids: Optional[List[int]] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None
 ) -> List[Response]:
     """
     Fetch analyzed responses for specific brand.
@@ -74,6 +77,8 @@ def get_brand_analyzed_responses(
         brand_id: Brand ID
         days_back: If set, only return responses from the last N days
         batch_ids: If set, only return responses from these batch IDs
+        start_date: If set, only return responses on or after this date
+        end_date: If set, only return responses before this date
 
     Returns:
         List of Response objects
@@ -84,7 +89,13 @@ def get_brand_analyzed_responses(
         Response.analyzed_at.isnot(None)
     )
 
-    # Filter by date if specified
+    # Filter by date range if specified
+    if start_date is not None:
+        query = query.filter(Response.timestamp >= start_date)
+    if end_date is not None:
+        query = query.filter(Response.timestamp < end_date)
+
+    # Filter by days_back if specified (legacy support)
     if days_back is not None:
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
         query = query.filter(Response.timestamp >= cutoff_date)
@@ -96,29 +107,57 @@ def get_brand_analyzed_responses(
     return query.all()
 
 
-def get_latest_batch_ids(db, user_id: int, brand_id: int, days_back: int = 30) -> List[int]:
+def get_last_calendar_month_range() -> tuple[datetime, datetime, str]:
     """
-    Get batch IDs for collections within the last N days.
+    Get the date range for the last complete calendar month.
+
+    Returns:
+        Tuple of (start_date, end_date, month_name)
+        - start_date: First day of last month at 00:00:00
+        - end_date: First day of current month at 00:00:00 (exclusive)
+        - month_name: Name of the month (e.g., "December 2024")
+    """
+    today = datetime.utcnow()
+
+    # Get first day of current month
+    first_of_current_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Get first day of last month
+    if today.month == 1:
+        # January -> go back to December of previous year
+        first_of_last_month = first_of_current_month.replace(year=today.year - 1, month=12)
+    else:
+        first_of_last_month = first_of_current_month.replace(month=today.month - 1)
+
+    # Format month name
+    month_name = first_of_last_month.strftime("%B %Y")
+
+    return first_of_last_month, first_of_current_month, month_name
+
+
+def get_last_month_batch_ids(db, user_id: int, brand_id: int) -> tuple[List[int], str]:
+    """
+    Get batch IDs for collections from the last complete calendar month.
 
     Args:
         db: Database session
         user_id: User ID
         brand_id: Brand ID
-        days_back: Number of days to look back (default 30)
 
     Returns:
-        List of batch IDs
+        Tuple of (batch_ids, month_name)
     """
-    cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+    start_date, end_date, month_name = get_last_calendar_month_range()
 
     batches = db.query(CollectionBatch).filter(
         CollectionBatch.user_id == user_id,
         CollectionBatch.brand_id == brand_id,
         CollectionBatch.status == 'completed',
-        CollectionBatch.started_at >= cutoff_date
+        CollectionBatch.started_at >= start_date,
+        CollectionBatch.started_at < end_date
     ).all()
 
-    return [batch.id for batch in batches]
+    return [batch.id for batch in batches], month_name
 
 
 def get_historical_metrics_summary(db, user_id: int, brand_id: int, brand_name: str) -> Dict[str, Any]:
@@ -844,13 +883,15 @@ def generate_executive_summary(
     descriptor_context: str,
     competitor_context: str,
     report_type: str = 'monthly',
-    historical_summary: Dict[str, Any] = None
+    historical_summary: Dict[str, Any] = None,
+    period_name: str = None
 ) -> str:
     """Use Gemini to generate an enhanced executive summary with rich context."""
 
     # Build period context based on report type
     if report_type == 'monthly':
-        period_context = "This analysis covers the LAST 30 DAYS of data collection."
+        month_label = period_name if period_name else "the last calendar month"
+        period_context = f"This analysis covers {month_label} data collection."
         if historical_summary:
             historical_context = f"""
 HISTORICAL COMPARISON (for context):
@@ -866,7 +907,7 @@ Focus your analysis on:
 - Current month's performance and what's driving the numbers
 - How this month compares to historical averages (better, worse, or stable)
 - Month-specific trends or notable changes
-- Immediate actionable insights for the next 30 days"""
+- Immediate actionable insights for the coming month"""
     else:
         period_context = "This comprehensive analysis covers ALL historical data to date."
         historical_context = ""
@@ -1145,7 +1186,7 @@ def generate_markdown_report(
     historical_context_note = ""
     if report_type == 'monthly' and historical_summary:
         historical_context_note = f"""
-> **Historical Context:** This monthly report analyzes the last 30 days of data. For comparison, your all-time average mention rate is {historical_summary['avg_mention_rate']}% across {historical_summary['total_batches']} data collection batches spanning {historical_summary['date_range_days']} days.
+> **Historical Context:** This monthly report analyzes {period} data. For comparison, your all-time average mention rate is {historical_summary['avg_mention_rate']}% across {historical_summary['total_batches']} data collection batches spanning {historical_summary['date_range_days']} days.
 """
 
     report = f"""{report_title}
@@ -1440,7 +1481,7 @@ def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthl
     Args:
         user_id: User ID
         brand_id: Brand ID
-        report_type: 'monthly' (last 30 days, matches web analytics) or 'all_data' (all historical data)
+        report_type: 'monthly' (last calendar month) or 'all_data' (all historical data)
     """
     print(f"Starting TALES Report Generation for Brand ID {brand_id}...")
     print(f"Report Type: {report_type}")
@@ -1482,23 +1523,24 @@ def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthl
         report_period_description = ""
 
         if report_type == 'monthly':
-            # Get batch IDs from last 30 days and filter responses accordingly
-            batch_ids = get_latest_batch_ids(db, user_id, brand_id, days_back=30)
-            print(f"  - Found {len(batch_ids)} collection batches in the last 30 days")
+            # Get batch IDs from last complete calendar month
+            batch_ids, month_name = get_last_month_batch_ids(db, user_id, brand_id)
+            print(f"  - Found {len(batch_ids)} collection batches for {month_name}")
 
             if batch_ids:
                 responses = get_brand_analyzed_responses(db, user_id, brand_id, batch_ids=batch_ids)
             else:
                 # Fallback: use date-based filtering if no batches found
-                print("  - No batches found, using date-based filtering")
-                responses = get_brand_analyzed_responses(db, user_id, brand_id, days_back=30)
+                print(f"  - No batches found for {month_name}, using date range filtering")
+                start_date, end_date, _ = get_last_calendar_month_range()
+                responses = get_brand_analyzed_responses(db, user_id, brand_id, start_date=start_date, end_date=end_date)
 
             # Get historical summary for context
             historical_summary = get_historical_metrics_summary(db, user_id, brand_id, brand_name)
             if historical_summary:
                 print(f"  - Historical context: {historical_summary['total_batches']} batches spanning {historical_summary['date_range_days']} days")
 
-            report_period_description = "Last 30 Days"
+            report_period_description = month_name
         else:
             # all_data mode: get all responses
             responses = get_brand_analyzed_responses(db, user_id, brand_id)
@@ -1588,7 +1630,8 @@ def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthl
             descriptor_context=descriptor_context,
             competitor_context=competitor_context,
             report_type=report_type,
-            historical_summary=historical_summary
+            historical_summary=historical_summary,
+            period_name=report_period_description
         )
 
         print("  - Competitor threat analysis (top 3 threats)...")
@@ -1831,7 +1874,7 @@ if __name__ == "__main__":
     parser.add_argument('--user-id', type=int, required=True, help='User ID to generate report for')
     parser.add_argument('--brand-id', type=int, required=True, help='Brand ID to generate report for')
     parser.add_argument('--report-type', type=str, default='monthly', choices=['monthly', 'all_data'],
-                        help='Report type: monthly (last 30 days) or all_data (comprehensive)')
+                        help='Report type: monthly (last calendar month) or all_data (comprehensive)')
     args = parser.parse_args()
 
     generate_report_main(args.user_id, args.brand_id, args.report_type)
