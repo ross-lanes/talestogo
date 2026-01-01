@@ -13,7 +13,7 @@ const COLORS = {
   'Very Positive': '#116C29',  // Bright highlighter green
   'Positive': '#58A13B',       // Extended green (formerly Very Positive)
   'Neutral': '#9FA8DA',        // Periwinkle
-  'Negative': '#E04320',       // Burnt orange/red
+  'Negative': '#FF8C00',       // Bright orange
   'Very Negative': '#EA4A4A'   // Extended red
 };
 

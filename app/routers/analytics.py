@@ -33,66 +33,110 @@ router = APIRouter(
 def get_dashboard_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id),
-    batch_id: Optional[int] = None,
-    date_from: Optional[datetime] = Query(None, description="Start date for filtering (ISO format)"),
-    date_to: Optional[datetime] = Query(None, description="End date for filtering (ISO format)"),
-    days: Optional[int] = Query(None, description="Lookback period in days (overrides date_from)")
+    brand_id: Optional[int] = Depends(get_active_brand_id)
 ):
     """
     Get key metrics for the dashboard for the active brand.
 
-    Performance optimizations:
-    - Uses centralized AnalyticsCache to avoid redundant calculations
-    - Redis caching with 15-minute TTL for improved performance
-    - Default 180-day lookback window (configurable via ANALYTICS_DEFAULT_LOOKBACK_DAYS)
-
-    Filtering options:
-    - batch_id: Filter by specific collection batch (takes precedence over date filtering)
-    - days: Number of days to look back (e.g., days=30 for last 30 days)
-    - date_from/date_to: Custom date range (ISO format: 2024-01-01T00:00:00)
-
-    Note: When batch_id is specified, date filtering is ignored as batches represent
-    a specific point-in-time collection.
+    Uses the same BatchAnalytics data source as the trend charts to ensure
+    dashboard metrics always match the latest data point shown in charts.
+    No caching - pulls directly from the database for consistency.
     """
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
 
-    # Determine date range
-    if days is not None:
-        # Use days parameter as lookback window
-        default_days = days
+    # Get the latest BatchAnalytics record - same source as trend charts
+    latest_analytics = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.user_id == owner_user_id,
+        models.BatchAnalytics.brand_id == brand_id
+    ).order_by(models.BatchAnalytics.collection_date.desc()).first()
+
+    if not latest_analytics:
+        # No data available
+        return {
+            'mention_rate': 0,
+            'mention_count': 0,
+            'total_responses': 0,
+            'positive_sentiment': 0,
+            'descriptor_match': 0,
+            'share_of_voice': 0,
+            'change_mention_rate': 0,
+            'change_sentiment': 0,
+            'change_descriptor': 0,
+            'change_share_of_voice': 0,
+            'change_high_threats': None,
+            'change_leadership_visibility': 0,
+            'leading_position': 'N/A'
+        }
+
+    # Get previous batch for change calculations
+    previous_analytics = db.query(models.BatchAnalytics).filter(
+        models.BatchAnalytics.user_id == owner_user_id,
+        models.BatchAnalytics.brand_id == brand_id,
+        models.BatchAnalytics.collection_date < latest_analytics.collection_date
+    ).order_by(models.BatchAnalytics.collection_date.desc()).first()
+
+    # Calculate metrics from BatchAnalytics (same as trend charts)
+    mention_rate = latest_analytics.mention_rate
+    mention_count = latest_analytics.mention_count
+    total_responses = latest_analytics.total_responses
+
+    # Sentiment: positive rate = (very_positive + positive) / total mentions
+    total_mentions = mention_count
+    if total_mentions > 0:
+        positive_count = latest_analytics.very_positive_count + latest_analytics.positive_count
+        positive_sentiment = round((positive_count / total_mentions) * 100)
     else:
-        # Use configured default
-        default_days = config.ANALYTICS_DEFAULT_LOOKBACK_DAYS
+        positive_sentiment = 0
 
-    # Try Redis cache first (cache key includes date range)
-    redis_cache = get_redis_cache()
-    cached_data = redis_cache.get_dashboard_data(owner_user_id, brand_id, batch_id)
-    if cached_data is not None:
-        return cached_data
+    # Positioning: leader visibility
+    if total_responses > 0:
+        leader_pct = round((latest_analytics.leader_count / total_responses) * 100)
+    else:
+        leader_pct = 0
 
-    # Cache miss - calculate from database
-    cache = AnalyticsCache(
-        db,
-        user_id=owner_user_id,
-        brand_id=brand_id,
-        batch_id=batch_id,
-        date_from=date_from,
-        date_to=date_to,
-        default_days=default_days
-    )
-    data = cache.get_dashboard_data()
+    # Determine leading position
+    positions = {
+        'Leader': latest_analytics.leader_count,
+        'Featured': latest_analytics.featured_count,
+        'Listed': latest_analytics.listed_count,
+        'Not Mentioned': latest_analytics.not_mentioned_count
+    }
+    leading_position = max(positions, key=positions.get) if any(positions.values()) else 'N/A'
 
-    # Store in Redis for next time
-    redis_cache.set_dashboard_data(
-        owner_user_id,
-        brand_id,
-        data,
-        batch_id,
-        ttl_seconds=config.REDIS_CACHE_TTL_DASHBOARD
-    )
+    # Calculate changes from previous batch
+    change_mention_rate = 0
+    change_sentiment = 0
+    change_leadership_visibility = 0
 
-    return data
+    if previous_analytics:
+        change_mention_rate = round(mention_rate - previous_analytics.mention_rate)
+
+        # Previous positive sentiment
+        prev_mentions = previous_analytics.mention_count
+        if prev_mentions > 0:
+            prev_positive = round(((previous_analytics.very_positive_count + previous_analytics.positive_count) / prev_mentions) * 100)
+            change_sentiment = positive_sentiment - prev_positive
+
+        # Previous leader visibility
+        if previous_analytics.total_responses > 0:
+            prev_leader = round((previous_analytics.leader_count / previous_analytics.total_responses) * 100)
+            change_leadership_visibility = leader_pct - prev_leader
+
+    return {
+        'mention_rate': mention_rate,
+        'mention_count': mention_count,
+        'total_responses': total_responses,
+        'positive_sentiment': positive_sentiment,
+        'descriptor_match': 0,  # Not tracked in BatchAnalytics
+        'share_of_voice': 0,  # Calculated differently
+        'change_mention_rate': change_mention_rate,
+        'change_sentiment': change_sentiment,
+        'change_descriptor': 0,
+        'change_share_of_voice': 0,
+        'change_high_threats': None,
+        'change_leadership_visibility': change_leadership_visibility,
+        'leading_position': leading_position
+    }
 
 
 @router.get("/trends/mentions", response_model=List[Dict[str, Any]])

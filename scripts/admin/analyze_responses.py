@@ -490,6 +490,34 @@ def main():
             stats = analyzer.analyze_batch(limit=limit)
 
         print("\n✅ Analysis complete!")
+
+        # Recompute batch analytics after analysis to update mention_rate and mention_count
+        print("\n🔄 Recomputing batch analytics...")
+        try:
+            from app.services.batch_analytics import compute_batch_analytics
+
+            # Get completed batches for this user/brand that may need recompute
+            batches = db.query(models.CollectionBatch).filter(
+                models.CollectionBatch.user_id == user.id,
+                models.CollectionBatch.status == 'completed'
+            )
+            if args.brand_id:
+                batches = batches.filter(models.CollectionBatch.brand_id == args.brand_id)
+
+            batches = batches.order_by(models.CollectionBatch.started_at.desc()).limit(3).all()
+
+            for batch in batches:
+                analytics = compute_batch_analytics(
+                    db=db,
+                    batch_id=batch.id,
+                    user_id=user.id,
+                    brand_id=batch.brand_id
+                )
+                if analytics:
+                    print(f"  ✓ Batch {batch.id}: mention_rate={analytics.mention_rate}%")
+        except Exception as e:
+            print(f"  ⚠️  Warning: Failed to recompute batch analytics: {e}")
+
         print(f"\nNext steps:")
         print(f"  1. View analyzed responses at http://localhost:5173/data/responses")
         print(f"  2. Check updated dashboard at http://localhost:5173/")

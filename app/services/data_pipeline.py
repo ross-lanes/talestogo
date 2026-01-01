@@ -312,6 +312,23 @@ def run_collection_analysis_report(
                 task.completed_at = utcnow()
                 db_thread.commit()
 
+            # === STEP 2.5: RECOMPUTE BATCH ANALYTICS ===
+            # After analysis, brand_mentioned values are populated, so we need to recompute
+            # the batch analytics to get accurate mention_rate and mention_count
+            try:
+                from app.services.batch_analytics import compute_batch_analytics
+                analytics = compute_batch_analytics(
+                    db=db_thread,
+                    batch_id=latest_batch.id,
+                    user_id=data_owner_user_id,
+                    brand_id=brand_id
+                )
+                if analytics:
+                    print(f"Batch analytics recomputed: mention_rate={analytics.mention_rate}%")
+            except Exception as e:
+                print(f"Warning: Failed to recompute batch analytics: {e}")
+                # Don't fail the pipeline if analytics recompute fails
+
             # === STEP 3: REPORT GENERATION ===
             report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
             report_cmd = [

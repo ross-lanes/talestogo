@@ -443,23 +443,9 @@ class ResponseCollector:
             batch.total_queries = stats['total_queries']
             self.db.commit()
 
-            # Automatically compute batch analytics after collection completes
-            try:
-                from app.services.batch_analytics import compute_batch_analytics
-                print("\n🔄 Computing batch analytics...")
-                analytics = compute_batch_analytics(
-                    db=self.db,
-                    batch_id=self.batch_id,
-                    user_id=self.user_id,
-                    brand_id=self.brand_id
-                )
-                if analytics:
-                    print(f"✅ Batch analytics computed successfully (id={analytics.id})")
-                else:
-                    print("⚠️  No analytics computed (no responses found)")
-            except Exception as e:
-                print(f"⚠️  Warning: Failed to compute batch analytics: {e}")
-                # Don't fail the entire collection if analytics fails
+            # Note: Batch analytics are computed AFTER analysis completes (in data_pipeline.py
+            # or analyze_responses.py), not here. At this point responses haven't been analyzed
+            # yet, so brand_mentioned and other fields are still empty.
 
         print(f"\n{'='*60}")
         print(f"Collection Summary")
