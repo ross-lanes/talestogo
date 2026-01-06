@@ -118,10 +118,13 @@ def compute_batch_analytics(
             elif response.sentiment == 'Mixed':
                 mixed_count += 1
 
-        # Share of voice - count competitor mentions ONLY from organic queries
-        # This matches AnalyticsCache behavior (include_brand_in_query=False)
+        # Share of voice - count competitor mentions ONLY from:
+        # 1. Organic queries (brand_in_query=False)
+        # 2. Responses where brand is mentioned (Yes or Indirect)
+        # This matches AnalyticsCache._calculate_share_of_voice() behavior
         is_organic = response.query_id in organic_query_ids
-        if is_organic and response.competitors:
+        is_brand_mentioned = response.brand_mentioned in ['Yes', 'Indirect']
+        if is_organic and is_brand_mentioned and response.competitors:
             competitor_names = [c.strip() for c in response.competitors.split(',') if c.strip()]
             for comp in competitor_names:
                 normalized = normalize_organization_name(comp)
