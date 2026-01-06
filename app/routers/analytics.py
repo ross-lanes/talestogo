@@ -548,13 +548,14 @@ def get_brand_mentions_by_llm(
     """
     Get brand mention rates broken down by LLM platform.
     Returns mention rate for each platform (ChatGPT, Claude, Gemini, Perplexity).
+    Only includes organic queries (brand_in_query=False) for accurate visibility metrics.
     """
     if not brand_id:
         return []
 
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
 
-    # Query responses grouped by platform
+    # Query responses grouped by platform, joining with Query to filter for organic queries only
     from sqlalchemy import func, case
 
     platform_stats = db.query(
@@ -566,11 +567,17 @@ def get_brand_mentions_by_llm(
                 else_=0
             )
         ).label('mentioned')
+    ).join(
+        models.Query,
+        (models.Response.query_id == models.Query.query_id) &
+        (models.Response.user_id == models.Query.user_id) &
+        (models.Response.brand_id == models.Query.brand_id)
     ).filter(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
-        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
+        models.Response.batch_id.isnot(None),  # Only include responses with batch_id for consistency with trend data
+        models.Query.brand_in_query == False  # Only organic queries
     ).group_by(
         models.Response.platform
     ).all()
@@ -598,6 +605,7 @@ def get_positioning_by_llm(
     """
     Get brand positioning breakdown by LLM platform.
     Returns positioning counts (Leader, Featured, Listed, Not Mentioned) for each platform.
+    Excludes brand_in_query responses for consistency with main positioning breakdown.
     """
     if not brand_id:
         return []
@@ -605,18 +613,25 @@ def get_positioning_by_llm(
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
 
     # Query responses grouped by platform and position
+    # Exclude brand_in_query responses for consistency with positioning/breakdown endpoint
     from sqlalchemy import func
 
     platform_positioning = db.query(
         models.Response.platform,
         models.Response.brand_position,
         func.count(models.Response.id).label('count')
+    ).join(
+        models.Query,
+        (models.Response.query_id == models.Query.query_id) &
+        (models.Response.user_id == models.Query.user_id) &
+        (models.Response.brand_id == models.Query.brand_id)
     ).filter(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
         models.Response.brand_position.isnot(None),
-        models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
+        models.Response.batch_id.isnot(None),  # Only include responses with batch_id for consistency with trend data
+        models.Query.brand_in_query == False  # Exclude branded queries for organic positioning
     ).group_by(
         models.Response.platform,
         models.Response.brand_position

@@ -27,11 +27,14 @@ interface CollectionBatch {
 
 interface BatchSelectorProps {
   selectedBatchId: number | null;
-  onBatchChange: (batchId: number | null) => void;
+  onBatchChange: (batchId: number | null, batch?: CollectionBatch | null) => void;
   showAllOption?: boolean;
   label?: string;
   autoSelectLatest?: boolean;
 }
+
+// Export the interface so pages can use it
+export type { CollectionBatch };
 
 const BatchSelector: React.FC<BatchSelectorProps> = ({
   selectedBatchId,
@@ -67,7 +70,7 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
       const sortedBatches = [...batches].sort((a, b) =>
         new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
       );
-      onBatchChange(sortedBatches[0].id);
+      onBatchChange(sortedBatches[0].id, sortedBatches[0]);
       hasAutoSelected.current = true;
     }
   }, [autoSelectLatest, batches, isLoading, onBatchChange, activeBrand?.id]);
@@ -142,7 +145,9 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
         label={label}
         onChange={(e) => {
           const value = e.target.value;
-          onBatchChange(value === '' ? null : Number(value));
+          const batchId = value === '' ? null : Number(value);
+          const batch = batchId ? sortedBatches.find(b => b.id === batchId) : null;
+          onBatchChange(batchId, batch);
         }}
         startAdornment={
           <CalendarMonth sx={{ ml: 1, mr: 0.5, color: 'text.secondary', fontSize: 20 }} />

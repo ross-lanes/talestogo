@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Grid, Card, CardContent, Paper, CircularProgress, Button, Alert, Snackbar, Table, TableBody, TableCell, TableRow, IconButton } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
   SentimentSatisfied as SentimentIcon,
   Visibility as VisibilityIcon,
   Label as LabelIcon,
@@ -18,7 +19,7 @@ import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 import BrandedLoader from '../components/BrandedLoader';
 import { useTaskStatus } from '../contexts/TaskStatusContext';
-import BatchSelector from '../components/BatchSelector';
+import BatchSelector, { type CollectionBatch } from '../components/BatchSelector';
 import { captureAndUploadCharts } from '../utils/chartCapture';
 import ChartContainer from '../components/ChartContainer';
 import { useResponsiveValue } from '../utils/responsive';
@@ -458,10 +459,17 @@ export default function Dashboard() {
                   </Typography>
                   {formatChange(metrics.change_mention_rate)}
                 </Box>
-                <TrendingUpIcon sx={{
-                  fontSize: 48,
-                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#003e60'
-                }} />
+{metrics.change_mention_rate >= 0 ? (
+                  <TrendingUpIcon sx={{
+                    fontSize: 48,
+                    color: metrics.change_mention_rate > 0 ? '#58A13B' : '#003e60'
+                  }} />
+                ) : (
+                  <TrendingDownIcon sx={{
+                    fontSize: 48,
+                    color: '#EA4A4A'
+                  }} />
+                )}
               </Box>
             </CardContent>
           </Card>

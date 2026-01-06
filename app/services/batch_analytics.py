@@ -62,18 +62,19 @@ def compute_batch_analytics(
     for q in queries:
         organic_query_ids.add(q.query_id)
 
-    # Use all responses for analytics to ensure consistency with platform breakdowns
-    # Previously excluded brand_in_query queries, but this caused empty charts when all queries were branded
-    total_responses = len(responses)
+    # Filter to only organic responses (brand_in_query=False) for brand mention metrics
+    # This ensures we measure true organic brand visibility, not mentions when explicitly asked about the brand
+    organic_responses = [r for r in responses if r.query_id in organic_query_ids]
+    total_responses = len(organic_responses)
 
-    # Initialize counters
+    # Initialize counters (all based on organic queries only)
     mention_count = 0
     leader_count = 0
     featured_count = 0
     listed_count = 0
     not_mentioned_count = 0
 
-    # Sentiment counters (all responses where brand is mentioned)
+    # Sentiment counters (organic responses where brand is mentioned)
     very_positive_count = 0
     positive_count = 0
     neutral_count = 0
@@ -87,8 +88,8 @@ def compute_batch_analytics(
     # Descriptor usage
     descriptor_counts: Dict[str, int] = {}
 
-    # Process each response
-    for response in responses:
+    # Process only organic responses
+    for response in organic_responses:
         # Brand mentions and positioning
         if response.brand_mentioned in ['Yes', 'Indirect']:
             mention_count += 1
@@ -118,13 +119,11 @@ def compute_batch_analytics(
             elif response.sentiment == 'Mixed':
                 mixed_count += 1
 
-        # Share of voice - count competitor mentions ONLY from:
-        # 1. Organic queries (brand_in_query=False)
-        # 2. Responses where brand is mentioned (Yes or Indirect)
+        # Share of voice - count competitor mentions from organic queries
+        # where brand is mentioned (Yes or Indirect)
         # This matches AnalyticsCache._calculate_share_of_voice() behavior
-        is_organic = response.query_id in organic_query_ids
         is_brand_mentioned = response.brand_mentioned in ['Yes', 'Indirect']
-        if is_organic and is_brand_mentioned and response.competitors:
+        if is_brand_mentioned and response.competitors:
             competitor_names = [c.strip() for c in response.competitors.split(',') if c.strip()]
             for comp in competitor_names:
                 normalized = normalize_organization_name(comp)
@@ -136,7 +135,7 @@ def compute_batch_analytics(
             for desc in descriptors:
                 descriptor_counts[desc] = descriptor_counts.get(desc, 0) + 1
 
-    # Calculate mention rate
+    # Calculate mention rate based on organic responses only
     mention_rate = round((mention_count / total_responses * 100)) if total_responses > 0 else 0
 
     # Check if analytics already exist for this batch

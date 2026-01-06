@@ -1,7 +1,7 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button, Card, CardContent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
-import { Download, TrendingUp as TrendingUpIcon } from '@mui/icons-material';
+import { Download, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef } from 'react';
@@ -161,10 +161,17 @@ export default function BrandMentions() {
                   </Typography>
                   {formatChange(metrics.change_mention_rate)}
                 </Box>
-                <TrendingUpIcon sx={{
-                  fontSize: 48,
-                  color: metrics.change_mention_rate > 0 ? '#58A13B' : metrics.change_mention_rate < 0 ? '#EA4A4A' : '#003e60'
-                }} />
+{metrics.change_mention_rate >= 0 ? (
+                  <TrendingUpIcon sx={{
+                    fontSize: 48,
+                    color: metrics.change_mention_rate > 0 ? '#58A13B' : '#003e60'
+                  }} />
+                ) : (
+                  <TrendingDownIcon sx={{
+                    fontSize: 48,
+                    color: '#EA4A4A'
+                  }} />
+                )}
               </Box>
             </CardContent>
           </Card>
