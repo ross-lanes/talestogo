@@ -33,22 +33,30 @@ router = APIRouter(
 def get_dashboard_analytics(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
+    batch_id: Optional[int] = None
 ):
     """
     Get key metrics for the dashboard for the active brand.
 
-    Uses the same BatchAnalytics data source as the trend charts to ensure
-    dashboard metrics always match the latest data point shown in charts.
-    No caching - pulls directly from the database for consistency.
+    Uses BatchAnalytics for basic metrics (mention_rate, sentiment, positioning)
+    and AnalyticsCache for descriptor_match and share_of_voice calculations.
+    Optionally filter by batch_id for specific collection batches.
     """
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
 
-    # Get the latest BatchAnalytics record - same source as trend charts
-    latest_analytics = db.query(models.BatchAnalytics).filter(
-        models.BatchAnalytics.user_id == owner_user_id,
-        models.BatchAnalytics.brand_id == brand_id
-    ).order_by(models.BatchAnalytics.collection_date.desc()).first()
+    # Get the batch to use - either specified or latest
+    if batch_id:
+        latest_analytics = db.query(models.BatchAnalytics).filter(
+            models.BatchAnalytics.user_id == owner_user_id,
+            models.BatchAnalytics.brand_id == brand_id,
+            models.BatchAnalytics.batch_id == batch_id
+        ).first()
+    else:
+        latest_analytics = db.query(models.BatchAnalytics).filter(
+            models.BatchAnalytics.user_id == owner_user_id,
+            models.BatchAnalytics.brand_id == brand_id
+        ).order_by(models.BatchAnalytics.collection_date.desc()).first()
 
     if not latest_analytics:
         # No data available
@@ -67,6 +75,21 @@ def get_dashboard_analytics(
             'change_leadership_visibility': 0,
             'leading_position': 'N/A'
         }
+
+    # Use AnalyticsCache for descriptor_match and share_of_voice
+    # These require complex calculations not stored in BatchAnalytics
+    analytics_batch_id = batch_id or latest_analytics.batch_id
+    cache = AnalyticsCache(
+        db,
+        user_id=owner_user_id,
+        brand_id=brand_id,
+        batch_id=analytics_batch_id
+    )
+    cache_data = cache.get_dashboard_data()
+    descriptor_match = cache_data.get('descriptor_match', 0)
+    share_of_voice = cache_data.get('share_of_voice', 0)
+    change_descriptor = cache_data.get('change_descriptor', 0)
+    change_share_of_voice = cache_data.get('change_share_of_voice', 0)
 
     # Get previous batch for change calculations
     previous_analytics = db.query(models.BatchAnalytics).filter(
@@ -127,12 +150,12 @@ def get_dashboard_analytics(
         'mention_count': mention_count,
         'total_responses': total_responses,
         'positive_sentiment': positive_sentiment,
-        'descriptor_match': 0,  # Not tracked in BatchAnalytics
-        'share_of_voice': 0,  # Calculated differently
+        'descriptor_match': descriptor_match,
+        'share_of_voice': share_of_voice,
         'change_mention_rate': change_mention_rate,
         'change_sentiment': change_sentiment,
-        'change_descriptor': 0,
-        'change_share_of_voice': 0,
+        'change_descriptor': change_descriptor,
+        'change_share_of_voice': change_share_of_voice,
         'change_high_threats': None,
         'change_leadership_visibility': change_leadership_visibility,
         'leading_position': leading_position
