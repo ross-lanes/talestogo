@@ -51,6 +51,17 @@ def compute_batch_analytics(
     if not responses:
         return None
 
+    # Build a set of query_ids where brand_in_query=False (organic queries)
+    # This is used for Share of Voice calculation to match AnalyticsCache behavior
+    organic_query_ids = set()
+    queries = db.query(models.Query).filter(
+        models.Query.user_id == user_id,
+        models.Query.brand_id == brand_id,
+        models.Query.brand_in_query == False
+    ).all()
+    for q in queries:
+        organic_query_ids.add(q.query_id)
+
     # Use all responses for analytics to ensure consistency with platform breakdowns
     # Previously excluded brand_in_query queries, but this caused empty charts when all queries were branded
     total_responses = len(responses)
@@ -70,7 +81,7 @@ def compute_batch_analytics(
     very_negative_count = 0
     mixed_count = 0
 
-    # Share of voice data
+    # Share of voice data (only from organic queries)
     sov_counts: Dict[str, int] = {}
 
     # Descriptor usage
@@ -107,8 +118,10 @@ def compute_batch_analytics(
             elif response.sentiment == 'Mixed':
                 mixed_count += 1
 
-        # Share of voice - count competitor mentions
-        if response.competitors:
+        # Share of voice - count competitor mentions ONLY from organic queries
+        # This matches AnalyticsCache behavior (include_brand_in_query=False)
+        is_organic = response.query_id in organic_query_ids
+        if is_organic and response.competitors:
             competitor_names = [c.strip() for c in response.competitors.split(',') if c.strip()]
             for comp in competitor_names:
                 normalized = normalize_organization_name(comp)
