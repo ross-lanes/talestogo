@@ -894,3 +894,25 @@ def get_threats_by_llm(
         })
 
     return results
+
+
+@router.post("/invalidate-cache", response_model=Dict[str, Any])
+def invalidate_analytics_cache(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """
+    Invalidate all cached analytics data for the current user/brand.
+    Use this to force recalculation of metrics from the database.
+    """
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    redis_cache = get_redis_cache()
+    deleted_count = redis_cache.invalidate_user(owner_user_id, brand_id)
+
+    return {
+        "success": True,
+        "message": f"Invalidated {deleted_count} cache entries for user {owner_user_id}, brand {brand_id}",
+        "deleted_count": deleted_count
+    }
