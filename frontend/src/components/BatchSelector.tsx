@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Box,
   FormControl,
@@ -30,6 +30,7 @@ interface BatchSelectorProps {
   onBatchChange: (batchId: number | null) => void;
   showAllOption?: boolean;
   label?: string;
+  autoSelectLatest?: boolean;
 }
 
 const BatchSelector: React.FC<BatchSelectorProps> = ({
@@ -37,8 +38,11 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
   onBatchChange,
   showAllOption = true,
   label = 'Collection Batch',
+  autoSelectLatest = false,
 }) => {
   const { activeBrand } = useBrand();
+  const hasAutoSelected = useRef(false);
+  const lastBrandId = useRef<number | null>(null);
 
   const { data: batches, isLoading, error } = useQuery<CollectionBatch[]>({
     queryKey: ['collection-batches', activeBrand?.id],
@@ -49,6 +53,24 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
     },
     enabled: !!activeBrand, // Only fetch when there's an active brand
   });
+
+  // Auto-select latest batch when enabled and batches are loaded
+  useEffect(() => {
+    // Reset auto-select flag when brand changes
+    if (activeBrand?.id !== lastBrandId.current) {
+      hasAutoSelected.current = false;
+      lastBrandId.current = activeBrand?.id ?? null;
+    }
+
+    if (autoSelectLatest && !isLoading && batches && batches.length > 0 && !hasAutoSelected.current) {
+      // Sort by started_at descending and pick the first (most recent)
+      const sortedBatches = [...batches].sort((a, b) =>
+        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+      );
+      onBatchChange(sortedBatches[0].id);
+      hasAutoSelected.current = true;
+    }
+  }, [autoSelectLatest, batches, isLoading, onBatchChange, activeBrand?.id]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

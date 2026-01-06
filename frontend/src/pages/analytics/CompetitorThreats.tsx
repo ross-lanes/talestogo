@@ -185,6 +185,7 @@ export default function CompetitorThreats() {
             onBatchChange={setSelectedBatchId}
             showAllOption={true}
             label="Filter by Collection"
+            autoSelectLatest={true}
           />
         </Box>
       </Box>

@@ -249,6 +249,7 @@ export default function SentimentAnalysis() {
             onBatchChange={setSelectedBatchId}
             showAllOption={true}
             label="Filter by Collection"
+            autoSelectLatest={true}
           />
         </Box>
       </Box>

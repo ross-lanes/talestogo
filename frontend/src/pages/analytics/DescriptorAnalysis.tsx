@@ -272,6 +272,7 @@ export default function DescriptorAnalysis() {
             onBatchChange={setSelectedBatchId}
             showAllOption={true}
             label="Filter by Collection"
+            autoSelectLatest={true}
           />
         </Box>
       </Box>
