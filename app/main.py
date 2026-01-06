@@ -262,7 +262,6 @@ if FRONTEND_DIST.exists():
             "heads/",
             "canon/",
             "bigidea/",
-            "analytics/",
             "batches/",
             "scheduled-tasks/",
             "help/",

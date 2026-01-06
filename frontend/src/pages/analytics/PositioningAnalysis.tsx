@@ -33,7 +33,7 @@ export default function PositioningAnalysis() {
     queryKey: ['positioning-analysis', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/positioning/breakdown', { params });
+      const response = await api.get('/api/analytics/positioning/breakdown', { params });
       return response.data;
     },
   });
@@ -41,7 +41,7 @@ export default function PositioningAnalysis() {
   const { data: positioningTrends, isLoading: loadingPositioningTrends } = useQuery({
     queryKey: ['positioning-trends'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/positioning');
+      const response = await api.get('/api/analytics/trends/positioning');
       return response.data;
     },
   });
@@ -50,7 +50,7 @@ export default function PositioningAnalysis() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['positioning-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/positioning-by-llm');
+      const response = await api.get('/api/analytics/positioning-by-llm');
       return response.data;
     },
   });

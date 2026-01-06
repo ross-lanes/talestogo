@@ -28,7 +28,7 @@ export default function CompetitorThreats() {
     queryKey: ['competitor-threats', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/competitor-threats', { params });
+      const response = await api.get('/api/analytics/competitor-threats', { params });
       return response.data;
     },
   });
@@ -46,7 +46,7 @@ export default function CompetitorThreats() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['threats-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/threats-by-llm');
+      const response = await api.get('/api/analytics/threats-by-llm');
       return response.data;
     },
   });

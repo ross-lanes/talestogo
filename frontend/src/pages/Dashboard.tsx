@@ -174,7 +174,7 @@ export default function Dashboard() {
     queryKey: ['dashboard-metrics', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/dashboard', { params });
+      const response = await api.get('/api/analytics/dashboard', { params });
       return response.data;
     },
     // Only fetch metrics after brand is loaded and batch selection is initialized
@@ -190,7 +190,7 @@ export default function Dashboard() {
     queryKey: ['sentiment-breakdown', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/sentiment/breakdown', { params });
+      const response = await api.get('/api/analytics/sentiment/breakdown', { params });
       return response.data;
     },
     enabled: !!activeBrand && batchInitialized,
@@ -201,7 +201,7 @@ export default function Dashboard() {
     queryKey: ['share-of-voice-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/share-of-voice', { params });
+      const response = await api.get('/api/analytics/share-of-voice', { params });
       return response.data;
     },
     enabled: !!activeBrand && batchInitialized,
@@ -212,7 +212,7 @@ export default function Dashboard() {
     queryKey: ['positioning-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/positioning/breakdown', { params });
+      const response = await api.get('/api/analytics/positioning/breakdown', { params });
       return response.data;
     },
     enabled: !!activeBrand && batchInitialized,
@@ -223,7 +223,7 @@ export default function Dashboard() {
     queryKey: ['competitor-threats-dashboard', activeBrand?.id, selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/competitor-threats', { params });
+      const response = await api.get('/api/analytics/competitor-threats', { params });
       return response.data;
     },
     enabled: !!activeBrand && batchInitialized,

@@ -35,7 +35,7 @@ export default function SentimentAnalysis() {
     queryKey: ['sentiment-analysis', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/sentiment/breakdown', { params });
+      const response = await api.get('/api/analytics/sentiment/breakdown', { params });
       return response.data;
     },
   });
@@ -43,7 +43,7 @@ export default function SentimentAnalysis() {
   const { data: sentimentTrends, isLoading: loadingTrends } = useQuery({
     queryKey: ['sentiment-trends'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/sentiment');
+      const response = await api.get('/api/analytics/trends/sentiment');
       return response.data;
     },
   });
@@ -52,7 +52,7 @@ export default function SentimentAnalysis() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['sentiment-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/sentiment-by-llm');
+      const response = await api.get('/api/analytics/sentiment-by-llm');
       return response.data;
     },
   });

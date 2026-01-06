@@ -43,7 +43,7 @@ export default function DescriptorAnalysis() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['descriptors-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/descriptors-by-llm');
+      const response = await api.get('/api/analytics/descriptors-by-llm');
       return response.data;
     },
   });

@@ -24,7 +24,7 @@ from ..services.redis_cache import get_redis_cache
 from ..utils.brand_access import get_active_brand_id, get_data_owner_user_id
 
 router = APIRouter(
-    prefix="/analytics",
+    prefix="/api/analytics",
     tags=["analytics"]
 )
 

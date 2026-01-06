@@ -27,7 +27,7 @@ export default function BrandMentions() {
   const { data: metrics, isLoading: metricsLoading, error: metricsError } = useQuery({
     queryKey: ['dashboard-metrics'],
     queryFn: async () => {
-      const response = await api.get('/analytics/dashboard');
+      const response = await api.get('/api/analytics/dashboard');
       return response.data;
     },
   });
@@ -36,7 +36,7 @@ export default function BrandMentions() {
   const { data: trendData, isLoading: trendLoading, error: trendError } = useQuery({
     queryKey: ['brand-mentions-trend'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/brand-mentions');
+      const response = await api.get('/api/analytics/trends/brand-mentions');
       return response.data;
     },
   });
@@ -45,7 +45,7 @@ export default function BrandMentions() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['brand-mentions-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/brand-mentions-by-llm');
+      const response = await api.get('/api/analytics/brand-mentions-by-llm');
       return response.data;
     },
   });

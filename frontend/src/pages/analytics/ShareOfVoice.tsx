@@ -33,7 +33,7 @@ export default function ShareOfVoice() {
     queryKey: ['share-of-voice', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/share-of-voice', { params });
+      const response = await api.get('/api/analytics/share-of-voice', { params });
       return response.data;
     },
   });
@@ -41,7 +41,7 @@ export default function ShareOfVoice() {
   const { data: sovTrends, isLoading: loadingTrends } = useQuery({
     queryKey: ['sov-trends'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/share-of-voice');
+      const response = await api.get('/api/analytics/trends/share-of-voice');
       return response.data;
     },
   });
@@ -50,7 +50,7 @@ export default function ShareOfVoice() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['share-of-voice-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/share-of-voice-by-llm');
+      const response = await api.get('/api/analytics/share-of-voice-by-llm');
       return response.data;
     },
   });

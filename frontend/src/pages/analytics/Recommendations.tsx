@@ -9,7 +9,7 @@ export default function Recommendations() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['recommendations'],
     queryFn: async () => {
-      const response = await api.get('/analytics/recommendations');
+      const response = await api.get('/api/analytics/recommendations');
       return response.data;
     },
   });

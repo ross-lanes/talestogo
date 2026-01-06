@@ -14,7 +14,7 @@ export default function StrategicPriorities() {
   const { data: dashboard, isLoading: loadingDash } = useQuery({
     queryKey: ['dashboard-priorities'],
     queryFn: async () => {
-      const response = await api.get('/analytics/dashboard');
+      const response = await api.get('/api/analytics/dashboard');
       return response.data;
     },
   });
@@ -22,7 +22,7 @@ export default function StrategicPriorities() {
   const { data: sentiment } = useQuery({
     queryKey: ['sentiment-priorities'],
     queryFn: async () => {
-      const response = await api.get('/analytics/sentiment/breakdown');
+      const response = await api.get('/api/analytics/sentiment/breakdown');
       return response.data;
     },
   });
@@ -30,7 +30,7 @@ export default function StrategicPriorities() {
   const { data: positioning } = useQuery({
     queryKey: ['positioning-priorities'],
     queryFn: async () => {
-      const response = await api.get('/analytics/positioning/breakdown');
+      const response = await api.get('/api/analytics/positioning/breakdown');
       return response.data;
     },
   });
@@ -38,7 +38,7 @@ export default function StrategicPriorities() {
   const { data: shareOfVoice } = useQuery({
     queryKey: ['sov-priorities'],
     queryFn: async () => {
-      const response = await api.get('/analytics/share-of-voice');
+      const response = await api.get('/api/analytics/share-of-voice');
       return response.data;
     },
   });
