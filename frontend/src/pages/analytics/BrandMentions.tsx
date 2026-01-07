@@ -54,13 +54,14 @@ export default function BrandMentions() {
   const error = metricsError || trendError || llmError;
 
   // Format change percentage for display
-  const formatChange = (change: number | undefined) => {
+  const formatChange = (change: number | undefined, previousDate: string | undefined) => {
     if (change === undefined || change === null || change === 0) return null;
     const sign = change > 0 ? '+' : '';
     const color = change > 0 ? '#58A13B' : '#EA4A4A';
+    const dateText = previousDate ? ` vs. ${formatDateEST(previousDate, 'short')}` : ' vs. previous';
     return (
       <Typography variant="body2" sx={{ color, fontWeight: 600 }}>
-        {sign}{change}% vs. previous
+        {sign}{change}%{dateText}
       </Typography>
     );
   };
@@ -154,12 +155,12 @@ export default function BrandMentions() {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
-                    Brand Mentions
+                    Brand Mentions {metrics.collection_date && `on ${formatDateEST(metrics.collection_date, 'short')}`}
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
                     {Math.round(metrics.mention_rate)}%
                   </Typography>
-                  {formatChange(metrics.change_mention_rate)}
+                  {formatChange(metrics.change_mention_rate, metrics.previous_collection_date)}
                 </Box>
 {metrics.change_mention_rate >= 0 ? (
                   <TrendingUpIcon sx={{
@@ -256,7 +257,7 @@ export default function BrandMentions() {
                 Brand Mention Rate by LLM Platform
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Comparison of mention rates across different AI platforms
+                Comparison of mention rates across different AI platforms (all data collected over time)
               </Typography>
             </Box>
             <Button

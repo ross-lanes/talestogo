@@ -158,7 +158,9 @@ def get_dashboard_analytics(
         'change_share_of_voice': change_share_of_voice,
         'change_high_threats': None,
         'change_leadership_visibility': change_leadership_visibility,
-        'leading_position': leading_position
+        'leading_position': leading_position,
+        'collection_date': latest_analytics.collection_date.isoformat() if latest_analytics.collection_date else None,
+        'previous_collection_date': previous_analytics.collection_date.isoformat() if previous_analytics and previous_analytics.collection_date else None
     }
 
 

@@ -23,6 +23,7 @@ import BatchSelector, { type CollectionBatch } from '../components/BatchSelector
 import { captureAndUploadCharts } from '../utils/chartCapture';
 import ChartContainer from '../components/ChartContainer';
 import { useResponsiveValue } from '../utils/responsive';
+import { formatDateEST } from '../utils/dateUtils';
 
 interface DashboardMetrics {
   mention_rate: number;
@@ -38,6 +39,8 @@ interface DashboardMetrics {
   change_high_threats: number | null;
   change_leadership_visibility: number;
   leading_position: string;
+  collection_date?: string;
+  previous_collection_date?: string;
 }
 
 export default function Dashboard() {
@@ -347,13 +350,14 @@ export default function Dashboard() {
   }
 
   // Format change indicators
-  const formatChange = (value: number) => {
+  const formatChange = (value: number, previousDate?: string) => {
     if (value === 0) return null;
     const sign = value > 0 ? '↑' : '↓';
     const color = value > 0 ? 'success.main' : 'error.main';
+    const dateText = previousDate ? ` vs ${formatDateEST(previousDate, 'short')}` : ' vs last period';
     return (
       <Typography variant="body2" color={color}>
-        {sign} {value > 0 ? '+' : ''}{Math.round(value)}% vs last period
+        {sign} {value > 0 ? '+' : ''}{Math.round(value)}%{dateText}
       </Typography>
     );
   };
@@ -452,12 +456,12 @@ export default function Dashboard() {
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="body2">
-                    Brand Mentions
+                    Brand Mentions {metrics.collection_date && `on ${formatDateEST(metrics.collection_date, 'short')}`}
                   </Typography>
                   <Typography variant="h4" component="div" color="primary">
                     {Math.round(metrics.mention_rate ?? 0)}%
                   </Typography>
-                  {formatChange(metrics.change_mention_rate)}
+                  {formatChange(metrics.change_mention_rate, metrics.previous_collection_date)}
                 </Box>
 {metrics.change_mention_rate >= 0 ? (
                   <TrendingUpIcon sx={{
