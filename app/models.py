@@ -243,7 +243,7 @@ class Report(Base):
     brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=True, index=True)  # Multi-brand support
     title = Column(String(200), nullable=False)
     report_content = Column(Text, nullable=False) # Full markdown content
-    report_type = Column(String(20), nullable=False, default='monthly')  # 'monthly' or 'all_data'
+    report_type = Column(String(20), nullable=False, default='latest_batch')  # 'latest_batch' or 'all_data'
     start_date = Column(DateTime, nullable=True) # Analysis period start
     end_date = Column(DateTime, nullable=True) # Analysis period end
     total_responses = Column(Integer, default=0)

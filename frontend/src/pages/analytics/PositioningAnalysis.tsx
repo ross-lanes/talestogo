@@ -5,21 +5,9 @@ import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
-import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
+import BatchSelector from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
-
-// Helper to format batch date for display
-const formatBatchDate = (batch: CollectionBatch | null): string => {
-  if (!batch) return 'All Data';
-  const date = new Date(batch.started_at);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'America/New_York'
-  });
-};
 
 // TALES brand colors + extended palette (removed #c0b9dd and #ded9e2 - too light)
 const BRAND_COLORS = [
@@ -40,18 +28,12 @@ export default function PositioningAnalysis() {
   const positioningTrendChartRef = useRef<HTMLDivElement>(null);
   const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
-  const [selectedBatch, setSelectedBatch] = useState<CollectionBatch | null>(null);
-
-  const handleBatchChange = (batchId: number | null, batch?: CollectionBatch | null) => {
-    setSelectedBatchId(batchId);
-    setSelectedBatch(batch || null);
-  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['positioning-analysis', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/api/analytics/positioning/breakdown', { params });
+      const response = await api.get('/analytics/positioning/breakdown', { params });
       return response.data;
     },
   });
@@ -59,7 +41,7 @@ export default function PositioningAnalysis() {
   const { data: positioningTrends, isLoading: loadingPositioningTrends } = useQuery({
     queryKey: ['positioning-trends'],
     queryFn: async () => {
-      const response = await api.get('/api/analytics/trends/positioning');
+      const response = await api.get('/analytics/trends/positioning');
       return response.data;
     },
   });
@@ -68,7 +50,7 @@ export default function PositioningAnalysis() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['positioning-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/api/analytics/positioning-by-llm');
+      const response = await api.get('/analytics/positioning-by-llm');
       return response.data;
     },
   });
@@ -205,10 +187,10 @@ export default function PositioningAnalysis() {
         <Box sx={{ minWidth: 300 }}>
           <BatchSelector
             selectedBatchId={selectedBatchId}
-            onBatchChange={handleBatchChange}
+            onBatchChange={setSelectedBatchId}
             showAllOption={true}
             label="Filter by Collection"
-            autoSelectLatest={true}
+            defaultToLatest={true}
           />
         </Box>
       </Box>
@@ -226,10 +208,7 @@ export default function PositioningAnalysis() {
             <Typography variant="h6">
               Brand Positioning Distribution
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Collection: {formatBatchDate(selectedBatch)}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               How your brand is positioned across all AI responses
             </Typography>
           </Box>
@@ -342,10 +321,7 @@ export default function PositioningAnalysis() {
               <Typography variant="h6">
                 Brand Positioning by LLM Platform
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                All Data (not filtered by collection)
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 Positioning breakdown across different AI platforms
               </Typography>
             </Box>

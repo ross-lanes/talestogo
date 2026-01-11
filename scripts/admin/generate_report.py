@@ -5,8 +5,8 @@ Generates professional analysis reports from analyzed response data using Gemini
 Brand-aware version that generates reports for specific brands.
 
 Report Types:
-- monthly: Focuses on the last complete calendar month of data, with historical context for trends
-- all_data: Comprehensive analysis using all historical data (legacy behavior)
+- latest_batch: Uses data from the most recent collection batch (default for automated runs)
+- all_data: Comprehensive analysis using all historical data
 """
 
 import os
@@ -107,37 +107,9 @@ def get_brand_analyzed_responses(
     return query.all()
 
 
-def get_last_calendar_month_range() -> tuple[datetime, datetime, str]:
+def get_latest_batch(db, user_id: int, brand_id: int) -> tuple[Optional[int], str]:
     """
-    Get the date range for the last complete calendar month.
-
-    Returns:
-        Tuple of (start_date, end_date, month_name)
-        - start_date: First day of last month at 00:00:00
-        - end_date: First day of current month at 00:00:00 (exclusive)
-        - month_name: Name of the month (e.g., "December 2024")
-    """
-    today = datetime.utcnow()
-
-    # Get first day of current month
-    first_of_current_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    # Get first day of last month
-    if today.month == 1:
-        # January -> go back to December of previous year
-        first_of_last_month = first_of_current_month.replace(year=today.year - 1, month=12)
-    else:
-        first_of_last_month = first_of_current_month.replace(month=today.month - 1)
-
-    # Format month name
-    month_name = first_of_last_month.strftime("%B %Y")
-
-    return first_of_last_month, first_of_current_month, month_name
-
-
-def get_last_month_batch_ids(db, user_id: int, brand_id: int) -> tuple[List[int], str]:
-    """
-    Get batch IDs for collections from the last complete calendar month.
+    Get the most recent completed collection batch for a brand.
 
     Args:
         db: Database session
@@ -145,19 +117,20 @@ def get_last_month_batch_ids(db, user_id: int, brand_id: int) -> tuple[List[int]
         brand_id: Brand ID
 
     Returns:
-        Tuple of (batch_ids, month_name)
+        Tuple of (batch_id, date_string)
+        - batch_id: ID of the latest batch, or None if no batches found
+        - date_string: Formatted date of the batch (e.g., "January 1, 2026")
     """
-    start_date, end_date, month_name = get_last_calendar_month_range()
-
-    batches = db.query(CollectionBatch).filter(
+    batch = db.query(CollectionBatch).filter(
         CollectionBatch.user_id == user_id,
         CollectionBatch.brand_id == brand_id,
-        CollectionBatch.status == 'completed',
-        CollectionBatch.started_at >= start_date,
-        CollectionBatch.started_at < end_date
-    ).all()
+        CollectionBatch.status == 'completed'
+    ).order_by(CollectionBatch.started_at.desc()).first()
 
-    return [batch.id for batch in batches], month_name
+    if batch:
+        date_string = batch.started_at.strftime("%B %d, %Y")
+        return batch.id, date_string
+    return None, ""
 
 
 def get_historical_metrics_summary(db, user_id: int, brand_id: int, brand_name: str) -> Dict[str, Any]:
@@ -882,16 +855,16 @@ def generate_executive_summary(
     response_examples: str,
     descriptor_context: str,
     competitor_context: str,
-    report_type: str = 'monthly',
+    report_type: str = 'latest_batch',
     historical_summary: Dict[str, Any] = None,
     period_name: str = None
 ) -> str:
     """Use Gemini to generate an enhanced executive summary with rich context."""
 
     # Build period context based on report type
-    if report_type == 'monthly':
-        month_label = period_name if period_name else "the last calendar month"
-        period_context = f"This analysis covers {month_label} data collection."
+    if report_type == 'latest_batch':
+        date_label = period_name if period_name else "the most recent data collection"
+        period_context = f"This analysis covers data collected on {date_label}."
         if historical_summary:
             historical_context = f"""
 HISTORICAL COMPARISON (for context):
@@ -904,10 +877,10 @@ HISTORICAL COMPARISON (for context):
             historical_context = ""
         analysis_focus = """
 Focus your analysis on:
-- Current month's performance and what's driving the numbers
-- How this month compares to historical averages (better, worse, or stable)
-- Month-specific trends or notable changes
-- Immediate actionable insights for the coming month"""
+- Current performance and what's driving the numbers
+- How this collection compares to historical averages (better, worse, or stable)
+- Notable patterns or changes
+- Immediate actionable insights"""
     else:
         period_context = "This comprehensive analysis covers ALL historical data to date."
         historical_context = ""
@@ -1169,24 +1142,24 @@ def generate_markdown_report(
     competitors: List[Any] = None,
     competitor_threats_data: List[Dict[str, Any]] = None,
     llm_breakdown_data: Dict[str, Any] = None,
-    report_type: str = 'monthly',
+    report_type: str = 'latest_batch',
     historical_summary: Dict[str, Any] = None,
 ) -> str:
     """Generate a complete markdown report with embedded charts and insights."""
 
     # Build report title based on type
-    if report_type == 'monthly':
-        report_title = f"# {brand_name} - Monthly AI Reputation Analysis"
-        period_note = f"**Analysis Period:** {period} | **Generated:** {report_date}"
+    if report_type == 'latest_batch':
+        report_title = f"# {brand_name} - AI Reputation Analysis"
+        period_note = f"**Collection Date:** {period} | **Generated:** {report_date}"
     else:
         report_title = f"# {brand_name} - Comprehensive AI Reputation Analysis"
         period_note = f"**Analysis Period:** All Data to Date | **Generated:** {report_date}"
 
-    # Add historical context note for monthly reports
+    # Add historical context note for latest_batch reports
     historical_context_note = ""
-    if report_type == 'monthly' and historical_summary:
+    if report_type == 'latest_batch' and historical_summary:
         historical_context_note = f"""
-> **Historical Context:** This monthly report analyzes {period} data. For comparison, your all-time average mention rate is {historical_summary['avg_mention_rate']}% across {historical_summary['total_batches']} data collection batches spanning {historical_summary['date_range_days']} days.
+> **Historical Context:** This report analyzes data collected on {period}. For comparison, your all-time average mention rate is {historical_summary['avg_mention_rate']}% across {historical_summary['total_batches']} data collection batches spanning {historical_summary['date_range_days']} days.
 """
 
     report = f"""{report_title}
@@ -1474,14 +1447,14 @@ All metrics are based on actual AI platform responses collected during the analy
 
 # ==================== MAIN FUNCTION ====================
 
-def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthly'):
+def generate_report_main(user_id: int, brand_id: int, report_type: str = 'latest_batch'):
     """
     Main function to generate the complete report for a specific brand.
 
     Args:
         user_id: User ID
         brand_id: Brand ID
-        report_type: 'monthly' (last calendar month) or 'all_data' (all historical data)
+        report_type: 'latest_batch' (most recent collection) or 'all_data' (all historical data)
     """
     print(f"Starting TALES Report Generation for Brand ID {brand_id}...")
     print(f"Report Type: {report_type}")
@@ -1522,25 +1495,24 @@ def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthl
         historical_summary = None
         report_period_description = ""
 
-        if report_type == 'monthly':
-            # Get batch IDs from last complete calendar month
-            batch_ids, month_name = get_last_month_batch_ids(db, user_id, brand_id)
-            print(f"  - Found {len(batch_ids)} collection batches for {month_name}")
+        if report_type == 'latest_batch':
+            # Get the most recent collection batch
+            batch_id, batch_date = get_latest_batch(db, user_id, brand_id)
 
-            if batch_ids:
-                responses = get_brand_analyzed_responses(db, user_id, brand_id, batch_ids=batch_ids)
+            if batch_id:
+                print(f"  - Using latest batch (ID: {batch_id}) from {batch_date}")
+                responses = get_brand_analyzed_responses(db, user_id, brand_id, batch_ids=[batch_id])
             else:
-                # Fallback: use date-based filtering if no batches found
-                print(f"  - No batches found for {month_name}, using date range filtering")
-                start_date, end_date, _ = get_last_calendar_month_range()
-                responses = get_brand_analyzed_responses(db, user_id, brand_id, start_date=start_date, end_date=end_date)
+                print("  - No completed batches found, falling back to all data")
+                responses = get_brand_analyzed_responses(db, user_id, brand_id)
+                batch_date = "All Data"
 
             # Get historical summary for context
             historical_summary = get_historical_metrics_summary(db, user_id, brand_id, brand_name)
             if historical_summary:
                 print(f"  - Historical context: {historical_summary['total_batches']} batches spanning {historical_summary['date_range_days']} days")
 
-            report_period_description = month_name
+            report_period_description = batch_date
         else:
             # all_data mode: get all responses
             responses = get_brand_analyzed_responses(db, user_id, brand_id)
@@ -1811,8 +1783,8 @@ def generate_report_main(user_id: int, brand_id: int, report_type: str = 'monthl
             db.commit()
 
         # Create title based on report type
-        if report_type == 'monthly':
-            report_title = f"{brand_name} Monthly AI Reputation Analysis - {format_eastern_date(now_eastern())}"
+        if report_type == 'latest_batch':
+            report_title = f"{brand_name} AI Reputation Analysis - {report_period_description}"
         else:
             report_title = f"{brand_name} Comprehensive AI Reputation Analysis - {format_eastern_date(now_eastern())}"
 
@@ -1873,8 +1845,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TALES Report Generation Tool')
     parser.add_argument('--user-id', type=int, required=True, help='User ID to generate report for')
     parser.add_argument('--brand-id', type=int, required=True, help='Brand ID to generate report for')
-    parser.add_argument('--report-type', type=str, default='monthly', choices=['monthly', 'all_data'],
-                        help='Report type: monthly (last calendar month) or all_data (comprehensive)')
+    parser.add_argument('--report-type', type=str, default='latest_batch', choices=['latest_batch', 'all_data'],
+                        help='Report type: latest_batch (most recent collection) or all_data (comprehensive)')
     args = parser.parse_args()
 
     generate_report_main(args.user_id, args.brand_id, args.report_type)

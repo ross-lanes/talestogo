@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   Box,
   FormControl,
@@ -27,25 +27,21 @@ interface CollectionBatch {
 
 interface BatchSelectorProps {
   selectedBatchId: number | null;
-  onBatchChange: (batchId: number | null, batch?: CollectionBatch | null) => void;
+  onBatchChange: (batchId: number | null) => void;
   showAllOption?: boolean;
   label?: string;
-  autoSelectLatest?: boolean;
+  defaultToLatest?: boolean;
 }
-
-// Export the interface so pages can use it
-export type { CollectionBatch };
 
 const BatchSelector: React.FC<BatchSelectorProps> = ({
   selectedBatchId,
   onBatchChange,
   showAllOption = true,
   label = 'Collection Batch',
-  autoSelectLatest = false,
+  defaultToLatest = false,
 }) => {
   const { activeBrand } = useBrand();
-  const hasAutoSelected = useRef(false);
-  const lastBrandId = useRef<number | null>(null);
+  const [hasInitialized, setHasInitialized] = React.useState(false);
 
   const { data: batches, isLoading, error } = useQuery<CollectionBatch[]>({
     queryKey: ['collection-batches', activeBrand?.id],
@@ -57,23 +53,16 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
     enabled: !!activeBrand, // Only fetch when there's an active brand
   });
 
-  // Auto-select latest batch when enabled and batches are loaded
-  useEffect(() => {
-    // Reset auto-select flag when brand changes
-    if (activeBrand?.id !== lastBrandId.current) {
-      hasAutoSelected.current = false;
-      lastBrandId.current = activeBrand?.id ?? null;
-    }
-
-    if (autoSelectLatest && !isLoading && batches && batches.length > 0 && !hasAutoSelected.current) {
-      // Sort by started_at descending and pick the first (most recent)
+  // Auto-select latest batch on first load if defaultToLatest is true
+  React.useEffect(() => {
+    if (defaultToLatest && !hasInitialized && batches && batches.length > 0) {
       const sortedBatches = [...batches].sort((a, b) =>
         new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
       );
-      onBatchChange(sortedBatches[0].id, sortedBatches[0]);
-      hasAutoSelected.current = true;
+      onBatchChange(sortedBatches[0].id);
+      setHasInitialized(true);
     }
-  }, [autoSelectLatest, batches, isLoading, onBatchChange, activeBrand?.id]);
+  }, [defaultToLatest, hasInitialized, batches, onBatchChange]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -132,7 +121,11 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
       return 'All Data';
     }
     const selectedBatch = sortedBatches.find(b => b.id === selectedBatchId);
-    return selectedBatch ? formatDate(selectedBatch.started_at) : '';
+    if (!selectedBatch) return '';
+    // Check if this is the latest batch
+    const isLatest = sortedBatches.length > 0 && sortedBatches[0].id === selectedBatchId;
+    const dateStr = formatDate(selectedBatch.started_at);
+    return isLatest ? `Latest (${dateStr})` : dateStr;
   };
 
   return (
@@ -145,9 +138,7 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
         label={label}
         onChange={(e) => {
           const value = e.target.value;
-          const batchId = value === '' ? null : Number(value);
-          const batch = batchId ? sortedBatches.find(b => b.id === batchId) : null;
-          onBatchChange(batchId, batch);
+          onBatchChange(value === '' ? null : Number(value));
         }}
         startAdornment={
           <CalendarMonth sx={{ ml: 1, mr: 0.5, color: 'text.secondary', fontSize: 20 }} />
@@ -158,16 +149,16 @@ const BatchSelector: React.FC<BatchSelectorProps> = ({
           </Typography>
         )}
       >
-        {sortedBatches.map((batch) => (
+        {sortedBatches.map((batch, index) => (
           <MenuItem key={batch.id} value={batch.id}>
             <Typography variant="body2">
-              {formatDate(batch.started_at)}
+              {index === 0 ? `Latest (${formatDate(batch.started_at)})` : formatDate(batch.started_at)}
             </Typography>
           </MenuItem>
         ))}
         {showAllOption && (
           <MenuItem value="">
-            <Typography variant="body2" fontWeight={600}>
+            <Typography variant="body2">
               All Data
             </Typography>
           </MenuItem>
