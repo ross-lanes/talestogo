@@ -13,7 +13,7 @@ import { api } from '../services/api';
 import { CalendarMonth } from '@mui/icons-material';
 import { useBrand } from '../contexts/BrandContext';
 
-interface CollectionBatch {
+export interface CollectionBatch {
   id: number;
   batch_name: string;
   started_at: string;
