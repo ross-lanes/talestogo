@@ -33,9 +33,6 @@ interface BatchSelectorProps {
   autoSelectLatest?: boolean;
 }
 
-// Export the interface so pages can use it
-export type { CollectionBatch };
-
 const BatchSelector: React.FC<BatchSelectorProps> = ({
   selectedBatchId,
   onBatchChange,
