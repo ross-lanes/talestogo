@@ -7,7 +7,7 @@ The analysis of Physics of Plasmas' AI reputation was conducted using the Tales 
 
 ### Analytical Framework
 
-The collected responses underwent a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Perplexity's Sonar model analyzed each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, top 3, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources. This extraction process was context-aware, incorporating Physics of Plasmas' industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Perplexity's Sonar Pro model synthesized these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
+The collected responses underwent a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Gemini 2.5 Pro analyzed each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, top 3, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources. This extraction process was context-aware, incorporating Physics of Plasmas' industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Gemini 2.5 Pro synthesized these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
 
 ### Key Performance Metrics
 
@@ -80,10 +80,10 @@ Each positioning category (Leader, Top 3, Featured, Listed, Not Mentioned) is al
 
 **Leadership Visibility (Sub-metric):**
 ```
-Leadership Visibility (%) = ((Leader Count + Top 3 Count) / Total Responses) × 100
+Leadership Visibility (%) = ((Leader Count + Featured Count) / Total Responses) × 100
 ```
 
-This metric specifically measures high-quality visibility by combining the top two positioning categories.
+This metric specifically measures high-quality visibility by combining the top two positioning categories (Leader and Featured).
 
 #### Share of Voice
 
@@ -131,31 +131,51 @@ Descriptor Match Rate (%) = (Number of Target Descriptors Found / Total Target D
 
 #### Competitive Threat Analysis
 
-Unlike the quantitative metrics above, competitive threat analysis is **not based on a mathematical formula**. Instead, it employs a qualitative AI-powered methodology to identify strategic competitive risks.
+Competitive threat analysis combines quantitative scoring with AI-powered qualitative analysis to identify and explain strategic competitive risks.
 
-**Process:**
+**Formula:**
+```
+Threat Score = (mention_count × 0.7) + (negative_overlap × 2.0) + (positive_competitor × 1.5)
+```
 
-**1. Data Collection Phase:**
+**Calculation Details:**
+
+| Component | Weight | Definition |
+|-----------|--------|------------|
+| **Mention Count** | 0.7 | Total number of times the competitor is mentioned across all AI responses |
+| **Negative Overlap** | 2.0 | Count of responses where the competitor is mentioned AND Physics of Plasmas receives negative/very negative sentiment (indicates direct competitive pressure) |
+| **Positive for Competitor** | 1.5 | Count of responses where the competitor receives positive/very positive sentiment (indicates competitive advantage) |
+
+**Threat Level Thresholds:**
+- **High Threat (score > 50):** Requires immediate strategic attention
+- **Medium Threat (score 20-50):** Requires monitoring
+- **Low Threat (score < 20):** Minimal competitive pressure
+
+**Report Generation Process:**
+
+**1. Quantitative Ranking:**
+- All competitors are scored using the threat formula above
+- The top 3 threats are identified based on their scores
+
+**2. Data Collection Phase (for top 3 threats):**
 - Gathers Share of Voice data showing competitor mention frequencies
 - Identifies specific query-response pairs where Physics of Plasmas was not mentioned but competitors were
-- Extracts "competitive loss" examples where Physics of Plasmas appeared but was poorly positioned relative to competitors
+- Extracts "competitive loss" examples where both were mentioned but the competitor was positioned better
 - Compiles competitor strategic context (focus areas, target descriptors, positioning goals)
 
-**2. AI Analysis Phase:**
-- Submits concrete response examples and competitive data to Perplexity Sonar Pro model
-- AI identifies patterns in which competitors consistently outperform Physics of Plasmas
-- Analyzes the specific descriptors, positioning, and strategic territory competitors have claimed
-- Synthesizes threat landscape based on actual response content rather than calculated scores
+**3. AI Analysis Phase:**
+- Submits concrete response examples and competitive data for the top 3 threats to Gemini 2.5 Pro
+- AI generates qualitative narrative analysis explaining why each competitor is a threat
+- Analyzes what specific queries they are winning, what descriptors and positioning they have claimed
+- Provides strategic implications and recommended counter-actions
 
-**3. Output:**
-- Qualitative descriptions of top 3-5 competitive threats
-- Specific examples of queries/responses where competitors won visibility
+**4. Output:**
+- Quantitative threat scores and rankings for all competitors
+- Qualitative descriptions of top 3 competitive threats with specific examples
 - Strategic implications of competitive positioning
 - Recommended counter-actions to address competitive gaps
 
-**Rationale for Qualitative Approach:** Competitive threats involve nuanced strategic considerations that resist reduction to single numerical scores. A competitor with lower share of voice but stronger positioning on a critical strategic descriptor may pose a greater threat than a competitor with higher overall visibility. The AI-powered qualitative analysis can weigh these multidimensional factors more effectively than a predetermined formula.
-
-**Key Insight:** While threat "level" is not quantified, the analysis is still data-driven, grounded in actual response examples and measurable share of voice differentials, making it actionable rather than speculative.
+**Rationale:** The quantitative threat score efficiently identifies which competitors pose the greatest risk, while the AI-generated qualitative analysis provides strategic context, concrete examples, and actionable recommendations that a formula alone cannot deliver.
 
 #### Summary of Metric Calculation Approaches
 

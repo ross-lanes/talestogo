@@ -290,9 +290,9 @@ Critically, most queries are designed as "visibility tests" that deliberately ex
 
 ## Analytical Framework
 
-The collected responses undergo a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Perplexity's Sonar model analyzes each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, top 3, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources.
+The collected responses undergo a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Gemini 2.5 Pro analyzes each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, top 3, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources.
 
-This extraction process is context-aware, incorporating your brand's industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Perplexity's Sonar Pro model synthesizes these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
+This extraction process is context-aware, incorporating your brand's industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Gemini 2.5 Pro synthesizes these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
 
 ## Key Performance Metrics
 
@@ -387,17 +387,29 @@ Descriptor Match Rate (%) = (Number of Target Descriptors Found / Total Target D
 
 ### Competitive Threat Analysis
 
-Unlike the quantitative metrics above, competitive threat analysis is **not based on a mathematical formula**. Instead, it employs a qualitative AI-powered methodology to identify strategic competitive risks.
+Competitive threat analysis combines quantitative scoring with AI-powered qualitative analysis to identify and explain strategic competitive risks.
+
+**Formula:**
+```
+Threat Score = (mention_count × 0.7) + (negative_overlap × 2.0) + (positive_competitor × 1.5)
+```
+
+**Threat Level Thresholds:**
+- **High Threat (score > 50):** Requires immediate strategic attention
+- **Medium Threat (score 20-50):** Requires monitoring
+- **Low Threat (score < 20):** Minimal competitive pressure
 
 **Process:**
 
-1. **Data Collection Phase:** Gathers Share of Voice data showing competitor mention frequencies, identifies specific query-response pairs where your brand was not mentioned but competitors were, and extracts "competitive loss" examples.
+1. **Quantitative Ranking:** All competitors are scored using the threat formula above, and the top 3 threats are identified based on their scores.
 
-2. **AI Analysis Phase:** Submits concrete response examples and competitive data to Perplexity Sonar Pro model, which identifies patterns in which competitors consistently outperform your brand and analyzes the specific descriptors and positioning competitors have claimed.
+2. **Data Collection Phase:** For the top 3 threats, the system gathers Share of Voice data, identifies specific query-response pairs where your brand was not mentioned but competitors were, and extracts "competitive loss" examples.
 
-3. **Output:** Generates qualitative descriptions of top 3-5 competitive threats, specific examples of queries/responses where competitors won visibility, strategic implications, and recommended counter-actions.
+3. **AI Analysis Phase:** Submits concrete response examples and competitive data for the top 3 threats to Gemini 2.5 Pro, which generates qualitative narrative analysis explaining why each competitor is a threat, what specific queries they are winning, what descriptors and positioning they have claimed, strategic implications, and recommended counter-actions.
 
-**Rationale:** Competitive threats involve nuanced strategic considerations that resist reduction to single numerical scores. The AI-powered qualitative analysis can weigh multidimensional factors more effectively than a predetermined formula, while remaining data-driven and grounded in actual response examples.
+4. **Output:** Quantitative threat scores and rankings for all competitors, plus qualitative descriptions of top 3 competitive threats with specific examples, strategic implications, and recommended counter-actions.
+
+**Rationale:** The quantitative threat score efficiently identifies which competitors pose the greatest risk, while the AI-generated qualitative analysis provides strategic context, concrete examples, and actionable recommendations that a formula alone cannot deliver.
 
 ### Summary of Metric Calculation Approaches
 

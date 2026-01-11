@@ -79,10 +79,10 @@ export default function HowTalesWorks() {
           Analytical Framework
         </Typography>
         <Typography variant="body1" paragraph>
-          The collected responses undergo a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Perplexity's Sonar model analyzes each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources.
+          The collected responses undergo a two-stage analysis process combining structured data extraction with AI-powered insight generation. In the first stage, Gemini 2.5 Pro analyzes each response to extract structured data including mention type (direct, indirect, or absent), brand positioning (categorized as leader, featured, listed, or not mentioned), sentiment classification (very positive, positive, neutral, negative, or mixed), associated descriptors and adjectives, competitor mentions, and cited sources.
         </Typography>
         <Typography variant="body1" paragraph>
-          This extraction process is context-aware, incorporating your brand's industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Perplexity's Sonar Pro model synthesizes these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
+          This extraction process is context-aware, incorporating your brand's industry context, strategic messaging, target descriptors, and known competitors to ensure relevant and accurate classification. In the second stage, Gemini 2.5 Pro synthesizes these structured findings with real-time industry news and comprehensive brand context to generate strategic insights and actionable recommendations, explicitly connecting each finding to specific performance gaps and opportunities.
         </Typography>
       </Paper>
 
@@ -329,24 +329,69 @@ export default function HowTalesWorks() {
             Competitive Threat Analysis
           </Typography>
           <Typography variant="body1" paragraph>
-            Unlike the quantitative metrics above, competitive threat analysis is <strong>not based on a mathematical formula</strong>. Instead, it employs a qualitative AI-powered methodology to identify strategic competitive risks.
+            Competitive threat analysis combines quantitative scoring with AI-powered qualitative analysis to identify and explain strategic competitive risks.
           </Typography>
+          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mb: 2, fontFamily: 'monospace' }}>
+            Threat Score = (mention_count × 0.7) + (negative_overlap × 2.0) + (positive_competitor × 1.5)
+          </Box>
+          <TableContainer sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Component</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Weight</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Definition</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                <TableRow>
+                  <TableCell>Mention Count</TableCell>
+                  <TableCell>0.7</TableCell>
+                  <TableCell>Total number of times the competitor is mentioned across all AI responses</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Negative Overlap</TableCell>
+                  <TableCell>2.0</TableCell>
+                  <TableCell>Count of responses where the competitor is mentioned AND your brand receives negative/very negative sentiment (indicates direct competitive pressure)</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Positive for Competitor</TableCell>
+                  <TableCell>1.5</TableCell>
+                  <TableCell>Count of responses where the competitor receives positive/very positive sentiment (indicates competitive advantage)</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Typography variant="body2" paragraph sx={{ fontWeight: 600 }}>
+            Threat Level Thresholds:
+          </Typography>
+          <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+            <Typography component="li" variant="body2">
+              <strong>High Threat (score &gt; 50):</strong> Requires immediate strategic attention
+            </Typography>
+            <Typography component="li" variant="body2">
+              <strong>Medium Threat (score 20-50):</strong> Requires monitoring
+            </Typography>
+            <Typography component="li" variant="body2">
+              <strong>Low Threat (score &lt; 20):</strong> Minimal competitive pressure
+            </Typography>
+          </Box>
           <Typography variant="body2" gutterBottom sx={{ fontWeight: 600 }}>
-            Process:
+            Report Generation Process:
           </Typography>
           <Box component="ol" sx={{ pl: 3 }}>
             <Typography component="li" variant="body2" paragraph>
-              <strong>Data Collection Phase:</strong> Gathers Share of Voice data showing competitor mention frequencies, identifies specific query-response pairs where your brand was not mentioned but competitors were, and extracts "competitive loss" examples.
+              <strong>Quantitative Ranking:</strong> All competitors are scored using the threat formula above, and the top 3 threats are identified based on their scores.
             </Typography>
             <Typography component="li" variant="body2" paragraph>
-              <strong>AI Analysis Phase:</strong> Submits concrete response examples and competitive data to Perplexity Sonar Pro model, which identifies patterns in which competitors consistently outperform your brand and analyzes the specific descriptors and positioning competitors have claimed.
+              <strong>Data Collection:</strong> For the top 3 threats, the system gathers Share of Voice data, identifies specific query-response pairs where your brand was not mentioned but competitors were, and extracts "competitive loss" examples where both were mentioned but the competitor was positioned better.
             </Typography>
             <Typography component="li" variant="body2" paragraph>
-              <strong>Output:</strong> Generates qualitative descriptions of top 3-5 competitive threats, specific examples of queries/responses where competitors won visibility, strategic implications, and recommended counter-actions.
+              <strong>AI Analysis:</strong> Concrete response examples and competitive data for the top 3 threats are submitted to Gemini 2.5 Pro, which generates qualitative narrative analysis explaining why each competitor is a threat, what specific queries they are winning, what descriptors and positioning they have claimed, strategic implications, and recommended counter-actions.
             </Typography>
           </Box>
           <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-            <strong>Rationale:</strong> Competitive threats involve nuanced strategic considerations that resist reduction to single numerical scores. The AI-powered qualitative analysis can weigh multidimensional factors more effectively than a predetermined formula, while remaining data-driven and grounded in actual response examples.
+            <strong>Rationale:</strong> The quantitative threat score efficiently identifies which competitors pose the greatest risk, while the AI-generated qualitative analysis provides strategic context, concrete examples, and actionable recommendations that a formula alone cannot deliver.
           </Typography>
         </Box>
 
