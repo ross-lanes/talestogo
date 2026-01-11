@@ -5,9 +5,21 @@ import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
-import BatchSelector from '../../components/BatchSelector';
+import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
+
+// Helper to format batch date for display
+const formatBatchDate = (batch: CollectionBatch | null): string => {
+  if (!batch) return 'All Data';
+  const date = new Date(batch.started_at);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'America/New_York'
+  });
+};
 
 const COLORS = {
   'Very Positive': '#116C29',  // Bright highlighter green
@@ -30,12 +42,18 @@ export default function SentimentAnalysis() {
   const sentimentTrendChartRef = useRef<HTMLDivElement>(null);
   const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<CollectionBatch | null>(null);
+
+  const handleBatchChange = (batchId: number | null, batch?: CollectionBatch | null) => {
+    setSelectedBatchId(batchId);
+    setSelectedBatch(batch || null);
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['sentiment-analysis', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/sentiment/breakdown', { params });
+      const response = await api.get('/api/analytics/sentiment/breakdown', { params });
       return response.data;
     },
   });
@@ -43,7 +61,7 @@ export default function SentimentAnalysis() {
   const { data: sentimentTrends, isLoading: loadingTrends } = useQuery({
     queryKey: ['sentiment-trends'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/sentiment');
+      const response = await api.get('/api/analytics/trends/sentiment');
       return response.data;
     },
   });
@@ -52,7 +70,7 @@ export default function SentimentAnalysis() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['sentiment-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/sentiment-by-llm');
+      const response = await api.get('/api/analytics/sentiment-by-llm');
       return response.data;
     },
   });
@@ -246,10 +264,10 @@ export default function SentimentAnalysis() {
         <Box sx={{ minWidth: 300 }}>
           <BatchSelector
             selectedBatchId={selectedBatchId}
-            onBatchChange={setSelectedBatchId}
+            onBatchChange={handleBatchChange}
             showAllOption={true}
             label="Filter by Collection"
-            defaultToLatest={true}
+            autoSelectLatest={true}
           />
         </Box>
       </Box>
@@ -267,7 +285,10 @@ export default function SentimentAnalysis() {
             <Typography variant="h6">
               Sentiment Distribution
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Collection: {formatBatchDate(selectedBatch)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
               Total brand mentions analyzed: {data?.total || 0}
             </Typography>
           </Box>
@@ -329,9 +350,14 @@ export default function SentimentAnalysis() {
       {/* Negative Statements */}
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
-            Negative Statements
-          </Typography>
+          <Box>
+            <Typography variant="h6">
+              Negative Statements
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Collection: {formatBatchDate(selectedBatch)}
+            </Typography>
+          </Box>
           {data?.negative_statements && data.negative_statements.length > 0 && (
             <Button
               variant="outlined"
@@ -374,7 +400,10 @@ export default function SentimentAnalysis() {
               <Typography variant="h6">
                 Sentiment Distribution by LLM Platform
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                All Data (not filtered by collection)
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 Sentiment breakdown across different AI platforms
               </Typography>
             </Box>

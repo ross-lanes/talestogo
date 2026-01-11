@@ -6,9 +6,21 @@ import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import { competitorsInclude } from '../../utils/organizationNormalizer';
-import BatchSelector from '../../components/BatchSelector';
+import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
 import { formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
+
+// Helper to format batch date for display
+const formatBatchDate = (batch: CollectionBatch | null): string => {
+  if (!batch) return 'All Data';
+  const date = new Date(batch.started_at);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'America/New_York'
+  });
+};
 
 // Platform colors for consistency
 const PLATFORM_COLORS: Record<string, string> = {
@@ -22,13 +34,19 @@ export default function CompetitorThreats() {
   const tableRef = useRef<HTMLDivElement>(null);
   const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<CollectionBatch | null>(null);
+
+  const handleBatchChange = (batchId: number | null, batch?: CollectionBatch | null) => {
+    setSelectedBatchId(batchId);
+    setSelectedBatch(batch || null);
+  };
 
   // Fetch competitor threats from API (includes all calculations)
   const { data: competitorThreats, isLoading } = useQuery({
     queryKey: ['competitor-threats', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/competitor-threats', { params });
+      const response = await api.get('/api/analytics/competitor-threats', { params });
       return response.data;
     },
   });
@@ -46,7 +64,7 @@ export default function CompetitorThreats() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['threats-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/threats-by-llm');
+      const response = await api.get('/api/analytics/threats-by-llm');
       return response.data;
     },
   });
@@ -182,10 +200,10 @@ export default function CompetitorThreats() {
         <Box sx={{ minWidth: 300 }}>
           <BatchSelector
             selectedBatchId={selectedBatchId}
-            onBatchChange={setSelectedBatchId}
+            onBatchChange={handleBatchChange}
             showAllOption={true}
             label="Filter by Collection"
-            defaultToLatest={true}
+            autoSelectLatest={true}
           />
         </Box>
       </Box>
@@ -201,7 +219,11 @@ export default function CompetitorThreats() {
       </Paper>
 
       {/* Summary Metrics */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3, mb: 4 }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Collection: {formatBatchDate(selectedBatch)}
+        </Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3 }}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h4" sx={{ color: '#75C9C8' }}>
             {threats.filter((c: any) => c.threat_level === 'High').length}
@@ -223,14 +245,20 @@ export default function CompetitorThreats() {
           <Typography variant="body1">Low Threat</Typography>
           <Typography variant="caption" color="text.secondary">Minimal competition</Typography>
         </Paper>
+        </Box>
       </Box>
 
       {/* Detailed Threat Analysis Table */}
       <Paper sx={{ p: 4 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">
-            Detailed Threat Analysis
-          </Typography>
+          <Box>
+            <Typography variant="h6">
+              Detailed Threat Analysis
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Collection: {formatBatchDate(selectedBatch)}
+            </Typography>
+          </Box>
           <Box display="flex" gap={1}>
             <Button
               variant="outlined"
@@ -343,7 +371,10 @@ export default function CompetitorThreats() {
               <Typography variant="h6">
                 Top Competitor Threats by LLM Platform
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                All Data (not filtered by collection)
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 Most frequently mentioned competitors by each AI platform (Top 5)
               </Typography>
             </Box>

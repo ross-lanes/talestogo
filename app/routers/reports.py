@@ -385,25 +385,6 @@ Descriptor Match Rate (%) = (Number of Target Descriptors Found / Total Target D
 
 **Example:** If your brand has 20 target descriptors and 13 of those descriptors appeared in at least one response, the descriptor match rate would be (13/20) × 100 = 65.0%
 
-### Sentiment Analysis
-
-Sentiment analysis evaluates how AI platforms characterize your brand when they mention it, measuring the tone and valence of brand associations.
-
-**Formula:**
-
-Sentiment Distribution (%) = (Count in Category / Total Direct Mentions) × 100
-
-| Component | Definition |
-|-----------|------------|
-| Sentiment Categories | Very Positive, Positive, Neutral, Negative, Very Negative, Mixed (both positive and negative elements) |
-| Analysis Scope | Only responses where brand_mentioned = 'Yes' (direct mentions) |
-| AI Classification | Gemini 2.5 Pro analyzes each response to extract sentiment based on how the brand is discussed, considering context, tone, and descriptive language |
-| Inclusion | This calculation INCLUDES responses from queries where brand_in_query = True (sentiment reflects perception across all contexts) |
-
-Each sentiment category is reported as a percentage of total direct mentions. The analysis focuses on direct mentions because sentiment attribution is clearest when the brand is explicitly discussed. Unlike positioning or share of voice metrics which exclude branded queries to measure organic visibility, sentiment analysis includes all mentions because the quality of brand associations matters regardless of how the brand was introduced in the query.
-
-**Example:** If your brand was directly mentioned in 34 responses, with 12 Very Positive (35%), 15 Positive (44%), 5 Neutral (15%), and 2 Negative (6%), this distribution reveals that 79% of mentions carry positive sentiment while 6% are negative, indicating overall favorable brand perception in AI-generated content.
-
 ### Competitive Threat Analysis
 
 Competitive threat analysis combines quantitative scoring with AI-powered qualitative analysis to identify and explain strategic competitive risks.

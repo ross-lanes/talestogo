@@ -5,9 +5,21 @@ import { TrendingUp, TrendingDown, TrendingFlat, Download } from '@mui/icons-mat
 import { api } from '../../services/api';
 import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
-import BatchSelector from '../../components/BatchSelector';
+import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
 import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
+
+// Helper to format batch date for display
+const formatBatchDate = (batch: CollectionBatch | null): string => {
+  if (!batch) return 'All Data';
+  const date = new Date(batch.started_at);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'America/New_York'
+  });
+};
 
 const BRAND_COLOR = '#003e60';
 const COMPETITOR_COLORS = [
@@ -28,12 +40,18 @@ export default function ShareOfVoice() {
   const trendChartRef = useRef<HTMLDivElement>(null);
   const llmChartRef = useRef<HTMLDivElement>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<CollectionBatch | null>(null);
+
+  const handleBatchChange = (batchId: number | null, batch?: CollectionBatch | null) => {
+    setSelectedBatchId(batchId);
+    setSelectedBatch(batch || null);
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['share-of-voice', selectedBatchId],
     queryFn: async () => {
       const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
-      const response = await api.get('/analytics/share-of-voice', { params });
+      const response = await api.get('/api/analytics/share-of-voice', { params });
       return response.data;
     },
   });
@@ -41,7 +59,7 @@ export default function ShareOfVoice() {
   const { data: sovTrends, isLoading: loadingTrends } = useQuery({
     queryKey: ['sov-trends'],
     queryFn: async () => {
-      const response = await api.get('/analytics/trends/share-of-voice');
+      const response = await api.get('/api/analytics/trends/share-of-voice');
       return response.data;
     },
   });
@@ -50,7 +68,7 @@ export default function ShareOfVoice() {
   const { data: llmData, isLoading: llmLoading, error: llmError } = useQuery({
     queryKey: ['share-of-voice-by-llm'],
     queryFn: async () => {
-      const response = await api.get('/analytics/share-of-voice-by-llm');
+      const response = await api.get('/api/analytics/share-of-voice-by-llm');
       return response.data;
     },
   });
@@ -252,10 +270,10 @@ export default function ShareOfVoice() {
         <Box sx={{ minWidth: 300 }}>
           <BatchSelector
             selectedBatchId={selectedBatchId}
-            onBatchChange={setSelectedBatchId}
+            onBatchChange={handleBatchChange}
             showAllOption={true}
             label="Filter by Collection"
-            defaultToLatest={true}
+            autoSelectLatest={true}
           />
         </Box>
       </Box>
@@ -272,7 +290,11 @@ export default function ShareOfVoice() {
 
       {/* Brand Performance Metrics */}
       {brandData && brandRank && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3, mb: 4 }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Collection: {formatBatchDate(selectedBatch)}
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3 }}>
           <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white' }}>
             <Typography variant="h3" sx={{ fontWeight: 700 }}>
               {Math.round(brandData.share_of_voice || 0)}%
@@ -302,6 +324,7 @@ export default function ShareOfVoice() {
               {brandData.leader_count} Leader + {brandData.featured_count} Featured
             </Typography>
           </Paper>
+          </Box>
         </Box>
       )}
 
@@ -309,9 +332,14 @@ export default function ShareOfVoice() {
       {barChartData.length > 0 && (
         <Paper sx={{ p: 4, mb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">
-              Share of Voice - Top Organizations
-            </Typography>
+            <Box>
+              <Typography variant="h6">
+                Share of Voice - Top Organizations
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Collection: {formatBatchDate(selectedBatch)}
+              </Typography>
+            </Box>
             <Button
               variant="outlined"
               startIcon={<Download />}
@@ -381,7 +409,10 @@ export default function ShareOfVoice() {
             <Typography variant="h6">
               Share of Voice Distribution
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Collection: {formatBatchDate(selectedBatch)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
               This shows what percentage of the total "conversation" each organization owns. Higher percentages indicate greater visibility and mind share in AI-generated content.
             </Typography>
           </Box>
@@ -491,7 +522,10 @@ export default function ShareOfVoice() {
               <Typography variant="h6">
                 Share of Voice by LLM Platform
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                All Data (not filtered by collection)
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 Brand vs. Competitor mentions across different AI platforms
               </Typography>
             </Box>

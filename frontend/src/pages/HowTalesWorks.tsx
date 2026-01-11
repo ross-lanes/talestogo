@@ -323,55 +323,6 @@ export default function HowTalesWorks() {
 
         <Divider sx={{ my: 3 }} />
 
-        {/* Sentiment Analysis */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            Sentiment Analysis
-          </Typography>
-          <Typography variant="body1" paragraph>
-            Sentiment analysis evaluates how AI platforms characterize your brand when they mention it, measuring the tone and valence of brand associations.
-          </Typography>
-          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mb: 2, fontFamily: 'monospace' }}>
-            Sentiment Distribution (%) = (Count in Category / Total Direct Mentions) × 100
-          </Box>
-          <TableContainer sx={{ mb: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Component</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Definition</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                <TableRow>
-                  <TableCell>Sentiment Categories</TableCell>
-                  <TableCell>Very Positive, Positive, Neutral, Negative, Very Negative, Mixed (both positive and negative elements)</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Analysis Scope</TableCell>
-                  <TableCell>Only responses where brand_mentioned = 'Yes' (direct mentions)</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>AI Classification</TableCell>
-                  <TableCell>Gemini 2.5 Pro analyzes each response to extract sentiment based on how the brand is discussed, considering context, tone, and descriptive language</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Inclusion</TableCell>
-                  <TableCell>This calculation INCLUDES responses from queries where brand_in_query = True (sentiment reflects perception across all contexts)</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Typography variant="body2" paragraph>
-            Each sentiment category is reported as a percentage of total direct mentions. The analysis focuses on direct mentions because sentiment attribution is clearest when the brand is explicitly discussed. Unlike positioning or share of voice metrics which exclude branded queries to measure organic visibility, sentiment analysis includes all mentions because the quality of brand associations matters regardless of how the brand was introduced in the query.
-          </Typography>
-          <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-            <strong>Example:</strong> If your brand was directly mentioned in 34 responses, with 12 Very Positive (35%), 15 Positive (44%), 5 Neutral (15%), and 2 Negative (6%), this distribution reveals that 79% of mentions carry positive sentiment while 6% are negative, indicating overall favorable brand perception in AI-generated content.
-          </Typography>
-        </Box>
-
-        <Divider sx={{ my: 3 }} />
-
         {/* Competitive Threat Analysis */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
