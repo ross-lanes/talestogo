@@ -1200,15 +1200,19 @@ def generate_markdown_report(
 
 {executive_summary}
 
-"""
+---
 
-    # Add Key Metrics charts after Executive Summary (embedded as base64)
-    if chart_paths and 'mention_rate' in chart_paths:
-        base64_data = embed_chart_as_base64(chart_paths['mention_rate'])
-        if base64_data:
-            report += f'\n<img src="{base64_data}" alt="Key Metrics Dashboard" style="max-width: 800px; margin: 20px auto;" />\n\n'
-        else:
-            report += f"\n![Key Metrics Dashboard]({chart_paths['mention_rate']})\n\n"
+## Key Metrics Overview
+
+| Metric | Value |
+|--------|-------|
+| **Brand Mention Rate** | {mention_metrics['yes_pct']}% |
+| **Positive Sentiment Rate** | {positive_sentiment_rate}% |
+| **Share of Voice** | {share_of_voice['brand_sov']}% |
+| **Average Positioning Score** | {positioning_average}/5.0 |
+| **Descriptor Match Rate** | {descriptor_match_rate}% |
+
+"""
 
     if chart_paths and 'share_of_voice' in chart_paths:
         base64_data = embed_chart_as_base64(chart_paths['share_of_voice'])
