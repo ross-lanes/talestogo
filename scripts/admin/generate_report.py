@@ -741,17 +741,35 @@ def generate_strategic_priorities(
         if resp.competitors:
             weaknesses += f"   Competitors mentioned instead: {resp.competitors}\n"
 
-    # Fetch recent industry news using Gemini
+    # Fetch recent industry news AND AI citation trends using Gemini
     industry = brand_info.industry if brand_info and brand_info.industry else "the industry"
+
+    # Query 1: Recent industry news
     news_query = f"Recent news and developments in {industry} in the last 30 days, particularly related to {brand_name} or its competitors"
+
+    # Query 2: AI citation trends and source preferences
+    citation_query = f"""Research the latest trends (2025-2026) about what sources and publications AI platforms (ChatGPT, Claude, Gemini, Perplexity) are reading and citing when answering questions about {industry}.
+
+Consider:
+- What types of publications are LLMs prioritizing? (Academic journals, news outlets, industry blogs, government sites, Reddit discussions, etc.)
+- What sources have high authority and visibility in AI training data and retrieval systems?
+- What recent media trends affect AI visibility? (e.g., Muck Rack data on journalist engagement, publication reach)
+- Which content formats get cited most? (Research papers, case studies, press releases, technical documentation)
+- Platform-specific preferences (e.g., Perplexity's real-time search vs. ChatGPT's training data cutoff)
+
+Provide specific, actionable insights about WHERE organizations in {industry} should publish content to maximize AI platform visibility."""
 
     try:
         news_model = genai.GenerativeModel('gemini-2.5-pro')
         news_response = news_model.generate_content(news_query)
         recent_news = news_response.text
+
+        citation_response = news_model.generate_content(citation_query)
+        citation_trends = citation_response.text
     except Exception as e:
-        print(f"Warning: Could not fetch recent news: {e}")
+        print(f"Warning: Could not fetch recent news or citation trends: {e}")
         recent_news = "No recent news data available."
+        citation_trends = "No citation trend data available."
 
     prompt = f"""You are a strategic communications consultant analyzing AI-generated responses about a brand.
 
@@ -800,7 +818,17 @@ KEY WEAKNESSES (Queries where {brand_name} is absent):
 RECENT INDUSTRY NEWS & DEVELOPMENTS (Last 30 Days):
 {recent_news}
 
+AI CITATION TRENDS & SOURCE PREFERENCES (2025-2026):
+{citation_trends}
+
 Based on this comprehensive analysis, generate EXACTLY FIVE strategic priorities for {brand_name}.
+
+IMPORTANT: Your recommendations MUST be informed by current AI citation trends and source preferences:
+- Reference the specific publication types and sources that LLMs are prioritizing (from the citation trends data above)
+- Recommend WHERE to publish based on which sources have demonstrated high AI visibility
+- Consider platform-specific source preferences when making recommendations
+- Use data from Muck Rack and media intelligence sources when available to inform publication strategy
+- Prioritize content formats and channels that are proven to get cited by AI platforms
 
 IMPORTANT: Consider how recent industry news creates opportunities or threats:
 - If there's a major development, breakthrough, or trend in the industry, recommend how {brand_name} can position itself in relation to it
@@ -828,8 +856,9 @@ For each priority:
 **Key Actions** (4-5 SPECIFIC, measurable actions)
 - Each action must specify which target descriptor(s) to emphasize
 - Include target metrics (e.g., "Increase 'innovative' descriptor association from 12% to 35% by creating...")
-- Specify WHAT content to create, WHERE to publish it, and HOW it reinforces target descriptors
+- Specify WHAT content to create, WHERE to publish it (using insights from AI citation trends), and HOW it reinforces target descriptors
 - Reference specific platforms, query categories, competitors, or source types that LLMs prioritize
+- Explicitly cite which publication types/sources from the citation trends data you're recommending (e.g., "Publish in [specific journal type] because Gemini prioritizes academic sources")
 - Be tactical and immediately actionable
 
 Format as numbered markdown sections (1., 2., 3., etc.).
