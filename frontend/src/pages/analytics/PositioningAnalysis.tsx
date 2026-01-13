@@ -73,6 +73,16 @@ export default function PositioningAnalysis() {
     },
   });
 
+  // Fetch share of voice data for Leadership Visibility metric
+  const { data: sovData } = useQuery({
+    queryKey: ['share-of-voice-for-positioning', selectedBatchId],
+    queryFn: async () => {
+      const params = selectedBatchId ? { batch_id: selectedBatchId } : {};
+      const response = await api.get('/api/analytics/share-of-voice', { params });
+      return response.data;
+    },
+  });
+
   // Download positioning chart as PNG
   const handleDownloadPositioningChart = async () => {
     if (!positioningChartRef.current) return;
@@ -215,10 +225,40 @@ export default function PositioningAnalysis() {
 
       {/* Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
-        <Typography variant="body1">
+        <Typography variant="body1" paragraph>
           <strong>Brand positioning</strong> evaluates where your brand appears within AI-generated responses. TALES categorizes each mention into four tiers: Leader (primary recommendation), Featured (prominent attention or top recommendation), Listed (included but not emphasized), or Not Mentioned. This hierarchy reveals how AI systems prioritize your brand relative to alternatives when answering user queries.
         </Typography>
+        <Typography variant="body1">
+          <strong>Leadership Visibility</strong> measures how often your brand appears in premium positions (Leader or Featured) within AI responses. This quality-weighted metric shows your brand's strength in competitive positioning, not just presence.
+        </Typography>
       </Paper>
+
+      {/* Leadership Visibility Card */}
+      {sovData && (() => {
+        const brandData = Array.isArray(sovData) ? sovData.find((item: any) => item.is_brand) : null;
+        if (!brandData) return null;
+        return (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Collection: {formatBatchDate(selectedBatch)}
+            </Typography>
+            <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white', maxWidth: 400 }}>
+              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                {Math.round(brandData.leadership_visibility || 0)}%
+              </Typography>
+              <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
+                Leadership Visibility
+              </Typography>
+              <Typography variant="body2">
+                Leader or Featured positioning
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
+                {brandData.leader_count} Leader + {brandData.featured_count} Featured
+              </Typography>
+            </Paper>
+          </Box>
+        );
+      })()}
 
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

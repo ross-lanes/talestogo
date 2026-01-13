@@ -280,11 +280,8 @@ export default function ShareOfVoice() {
 
       {/* Explanatory Text */}
       <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
-        <Typography variant="body1" paragraph>
-          <strong>Share of Voice</strong> measures the percentage of all brand mentions that reference your brand. This is a simple count showing how often your brand appears compared to all competitors.
-        </Typography>
         <Typography variant="body1">
-          <strong>Leadership Visibility</strong> measures how often your brand appears in premium positions (Leader or Featured) within AI responses. This quality-weighted metric shows your brand's strength in competitive positioning, not just presence.
+          <strong>Share of Voice</strong> measures the percentage of all brand mentions are for your brand. It's about how you are doing relative to your competitors.
         </Typography>
       </Paper>
 
@@ -294,8 +291,7 @@ export default function ShareOfVoice() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Collection: {formatBatchDate(selectedBatch)}
           </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3 }}>
-          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white' }}>
+          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white', maxWidth: 400 }}>
             <Typography variant="h3" sx={{ fontWeight: 700 }}>
               {Math.round(brandData.share_of_voice || 0)}%
             </Typography>
@@ -309,22 +305,6 @@ export default function ShareOfVoice() {
               Ranking #{brandRank} out of {totalOrganizations} organizations
             </Typography>
           </Paper>
-
-          <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white' }}>
-            <Typography variant="h3" sx={{ fontWeight: 700 }}>
-              {Math.round(brandData.leadership_visibility || 0)}%
-            </Typography>
-            <Typography variant="h6" sx={{ mt: 1, mb: 0.5 }}>
-              Leadership Visibility
-            </Typography>
-            <Typography variant="body2">
-              Leader or Featured positioning
-            </Typography>
-            <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.9 }}>
-              {brandData.leader_count} Leader + {brandData.featured_count} Featured
-            </Typography>
-          </Paper>
-          </Box>
         </Box>
       )}
 
