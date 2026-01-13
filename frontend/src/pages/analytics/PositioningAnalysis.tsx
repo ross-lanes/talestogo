@@ -238,7 +238,10 @@ export default function PositioningAnalysis() {
           const brandData = Array.isArray(sovData) ? sovData.find((item: any) => item.is_brand) : null;
           if (!brandData) return null;
           return (
-            <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white', minWidth: 280 }}>
+            <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white', minWidth: 380 }}>
+              <Typography variant="caption" sx={{ display: 'block', mb: 1, opacity: 0.9 }}>
+                {formatBatchDate(selectedBatch)}
+              </Typography>
               <Typography variant="h3" sx={{ fontWeight: 700 }}>
                 {Math.round(brandData.leadership_visibility || 0)}%
               </Typography>

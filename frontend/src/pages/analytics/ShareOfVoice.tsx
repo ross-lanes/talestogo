@@ -287,7 +287,10 @@ export default function ShareOfVoice() {
         </Paper>
 
         {brandData && brandRank && (
-          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white', minWidth: 280 }}>
+          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white', minWidth: 380 }}>
+            <Typography variant="caption" sx={{ display: 'block', mb: 1, opacity: 0.9 }}>
+              {formatBatchDate(selectedBatch)}
+            </Typography>
             <Typography variant="h3" sx={{ fontWeight: 700 }}>
               {Math.round(brandData.share_of_voice || 0)}%
             </Typography>

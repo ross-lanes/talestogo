@@ -270,6 +270,94 @@ def export_report_to_pptx(
     )
 
 
+@router.get("/{report_id}/export/csv")
+def export_report_data_to_csv(
+    report_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    brand_id: Optional[int] = Depends(get_active_brand_id)
+):
+    """Export all response data for a report's date range as CSV spreadsheet."""
+    import csv
+    from app.utils.brand_access import get_data_owner_user_id
+
+    # Get the report with brand access validation
+    db_report = get_report_with_brand_access(db, report_id, current_user.id, brand_id)
+
+    # Get the data owner user_id
+    data_owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+
+    # Get all responses for this user/brand
+    # If report has date range, filter by it; otherwise get all responses
+    query = db.query(models.Response).filter(
+        models.Response.user_id == data_owner_user_id,
+        models.Response.brand_id == brand_id
+    )
+
+    # Filter by report's date range if available
+    if db_report.start_date:
+        query = query.filter(models.Response.timestamp >= db_report.start_date)
+    if db_report.end_date:
+        query = query.filter(models.Response.timestamp <= db_report.end_date)
+
+    responses = query.order_by(models.Response.timestamp.desc()).all()
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header row
+    writer.writerow([
+        'ID',
+        'Query ID',
+        'Query Text',
+        'Platform',
+        'Response Text',
+        'Timestamp',
+        'Brand Mentioned',
+        'Brand Position',
+        'Sentiment',
+        'Descriptors',
+        'Competitors',
+        'Sources',
+        'Notes',
+        'Analyzed At'
+    ])
+
+    # Write data rows
+    for response in responses:
+        writer.writerow([
+            response.id,
+            response.query_id,
+            response.query_text or '',
+            response.platform,
+            response.response_text,
+            response.timestamp.isoformat() if response.timestamp else '',
+            response.brand_mentioned or '',
+            response.brand_position or '',
+            response.sentiment or '',
+            response.descriptors or '',
+            response.competitors or '',
+            response.sources or '',
+            response.notes or '',
+            response.analyzed_at.isoformat() if response.analyzed_at else ''
+        ])
+
+    # Prepare response
+    output.seek(0)
+    csv_content = output.getvalue().encode('utf-8')
+
+    # Create safe filename
+    safe_filename = "".join(c for c in db_report.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    filename = f"{safe_filename}_data.csv"
+
+    return StreamingResponse(
+        io.BytesIO(csv_content),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 @how_tales_works_router.get("/export/how-tales-works/word")
 def export_how_tales_works_word(
     current_user: models.User = Depends(get_current_user)

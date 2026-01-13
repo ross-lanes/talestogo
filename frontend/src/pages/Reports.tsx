@@ -16,6 +16,7 @@ import {
   Delete as DeleteIcon,
   Download as DownloadIcon,
   Description as WordIcon,
+  TableChart as SpreadsheetIcon,
 } from '@mui/icons-material';
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
@@ -109,6 +110,25 @@ export default function Reports() {
     }
   };
 
+  const handleDownloadCSV = async (report: Report) => {
+    try {
+      const response = await api.get(`/reports/${report.id}/export/csv`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.title.replace(/[^a-z0-9]/gi, '_')}_data.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading CSV:', error);
+      alert(`Failed to download data: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
   const columns: GridColDef<Report>[] = [
     {
       field: 'id',
@@ -160,21 +180,41 @@ export default function Reports() {
       },
     },
     {
-      field: 'actions',
+      field: 'download_data',
       type: 'actions',
-      headerName: 'Actions',
-      width: 120,
+      headerName: 'Download Data',
+      width: 130,
+      getActions: (params) => [
+        <GridActionsCellItem
+          icon={<SpreadsheetIcon />}
+          label="Download Data (CSV)"
+          onClick={() => handleDownloadCSV(params.row)}
+        />,
+      ],
+    },
+    {
+      field: 'download_report',
+      type: 'actions',
+      headerName: 'Download Report',
+      width: 140,
       getActions: (params) => [
         <GridActionsCellItem
           icon={<WordIcon />}
-          label="Word"
+          label="Download Report (Word)"
           onClick={() => handleDownloadWord(params.row)}
         />,
+      ],
+    },
+    {
+      field: 'actions',
+      type: 'actions',
+      headerName: 'Actions',
+      width: 80,
+      getActions: (params) => [
         <GridActionsCellItem
           icon={<DeleteIcon />}
           label="Delete"
           onClick={() => handleDeleteClick(params.row)}
-          showInMenu
         />,
       ],
     },
