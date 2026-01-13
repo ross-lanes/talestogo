@@ -223,26 +223,22 @@ export default function PositioningAnalysis() {
         </Box>
       </Box>
 
-      {/* Explanatory Text */}
-      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
-        <Typography variant="body1" paragraph>
-          <strong>Brand positioning</strong> evaluates where your brand appears within AI-generated responses. TALES categorizes each mention into four tiers: Leader (primary recommendation), Featured (prominent attention or top recommendation), Listed (included but not emphasized), or Not Mentioned. This hierarchy reveals how AI systems prioritize your brand relative to alternatives when answering user queries.
-        </Typography>
-        <Typography variant="body1">
-          <strong>Leadership Visibility</strong> measures how often your brand appears in premium positions (Leader or Featured) within AI responses. This quality-weighted metric shows your brand's strength in competitive positioning, not just presence.
-        </Typography>
-      </Paper>
+      {/* Explanatory Text and Metric Card Side by Side */}
+      <Box sx={{ display: 'flex', gap: 3, mb: 4, alignItems: 'stretch' }}>
+        <Paper sx={{ p: 3, backgroundColor: '#f9f9f9', flex: 1 }}>
+          <Typography variant="body1" paragraph>
+            <strong>Brand positioning</strong> evaluates where your brand appears within AI-generated responses. TALES categorizes each mention into four tiers: Leader (primary recommendation), Featured (prominent attention or top recommendation), Listed (included but not emphasized), or Not Mentioned. This hierarchy reveals how AI systems prioritize your brand relative to alternatives when answering user queries.
+          </Typography>
+          <Typography variant="body1">
+            <strong>Leadership Visibility</strong> measures how often your brand appears in premium positions (Leader or Featured) within AI responses. This quality-weighted metric shows your brand's strength in competitive positioning, not just presence.
+          </Typography>
+        </Paper>
 
-      {/* Leadership Visibility Card */}
-      {sovData && (() => {
-        const brandData = Array.isArray(sovData) ? sovData.find((item: any) => item.is_brand) : null;
-        if (!brandData) return null;
-        return (
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Collection: {formatBatchDate(selectedBatch)}
-            </Typography>
-            <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white', maxWidth: 400 }}>
+        {sovData && (() => {
+          const brandData = Array.isArray(sovData) ? sovData.find((item: any) => item.is_brand) : null;
+          if (!brandData) return null;
+          return (
+            <Paper sx={{ p: 3, backgroundColor: '#80a1d4', color: 'white', minWidth: 280 }}>
               <Typography variant="h3" sx={{ fontWeight: 700 }}>
                 {Math.round(brandData.leadership_visibility || 0)}%
               </Typography>
@@ -256,9 +252,9 @@ export default function PositioningAnalysis() {
                 {brandData.leader_count} Leader + {brandData.featured_count} Featured
               </Typography>
             </Paper>
-          </Box>
-        );
-      })()}
+          );
+        })()}
+      </Box>
 
       <Paper sx={{ p: 4, mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

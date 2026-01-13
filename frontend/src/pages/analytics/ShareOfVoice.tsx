@@ -278,20 +278,16 @@ export default function ShareOfVoice() {
         </Box>
       </Box>
 
-      {/* Explanatory Text */}
-      <Paper sx={{ p: 3, mb: 4, backgroundColor: '#f9f9f9' }}>
-        <Typography variant="body1">
-          <strong>Share of Voice</strong> measures the percentage of all brand mentions are for your brand. It's about how you are doing relative to your competitors.
-        </Typography>
-      </Paper>
-
-      {/* Brand Performance Metrics */}
-      {brandData && brandRank && (
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Collection: {formatBatchDate(selectedBatch)}
+      {/* Explanatory Text and Metric Card Side by Side */}
+      <Box sx={{ display: 'flex', gap: 3, mb: 4, alignItems: 'stretch' }}>
+        <Paper sx={{ p: 3, backgroundColor: '#f9f9f9', flex: 1 }}>
+          <Typography variant="body1">
+            <strong>Share of Voice</strong> measures the percentage of all brand mentions are for your brand. It's about how you are doing relative to your competitors.
           </Typography>
-          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white', maxWidth: 400 }}>
+        </Paper>
+
+        {brandData && brandRank && (
+          <Paper sx={{ p: 3, backgroundColor: '#75C9C8', color: 'white', minWidth: 280 }}>
             <Typography variant="h3" sx={{ fontWeight: 700 }}>
               {Math.round(brandData.share_of_voice || 0)}%
             </Typography>
@@ -305,8 +301,8 @@ export default function ShareOfVoice() {
               Ranking #{brandRank} out of {totalOrganizations} organizations
             </Typography>
           </Paper>
-        </Box>
-      )}
+        )}
+      </Box>
 
       {/* Bar Chart - Top 10 Organizations */}
       {barChartData.length > 0 && (
