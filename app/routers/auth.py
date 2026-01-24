@@ -1,6 +1,6 @@
 """
 Authentication Router
-Handles user registration, login (email/password, Google, Microsoft OAuth), and profile management
+Handles user registration, login (email/password, Microsoft Entra ID OAuth), and profile management
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -15,7 +15,6 @@ from ..auth import (
     create_access_token,
     get_password_hash,
     encrypt_api_key,
-    verify_google_token,
     verify_microsoft_token,
     get_or_create_oauth_user,
     ACCESS_TOKEN_EXPIRE_MINUTES
@@ -81,46 +80,6 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/google", response_model=schemas.Token)
-def google_login(google_token: schemas.GoogleLogin, db: Session = Depends(get_db)):
-    """
-    Login with Google OAuth.
-    Accepts Google ID token and returns JWT access token.
-    Creates new user if doesn't exist (auto-activated).
-    """
-    # Verify Google token and get user info
-    google_info = verify_google_token(google_token.token)
-
-    # Ensure email is verified
-    if not google_info.get('email_verified'):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email not verified with Google"
-        )
-
-    # Get or create user
-    user = get_or_create_oauth_user(db, google_info)
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is not active. Please contact admin for approval."
-        )
-
-    # Update last_login timestamp
-    user.last_login = datetime.utcnow()
-    db.commit()
-
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=access_token_expires
-    )
-
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
 @router.post("/microsoft", response_model=schemas.Token)
 def microsoft_login(microsoft_token: schemas.MicrosoftLogin, db: Session = Depends(get_db)):
     """
@@ -150,6 +109,52 @@ def microsoft_login(microsoft_token: schemas.MicrosoftLogin, db: Session = Depen
     # Update last_login timestamp
     user.last_login = datetime.utcnow()
     db.commit()
+
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/dev-login", response_model=schemas.Token)
+def dev_login(db: Session = Depends(get_db)):
+    """
+    Development-only login endpoint.
+    Automatically logs in as the first admin user (or creates one).
+    WARNING: Only enable this in development environments!
+    """
+    import os
+    if os.getenv("ENVIRONMENT") == "production":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Dev login is disabled in production"
+        )
+
+    # Find or create dev admin user
+    dev_email = "rkremen@pppl.gov"
+    user = db.query(models.User).filter(models.User.email == dev_email).first()
+
+    if not user:
+        # Create dev admin user
+        from ..auth import get_tenant_id_for_email
+        tenant_id = get_tenant_id_for_email(db, dev_email)
+        user = models.User(
+            email=dev_email,
+            full_name="Rachel Kremen (Dev)",
+            tenant_id=tenant_id,
+            allowed_products=["tales", "heads", "canon"],
+            is_active=True,
+            is_admin=True,
+            is_invited=True,
+            hashed_password=None
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

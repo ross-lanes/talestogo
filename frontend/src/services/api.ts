@@ -99,20 +99,6 @@ export const authAPI = {
     return userResponse.data;
   },
 
-  googleLogin: async (googleToken: string) => {
-    const response = await api.post('/auth/google', { token: googleToken });
-    const { access_token } = response.data;
-
-    // Store token
-    localStorage.setItem(TOKEN_KEY, access_token);
-
-    // Fetch and store user data
-    const userResponse = await api.get('/auth/me');
-    localStorage.setItem(USER_KEY, JSON.stringify(userResponse.data));
-
-    return userResponse.data;
-  },
-
   microsoftLogin: async (microsoftToken: string) => {
     const response = await api.post('/auth/microsoft', { token: microsoftToken });
     const { access_token } = response.data;
@@ -172,6 +158,20 @@ export const authAPI = {
 
   isAuthenticated: () => {
     return !!localStorage.getItem(TOKEN_KEY);
+  },
+
+  devLogin: async () => {
+    const response = await api.post('/auth/dev-login');
+    const { access_token } = response.data;
+
+    // Store token
+    localStorage.setItem(TOKEN_KEY, access_token);
+
+    // Fetch and store user data
+    const userResponse = await api.get('/auth/me');
+    localStorage.setItem(USER_KEY, JSON.stringify(userResponse.data));
+
+    return userResponse.data;
   },
 };
 

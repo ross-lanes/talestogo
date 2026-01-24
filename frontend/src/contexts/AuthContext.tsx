@@ -23,8 +23,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  googleLogin: (googleToken: string) => Promise<void>;
   microsoftLogin: (microsoftToken: string) => Promise<void>;
+  devLogin: () => Promise<void>;
   register: (email: string, password: string, full_name?: string, organization?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -77,22 +77,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const googleLogin = async (googleToken: string) => {
-    try {
-      const userData = await authAPI.googleLogin(googleToken);
-      setUser(userData);
-    } catch (error) {
-      console.error('Google login failed:', error);
-      throw error;
-    }
-  };
-
   const microsoftLogin = async (microsoftToken: string) => {
     try {
       const userData = await authAPI.microsoftLogin(microsoftToken);
       setUser(userData);
     } catch (error) {
       console.error('Microsoft login failed:', error);
+      throw error;
+    }
+  };
+
+  const devLogin = async () => {
+    try {
+      const userData = await authAPI.devLogin();
+      setUser(userData);
+    } catch (error) {
+      console.error('Dev login failed:', error);
       throw error;
     }
   };
@@ -127,8 +127,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     loading,
     login,
-    googleLogin,
     microsoftLogin,
+    devLogin,
     register,
     logout,
     refreshUser,
