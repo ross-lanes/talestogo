@@ -11,7 +11,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 
 // Dev mode: skip MSAL entirely (for HTTP environments without Web Crypto)
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true';
+// Hardcoded to true for PPPL internal deployment
+const DEV_MODE = true;
 
 const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID || '';
 const MICROSOFT_TENANT_ID = import.meta.env.VITE_MICROSOFT_TENANT_ID || 'common';

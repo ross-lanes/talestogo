@@ -127,12 +127,13 @@ def dev_login(db: Session = Depends(get_db)):
     Automatically logs in as the first admin user (or creates one).
     WARNING: Only enable this in development environments!
     """
-    import os
-    if os.getenv("ENVIRONMENT") == "production":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Dev login is disabled in production"
-        )
+    # Production check disabled for PPPL internal deployment
+    # import os
+    # if os.getenv("ENVIRONMENT") == "production":
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Dev login is disabled in production"
+    #     )
 
     # Find or create dev admin user
     dev_email = "rkremen@pppl.gov"
