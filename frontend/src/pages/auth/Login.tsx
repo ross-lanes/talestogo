@@ -8,9 +8,7 @@ import {
   CircularProgress,
   Button,
 } from '@mui/material';
-import { GoogleLogin } from '@react-oauth/google';
-import type { CredentialResponse } from '@react-oauth/google';
-import { PublicClientApplication, InteractionRequiredAuthError } from '@azure/msal-browser';
+import { PublicClientApplication } from '@azure/msal-browser';
 import { useAuth } from '../../contexts/AuthContext';
 
 // PPPL Entra ID Client ID (public, not a secret)
@@ -32,7 +30,7 @@ const msalInstance = new PublicClientApplication(msalConfig);
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { googleLogin, microsoftLogin } = useAuth();
+  const { microsoftLogin } = useAuth();
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,29 +41,6 @@ const Login: React.FC = () => {
       setMsalInitialized(true);
     });
   }, []);
-
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    setError('');
-    setLoading(true);
-
-    try {
-      if (!credentialResponse.credential) {
-        throw new Error('No credential received from Google');
-      }
-
-      await googleLogin(credentialResponse.credential);
-      navigate('/');
-    } catch (err: any) {
-      console.error('Google login error:', err);
-      setError(err.response?.data?.detail || 'Google login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleError = () => {
-    setError('Google login failed. Please try again.');
-  };
 
   const handleMicrosoftLogin = async () => {
     if (!msalInitialized) {
@@ -159,17 +134,6 @@ const Login: React.FC = () => {
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, alignItems: 'center', mb: 3 }}>
-          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              theme="outline"
-              size="large"
-              text="signin_with"
-              shape="rectangular"
-            />
-          </Box>
-
           <Button
             variant="outlined"
             onClick={handleMicrosoftLogin}
@@ -214,7 +178,7 @@ const Login: React.FC = () => {
             fontFamily: '"Roboto Condensed", sans-serif',
           }}
         >
-          Sign in with your Google or Microsoft account
+          Sign in with your Microsoft account
         </Typography>
 
         <Typography
