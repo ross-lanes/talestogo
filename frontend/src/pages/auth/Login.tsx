@@ -14,8 +14,8 @@ import { PublicClientApplication, InteractionRequiredAuthError } from '@azure/ms
 import { useAuth } from '../../contexts/AuthContext';
 import robotRachelLogo from '/logos/RobotRachelBB-Black-on-Transparent.png';
 
-// Supports both VITE_ENTRA_CLIENT_ID (preferred) and VITE_MICROSOFT_CLIENT_ID (legacy)
-const MICROSOFT_CLIENT_ID = import.meta.env.VITE_ENTRA_CLIENT_ID || import.meta.env.VITE_MICROSOFT_CLIENT_ID || '';
+// PPPL Entra ID Client ID (public, not a secret)
+const MICROSOFT_CLIENT_ID = import.meta.env.VITE_ENTRA_CLIENT_ID || import.meta.env.VITE_MICROSOFT_CLIENT_ID || '2bee91ee-b116-4939-a84c-21ffbf5a7eed';
 
 const msalConfig = {
   auth: {
