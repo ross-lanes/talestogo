@@ -1,0 +1,16 @@
+# Playwright Test Results
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Authentication state (contains sensitive tokens)
+fixtures/auth.json
+auth.json
+
+# Screenshots and videos
+screenshots/
+videos/
+traces/
+
+# Test artifacts
+*.log

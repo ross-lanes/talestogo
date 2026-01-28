@@ -1,0 +1,93 @@
+# =============================================================================
+# Tales Docker Compose Configuration
+# =============================================================================
+#
+# Quick Start:
+#   1. Copy .env.template to .env and fill in your values
+#   2. Run: docker compose up -d
+#   3. Create admin: docker compose exec app python scripts/admin/setup_initial_admin.py
+#   4. Access at: http://localhost:8080
+#
+# Documentation: See docs/IT_DEPLOYMENT_GUIDE.md
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Tales Application
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Frontend build-time variables (for OAuth buttons in UI)
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_MICROSOFT_CLIENT_ID: ${VITE_MICROSOFT_CLIENT_ID:-}
+    ports:
+      - "${APP_PORT:-8080}:8000"
+    environment:
+      # Database (connects to the db service below)
+      - DATABASE_URL=postgresql://tales:${DB_PASSWORD:-tales_password}@db:5432/tales
+
+      # Security (REQUIRED - set in .env file)
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+
+      # LLM API Keys (at least GEMINI_API_KEY required for analysis)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+
+      # OAuth (optional - users can log in with email/password without OAuth)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID:-}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET:-}
+
+      # Email (optional - for sending user invitations)
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - FROM_EMAIL=${FROM_EMAIL:-}
+
+      # Application settings
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-true}
+      - PORT=8000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=tales
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-tales_password}
+      - POSTGRES_DB=tales
+    volumes:
+      - tales_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tales -d tales"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    # Uncomment to expose database port for external access:
+    # ports:
+    #   - "5432:5432"
+
+# =============================================================================
+# Persistent Data Volumes
+# =============================================================================
+volumes:
+  tales_postgres_data:
+    # Database data persists here across container restarts
+    # To backup: docker compose exec db pg_dump -U tales tales > backup.sql
+    # To restore: docker compose exec -T db psql -U tales tales < backup.sql

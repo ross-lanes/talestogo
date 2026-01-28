@@ -1,0 +1,686 @@
+#!/usr/bin/env python3
+"""
+Response Collection Script for TALES Project
+Queries AI platforms (ChatGPT, Claude, Gemini) and records responses.
+"""
+
+import os
+import sys
+from datetime import datetime
+from typing import List, Dict, Optional
+import time
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
+# Add project root to path for imports
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+
+from sqlalchemy.orm import Session
+from app.database import SessionLocal, engine
+from app import models, crud
+from app.services.llm_provider_manager import LLMProviderManager, ProviderConfig
+from app.services.generic_llm_client import GenericLLMClient, LLMAPIError, LLMConfigurationError
+
+
+# API clients
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️  OpenAI not available. Install with: pip install openai")
+
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+    print("⚠️  Anthropic not available. Install with: pip install anthropic")
+
+try:
+    import google.generativeai as genai
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    GOOGLE_AVAILABLE = False
+    print("⚠️  Google AI not available. Install with: pip install google-generativeai")
+
+# Perplexity uses OpenAI-compatible API
+PERPLEXITY_AVAILABLE = OPENAI_AVAILABLE
+
+
+class ResponseCollector:
+    """Collects responses from AI platforms."""
+
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, task_status_id: Optional[int] = None):
+        self.db = db
+        self.user_id = user_id
+        self.brand_id = brand_id
+        self.task_status_id = task_status_id
+        self.batch_id = None  # Will be set when collection starts
+
+        # Try to load LLM providers from database first
+        self.provider_manager = None
+        self.dynamic_providers: List[ProviderConfig] = []
+        self.use_dynamic_providers = False
+
+        try:
+            # Get user's tenant_id
+            user = db.query(models.User).filter(models.User.id == user_id).first()
+            tenant_id = user.tenant_id if user else None
+
+            self.provider_manager = LLMProviderManager(db, tenant_id)
+
+            # Check if we have database-configured providers
+            if self.provider_manager.is_using_database_providers():
+                self.dynamic_providers = self.provider_manager.get_enabled_providers()
+                self.use_dynamic_providers = True
+                print(f"✓ Using {len(self.dynamic_providers)} configured LLM providers from database")
+                for p in self.dynamic_providers:
+                    print(f"  - {p.display_name} ({p.api_type})")
+            else:
+                # Fall back to environment variables
+                self.dynamic_providers = self.provider_manager.get_enabled_providers()
+                print(f"✓ Using {len(self.dynamic_providers)} LLM providers from environment variables")
+                for p in self.dynamic_providers:
+                    print(f"  - {p.display_name} ({p.api_type})")
+        except Exception as e:
+            print(f"⚠️  Could not load LLM providers from database: {e}")
+            print("    Falling back to legacy environment variable configuration")
+
+        # Initialize legacy API clients (for backwards compatibility if provider loading fails)
+        self.openai_client = None
+        self.anthropic_client = None
+        self.google_model = None
+        self.perplexity_client = None
+
+        # Only set up legacy clients if we don't have dynamic providers
+        # This is for backwards compatibility when LLMProviderManager fails to load
+        if not self.dynamic_providers:
+            print("⚠️  No dynamic providers available, using legacy environment variable setup")
+
+            # Set up OpenAI
+            if OPENAI_AVAILABLE:
+                openai_key = os.getenv('OPENAI_API_KEY')
+                if openai_key:
+                    self.openai_client = openai.OpenAI(api_key=openai_key)
+                    print("✓ OpenAI (ChatGPT) configured")
+                else:
+                    print("⚠️  OPENAI_API_KEY not found in environment")
+
+            # Set up Anthropic
+            if ANTHROPIC_AVAILABLE:
+                anthropic_key = os.getenv('ANTHROPIC_API_KEY')
+                if anthropic_key:
+                    self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
+                    print("✓ Anthropic (Claude) configured")
+                else:
+                    print("⚠️  ANTHROPIC_API_KEY not found in environment")
+
+            # Set up Google
+            if GOOGLE_AVAILABLE:
+                google_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+                if google_key:
+                    genai.configure(api_key=google_key)
+                    self.google_model = genai.GenerativeModel('gemini-2.5-flash')
+                    print("✓ Google (Gemini) configured")
+                else:
+                    print("⚠️  GEMINI_API_KEY not found in environment")
+
+            # Set up Perplexity (uses OpenAI-compatible API)
+            if PERPLEXITY_AVAILABLE:
+                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
+                if perplexity_key:
+                    # Import httpx for custom timeout
+                    import httpx
+                    # Perplexity needs longer timeout (4min) as it searches the web
+                    http_client = httpx.Client(timeout=240.0)
+                    self.perplexity_client = openai.OpenAI(
+                        api_key=perplexity_key,
+                        base_url="https://api.perplexity.ai",
+                        http_client=http_client
+                    )
+                    print("✓ Perplexity configured (with 4-minute timeout for web search)")
+                else:
+                    print("⚠️  PERPLEXITY_API_KEY not found in environment")
+
+    def update_task_progress(self, processed: int, total: int, message: str = ""):
+        """Update task status progress in database."""
+        if not self.task_status_id:
+            return
+
+        try:
+            task = self.db.query(models.TaskStatus).filter(
+                models.TaskStatus.id == self.task_status_id
+            ).first()
+
+            if task:
+                task.processed_items = processed
+                task.total_items = total
+                task.progress = int((processed / total) * 100) if total > 0 else 0
+                if message:
+                    task.message = message
+                self.db.commit()
+        except Exception as e:
+            print(f"  Warning: Could not update task progress: {e}")
+
+    def log_platform_error(self, platform: str, error_msg: str, query_text: str = ""):
+        """Log platform API error to task status for debugging."""
+        if not self.task_status_id:
+            return
+
+        try:
+            task = self.db.query(models.TaskStatus).filter(
+                models.TaskStatus.id == self.task_status_id
+            ).first()
+
+            if task:
+                # Append error to existing error_message
+                timestamp = datetime.utcnow().strftime("%H:%M:%S")
+                new_error = f"[{timestamp}] {platform}: {error_msg}"
+                if query_text:
+                    new_error += f" (Query: {query_text[:50]}...)"
+
+                if task.error_message:
+                    task.error_message += f"\n{new_error}"
+                else:
+                    task.error_message = new_error
+
+                self.db.commit()
+        except Exception as e:
+            print(f"  Warning: Could not log platform error: {e}")
+
+    def query_chatgpt(self, query_text: str) -> Optional[str]:
+        """Query OpenAI ChatGPT."""
+        if not self.openai_client:
+            return None
+
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o",  # or "gpt-3.5-turbo" for faster/cheaper
+                messages=[
+                    {"role": "user", "content": query_text}
+                ],
+                max_tokens=1000,
+                temperature=0.7,
+                timeout=240.0  # 4 minute timeout
+            )
+            return response.choices[0].message.content
+        except openai.APITimeoutError as e:
+            error_msg = f"ChatGPT timeout after 4min: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
+        except openai.RateLimitError as e:
+            error_msg = f"ChatGPT rate limit exceeded: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
+        except openai.APIError as e:
+            error_msg = f"ChatGPT API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
+        except Exception as e:
+            error_msg = f"ChatGPT unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("ChatGPT", error_msg, query_text)
+            return None
+
+    def query_claude(self, query_text: str) -> Optional[str]:
+        """Query Anthropic Claude."""
+        if not self.anthropic_client:
+            return None
+
+        try:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=1000,
+                messages=[
+                    {"role": "user", "content": query_text}
+                ],
+                timeout=240.0  # 4 minute timeout
+            )
+            return response.content[0].text
+        except anthropic.APITimeoutError as e:
+            error_msg = f"Claude timeout after 4min: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
+        except anthropic.RateLimitError as e:
+            error_msg = f"Claude rate limit exceeded: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
+        except anthropic.APIError as e:
+            error_msg = f"Claude API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
+        except Exception as e:
+            error_msg = f"Claude unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Claude", error_msg, query_text)
+            return None
+
+    def query_gemini(self, query_text: str) -> Optional[str]:
+        """Query Google Gemini."""
+        if not self.google_model:
+            return None
+
+        try:
+            # Gemini API has built-in timeout but we can catch specific errors
+            response = self.google_model.generate_content(
+                query_text,
+                request_options={'timeout': 240}
+            )
+            return response.text
+        except Exception as e:
+            # Google API doesn't have specific exception types, so parse the message
+            error_str = str(e).lower()
+            if 'timeout' in error_str or 'deadline' in error_str:
+                error_msg = f"Gemini timeout after 4min: {str(e)}"
+            elif 'quota' in error_str or 'rate' in error_str:
+                error_msg = f"Gemini rate limit exceeded: {str(e)}"
+            else:
+                error_msg = f"Gemini error: {str(e)}"
+
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Gemini", error_msg, query_text)
+            return None
+
+    def query_perplexity(self, query_text: str) -> Optional[str]:
+        """Query Perplexity AI."""
+        if not self.perplexity_client:
+            return None
+
+        try:
+            response = self.perplexity_client.chat.completions.create(
+                model="sonar",  # Updated to new model naming (was llama-3.1-sonar-large-128k-online)
+                messages=[
+                    {"role": "user", "content": query_text}
+                ],
+                max_tokens=1000,
+                timeout=240.0  # 4 minute timeout
+            )
+            return response.choices[0].message.content
+        except openai.APITimeoutError as e:
+            error_msg = f"Perplexity timeout after 4min: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
+        except openai.RateLimitError as e:
+            error_msg = f"Perplexity rate limit exceeded: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
+        except openai.APIError as e:
+            error_msg = f"Perplexity API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
+        except Exception as e:
+            error_msg = f"Perplexity unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error("Perplexity", error_msg, query_text)
+            return None
+
+    def query_with_provider(self, provider: ProviderConfig, query_text: str) -> Optional[str]:
+        """
+        Query an LLM using the GenericLLMClient with a configured provider.
+
+        This method uses the new configurable LLM system instead of hardcoded clients.
+        """
+        try:
+            response_text = provider.call(query_text, max_tokens=1000, temperature=0.7)
+            return response_text
+        except LLMAPIError as e:
+            error_msg = f"{provider.display_name} API error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error(provider.display_name, error_msg, query_text)
+            return None
+        except LLMConfigurationError as e:
+            error_msg = f"{provider.display_name} configuration error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error(provider.display_name, error_msg, query_text)
+            return None
+        except Exception as e:
+            error_msg = f"{provider.display_name} unexpected error: {str(e)}"
+            print(f"  ✗ {error_msg}")
+            self.log_platform_error(provider.display_name, error_msg, query_text)
+            return None
+
+    def save_response(self, query_id: str, query_text: str, platform: str,
+                     response_text: str) -> models.Response:
+        """Save a response to the database."""
+        response = models.Response(
+            user_id=self.user_id,
+            brand_id=self.brand_id,  # Associate response with brand
+            batch_id=self.batch_id,  # Associate response with batch
+            query_id=query_id,
+            query_text=query_text,
+            platform=platform,
+            response_text=response_text,
+            timestamp=datetime.utcnow()
+        )
+        self.db.add(response)
+        self.db.commit()
+        self.db.refresh(response)
+        return response
+
+    def collect_for_query(self, query: models.Query, platforms: List[str] = None) -> Dict[str, bool]:
+        """
+        Collect responses for a single query across configured platforms.
+
+        If dynamic providers are available (from database or LLMProviderManager),
+        uses those. Otherwise falls back to legacy hardcoded platform methods.
+        """
+        results = {}
+        print(f"\n📝 Query {query.query_id}: {query.query_text[:60]}...")
+
+        # Use dynamic providers if available
+        if self.dynamic_providers:
+            for provider in self.dynamic_providers:
+                if not provider.is_enabled:
+                    continue
+
+                print(f"  → {provider.display_name}...", end=" ", flush=True)
+
+                response_text = self.query_with_provider(provider, query.query_text)
+
+                if response_text:
+                    self.save_response(query.query_id, query.query_text, provider.display_name, response_text)
+                    print(f"✓ ({len(response_text)} chars)")
+                    results[provider.display_name] = True
+                else:
+                    print("✗ No response")
+                    results[provider.display_name] = False
+
+                # Rate limiting - be nice to APIs
+                time.sleep(1)
+        else:
+            # Legacy fallback: use hardcoded platform methods
+            if platforms is None:
+                platforms = ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
+
+            for platform in platforms:
+                print(f"  → {platform}...", end=" ", flush=True)
+
+                response_text = None
+                if platform == 'ChatGPT':
+                    response_text = self.query_chatgpt(query.query_text)
+                elif platform == 'Claude':
+                    response_text = self.query_claude(query.query_text)
+                elif platform == 'Gemini':
+                    response_text = self.query_gemini(query.query_text)
+                elif platform == 'Perplexity':
+                    response_text = self.query_perplexity(query.query_text)
+
+                if response_text:
+                    self.save_response(query.query_id, query.query_text, platform, response_text)
+                    print(f"✓ ({len(response_text)} chars)")
+                    results[platform] = True
+                else:
+                    print("✗ No response")
+                    results[platform] = False
+
+                # Rate limiting - be nice to APIs
+                time.sleep(1)
+
+        return results
+
+    def collect_all(self, limit: Optional[int] = None, platforms: List[str] = None) -> Dict[str, int]:
+        """Collect responses for all active queries for this user and brand."""
+        query = self.db.query(models.Query).filter(
+            models.Query.user_id == self.user_id,
+            models.Query.active == True
+        )
+
+        # Filter by brand_id if specified
+        if self.brand_id:
+            query = query.filter(models.Query.brand_id == self.brand_id)
+
+        queries = query.all()
+
+        if limit:
+            queries = queries[:limit]
+
+        # Determine platforms to use - dynamic providers take precedence
+        if self.dynamic_providers:
+            platforms_list = [p.display_name for p in self.dynamic_providers if p.is_enabled]
+        else:
+            platforms_list = platforms or ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
+
+        # Use session-based naming to ensure uniqueness and prevent midnight-crossing issues
+        # The batch name includes both date and time to create a unique session identifier
+        # Frontend will display this by start date in EST for user-friendly identification
+        batch_start_time = datetime.utcnow()
+        batch_name = f"Collection {batch_start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+
+        batch = models.CollectionBatch(
+            user_id=self.user_id,
+            brand_id=self.brand_id,
+            batch_name=batch_name,
+            description=f"Automated collection of {len(queries)} queries across {len(platforms_list)} platforms",
+            platforms=', '.join(platforms_list),
+            started_at=batch_start_time,
+            status='in_progress',
+            total_queries=0,
+            total_responses=0
+        )
+        self.db.add(batch)
+        self.db.commit()
+        self.db.refresh(batch)
+        self.batch_id = batch.id
+
+        print(f"\n{'='*60}")
+        print(f"Response Collection Started")
+        print(f"Batch ID: {self.batch_id} - {batch_name}")
+        print(f"{'='*60}")
+        print(f"Queries to process: {len(queries)}")
+        print(f"Platforms: {platforms_list}")
+        print(f"{'='*60}")
+
+        # Initialize stats with dynamic platform names
+        stats = {
+            'total_queries': len(queries),
+            'successful': 0,
+            'failed': 0,
+        }
+        for platform_name in platforms_list:
+            stats[platform_name] = 0
+
+        # Calculate total items (queries × platforms)
+        total_items = len(queries) * len(platforms_list)
+        processed_count = 0
+
+        for idx, query in enumerate(queries, 1):
+            # Update progress before processing query
+            self.update_task_progress(
+                processed_count,
+                total_items,
+                f"Collecting responses for query {idx}/{len(queries)}"
+            )
+
+            results = self.collect_for_query(query, platforms)
+
+            if any(results.values()):
+                stats['successful'] += 1
+            else:
+                stats['failed'] += 1
+
+            for platform, success in results.items():
+                if success:
+                    stats[platform] += 1
+                processed_count += 1
+
+        # Mark task as complete
+        self.update_task_progress(total_items, total_items, "Collection completed")
+
+        # Complete the batch - calculate total_responses from dynamic platforms
+        total_responses = sum(stats.get(p, 0) for p in platforms_list)
+        batch = self.db.query(models.CollectionBatch).filter(
+            models.CollectionBatch.id == self.batch_id
+        ).first()
+
+        if batch:
+            batch.completed_at = datetime.utcnow()
+            batch.status = 'completed'
+            batch.total_responses = total_responses
+            batch.total_queries = stats['total_queries']
+            self.db.commit()
+
+            # Note: Batch analytics are computed AFTER analysis completes (in data_pipeline.py
+            # or analyze_responses.py), not here. At this point responses haven't been analyzed
+            # yet, so brand_mentioned and other fields are still empty.
+
+        print(f"\n{'='*60}")
+        print(f"Collection Summary")
+        print(f"{'='*60}")
+        print(f"  • Batch ID: {self.batch_id}")
+        print(f"  • Total queries processed: {stats['total_queries']}")
+        print(f"  • Total responses collected: {total_responses}")
+        print(f"  • Successful: {stats['successful']}")
+        print(f"  • Failed: {stats['failed']}")
+        for platform_name in platforms_list:
+            print(f"  • {platform_name} responses: {stats.get(platform_name, 0)}")
+        print(f"{'='*60}\n")
+
+        # Store batch_id in stats for auto-trigger use
+        stats['batch_id'] = self.batch_id
+        stats['total_responses'] = total_responses
+
+        return stats
+
+
+def main():
+    """Main function to run response collection."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='TALES Response Collection Tool')
+    parser.add_argument('user_id', type=int, nargs='?', help='User ID to collect responses for')
+    parser.add_argument('--brand-id', type=int, help='Brand ID to collect responses for')
+    parser.add_argument('--task-id', type=int, help='Task Status ID for progress tracking')
+    args = parser.parse_args()
+
+    print("\n🚀 TALES Response Collection Tool\n")
+
+    # Get user_id from command line argument or prompt
+    user_id = args.user_id
+    brand_id = args.brand_id
+
+    if user_id:
+        print(f"Running collection for user_id: {user_id}")
+        if brand_id:
+            print(f"Brand ID: {brand_id}")
+    else:
+        # Interactive mode - show available users
+        db_temp = SessionLocal()
+        users = db_temp.query(models.User).filter(models.User.is_active == True).all()
+        db_temp.close()
+
+        if not users:
+            print("❌ No active users found in database!")
+            sys.exit(1)
+
+        print("Available users:")
+        for user in users:
+            print(f"  {user.id}: {user.email} ({user.full_name or 'No name'})")
+
+        user_input = input(f"\nEnter user_id [1]: ").strip() or "1"
+        try:
+            user_id = int(user_input)
+        except ValueError:
+            print("❌ Invalid user_id. Must be an integer.")
+            sys.exit(1)
+
+    # Check for API keys
+    print("\nChecking API keys...")
+    has_openai = bool(os.getenv('OPENAI_API_KEY'))
+    has_anthropic = bool(os.getenv('ANTHROPIC_API_KEY'))
+    has_google = bool(os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY'))
+
+    if not any([has_openai, has_anthropic, has_google]):
+        print("\n❌ ERROR: No API keys found in .env file!")
+        print("\nPlease add at least one of these to your .env file:")
+        print("  OPENAI_API_KEY=your-key-here")
+        print("  ANTHROPIC_API_KEY=your-key-here")
+        print("  GEMINI_API_KEY=your-key-here")
+        sys.exit(1)
+
+    print()
+
+    # Create database session
+    db = SessionLocal()
+
+    try:
+        # Verify user exists
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            print(f"❌ User with id {user_id} not found!")
+            sys.exit(1)
+
+        print(f"Collection for: {user.email} ({user.full_name or 'No name'})\n")
+
+        # Initialize collector with user_id, brand_id, and task_id
+        collector = ResponseCollector(db, user_id, brand_id, args.task_id)
+
+        # Check if we have queries for this user/brand
+        query_query = db.query(models.Query).filter(
+            models.Query.user_id == user_id,
+            models.Query.active == True
+        )
+        if brand_id:
+            query_query = query_query.filter(models.Query.brand_id == brand_id)
+
+        query_count = query_query.count()
+        if query_count == 0:
+            print("❌ No active queries found in database!")
+            print("Please add queries through the web interface at http://localhost:5173/manage/queries")
+            sys.exit(1)
+
+        print(f"Found {query_count} active queries\n")
+
+        # If running in automated mode (with task_id), skip interactive prompts
+        limit = None
+        if args.task_id:
+            # Automated mode - always collect all queries
+            print("Running in automated mode - collecting ALL queries")
+        else:
+            # Interactive mode - prompt for what to do
+            print("Options:")
+            print("  1. Collect responses for ALL queries (recommended for first run)")
+            print("  2. Test with first 3 queries only")
+            print("  3. Custom number of queries")
+
+            choice = input("\nEnter choice (1-3) [1]: ").strip() or "1"
+
+            if choice == "2":
+                limit = 3
+            elif choice == "3":
+                limit = int(input("How many queries? "))
+
+        # Collect responses
+        stats = collector.collect_all(limit=limit)
+
+        # Show next steps
+        print("\n✅ Collection complete!")
+        print("\nNext steps:")
+        print("  1. View responses at http://localhost:5173/data/responses")
+        print("  2. Analyze responses (coming soon)")
+        print("  3. Check dashboard at http://localhost:5173/")
+
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Collection interrupted by user")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

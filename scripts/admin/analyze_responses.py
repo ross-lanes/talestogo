@@ -1,0 +1,637 @@
+#!/usr/bin/env python3
+"""
+Response Analysis Script for TALES Project
+Analyzes collected LLM responses for brand mentions, sentiment, descriptors, and competitors.
+Uses Perplexity API for analysis.
+"""
+
+import os
+import sys
+import json
+from datetime import datetime
+from typing import List, Dict, Optional
+import time
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from sqlalchemy.orm import Session
+from app.database import SessionLocal, engine
+from app import models
+from app.services.llm_provider_manager import LLMProviderManager, ProviderConfig
+from app.services.generic_llm_client import GenericLLMClient, LLMAPIError, LLMConfigurationError
+
+# Import OpenAI for legacy Perplexity API fallback
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️  OpenAI SDK not available. Some fallback features may not work.")
+
+# Target descriptors and competitors (loaded from database)
+TARGET_DESCRIPTORS = []
+COMPETITORS = []
+
+class ResponseAnalyzer:
+    """Analyzes responses using Perplexity API."""
+
+    def __init__(self, db: Session, user_id: int, brand_id: Optional[int] = None, task_status_id: Optional[int] = None):
+        self.db = db
+        self.user_id = user_id
+        self.brand_id = brand_id
+        self.task_status_id = task_status_id
+        self.ai_client = None  # Legacy OpenAI client (fallback)
+        self.analysis_provider: Optional[ProviderConfig] = None  # New configurable provider
+        self.brand_name = "your brand"
+        self.brand_info = None
+
+        # Try to load analysis LLM from database first
+        try:
+            user = db.query(models.User).filter(models.User.id == user_id).first()
+            tenant_id = user.tenant_id if user else None
+
+            provider_manager = LLMProviderManager(db, tenant_id)
+            self.analysis_provider = provider_manager.get_analysis_provider()
+
+            if self.analysis_provider:
+                print(f"✓ Using {self.analysis_provider.display_name} for analysis ({self.analysis_provider.api_type})")
+            else:
+                print("⚠️  No analysis LLM configured in database, falling back to environment variables")
+        except Exception as e:
+            print(f"⚠️  Could not load analysis provider from database: {e}")
+            print("    Falling back to environment variable configuration")
+
+        # Fallback: Set up Perplexity AI from environment variables if no database provider
+        if not self.analysis_provider:
+            if OPENAI_AVAILABLE:
+                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
+                if perplexity_key:
+                    self.ai_client = OpenAI(
+                        api_key=perplexity_key,
+                        base_url="https://api.perplexity.ai"
+                    )
+                    print("✓ Perplexity AI configured for analysis (sonar model) from environment")
+                else:
+                    print("⚠️  PERPLEXITY_API_KEY not found in environment")
+                    print("    Analysis may not work without an LLM configured")
+
+        # Load brand info
+        self.load_brand_info()
+
+        # Load descriptors and competitors from database
+        self.load_reference_data()
+
+    def load_brand_info(self):
+        """Load brand information for the user and specific brand."""
+        query = self.db.query(models.BrandInfo).filter(
+            models.BrandInfo.user_id == self.user_id
+        )
+
+        if self.brand_id:
+            # Load specific brand
+            query = query.filter(models.BrandInfo.id == self.brand_id)
+        else:
+            # Load active brand
+            query = query.filter(models.BrandInfo.is_active == True)
+
+        brand_info = query.first()
+
+        if brand_info:
+            self.brand_info = brand_info
+            self.brand_id = brand_info.id  # Store the brand_id
+            self.brand_name = brand_info.brand_name
+            print(f"✓ Loaded brand info for: {self.brand_name}")
+        else:
+            print("⚠️  No brand info found - using generic brand name")
+
+    def load_reference_data(self):
+        """Load target descriptors and competitors from database for specific brand."""
+        global TARGET_DESCRIPTORS, COMPETITORS
+
+        # Filter by brand_id if available
+        descriptor_query = self.db.query(models.TargetDescriptor).filter(
+            models.TargetDescriptor.user_id == self.user_id,
+            models.TargetDescriptor.is_target == True
+        )
+        if self.brand_id:
+            descriptor_query = descriptor_query.filter(models.TargetDescriptor.brand_id == self.brand_id)
+
+        descriptors = descriptor_query.all()
+        TARGET_DESCRIPTORS = [d.descriptor for d in descriptors]
+
+        competitor_query = self.db.query(models.Competitor).filter(
+            models.Competitor.user_id == self.user_id
+        )
+        if self.brand_id:
+            competitor_query = competitor_query.filter(models.Competitor.brand_id == self.brand_id)
+
+        competitors = competitor_query.all()
+        COMPETITORS = [c.organization for c in competitors]
+
+        print(f"✓ Loaded {len(TARGET_DESCRIPTORS)} target descriptors")
+        print(f"✓ Loaded {len(COMPETITORS)} competitors")
+
+    def update_task_progress(self, processed: int, total: int, message: str = ""):
+        """Update task status progress in database."""
+        if not self.task_status_id:
+            return
+
+        try:
+            task = self.db.query(models.TaskStatus).filter(
+                models.TaskStatus.id == self.task_status_id
+            ).first()
+
+            if task:
+                task.processed_items = processed
+                task.total_items = total
+                task.progress = int((processed / total) * 100) if total > 0 else 0
+                if message:
+                    task.message = message
+                self.db.commit()
+        except Exception as e:
+            print(f"  Warning: Could not update task progress: {e}")
+
+    def build_analysis_prompt(self, query_text: str, response_text: str) -> str:
+        """Build a detailed prompt for Claude to analyze the response."""
+
+        descriptors_list = "\n".join([f"  - {d}" for d in TARGET_DESCRIPTORS])
+        competitors_list = "\n".join([f"  - {c}" for c in COMPETITORS])
+
+        # Build brand context
+        brand_context = f"the brand '{self.brand_name}'"
+        if self.brand_info:
+            if self.brand_info.industry:
+                brand_context += f" (in the {self.brand_info.industry} industry)"
+            if self.brand_info.description:
+                brand_context += f"\n\nBrand Description: {self.brand_info.description}"
+
+        prompt = f"""You are analyzing an AI platform's response to determine how it depicts {brand_context}.
+
+QUERY: {query_text}
+
+RESPONSE TO ANALYZE:
+{response_text}
+
+Please analyze this response and provide a JSON object with the following fields:
+
+1. **brand_mentioned**: Is {self.brand_name} mentioned in the response?
+   - "Yes" if {self.brand_name} is explicitly mentioned by name
+   - "Indirect" if the response discusses {self.brand_name}'s work or related topics without naming it directly
+   - "No" if {self.brand_name} is not mentioned at all
+
+2. **brand_position**: How prominently is {self.brand_name} featured? (only if mentioned)
+   - "Leader" if {self.brand_name} is described as a top/leading organization
+   - "Top 3" if {self.brand_name} is listed among 2-4 top organizations
+   - "Featured" if {self.brand_name} gets a dedicated paragraph or significant discussion
+   - "Listed" if {self.brand_name} is just mentioned in a list
+   - "Not Mentioned" if not mentioned
+
+3. **sentiment**: What is the sentiment toward {self.brand_name}? (only if mentioned DIRECTLY with brand_mentioned="Yes", not for Indirect mentions)
+   - "Very Positive" - exceptional praise, leader/pioneer language
+   - "Positive" - favorable but not exceptional
+   - "Neutral" - factual, no clear positive or negative tone
+   - "Negative" - critical or unfavorable
+   - "Mixed" - both positive and negative elements
+   - Return empty string "" if brand_mentioned is "Indirect" or "No"
+
+4. **descriptors**: Which of these target descriptors are used in connection with {self.brand_name}?
+   Return as a comma-separated list or empty string if none match.
+{descriptors_list}
+
+5. **competitors**: Which of these competitor organizations are mentioned?
+   Return as a comma-separated list or empty string if none mentioned.
+{competitors_list}
+
+6. **sources**: Are any sources cited for information about {self.brand_name} or the topic?
+   List any URLs, papers, organizations, or attributions mentioned.
+   Return as a comma-separated list or empty string if none.
+
+7. **notes**: Any other relevant observations about how {self.brand_name} is depicted.
+   Keep this brief (1-2 sentences max).
+
+IMPORTANT: Return ONLY a valid JSON object with these exact field names. No additional text.
+
+Example format:
+{{
+  "brand_mentioned": "Yes",
+  "brand_position": "Featured",
+  "sentiment": "Very Positive",
+  "descriptors": "pioneering, innovative",
+  "competitors": "Competitor A, Competitor B",
+  "sources": "https://example.com",
+  "notes": "{self.brand_name} is described as a leader in the field."
+}}"""
+
+        return prompt
+
+    def analyze_response(self, response: models.Response) -> Optional[Dict]:
+        """
+        Analyze a single response using the configured analysis LLM.
+
+        Uses the LLM configured with use_for_analysis=True from the database,
+        or falls back to Perplexity from environment variables.
+        """
+        if not self.analysis_provider and not self.ai_client:
+            print("  ✗ No analysis LLM available")
+            return None
+
+        try:
+            prompt = self.build_analysis_prompt(response.query_text, response.response_text)
+
+            # Use configured provider if available, otherwise fall back to legacy client
+            if self.analysis_provider:
+                try:
+                    # Use the ProviderConfig.call() method which handles API key lookup
+                    analysis_text = self.analysis_provider.call(
+                        prompt=prompt,
+                        max_tokens=2000,
+                        temperature=0.2
+                    )
+                except (LLMAPIError, LLMConfigurationError) as e:
+                    print(f"  ✗ Analysis LLM error: {str(e)}")
+                    return None
+            else:
+                # Legacy fallback: use Perplexity from environment
+                completion = self.ai_client.chat.completions.create(
+                    model="sonar",  # Perplexity's Sonar model
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=2000,
+                    temperature=0.2
+                )
+                analysis_text = completion.choices[0].message.content
+
+            analysis_text = analysis_text.strip()
+
+            # Try to extract JSON from the response
+            # Sometimes the model wraps JSON in markdown code blocks
+            if "```json" in analysis_text:
+                analysis_text = analysis_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in analysis_text:
+                analysis_text = analysis_text.split("```")[1].split("```")[0].strip()
+
+            # Parse JSON
+            analysis_data = json.loads(analysis_text)
+
+            return analysis_data
+
+        except json.JSONDecodeError as e:
+            print(f"    ⚠️  JSON parse error: {e}")
+            print(f"    Response text: {analysis_text[:200]}...")
+            return None
+        except Exception as e:
+            print(f"    ✗ Analysis error: {e}")
+            return None
+
+    def save_analysis(self, response: models.Response, analysis_data: Dict) -> bool:
+        """Save analysis results to the database."""
+        try:
+            response.brand_mentioned = analysis_data.get('brand_mentioned', '')
+            response.brand_position = analysis_data.get('brand_position', '')
+            response.sentiment = analysis_data.get('sentiment', '')
+            response.descriptors = analysis_data.get('descriptors', '')
+            response.competitors = analysis_data.get('competitors', '')
+            response.sources = analysis_data.get('sources', '')
+            response.notes = analysis_data.get('notes', '')
+            response.analyzed_at = datetime.utcnow()
+
+            self.db.commit()
+            return True
+        except Exception as e:
+            print(f"    ✗ Database error: {e}")
+            self.db.rollback()
+            return False
+
+    def analyze_single(self, response_id: int) -> bool:
+        """Analyze a single response by ID."""
+        response = self.db.query(models.Response).filter(models.Response.id == response_id).first()
+        if not response:
+            print(f"Response {response_id} not found")
+            return False
+
+        print(f"\n📊 Analyzing Response {response.id} ({response.platform})...")
+        print(f"   Query: {response.query_text[:60]}...")
+
+        analysis_data = self.analyze_response(response)
+        if analysis_data:
+            success = self.save_analysis(response, analysis_data)
+            if success:
+                print(f"   ✓ Analysis saved")
+                print(f"     {self.brand_name}: {analysis_data.get('brand_mentioned')}")
+                if analysis_data.get('brand_mentioned') in ['Yes', 'Indirect']:
+                    print(f"     Position: {analysis_data.get('brand_position')}")
+                    print(f"     Sentiment: {analysis_data.get('sentiment')}")
+                return True
+
+        return False
+
+    def analyze_specific_responses(self, response_ids: List[int]) -> Dict[str, int]:
+        """Analyze specific responses by their IDs (for date-filtered re-analysis)."""
+        # Get the specific responses by ID
+        responses = self.db.query(models.Response).filter(
+            models.Response.id.in_(response_ids),
+            models.Response.user_id == self.user_id
+        ).all()
+
+        print(f"\n{'='*60}")
+        print(f"Response Analysis Started")
+        print(f"{'='*60}")
+        print(f"Analyzing {len(responses)} specific responses (IDs: {response_ids[:5]}{'...' if len(response_ids) > 5 else ''})")
+        print(f"{'='*60}")
+
+        return self._analyze_responses_list(responses)
+
+    def analyze_date_range(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        reanalyze: bool = False
+    ) -> Dict[str, int]:
+        """
+        Analyze all responses within a date range.
+
+        Used by monthly/quarterly/annual analysis to analyze all data
+        from a specific period.
+
+        Args:
+            start_date: Start of the date range (inclusive)
+            end_date: End of the date range (inclusive)
+            reanalyze: If True, re-analyze already-analyzed responses
+
+        Returns:
+            Dict with analysis statistics
+        """
+        query = self.db.query(models.Response).filter(
+            models.Response.user_id == self.user_id,
+            models.Response.timestamp >= start_date,
+            models.Response.timestamp <= end_date
+        )
+
+        # Filter by brand_id if specified
+        if self.brand_id:
+            query = query.filter(models.Response.brand_id == self.brand_id)
+
+        # Only include unanalyzed unless reanalyze is True
+        if not reanalyze:
+            query = query.filter(models.Response.analyzed_at.is_(None))
+
+        responses = query.all()
+
+        print(f"\n{'='*60}")
+        print(f"Date Range Analysis")
+        print(f"{'='*60}")
+        print(f"Period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        print(f"Responses to analyze: {len(responses)}")
+        if reanalyze:
+            print(f"Mode: Re-analyzing all responses (including previously analyzed)")
+        print(f"{'='*60}")
+
+        return self._analyze_responses_list(responses)
+
+    def analyze_batch(self, limit: Optional[int] = None) -> Dict[str, int]:
+        """Analyze all unanalyzed responses for this user and brand."""
+        # Get unanalyzed responses for this user and brand
+        query = self.db.query(models.Response).filter(
+            models.Response.user_id == self.user_id,
+            models.Response.analyzed_at.is_(None)
+        )
+
+        # Filter by brand_id if specified
+        if self.brand_id:
+            query = query.filter(models.Response.brand_id == self.brand_id)
+
+        if limit:
+            query = query.limit(limit)
+
+        responses = query.all()
+
+        print(f"\n{'='*60}")
+        print(f"Response Analysis Started")
+        print(f"{'='*60}")
+        print(f"Responses to analyze: {len(responses)}")
+        print(f"{'='*60}")
+
+        return self._analyze_responses_list(responses)
+
+    def _analyze_responses_list(self, responses: List[models.Response]) -> Dict[str, int]:
+        """Internal method to analyze a list of responses."""
+        stats = {
+            'total': len(responses),
+            'successful': 0,
+            'failed': 0,
+            'brand_yes': 0,
+            'brand_indirect': 0,
+            'brand_no': 0,
+        }
+
+        total_responses = len(responses)
+
+        for i, response in enumerate(responses, 1):
+            # Update progress
+            self.update_task_progress(
+                i - 1,
+                total_responses,
+                f"Analyzing response {i}/{total_responses}"
+            )
+
+            print(f"\n[{i}/{len(responses)}] Response {response.id} ({response.platform})")
+            print(f"  Query: {response.query_text[:70]}...")
+
+            analysis_data = self.analyze_response(response)
+            if analysis_data:
+                success = self.save_analysis(response, analysis_data)
+                if success:
+                    stats['successful'] += 1
+
+                    # Track brand mention stats
+                    brand_mentioned = analysis_data.get('brand_mentioned', '')
+                    if brand_mentioned == 'Yes':
+                        stats['brand_yes'] += 1
+                    elif brand_mentioned == 'Indirect':
+                        stats['brand_indirect'] += 1
+                    elif brand_mentioned == 'No':
+                        stats['brand_no'] += 1
+
+                    print(f"  ✓ Analyzed - {self.brand_name}: {brand_mentioned}", end="")
+                    if brand_mentioned in ['Yes', 'Indirect']:
+                        print(f", Sentiment: {analysis_data.get('sentiment')}")
+                    else:
+                        print()
+                else:
+                    stats['failed'] += 1
+            else:
+                stats['failed'] += 1
+
+            # Rate limiting - be nice to the API (2 seconds to avoid quota errors)
+            time.sleep(2)
+
+        # Mark as complete
+        self.update_task_progress(total_responses, total_responses, "Analysis completed")
+
+        print(f"\n{'='*60}")
+        print(f"Analysis Summary")
+        print(f"{'='*60}")
+        print(f"  • Total responses analyzed: {stats['total']}")
+        print(f"  • Successful: {stats['successful']}")
+        print(f"  • Failed: {stats['failed']}")
+        print(f"  • {self.brand_name} mentioned (Yes): {stats['brand_yes']}")
+        print(f"  • {self.brand_name} mentioned (Indirect): {stats['brand_indirect']}")
+        print(f"  • {self.brand_name} not mentioned: {stats['brand_no']}")
+        if stats['successful'] > 0:
+            mention_rate = (stats['brand_yes'] + stats['brand_indirect']) / stats['successful'] * 100
+            print(f"  • {self.brand_name} mention rate: {mention_rate:.1f}%")
+        print(f"{'='*60}\n")
+
+        return stats
+
+
+def main():
+    """Main entry point for the analysis script."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='TALES Response Analysis Tool')
+    parser.add_argument('--all', action='store_true', help='Analyze all unanalyzed responses')
+    parser.add_argument('--limit', type=int, help='Limit number of responses to analyze')
+    parser.add_argument('--response-ids', type=str, help='Comma-separated list of response IDs to analyze')
+    parser.add_argument('--user-id', type=int, help='User ID to analyze responses for')
+    parser.add_argument('--brand-id', type=int, help='Brand ID to analyze responses for')
+    parser.add_argument('--task-id', type=int, help='Task Status ID for progress tracking')
+    parser.add_argument('--start-date', type=str, help='Start date for analysis (ISO format, e.g., 2026-01-01)')
+    parser.add_argument('--end-date', type=str, help='End date for analysis (ISO format, e.g., 2026-01-31)')
+    parser.add_argument('--reanalyze', action='store_true', help='Re-analyze already-analyzed responses (use with date range)')
+    args = parser.parse_args()
+
+    print("\n🔍 TALES Response Analysis Tool\n")
+
+    db = SessionLocal()
+    try:
+        # Get user
+        if args.user_id:
+            user = db.query(models.User).filter(models.User.id == args.user_id).first()
+        else:
+            user = db.query(models.User).first()
+
+        if not user:
+            print("❌ No users found in database. Please create a user first.")
+            return
+
+        print(f"📋 Analyzing responses for user: {user.email}")
+        if args.brand_id:
+            brand = db.query(models.BrandInfo).filter(models.BrandInfo.id == args.brand_id).first()
+            if brand:
+                print(f"📋 Brand: {brand.brand_name}\n")
+            else:
+                print(f"⚠️  Brand ID {args.brand_id} not found\n")
+        else:
+            print("📋 Using active brand\n")
+
+        analyzer = ResponseAnalyzer(db, user_id=user.id, brand_id=args.brand_id, task_status_id=args.task_id)
+
+        # Check if date range was provided
+        if args.start_date and args.end_date:
+            try:
+                start_date = datetime.fromisoformat(args.start_date)
+                end_date = datetime.fromisoformat(args.end_date)
+                # Set end_date to end of day if no time specified
+                if end_date.hour == 0 and end_date.minute == 0:
+                    end_date = end_date.replace(hour=23, minute=59, second=59)
+
+                print(f"Analyzing responses from {start_date} to {end_date}")
+                if args.reanalyze:
+                    print("Re-analyzing all responses (including previously analyzed)")
+                stats = analyzer.analyze_date_range(start_date, end_date, reanalyze=args.reanalyze)
+            except ValueError as e:
+                print(f"❌ Invalid date format: {e}")
+                print("   Use ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS")
+                return
+
+        # Check if specific response IDs were provided
+        elif args.response_ids:
+            # Parse comma-separated response IDs
+            response_ids = [int(rid.strip()) for rid in args.response_ids.split(',')]
+            print(f"Analyzing {len(response_ids)} specific responses...")
+            stats = analyzer.analyze_specific_responses(response_ids)
+        else:
+            # Get count of unanalyzed responses for this user/brand
+            unanalyzed_query = db.query(models.Response).filter(
+                models.Response.user_id == user.id,
+                models.Response.analyzed_at.is_(None)
+            )
+            if args.brand_id:
+                unanalyzed_query = unanalyzed_query.filter(models.Response.brand_id == args.brand_id)
+
+            unanalyzed_count = unanalyzed_query.count()
+
+            if unanalyzed_count == 0:
+                print("✓ All responses are already analyzed!")
+                return
+
+            # Determine limit based on arguments or user input
+            limit = None
+            if args.all:
+                limit = None
+                print(f"Analyzing ALL {unanalyzed_count} responses...")
+            elif args.limit:
+                limit = args.limit
+                print(f"Analyzing up to {limit} responses...")
+            else:
+                # Interactive mode
+                print(f"Found {unanalyzed_count} unanalyzed responses\n")
+                print("Options:")
+                print(f"  1. Analyze ALL {unanalyzed_count} responses (recommended)")
+                print("  2. Test with first 3 responses only")
+                print("  3. Custom number of responses")
+
+                choice = input("\nEnter choice (1-3) [1]: ").strip() or "1"
+
+                if choice == "2":
+                    limit = 3
+                elif choice == "3":
+                    limit = int(input("How many responses to analyze? ").strip())
+
+            # Run analysis
+            stats = analyzer.analyze_batch(limit=limit)
+
+        print("\n✅ Analysis complete!")
+
+        # Recompute batch analytics after analysis to update mention_rate and mention_count
+        print("\n🔄 Recomputing batch analytics...")
+        try:
+            from app.services.batch_analytics import compute_batch_analytics
+
+            # Get completed batches for this user/brand that may need recompute
+            batches = db.query(models.CollectionBatch).filter(
+                models.CollectionBatch.user_id == user.id,
+                models.CollectionBatch.status == 'completed'
+            )
+            if args.brand_id:
+                batches = batches.filter(models.CollectionBatch.brand_id == args.brand_id)
+
+            batches = batches.order_by(models.CollectionBatch.started_at.desc()).limit(3).all()
+
+            for batch in batches:
+                analytics = compute_batch_analytics(
+                    db=db,
+                    batch_id=batch.id,
+                    user_id=user.id,
+                    brand_id=batch.brand_id
+                )
+                if analytics:
+                    print(f"  ✓ Batch {batch.id}: mention_rate={analytics.mention_rate}%")
+        except Exception as e:
+            print(f"  ⚠️  Warning: Failed to recompute batch analytics: {e}")
+
+        print(f"\nNext steps:")
+        print(f"  1. View analyzed responses at http://localhost:5173/data/responses")
+        print(f"  2. Check updated dashboard at http://localhost:5173/")
+
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()
