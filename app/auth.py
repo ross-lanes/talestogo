@@ -32,9 +32,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# Microsoft OAuth Configuration
-MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
-MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+# Microsoft/Entra OAuth Configuration
+# Supports both ENTRA_* (preferred) and MICROSOFT_* (legacy) variable names
+MICROSOFT_CLIENT_ID = os.getenv("ENTRA_CLIENT_ID") or os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("ENTRA_SECRET_KEY") or os.getenv("MICROSOFT_CLIENT_SECRET")
 
 # Admin Configuration
 # NOTE: ADMIN_EMAIL is ONLY used for initial bootstrap (first-time admin OAuth login).

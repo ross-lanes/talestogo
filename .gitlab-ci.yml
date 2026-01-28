@@ -1,7 +1,7 @@
 build:
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build -t $CI_REGISTRY_IMAGE .
+    - docker build --build-arg VITE_ENTRA_CLIENT_ID=$VITE_ENTRA_CLIENT_ID -t $CI_REGISTRY_IMAGE .
     - docker push $CI_REGISTRY_IMAGE
   only:
     - main

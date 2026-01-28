@@ -14,7 +14,8 @@ import { PublicClientApplication, InteractionRequiredAuthError } from '@azure/ms
 import { useAuth } from '../../contexts/AuthContext';
 import robotRachelLogo from '/logos/RobotRachelBB-Black-on-Transparent.png';
 
-const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID || '';
+// Supports both VITE_ENTRA_CLIENT_ID (preferred) and VITE_MICROSOFT_CLIENT_ID (legacy)
+const MICROSOFT_CLIENT_ID = import.meta.env.VITE_ENTRA_CLIENT_ID || import.meta.env.VITE_MICROSOFT_CLIENT_ID || '';
 
 const msalConfig = {
   auth: {

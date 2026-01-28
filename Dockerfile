@@ -8,6 +8,7 @@ WORKDIR /app
 ARG VITE_API_URL
 ARG VITE_GOOGLE_CLIENT_ID
 ARG VITE_MICROSOFT_CLIENT_ID
+ARG VITE_ENTRA_CLIENT_ID
 
 # Install system dependencies including Node.js for building frontend
 RUN apt-get update && apt-get install -y \
@@ -31,6 +32,7 @@ COPY . .
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 ENV VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID}
+ENV VITE_ENTRA_CLIENT_ID=${VITE_ENTRA_CLIENT_ID}
 
 # Build frontend
 RUN cd frontend && npm install && npm run build && cd ..
