@@ -10,6 +10,7 @@ interface ProductInfo {
   description: string;
   logoPath: string;
   enabled: boolean;
+  externalUrl?: string;
 }
 
 // Tales product definition
