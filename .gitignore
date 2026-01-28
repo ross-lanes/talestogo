@@ -1,0 +1,82 @@
+# Environment variables - IMPORTANT!
+.env
+.env.*
+
+# Python virtual environments
+venv/
+tales-env/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Node modules and frontend build
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Celery
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat-schedule-wal
+
+# Test coverage
+.coverage
+htmlcov/
+
+# Local test and backup files
+backupfiles/
+test_analytics.py
+test_api_responses.py
+upload_pppl_data.py
+
+# NSTXView planning files (large PDFs, local reference docs)
+app/services/nstxview/planning/
+
+# Google service account credentials
+**/talesai111-*.json
+*.credentials.json
+
+# NSTXView data and processing artifacts
+data/
+logs/
+
+# Test artifacts
+frontend/playwright-report/
+frontend/test-results/
+
+# Local test scripts
+test_email*.py
+test_smtp*.py
+
+# Security remediation docs (local only)
+*_FIXES_APPLIED.md
+SECURITY_REMEDIATION.md
