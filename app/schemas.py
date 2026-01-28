@@ -486,7 +486,7 @@ class UserAdminUpdate(BaseModel):
     """Schema for admin to update user status and app access"""
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
-    allowed_products: Optional[List[str]] = None  # List of product IDs: ["tales", "heads", "canon"]
+    allowed_products: Optional[List[str]] = None  # List of product IDs: ["tales"]
     model_config = ConfigDict(extra='forbid')
 
 # --- Invitation Schemas ---
@@ -496,7 +496,7 @@ class InvitationCreate(BaseModel):
     full_name: str
     organization: Optional[str] = None
     tenant_id: Optional[int] = None  # Optional: assign to specific tenant, defaults to admin's tenant
-    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales", "heads", "canon"]
+    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales"]
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""

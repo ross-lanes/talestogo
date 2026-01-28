@@ -638,10 +638,6 @@ def transfer_brand_ownership(db: Session, brand_id: int, current_owner_id: int, 
     db.query(models.ScheduledTask).filter(models.ScheduledTask.brand_id == brand_id).update({models.ScheduledTask.user_id: new_owner_id})
     db.query(models.ScheduledTaskHistory).filter(models.ScheduledTaskHistory.brand_id == brand_id).update({models.ScheduledTaskHistory.user_id: new_owner_id})
 
-    # Transfer Heads personas
-    db.query(models.PersonaGeneration).filter(models.PersonaGeneration.brand_id == brand_id).update({models.PersonaGeneration.user_id: new_owner_id})
-    db.query(models.Persona).filter(models.Persona.brand_id == brand_id).update({models.Persona.user_id: new_owner_id})
-
     # Remove any BrandShare records where old owner was shared with
     db.query(models.BrandShare).filter(
         models.BrandShare.brand_id == brand_id,
@@ -689,10 +685,6 @@ def delete_brand_info(db: Session, brand_id: int, user_id: int, admin_override: 
     db.query(models.ScheduledTask).filter(models.ScheduledTask.brand_id == brand_id).delete()
     db.query(models.ScheduledTaskHistory).filter(models.ScheduledTaskHistory.brand_id == brand_id).delete()
 
-    # Delete Heads (Persona) data
-    db.query(models.Persona).filter(models.Persona.brand_id == brand_id).delete()
-    db.query(models.PersonaGeneration).filter(models.PersonaGeneration.brand_id == brand_id).delete()
-
     # Delete brand shares
     db.query(models.BrandShare).filter(models.BrandShare.brand_id == brand_id).delete()
 
@@ -728,19 +720,8 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]
 def get_default_allowed_products(email: str) -> str:
     """
     Determine default allowed products based on email.
-
-    Rules:
-    - robotrachel@gmail.com -> full access (tales,heads,canon)
-    - *@solsticehc.net -> full access (tales,heads,canon)
-    - Everyone else -> tales only
+    All users get access to Tales.
     """
-    email_lower = email.lower()
-
-    # Full access for specific email or domain
-    if email_lower == 'robotrachel@gmail.com' or email_lower.endswith('@solsticehc.net'):
-        return 'tales,heads,canon'
-
-    # Default: Tales only
     return 'tales'
 
 

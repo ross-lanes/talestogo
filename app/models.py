@@ -41,7 +41,7 @@ class User(Base):
     microsoft_id = Column(String(255), unique=True, index=True, nullable=True)  # Microsoft OAuth ID
     oauth_provider = Column(String(50), nullable=True)  # 'google', 'microsoft', etc.
     picture_url = Column(String(500), nullable=True)  # Profile picture URL from OAuth
-    # App access control - comma-separated list of allowed products (e.g., "tales,heads,canon")
+    # App access control - comma-separated list of allowed products (e.g., "tales")
     allowed_products = Column(Text, nullable=True, default="tales")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

@@ -406,35 +406,6 @@ export const brandsAPI = {
   },
 };
 
-// Heads - Persona Intelligence Platform API functions
-export const headsAPI = {
-  // Get all generations for the current user/brand
-  getGenerations: async (brandId?: number) => {
-    const params = brandId ? { brand_id: brandId } : {};
-    const response = await api.get('/personas/generations', { params });
-    return response.data;
-  },
-
-  // Get a specific generation with personas
-  getGeneration: async (generationId: number) => {
-    const response = await api.get(`/personas/generations/${generationId}`);
-    return response.data;
-  },
-
-  // Create a new persona generation
-  generatePersonas: async (data: any, brandId?: number) => {
-    const params = brandId ? { brand_id: brandId } : {};
-    const response = await api.post('/personas/generate', data, { params });
-    return response.data;
-  },
-
-  // Get personas for a specific generation
-  getPersonas: async (generationId: number) => {
-    const response = await api.get(`/personas/generations/${generationId}/personas`);
-    return response.data;
-  },
-};
-
 // LLM Provider Configuration API functions (admin)
 export const llmProvidersAPI = {
   // Get all LLM providers

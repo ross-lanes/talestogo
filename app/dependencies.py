@@ -22,10 +22,10 @@ def check_product_access(product: str):
     2. Tenant-level product configuration (fallback)
 
     Usage:
-        @router.get("/some-endpoint", dependencies=[Depends(check_product_access("heads"))])
+        @router.get("/some-endpoint", dependencies=[Depends(check_product_access("tales"))])
 
     Args:
-        product: The product ID to check (e.g., "tales", "heads", "canon")
+        product: The product ID to check (e.g., "tales")
 
     Returns:
         A dependency function that validates product access

@@ -98,7 +98,7 @@ def create_admin_user(db: Session, email: str, full_name: str, organization: str
         is_admin=True,
         is_active=True,
         is_invited=True,
-        allowed_products="tales,heads,canon",  # Full access to all products
+        allowed_products="tales",  # Access to Tales
     )
 
     db.add(user)
