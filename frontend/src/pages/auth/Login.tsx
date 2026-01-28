@@ -12,7 +12,6 @@ import { GoogleLogin } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
 import { PublicClientApplication, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { useAuth } from '../../contexts/AuthContext';
-import robotRachelLogo from '/logos/RobotRachelBB-Black-on-Transparent.png';
 
 // PPPL Entra ID Client ID (public, not a secret)
 const MICROSOFT_CLIENT_ID = import.meta.env.VITE_ENTRA_CLIENT_ID || import.meta.env.VITE_MICROSOFT_CLIENT_ID || '2bee91ee-b116-4939-a84c-21ffbf5a7eed';
@@ -131,19 +130,6 @@ const Login: React.FC = () => {
         }}
       >
         <Box sx={{ mb: 4 }}>
-          <Box
-            sx={{
-              cursor: 'pointer',
-              display: 'inline-block',
-            }}
-            onClick={() => window.open('http://www.robotrachel.com', '_blank')}
-          >
-            <img
-              src={robotRachelLogo}
-              alt="RobotRachel"
-              style={{ width: '220px', marginBottom: '24px' }}
-            />
-          </Box>
           <Typography
             variant="h4"
             component="h1"
@@ -156,7 +142,7 @@ const Login: React.FC = () => {
               mb: 2,
             }}
           >
-            Welcome to the RobotRachel Apps Suite!
+            Welcome to Tales!
           </Typography>
         </Box>
 
