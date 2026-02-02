@@ -1,5 +1,5 @@
 # =============================================================================
-# Tales Docker Compose Configuration (PPPL-Compliant)
+# Tales Docker Compose Configuration
 # =============================================================================
 #
 # Quick Start:
@@ -8,12 +8,7 @@
 #   3. Create admin: docker compose exec app python scripts/admin/setup_initial_admin.py
 #   4. Access at: http://localhost:8080
 #
-# Documentation: See docs/IT_DEPLOYMENT_GUIDE.md
-#
-# PPPL Compliance:
-#   - Uses environment variables for all secrets
-#   - Supports OIDC_* (PPPL standard) and MICROSOFT_* (legacy) variable names
-#   - Supports APP_SECRET (PPPL standard) and JWT_SECRET_KEY (legacy)
+# Documentation: See IT_DEPLOYMENT_GUIDE.md
 # =============================================================================
 
 services:
@@ -21,21 +16,14 @@ services:
   # Tales Application
   # ---------------------------------------------------------------------------
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # Frontend build-time variables
-        # Note: With new Login.tsx, auth config is fetched from backend at runtime
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    image: rtwodeetwo/tales:latest
     ports:
       - "${APP_PORT:-8080}:8000"
     environment:
       # Database (connects to the db service below)
       - DATABASE_URL=postgresql://tales:${DB_PASSWORD:-tales_password}@db:5432/tales
 
-      # Security - PPPL naming with legacy fallback
-      # APP_SECRET is PPPL standard, JWT_SECRET_KEY is legacy
+      # Security
       - APP_SECRET=${APP_SECRET:-${JWT_SECRET_KEY}}
       - JWT_SECRET_KEY=${APP_SECRET:-${JWT_SECRET_KEY}}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
@@ -45,12 +33,10 @@ services:
       - ENABLE_MICROSOFT_AUTH=${ENABLE_MICROSOFT_AUTH:-true}
       - ENABLE_GOOGLE_AUTH=${ENABLE_GOOGLE_AUTH:-false}
 
-      # OIDC/OAuth - PPPL naming with legacy fallback
-      # OIDC_* is PPPL standard, MICROSOFT_* is legacy
+      # OIDC/OAuth (for Microsoft Entra ID)
       - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-${MICROSOFT_CLIENT_ID:-}}
       - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-${MICROSOFT_CLIENT_SECRET:-}}
       - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL:-https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration}
-      # Legacy Microsoft variables (for backwards compatibility)
       - MICROSOFT_CLIENT_ID=${OIDC_CLIENT_ID:-${MICROSOFT_CLIENT_ID:-}}
       - MICROSOFT_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-${MICROSOFT_CLIENT_SECRET:-}}
 
@@ -58,7 +44,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
 
-      # Branding (lab-specific customization)
+      # Branding (customize for your organization)
       - SITE_NAME=${SITE_NAME:-Tales}
       - SITE_LOGO_URL=${SITE_LOGO_URL:-}
       - SITE_PRIMARY_COLOR=${SITE_PRIMARY_COLOR:-#003e60}
@@ -110,7 +96,7 @@ services:
     #   - "5432:5432"
 
 # =============================================================================
-# Networks (PPPL Standard)
+# Networks
 # =============================================================================
 networks:
   app_network:

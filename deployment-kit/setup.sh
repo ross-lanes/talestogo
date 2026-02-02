@@ -74,7 +74,7 @@ else
 fi
 
 # Update .env with generated keys (only if they still have placeholder values)
-# APP_SECRET is the PPPL standard name, JWT_SECRET_KEY is legacy
+# APP_SECRET is preferred, JWT_SECRET_KEY is supported for backwards compatibility
 if grep -q "APP_SECRET=CHANGE_ME" .env; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         sed -i '' "s/APP_SECRET=CHANGE_ME.*/APP_SECRET=$JWT_KEY/" .env

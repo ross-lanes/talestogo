@@ -1,29 +1,17 @@
-# Tales Deployment Kit (PPPL-Compliant)
+# Tales Deployment Kit
 
-This kit contains everything you need to deploy Tales at your organization. It follows the PPPL Internal Developer Guide standards for container-first deployment.
+This kit contains everything you need to deploy Tales at your organization.
 
 ## What's Included
 
 | File | Description |
 |------|-------------|
 | `README.md` | This file - quick start guide |
-| `.env.template` | Environment variables template (PPPL-compliant) |
-| `docker-compose.yml` | Docker configuration (PPPL-compliant) |
+| `.env.template` | Environment variables template |
+| `docker-compose.yml` | Docker configuration |
 | `setup.sh` | Helper script for initial setup |
 | `IT_DEPLOYMENT_GUIDE.md` | Complete IT deployment instructions |
-| `IT_DEPLOYMENT_GUIDE.docx` | Word version of IT guide |
 | `USER_GUIDE.md` | End-user documentation |
-| `USER_GUIDE.docx` | Word version of user guide |
-
----
-
-## PPPL Compliance
-
-This deployment kit follows PPPL standards:
-- Multi-stage Dockerfile with `node:20-alpine` and `python:3.11-slim`
-- GitLab CI/CD with proper tagging (`:latest`, version tags, branch names)
-- OIDC variable naming (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`)
-- All secrets via environment variables
 
 ---
 
@@ -83,24 +71,29 @@ Log in with the admin credentials from Step 3.
 
 ---
 
-## Multi-Lab Deployment
+## Organization-Specific Configuration
 
-Each lab deploys their own instance with lab-specific configuration:
+Each organization deploys their own instance with custom configuration:
 
-### Lab-Specific Variables
+### Branding Variables
 
 ```bash
-# Your lab's Entra ID credentials (from IT)
-OIDC_CLIENT_ID=your-lab-client-id
-OIDC_CLIENT_SECRET=your-lab-client-secret
+# Branding for your organization
+SITE_NAME=Your Organization Tales
+SITE_LOGO_URL=https://your-org.gov/logo.png
+SITE_PRIMARY_COLOR=#003e60
+SITE_SECONDARY_COLOR=#75c9c8
+```
+
+### Authentication Variables
+
+```bash
+# Your organization's Entra ID credentials (from IT)
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
 
 # Optional: Tenant-specific OIDC endpoint
 OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{your-tenant-id}/v2.0/.well-known/openid-configuration
-
-# Branding for your lab
-SITE_NAME=ORNL Tales
-SITE_LOGO_URL=https://your-lab.gov/logo.png
-SITE_PRIMARY_COLOR=#00629B
 ```
 
 ### Authentication Flags
@@ -153,14 +146,14 @@ Tales auto-detects which API keys you've configured and makes those providers av
 
 ---
 
-## PPPL Variable Reference
+## Environment Variable Reference
 
-| PPPL Standard | Legacy Name | Description |
-|---------------|-------------|-------------|
+| Variable | Legacy Name | Description |
+|----------|-------------|-------------|
 | `APP_SECRET` | `JWT_SECRET_KEY` | JWT signing secret |
 | `OIDC_CLIENT_ID` | `MICROSOFT_CLIENT_ID` | Azure AD client ID |
 | `OIDC_CLIENT_SECRET` | `MICROSOFT_CLIENT_SECRET` | Azure AD client secret |
-| `OIDC_DISCOVERY_URL` | (new) | OIDC discovery endpoint |
+| `OIDC_DISCOVERY_URL` | - | OIDC discovery endpoint |
 
 Legacy variable names are supported for backwards compatibility.
 
@@ -196,4 +189,3 @@ docker compose exec app python scripts/admin/setup_initial_admin.py
 
 - Full IT documentation: `IT_DEPLOYMENT_GUIDE.md`
 - User documentation: `USER_GUIDE.md`
-- Contact your Tales administrator for additional help

@@ -3,7 +3,10 @@
     "allow": [
       "Bash(DATABASE_URL=\"postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway\" psql:*)",
       "Bash(DATABASE_URL=\"postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway\" python3:*)",
-      "Bash(DATABASE_URL=\"postgresql://postgres:REDACTED_RAILWAY_PASSWORD@tramway.proxy.rlwy.net:47287/railway\" python3:*)"
+      "Bash(DATABASE_URL=\"postgresql://postgres:REDACTED_RAILWAY_PASSWORD@tramway.proxy.rlwy.net:47287/railway\" python3:*)",
+      "Bash(ssh:*)",
+      "Bash(DATABASE_URL=\"postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3?sslmode=require\" python:*)",
+      "Bash(git show:*)"
     ],
     "deny": [],
     "ask": []

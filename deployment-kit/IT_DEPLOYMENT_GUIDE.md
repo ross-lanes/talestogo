@@ -4,96 +4,14 @@ This guide is for IT teams deploying Tales at their organization. Tales is an AI
 
 ## Table of Contents
 
-1. [PPPL National Lab Deployment](#pppl-national-lab-deployment)
-2. [Prerequisites](#prerequisites)
-3. [Quick Start](#quick-start)
-4. [Configuration](#configuration)
-5. [Initial Admin Setup](#initial-admin-setup)
-6. [Verification](#verification)
-7. [Optional: OAuth Configuration](#optional-oauth-configuration)
-8. [Maintenance](#maintenance)
-9. [Troubleshooting](#troubleshooting)
-
----
-
-## PPPL National Lab Deployment
-
-This section covers deployment specifics for national labs following the PPPL Internal Developer Guide standards.
-
-### PPPL Compliance Features
-
-Tales includes the following PPPL-compliant features:
-
-- **Multi-stage Dockerfile**: Uses `node:20-alpine` and `python:3.11-slim` base images with build tools removed from final image
-- **GitLab CI/CD**: Automatic container builds with proper tagging (`:latest` for main, version tags, branch names)
-- **OIDC Authentication**: Supports Entra ID via standard OIDC variable naming
-- **Environment Variables**: All secrets managed via environment variables (never hardcoded)
-- **Docker Compose**: Defines app and database services with proper networking
-
-### PPPL Environment Variables
-
-Tales supports both PPPL standard naming and legacy variable names for backwards compatibility:
-
-| PPPL Standard | Legacy Name | Description |
-|---------------|-------------|-------------|
-| `APP_SECRET` | `JWT_SECRET_KEY` | JWT signing secret |
-| `OIDC_CLIENT_ID` | `MICROSOFT_CLIENT_ID` | Azure AD client ID |
-| `OIDC_CLIENT_SECRET` | `MICROSOFT_CLIENT_SECRET` | Azure AD client secret |
-| `OIDC_DISCOVERY_URL` | (new) | OIDC discovery endpoint |
-
-### Authentication Enable/Disable Flags
-
-Labs can control which authentication methods are available:
-
-```bash
-# Enable/disable authentication methods
-ENABLE_LOCAL_AUTH=true      # Email/password login
-ENABLE_MICROSOFT_AUTH=true  # Microsoft/Entra ID login
-ENABLE_GOOGLE_AUTH=false    # Google login (disabled by default)
-```
-
-### Lab-Specific Branding
-
-Customize the appearance for your organization:
-
-```bash
-SITE_NAME=PPPL Tales              # Your lab's name
-SITE_LOGO_URL=https://...         # URL to your logo
-SITE_PRIMARY_COLOR=#003e60        # Primary theme color
-SITE_SECONDARY_COLOR=#75c9c8      # Secondary theme color
-```
-
-### OIDC Configuration for Entra ID
-
-IT will provide OIDC credentials during app registration:
-
-```bash
-# Standard PPPL OIDC variables
-OIDC_CLIENT_ID=<from-IT>
-OIDC_CLIENT_SECRET=<from-IT>
-
-# Optional: For tenant-specific authentication
-OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration
-```
-
-### GitLab CI/CD Setup
-
-1. Push your code to PPPL's GitLab server
-2. The included `.gitlab-ci.yml` will automatically:
-   - Build the Docker image on push
-   - Tag as `:latest` for main branch
-   - Tag with version for git tags (e.g., `v1.0.0`)
-   - Push to GitLab Container Registry
-
-### Deployment Checklist
-
-1. Repository created on PPPL GitLab Server
-2. Code pushed to repository
-3. `.env` file created with PPPL variables
-4. Container builds successfully in GitLab Pipeline
-5. IT has provided OIDC credentials
-6. OIDC_CLIENT_ID and OIDC_CLIENT_SECRET configured
-7. Admin user created via setup script
+1. [Prerequisites](#prerequisites)
+2. [Quick Start](#quick-start)
+3. [Configuration](#configuration)
+4. [Initial Admin Setup](#initial-admin-setup)
+5. [Verification](#verification)
+6. [Optional: OAuth Configuration](#optional-oauth-configuration)
+7. [Maintenance](#maintenance)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -128,12 +46,9 @@ You will need API keys from one or more LLM providers. Tales supports up to 6 LL
 
 ## Quick Start
 
-### 1. Clone the Repository
+### 1. Download the Deployment Kit
 
-```bash
-git clone <repository-url> tales
-cd tales
-```
+Download the Tales deployment kit to your server.
 
 ### 2. Create Environment File
 
@@ -148,7 +63,7 @@ nano .env  # or use your preferred editor
 
 ```bash
 # Security (generate unique values for your deployment)
-JWT_SECRET_KEY=<generate-random-string>
+APP_SECRET=<generate-random-string>
 ENCRYPTION_KEY=<generate-random-string>
 
 # LLM API Keys (at minimum, you need Gemini for analysis)
@@ -163,7 +78,7 @@ PERPLEXITY_API_KEY=<your-perplexity-api-key>
 **Generate secure random keys:**
 
 ```bash
-# Run this twice to generate JWT_SECRET_KEY and ENCRYPTION_KEY
+# Run this twice to generate APP_SECRET and ENCRYPTION_KEY
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
@@ -174,7 +89,7 @@ docker compose up -d
 ```
 
 This will:
-- Build the Tales application container
+- Pull the Tales application container from Docker Hub
 - Start a PostgreSQL database container
 - Initialize the database schema
 - Start the web server on port 8080
@@ -201,23 +116,46 @@ Log in with the admin credentials created in step 4.
 
 ### Environment Variables
 
-See [ENV_VARS_REFERENCE.md](ENV_VARS_REFERENCE.md) for a complete list of environment variables.
+See `.env.template` for a complete list of environment variables.
+
+### Key Configuration Options
+
+| Variable | Description |
+|----------|-------------|
+| `APP_SECRET` | JWT signing secret (required) |
+| `ENCRYPTION_KEY` | Key for encrypting stored API keys (required) |
+| `OIDC_CLIENT_ID` | Azure AD / Entra ID client ID |
+| `OIDC_CLIENT_SECRET` | Azure AD / Entra ID client secret |
+| `SITE_NAME` | Your organization's name for the UI |
+| `SITE_PRIMARY_COLOR` | Primary theme color (hex) |
+
+### Authentication Flags
+
+Control which login methods are available:
+
+```bash
+ENABLE_LOCAL_AUTH=true       # Email/password login
+ENABLE_MICROSOFT_AUTH=true   # Microsoft/Entra ID login
+ENABLE_GOOGLE_AUTH=false     # Google login (disabled by default)
+```
+
+### Branding
+
+Customize the appearance for your organization:
+
+```bash
+SITE_NAME=Your Organization Tales
+SITE_LOGO_URL=https://your-org.gov/logo.png
+SITE_PRIMARY_COLOR=#003e60
+SITE_SECONDARY_COLOR=#75c9c8
+```
 
 ### Changing the Port
 
-To run on a different port, edit `docker-compose.yml`:
-
-```yaml
-services:
-  app:
-    ports:
-      - "YOUR_PORT:8000"  # Change YOUR_PORT to desired port
-```
-
-Or set it via environment variable:
+To run on a different port, set it via environment variable:
 
 ```bash
-PORT=3000 docker compose up -d
+APP_PORT=3000 docker compose up -d
 ```
 
 ### Using an External Database
@@ -305,21 +243,6 @@ Configure these settings:
 - **After changing domains** - if you move to a new URL
 - **For white-labeling** - to customize the application name in emails
 
-### Testing Your Configuration
-
-After saving settings:
-1. Invite a test user (or yourself at a different email)
-2. Check the invitation email for:
-   - Correct URL in the login link
-   - Correct admin contact email
-   - Your organization's site name in the subject/header
-
-### Notes
-
-- If settings are left empty, the system uses environment variables as fallbacks
-- Changes take effect immediately for new emails
-- Existing emails (already sent) are not affected
-
 ---
 
 ## Authentication
@@ -335,15 +258,23 @@ This is the simplest option and requires no additional configuration:
 3. Admin invites users via the Admin Panel
 4. New users receive credentials (via email if Resend is configured, or manually shared)
 
-### Optional: OAuth (Google/Microsoft)
+### Optional: OIDC (Microsoft Entra ID)
 
-If your organization prefers single sign-on, you can optionally configure OAuth. See [Optional: OAuth Configuration](#optional-oauth-configuration) below.
+For enterprise single sign-on, configure OIDC:
+
+```bash
+OIDC_CLIENT_ID=<from-IT>
+OIDC_CLIENT_SECRET=<from-IT>
+
+# Optional: For tenant-specific authentication
+OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration
+```
 
 | Auth Method | Setup Required | Best For |
 |-------------|----------------|----------|
 | Email/Password | None (works immediately) | Quick deployments, small teams |
-| Google OAuth | Google Cloud Console setup | Organizations using Google Workspace |
-| Microsoft OAuth | Azure Portal setup | Organizations using Microsoft 365 |
+| Microsoft/Entra ID | OIDC credentials from IT | Organizations using Microsoft 365 |
+| Google OAuth | Optional | Organizations using Google Workspace |
 
 ---
 
@@ -380,8 +311,6 @@ ANTHROPIC_API_KEY=sk-ant-...your-key-here
 
 ```bash
 docker compose restart app
-# or for local development:
-# restart the uvicorn server
 ```
 
 **Part 2: Add LLM in Admin UI**
@@ -411,39 +340,6 @@ Each API type reads from a specific environment variable:
 | OpenAI Compatible | `PERPLEXITY_API_KEY` | Perplexity (sonar) |
 
 Only providers whose environment variable is set will work. If an API key is missing, the "Test" button will show an error.
-
-### Editing Provider Settings
-
-Click on an existing provider card to modify its settings. You can change the display name, model name, color, and enable/disable options.
-
-### Adding Custom Providers
-
-For providers beyond the 4 defaults (e.g., Mistral, DeepSeek), you can add up to 2 custom providers:
-
-1. Add the API key to `.env` with a custom variable name:
-   ```bash
-   MISTRAL_API_KEY=your-mistral-key
-   ```
-
-2. Restart the application
-
-3. In Admin UI, click "Add LLM" and fill in:
-   - **Display Name** - "Mistral"
-   - **API Type** - "OpenAI Compatible" (most custom providers use this)
-   - **Model Name** - The model ID (e.g., "mistral-large-latest")
-   - **Environment Variable Name** - "MISTRAL_API_KEY" (must match your `.env`)
-   - **API Endpoint** - The provider's API URL (e.g., "https://api.mistral.ai")
-
-4. Click "Add LLM" and test the connection
-
-### Supported API Types
-
-| API Type | Description | Example Providers |
-|----------|-------------|-------------------|
-| OpenAI | OpenAI API | ChatGPT (GPT-4, GPT-3.5) |
-| Anthropic | Anthropic API | Claude models |
-| Google | Google GenAI API | Gemini models |
-| OpenAI Compatible | Any OpenAI-compatible API | Perplexity, Mistral, Azure OpenAI, local LLMs |
 
 ### Recommended Provider Configuration
 
@@ -520,7 +416,7 @@ Tales supports Google and Microsoft OAuth for user authentication. This is optio
 ```bash
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
-VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+ENABLE_GOOGLE_AUTH=true
 ```
 
 ### Microsoft OAuth Setup
@@ -532,15 +428,15 @@ VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 5. Add to your `.env`:
 
 ```bash
-MICROSOFT_CLIENT_ID=your-app-client-id
-MICROSOFT_CLIENT_SECRET=your-secret
-VITE_MICROSOFT_CLIENT_ID=your-app-client-id
+OIDC_CLIENT_ID=your-app-client-id
+OIDC_CLIENT_SECRET=your-secret
+ENABLE_MICROSOFT_AUTH=true
 ```
 
-After adding OAuth credentials, rebuild the container:
+After adding OAuth credentials, restart the container:
 
 ```bash
-docker compose up -d --build
+docker compose restart app
 ```
 
 ---
@@ -550,11 +446,11 @@ docker compose up -d --build
 ### Updating Tales
 
 ```bash
-# Pull latest code
-git pull
+# Pull latest image
+docker compose pull
 
-# Rebuild and restart
-docker compose up -d --build
+# Restart with new image
+docker compose up -d
 ```
 
 ### Viewing Logs
@@ -645,5 +541,5 @@ Consider:
 
 For issues or questions:
 - Check the [User Guide](USER_GUIDE.md) for usage help
-- Review [ENV_VARS_REFERENCE.md](ENV_VARS_REFERENCE.md) for configuration options
+- Review `.env.template` for configuration options
 - Contact your Tales administrator
