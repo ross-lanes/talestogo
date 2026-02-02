@@ -1959,7 +1959,7 @@ def generate_markdown_report(
 
         report += "\n---\n"
 
-    report += """
+    report += f"""
 ## Key Metrics Overview
 
 | Metric | Value |
