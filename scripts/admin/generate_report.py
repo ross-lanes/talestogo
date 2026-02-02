@@ -1220,10 +1220,11 @@ For each threat, provide:
 - Include measurable targets (e.g., "Increase mentions in X category by Y%")
 - Be tactical and immediately actionable
 
-Format your response as clean markdown with ### headings for each threat.
+Format your response using **bold headers** for each threat (not ### headings). Use bullet points for sub-items.
 Be ruthlessly specific. Use actual data and examples. No generic advice like "improve visibility" - every recommendation must be tailored to the specific competitive threat shown in the data.
 Do NOT use emojis or icons.
-Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
+Do NOT use numbered lists (1., 2., 3.).
+Do NOT use ### headings or multiple pound signs as decorative elements."""
 
     return call_report_llm(prompt, provider)
 
@@ -1398,9 +1399,10 @@ For each priority:
 - Explicitly cite which publication types/sources from the citation trends data you're recommending (e.g., "Publish in [specific journal type] because Gemini prioritizes academic sources")
 - Be tactical and immediately actionable
 
-Format as numbered markdown sections (1., 2., 3., etc.).
+Format using bullet points (- ) for each recommendation, with bold headers for each main point.
 Be data-driven and specific. No generic advice like "improve SEO" or "create more content" - every recommendation must be tailored to {brand_name}'s specific situation shown in the data above.
 Do NOT use emojis or icons.
+Do NOT use numbered lists (1., 2., 3.).
 Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers.
 
 IMPORTANT - Citations: DO NOT include any citations, references, or external sources. Base all analysis solely on the data provided above. Do NOT add a "References" section at the end."""
@@ -1677,16 +1679,17 @@ COMPETITIVE LANDSCAPE:
 {response_examples}
 
 Based on this comprehensive analysis, write a 4-6 sentence executive summary that:
-1. Assesses {brand_name}'s overall AI reputation performance with SPECIFIC EVIDENCE from the data
-2. Identifies the MOST SIGNIFICANT finding - be specific about which queries/platforms/contexts
-3. Compares performance against the brand's stated strategic messages and goals
-4. Provides strategic context about competitive positioning with concrete examples
-5. Highlights ONE concrete opportunity and ONE concrete risk based on actual response data
+- Assesses {brand_name}'s overall AI reputation performance with SPECIFIC EVIDENCE from the data
+- Identifies the MOST SIGNIFICANT finding - be specific about which queries/platforms/contexts
+- Compares performance against the brand's stated strategic messages and goals
+- Provides strategic context about competitive positioning with concrete examples
+- Highlights ONE concrete opportunity and ONE concrete risk based on actual response data
 {analysis_focus}
 
 Be specific, cite examples from the data above, and focus on actionable insights NOT generic observations.
 Write in a professional, analytical tone.
 Do NOT use emojis or icons.
+Do NOT use numbered lists (1., 2., 3.) or bullet points in your output - write flowing sentences.
 Do NOT use phrases like "This report" or "This analysis" - write directly about the findings.
 Do NOT use multiple pound signs (###) or asterisks (***) as decorative elements or dividers."""
 
@@ -1716,15 +1719,16 @@ POSITIONING DATA:
 PLATFORM BREAKDOWN:
 {chr(10).join([f"- {platform}: Leader/Featured = {metrics['positioning']['leader_pct'] + metrics['positioning']['featured_pct']}%" for platform, metrics in platform_metrics.items() if metrics['total'] > 0])}
 
-Write 3-10 sentences analyzing {brand_name}'s positioning performance. Focus on:
-1. Overall positioning strength (is the brand typically leading, featured, or just listed?)
-2. Which positioning tiers are most common and what that means
-3. Platform-specific patterns (which platforms position the brand better/worse)
-4. The significance of the positioning average score
-5. Key opportunities or concerns based on this data
+Write 3-10 sentences analyzing {brand_name}'s positioning performance. Address these topics:
+- Overall positioning strength (is the brand typically leading, featured, or just listed?)
+- Which positioning tiers are most common and what that means
+- Platform-specific patterns (which platforms position the brand better/worse)
+- The significance of the positioning average score
+- Key opportunities or concerns based on this data
 
 Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
+Do NOT use numbered lists (1., 2., 3.) in your output.
 Do NOT use multiple pound signs or asterisks as decorative elements."""
 
     return call_report_llm(prompt, provider)
@@ -1753,15 +1757,16 @@ SHARE OF VOICE DATA:
 TOP COMPETITORS MENTIONED:
 {competitor_summary}
 
-Write 3-10 sentences analyzing {brand_name}'s share of voice. Focus on:
-1. Is the brand's SOV strong, moderate, or weak compared to the competitive landscape?
-2. How does the brand compare to its top competitors?
-3. What does this SOV tell us about brand awareness and visibility?
-4. Are there concerning gaps where competitors dominate?
-5. The strategic implications of this SOV positioning
+Write 3-10 sentences analyzing {brand_name}'s share of voice. Address these topics:
+- Is the brand's SOV strong, moderate, or weak compared to the competitive landscape?
+- How does the brand compare to its top competitors?
+- What does this SOV tell us about brand awareness and visibility?
+- Are there concerning gaps where competitors dominate?
+- The strategic implications of this SOV positioning
 
 Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
+Do NOT use numbered lists (1., 2., 3.) in your output.
 Do NOT use multiple pound signs or asterisks as decorative elements."""
 
     return call_report_llm(prompt, provider)
@@ -1795,15 +1800,16 @@ TOP DESCRIPTORS ASSOCIATED WITH {brand_name}:
 TARGET DESCRIPTORS (what we want to be associated with):
 {target_summary}
 
-Write 3-10 sentences analyzing {brand_name}'s descriptor performance. Focus on:
-1. Is the descriptor match rate strong? Are we successfully associated with key terms?
-2. Which descriptors are performing well (mentioned frequently)?
-3. Are there gaps between target descriptors and actual associations?
-4. What does this tell us about how AI platforms characterize the brand?
-5. Strategic opportunities to strengthen descriptor associations
+Write 3-10 sentences analyzing {brand_name}'s descriptor performance. Address these topics:
+- Is the descriptor match rate strong? Are we successfully associated with key terms?
+- Which descriptors are performing well (mentioned frequently)?
+- Are there gaps between target descriptors and actual associations?
+- What does this tell us about how AI platforms characterize the brand?
+- Strategic opportunities to strengthen descriptor associations
 
 Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
+Do NOT use numbered lists (1., 2., 3.) in your output.
 Do NOT use multiple pound signs or asterisks as decorative elements."""
 
     return call_report_llm(prompt, provider)
@@ -1836,15 +1842,16 @@ PLATFORM SENTIMENT BREAKDOWN:
 
 NUMBER OF NEGATIVE/MIXED EXAMPLES: {len(negative_statements)}
 
-Write 3-10 sentences analyzing {brand_name}'s sentiment performance. Focus on:
-1. Overall sentiment health - is it predominantly positive, neutral, or concerning?
-2. The balance between very positive, positive, and neutral responses
-3. Any negative or mixed sentiment patterns that need attention
-4. Platform-specific sentiment differences
-5. What this sentiment profile reveals about brand perception
+Write 3-10 sentences analyzing {brand_name}'s sentiment performance. Address these topics:
+- Overall sentiment health - is it predominantly positive, neutral, or concerning?
+- The balance between very positive, positive, and neutral responses
+- Any negative or mixed sentiment patterns that need attention
+- Platform-specific sentiment differences
+- What this sentiment profile reveals about brand perception
 
 Be specific and data-driven. Write in a professional, analytical tone.
 Do NOT use emojis or icons.
+Do NOT use numbered lists (1., 2., 3.) in your output.
 Do NOT use multiple pound signs or asterisks as decorative elements.
 Do NOT include any additional sections, headers, tables, or lists of AI statements.
 Do NOT include an appendix section.
@@ -1960,7 +1967,7 @@ def generate_markdown_report(
         report += "\n---\n"
 
     report += f"""
-## Key Metrics Overview
+<h2 style="color: #003e60;">Key Metrics Overview</h2>
 
 | Metric | Value |
 |--------|-------|
@@ -1982,9 +1989,9 @@ def generate_markdown_report(
     report += f"""
 ---
 
-## Detailed Analysis with Insights
+<h2 style="color: #003e60;">Detailed Analysis with Insights</h2>
 
-### 1. Positioning Analysis
+<h3 style="color: #0066a2;">Positioning Analysis</h3>
 
 | Position | Count | Percentage |
 |----------|-------|------------|
@@ -2010,7 +2017,7 @@ def generate_markdown_report(
     report += f"""
 ---
 
-### 2. Share of Voice Analysis
+<h3 style="color: #0066a2;">Share of Voice Analysis</h3>
 
 **{brand_name} Share of Voice:** {share_of_voice['brand_sov']}%
 **{brand_name} Mentions:** {share_of_voice['brand_mentions']} out of {share_of_voice['total_mentions']} total organization mentions
@@ -2044,7 +2051,7 @@ def generate_markdown_report(
     report += f"""
 ---
 
-### 3. Descriptor Analysis
+<h3 style="color: #0066a2;">Descriptor Analysis</h3>
 
 **Target Descriptor Adoption:** {descriptor_match_rate}% of your target descriptors appeared in AI responses where the brand was directly mentioned
 
@@ -2075,7 +2082,7 @@ def generate_markdown_report(
     report += f"""
 ---
 
-### 4. Sentiment Analysis
+<h3 style="color: #0066a2;">Sentiment Analysis</h3>
 
 | Sentiment | Count | Percentage |
 |-----------|-------|------------|
@@ -2102,7 +2109,7 @@ def generate_markdown_report(
     report += """
 ---
 
-### 5. LLM Platform Analysis
+<h3 style="color: #0066a2;">LLM Platform Analysis</h3>
 
 This section breaks down brand performance by individual LLM platforms (ChatGPT, Claude, Gemini, Perplexity) to identify platform-specific strengths and opportunities.
 
@@ -2113,8 +2120,8 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
         # Sort platforms alphabetically for consistency
         platforms_order = ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
 
-        # 5.1 Brand Mentions by LLM
-        report += "#### 5.1 Brand Mention Rates by LLM Platform\n\n"
+        # Brand Mentions by LLM
+        report += '<h4 style="color: #2196F3;">Brand Mention Rates by LLM Platform</h4>\n\n'
         report += "| Platform | Total Responses | Brand Mentions | Mention Rate |\n"
         report += "|----------|----------------|----------------|-------------|\n"
 
@@ -2124,8 +2131,8 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
                 data = mentions_by_platform[platform]
                 report += f"| {data['platform']} | {data['total_responses']} | {data['mentions']} | {data['mention_rate']}% |\n"
 
-        # 5.2 Positioning by LLM
-        report += "\n#### 5.2 Brand Positioning by LLM Platform\n\n"
+        # Positioning by LLM
+        report += '\n<h4 style="color: #2196F3;">Brand Positioning by LLM Platform</h4>\n\n'
         report += "| Platform | Leader | Featured | Listed | Not Mentioned | Total |\n"
         report += "|----------|--------|----------|--------|---------------|-------|\n"
 
@@ -2135,8 +2142,8 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
                 data = positioning_by_platform[platform]
                 report += f"| {data['platform']} | {data['Leader']} | {data['Featured']} | {data['Listed']} | {data['Not Mentioned']} | {data['total']} |\n"
 
-        # 5.3 Sentiment by LLM
-        report += "\n#### 5.3 Sentiment Distribution by LLM Platform\n\n"
+        # Sentiment by LLM
+        report += '\n<h4 style="color: #2196F3;">Sentiment Distribution by LLM Platform</h4>\n\n'
         report += "*For responses where brand was mentioned*\n\n"
         report += "| Platform | Very Positive | Positive | Neutral | Negative | Very Negative | Mixed | Total |\n"
         report += "|----------|---------------|----------|---------|----------|---------------|-------|-------|\n"
@@ -2147,8 +2154,8 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
                 data = sentiment_by_platform[platform]
                 report += f"| {data['platform']} | {data['Very Positive']} | {data['Positive']} | {data['Neutral']} | {data['Negative']} | {data['Very Negative']} | {data['Mixed']} | {data['total']} |\n"
 
-        # 5.4 Share of Voice by LLM
-        report += "\n#### 5.4 Share of Voice by LLM Platform\n\n"
+        # Share of Voice by LLM
+        report += '\n<h4 style="color: #2196F3;">Share of Voice by LLM Platform</h4>\n\n'
         report += "| Platform | Brand Mentions | Competitor Mentions |\n"
         report += "|----------|----------------|--------------------|\n"
 
@@ -2158,8 +2165,8 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
                 data = sov_by_platform[platform]
                 report += f"| {data['platform']} | {data['brand']} | {data['competitors']} |\n"
 
-        # 5.5 Top Descriptors by LLM
-        report += "\n#### 5.5 Top Descriptors by LLM Platform\n\n"
+        # Top Descriptors by LLM
+        report += '\n<h4 style="color: #2196F3;">Top Descriptors by LLM Platform</h4>\n\n'
 
         descriptors_by_platform = {item['platform']: item for item in llm_breakdown_data.get('descriptors', [])}
         for platform in platforms_order:
@@ -2169,8 +2176,8 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
                 for desc in data['descriptors']:
                     report += f"- **{desc['descriptor']}**: {desc['count']} mentions\n"
 
-        # 5.6 Top Competitor Threats by LLM
-        report += "\n#### 5.6 Competitor Mentions by LLM Platform\n\n"
+        # Top Competitor Threats by LLM
+        report += '\n<h4 style="color: #2196F3;">Competitor Mentions by LLM Platform</h4>\n\n'
 
         threats_by_platform = {item['platform']: item for item in llm_breakdown_data.get('threats', [])}
         for platform in platforms_order:
@@ -2186,7 +2193,7 @@ This section breaks down brand performance by individual LLM platforms (ChatGPT,
 
 ---
 
-### 6. Threat Analysis
+<h3 style="color: #0066a2;">Threat Analysis</h3>
 
 **Competitor Threat Summary:**
 
@@ -2209,7 +2216,7 @@ Threats are calculated based on three factors: mention frequency (weight: 0.7), 
 
 ---
 
-### 7. Recommendations
+<h3 style="color: #0066a2;">Recommendations</h3>
 """
     report += strategic_priorities
 
@@ -2217,7 +2224,7 @@ Threats are calculated based on three factors: mention frequency (weight: 0.7), 
 
 ---
 
-## Methodology
+<h2 style="color: #003e60;">Methodology</h2>
 
 This report analyzes AI platform responses (ChatGPT, Claude, Gemini, Perplexity) to strategic queries.
 Each response was analyzed for:
