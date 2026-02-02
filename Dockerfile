@@ -80,6 +80,9 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
+# Make entrypoint script executable
+RUN chmod +x scripts/docker-entrypoint.sh
+
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser && \
     chown -R appuser:appuser /app
@@ -89,5 +92,5 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Run database setup and start the server
-CMD sh -c "python -c 'from app.database import engine, Base; from app import models; Base.metadata.create_all(bind=engine)' && uvicorn app.main:app --host 0.0.0.0 --port \${PORT:-8000}"
+# Run the entrypoint script (JSON form for proper signal handling)
+CMD ["scripts/docker-entrypoint.sh"]
