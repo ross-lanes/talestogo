@@ -1,6 +1,6 @@
 # Tales Deployment Kit - PPPL Internal
 
-This is the PPPL-specific deployment kit with pre-loaded brand data for Princeton Plasma Physics Laboratory and Princeton Engineering.
+This is the PPPL-specific deployment kit with pre-loaded brand data for Princeton Plasma Physics Laboratory.
 
 ## What's Included
 
@@ -72,9 +72,11 @@ Follow the prompts. **Save the generated password!**
 ./import_data.sh
 ```
 
-This imports:
-- Princeton Plasma Physics Laboratory brand (22 queries, 17 competitors, historical responses)
-- Princeton Engineering brand (if data file exists)
+This imports the Princeton Plasma Physics Laboratory brand with:
+- 22 monitoring queries
+- 17 competitors
+- 352 historical responses
+- 8 analysis reports
 
 ### Step 5: Log In
 
@@ -86,11 +88,11 @@ Log in with your admin credentials from Step 3.
 
 ## Updating Brand Data
 
-The included brand data is from November 2025. To get the latest data from production:
+The included brand data is from February 2026. To get the latest data from production:
 
-1. Connect to the production database:
+1. Connect to the production database (get URL from Railway dashboard):
    ```bash
-   export DATABASE_URL="postgresql://tales_3bh3_user:PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3"
+   export DATABASE_URL="postgresql://..."
    ```
 
 2. Export fresh data:
@@ -98,10 +100,6 @@ The included brand data is from November 2025. To get the latest data from produ
    python scripts/admin/export_brand_data.py \
      --brand "Princeton Plasma Physics Laboratory" \
      --output data/pppl_brand.json
-
-   python scripts/admin/export_brand_data.py \
-     --brand "Princeton Engineering" \
-     --output data/princeton_engineering_brand.json
    ```
 
 3. Re-run the import:
