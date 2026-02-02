@@ -24,18 +24,40 @@ import requests
 import jwt as pyjwt
 
 # JWT Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
+# Supports PPPL naming (APP_SECRET) with fallback to legacy (JWT_SECRET_KEY)
+SECRET_KEY = os.getenv("APP_SECRET") or os.getenv("JWT_SECRET_KEY", "your-secret-key-change-this-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
+
+# Authentication Enable/Disable Flags
+# Each lab can enable/disable authentication methods via environment variables
+ENABLE_LOCAL_AUTH = os.getenv("ENABLE_LOCAL_AUTH", "true").lower() == "true"
+ENABLE_MICROSOFT_AUTH = os.getenv("ENABLE_MICROSOFT_AUTH", "true").lower() == "true"
+ENABLE_GOOGLE_AUTH = os.getenv("ENABLE_GOOGLE_AUTH", "false").lower() == "true"
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-# Microsoft/Entra OAuth Configuration
-# Supports both ENTRA_* (preferred) and MICROSOFT_* (legacy) variable names
-MICROSOFT_CLIENT_ID = os.getenv("ENTRA_CLIENT_ID") or os.getenv("MICROSOFT_CLIENT_ID")
-MICROSOFT_CLIENT_SECRET = os.getenv("ENTRA_SECRET_KEY") or os.getenv("MICROSOFT_CLIENT_SECRET")
+# Microsoft/Entra OIDC Configuration
+# Priority: OIDC_* (PPPL standard) > ENTRA_* > MICROSOFT_* (legacy)
+MICROSOFT_CLIENT_ID = (
+    os.getenv("OIDC_CLIENT_ID") or
+    os.getenv("ENTRA_CLIENT_ID") or
+    os.getenv("MICROSOFT_CLIENT_ID")
+)
+MICROSOFT_CLIENT_SECRET = (
+    os.getenv("OIDC_CLIENT_SECRET") or
+    os.getenv("ENTRA_SECRET_KEY") or
+    os.getenv("MICROSOFT_CLIENT_SECRET")
+)
+
+# OIDC Discovery URL for lab-specific Entra tenants
+# Default to common endpoint, but labs can override for tenant-specific auth
+OIDC_DISCOVERY_URL = os.getenv(
+    "OIDC_DISCOVERY_URL",
+    "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
+)
 
 # Admin Configuration
 # NOTE: ADMIN_EMAIL is ONLY used for initial bootstrap (first-time admin OAuth login).
@@ -231,15 +253,25 @@ def verify_microsoft_token(token: str) -> dict:
     """
     Verify Microsoft OAuth ID token and return user info.
     Returns dict with: email, name, microsoft_id
+
+    Uses OIDC_DISCOVERY_URL to support lab-specific Entra tenants.
     """
     try:
         # Decode the token without verification first to get the key ID
         unverified_header = pyjwt.get_unverified_header(token)
         kid = unverified_header['kid']
 
-        # Get Microsoft's public keys
-        jwks_url = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-        jwks_response = requests.get(jwks_url)
+        # Get JWKS URL from OIDC discovery document, or use default
+        # This supports lab-specific Entra tenant configurations
+        try:
+            discovery_response = requests.get(OIDC_DISCOVERY_URL, timeout=10)
+            discovery_doc = discovery_response.json()
+            jwks_url = discovery_doc.get('jwks_uri', "https://login.microsoftonline.com/common/discovery/v2.0/keys")
+        except Exception:
+            # Fallback to default Microsoft JWKS URL
+            jwks_url = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+
+        jwks_response = requests.get(jwks_url, timeout=10)
         jwks = jwks_response.json()
 
         # Find the correct key

@@ -4,14 +4,96 @@ This guide is for IT teams deploying Tales at their organization. Tales is an AI
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Quick Start](#quick-start)
-3. [Configuration](#configuration)
-4. [Initial Admin Setup](#initial-admin-setup)
-5. [Verification](#verification)
-6. [Optional: OAuth Configuration](#optional-oauth-configuration)
-7. [Maintenance](#maintenance)
-8. [Troubleshooting](#troubleshooting)
+1. [PPPL National Lab Deployment](#pppl-national-lab-deployment)
+2. [Prerequisites](#prerequisites)
+3. [Quick Start](#quick-start)
+4. [Configuration](#configuration)
+5. [Initial Admin Setup](#initial-admin-setup)
+6. [Verification](#verification)
+7. [Optional: OAuth Configuration](#optional-oauth-configuration)
+8. [Maintenance](#maintenance)
+9. [Troubleshooting](#troubleshooting)
+
+---
+
+## PPPL National Lab Deployment
+
+This section covers deployment specifics for national labs following the PPPL Internal Developer Guide standards.
+
+### PPPL Compliance Features
+
+Tales includes the following PPPL-compliant features:
+
+- **Multi-stage Dockerfile**: Uses `node:20-alpine` and `python:3.11-slim` base images with build tools removed from final image
+- **GitLab CI/CD**: Automatic container builds with proper tagging (`:latest` for main, version tags, branch names)
+- **OIDC Authentication**: Supports Entra ID via standard OIDC variable naming
+- **Environment Variables**: All secrets managed via environment variables (never hardcoded)
+- **Docker Compose**: Defines app and database services with proper networking
+
+### PPPL Environment Variables
+
+Tales supports both PPPL standard naming and legacy variable names for backwards compatibility:
+
+| PPPL Standard | Legacy Name | Description |
+|---------------|-------------|-------------|
+| `APP_SECRET` | `JWT_SECRET_KEY` | JWT signing secret |
+| `OIDC_CLIENT_ID` | `MICROSOFT_CLIENT_ID` | Azure AD client ID |
+| `OIDC_CLIENT_SECRET` | `MICROSOFT_CLIENT_SECRET` | Azure AD client secret |
+| `OIDC_DISCOVERY_URL` | (new) | OIDC discovery endpoint |
+
+### Authentication Enable/Disable Flags
+
+Labs can control which authentication methods are available:
+
+```bash
+# Enable/disable authentication methods
+ENABLE_LOCAL_AUTH=true      # Email/password login
+ENABLE_MICROSOFT_AUTH=true  # Microsoft/Entra ID login
+ENABLE_GOOGLE_AUTH=false    # Google login (disabled by default)
+```
+
+### Lab-Specific Branding
+
+Customize the appearance for your organization:
+
+```bash
+SITE_NAME=PPPL Tales              # Your lab's name
+SITE_LOGO_URL=https://...         # URL to your logo
+SITE_PRIMARY_COLOR=#003e60        # Primary theme color
+SITE_SECONDARY_COLOR=#75c9c8      # Secondary theme color
+```
+
+### OIDC Configuration for Entra ID
+
+IT will provide OIDC credentials during app registration:
+
+```bash
+# Standard PPPL OIDC variables
+OIDC_CLIENT_ID=<from-IT>
+OIDC_CLIENT_SECRET=<from-IT>
+
+# Optional: For tenant-specific authentication
+OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration
+```
+
+### GitLab CI/CD Setup
+
+1. Push your code to PPPL's GitLab server
+2. The included `.gitlab-ci.yml` will automatically:
+   - Build the Docker image on push
+   - Tag as `:latest` for main branch
+   - Tag with version for git tags (e.g., `v1.0.0`)
+   - Push to GitLab Container Registry
+
+### Deployment Checklist
+
+1. Repository created on PPPL GitLab Server
+2. Code pushed to repository
+3. `.env` file created with PPPL variables
+4. Container builds successfully in GitLab Pipeline
+5. IT has provided OIDC credentials
+6. OIDC_CLIENT_ID and OIDC_CLIENT_SECRET configured
+7. Admin user created via setup script
 
 ---
 

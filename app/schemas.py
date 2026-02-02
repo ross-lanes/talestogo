@@ -477,6 +477,29 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: Optional[int] = None
 
+
+# --- Auth Configuration Schemas ---
+class AuthConfig(BaseModel):
+    """
+    Public authentication configuration for the frontend.
+    Tells the UI which auth methods are available and their client IDs.
+    """
+    local_auth_enabled: bool = True
+    microsoft_auth_enabled: bool = False
+    google_auth_enabled: bool = False
+    microsoft_client_id: Optional[str] = None
+    google_client_id: Optional[str] = None
+
+
+class BrandingConfig(BaseModel):
+    """
+    Public branding configuration for lab-specific customization.
+    """
+    site_name: str = "Tales"
+    site_logo_url: Optional[str] = None
+    primary_color: str = "#003e60"
+    secondary_color: str = "#75c9c8"
+
 class UserInvite(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
@@ -486,7 +509,7 @@ class UserAdminUpdate(BaseModel):
     """Schema for admin to update user status and app access"""
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
-    allowed_products: Optional[List[str]] = None  # List of product IDs: ["tales"]
+    allowed_products: Optional[List[str]] = None  # List of product IDs: ["tales", "heads", "canon"]
     model_config = ConfigDict(extra='forbid')
 
 # --- Invitation Schemas ---
@@ -496,7 +519,7 @@ class InvitationCreate(BaseModel):
     full_name: str
     organization: Optional[str] = None
     tenant_id: Optional[int] = None  # Optional: assign to specific tenant, defaults to admin's tenant
-    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales"]
+    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales", "heads", "canon"]
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""

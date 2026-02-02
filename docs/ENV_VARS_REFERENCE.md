@@ -23,8 +23,11 @@ DATABASE_URL=postgresql://user:pass@host:port/database
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `JWT_SECRET_KEY` | **Yes** | Secret key for signing JWT authentication tokens. Must be a secure random string. | `Abc123XyzSecureRandomString` |
+| `APP_SECRET` | **Yes*** | PPPL standard name for JWT signing secret | `Abc123XyzSecureRandomString` |
+| `JWT_SECRET_KEY` | **Yes*** | Legacy name for JWT signing secret | `Abc123XyzSecureRandomString` |
 | `ENCRYPTION_KEY` | **Yes** | Key for encrypting sensitive data (API keys) at rest. Must be a secure random string. | `DefGhi456AnotherSecureString` |
+
+*`APP_SECRET` is the PPPL standard name. `JWT_SECRET_KEY` works as a fallback for backwards compatibility. Only one is required.
 
 **Generate secure keys:**
 ```bash
@@ -35,6 +38,60 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 - Never commit these values to version control
 - Use different values for each environment (dev, staging, production)
 - Rotate keys periodically for enhanced security
+
+---
+
+## Authentication Configuration
+
+### OIDC / Microsoft Entra ID (PPPL Standard)
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `OIDC_CLIENT_ID` | No* | PPPL standard: Azure AD application client ID | `12345-abcde-...` |
+| `OIDC_CLIENT_SECRET` | No* | PPPL standard: Azure AD application client secret | `secret-value` |
+| `OIDC_DISCOVERY_URL` | No | OIDC discovery endpoint for tenant-specific auth | See below |
+| `MICROSOFT_CLIENT_ID` | No* | Legacy: Azure AD application client ID | `12345-abcde-...` |
+| `MICROSOFT_CLIENT_SECRET` | No* | Legacy: Azure AD application client secret | `secret-value` |
+
+*Required if using Microsoft/Entra ID authentication. `OIDC_*` variables take precedence over `MICROSOFT_*` for PPPL compliance.
+
+**OIDC Discovery URL:**
+- Default (common): `https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration`
+- Tenant-specific: `https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration`
+
+### Authentication Enable/Disable Flags
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENABLE_LOCAL_AUTH` | `true` | Enable email/password authentication |
+| `ENABLE_MICROSOFT_AUTH` | `true` | Enable Microsoft/Entra ID authentication |
+| `ENABLE_GOOGLE_AUTH` | `false` | Enable Google OAuth authentication |
+
+**Usage:** Labs can disable authentication methods that are not needed:
+```bash
+ENABLE_GOOGLE_AUTH=false    # Disable Google login
+ENABLE_LOCAL_AUTH=false     # Force SSO only
+```
+
+---
+
+## Branding Configuration
+
+Customize the appearance for your organization:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SITE_NAME` | `Tales` | Application name shown in UI |
+| `SITE_LOGO_URL` | (none) | URL to organization logo |
+| `SITE_PRIMARY_COLOR` | `#003e60` | Primary theme color (hex) |
+| `SITE_SECONDARY_COLOR` | `#75c9c8` | Secondary theme color (hex) |
+
+**Example:**
+```bash
+SITE_NAME=ORNL Tales
+SITE_LOGO_URL=https://www.ornl.gov/themes/flavor_ornl/logo.svg
+SITE_PRIMARY_COLOR=#00629B
+```
 
 ---
 

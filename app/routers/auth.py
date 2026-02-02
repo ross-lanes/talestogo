@@ -17,13 +17,34 @@ from ..auth import (
     verify_google_token,
     verify_microsoft_token,
     get_or_create_oauth_user,
-    ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ENABLE_LOCAL_AUTH,
+    ENABLE_MICROSOFT_AUTH,
+    ENABLE_GOOGLE_AUTH,
+    MICROSOFT_CLIENT_ID,
+    GOOGLE_CLIENT_ID,
 )
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
+
+
+@router.get("/config", response_model=schemas.AuthConfig)
+def get_auth_config():
+    """
+    Return enabled authentication methods for the frontend.
+    This endpoint is public (no authentication required).
+    Labs can configure which auth methods are available via environment variables.
+    """
+    return schemas.AuthConfig(
+        local_auth_enabled=ENABLE_LOCAL_AUTH,
+        microsoft_auth_enabled=ENABLE_MICROSOFT_AUTH and bool(MICROSOFT_CLIENT_ID),
+        google_auth_enabled=ENABLE_GOOGLE_AUTH and bool(GOOGLE_CLIENT_ID),
+        microsoft_client_id=MICROSOFT_CLIENT_ID if ENABLE_MICROSOFT_AUTH else None,
+        google_client_id=GOOGLE_CLIENT_ID if ENABLE_GOOGLE_AUTH else None,
+    )
 
 
 @router.post("/register", response_model=schemas.User, status_code=201)

@@ -1,6 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
+// Component to redirect to external URLs
+const ExternalRedirect: React.FC<{ url: string }> = ({ url }) => {
+  useEffect(() => {
+    window.location.href = url;
+  }, [url]);
+  return null;
+};
 import Layout from './Layout';
 import Dashboard from '../pages/Dashboard';
 import Queries from '../pages/manage/Queries';
@@ -26,10 +33,29 @@ import DescriptorAnalysis from '../pages/analytics/DescriptorAnalysis';
 import CompetitorThreats from '../pages/analytics/CompetitorThreats';
 import Recommendations from '../pages/analytics/Recommendations';
 import HowTalesWorks from '../pages/HowTalesWorks';
+import HowHeadsWorks from '../pages/HowHeadsWorks';
+import HowCanonWorks from '../pages/HowCanonWorks';
 import Help from '../pages/Help';
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import InviteAccept from '../pages/auth/InviteAccept';
+// Heads - Persona Intelligence Platform pages
+import HeadsDashboard from '../pages/heads/Dashboard';
+import GeneratePersonas from '../pages/heads/GeneratePersonas';
+import GeneratePatientPersonas from '../pages/heads/GeneratePatientPersonas';
+import GenerateHCPPersonas from '../pages/heads/GenerateHCPPersonas';
+import Generations from '../pages/heads/Generations';
+// Canon - FDA Drug Data Research pages
+import {
+  CanonLookup,
+  CanonQuery,
+  CanonAdverseEvents,
+  CanonCompare,
+  CanonDocuments,
+  CanonSavedSearches,
+} from '../pages/canon';
+// Big Idea Generator - Marketing Idea Generation pages
+import { BigIdeaDashboard, IdeasLibrary } from '../pages/bigidea';
 import { useAuth } from '../contexts/AuthContext';
 import { TenantProvider, useTenant } from '../contexts/TenantContext';
 import { ProductProvider } from '../contexts/ProductContext';
@@ -233,6 +259,26 @@ const AppRoutes: React.FC = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/how-heads-works"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HowHeadsWorks />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/how-canon-works"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HowCanonWorks />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Help Route */}
           <Route
@@ -325,6 +371,152 @@ const AppRoutes: React.FC = () => {
               <ProtectedRoute requireAdmin>
                 <Layout>
                   <SiteSettings />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Heads - Persona Intelligence Platform Routes */}
+          <Route
+            path="/heads"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HeadsDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generate"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GeneratePersonas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generate/patient"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GeneratePatientPersonas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generate/hcp"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <GenerateHCPPersonas />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/heads/generations"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Generations />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* NSTXView redirect - external app */}
+          <Route
+            path="/nstxview"
+            element={<ExternalRedirect url="https://nstxview.robotrachel.com" />}
+          />
+          <Route
+            path="/nstxview/*"
+            element={<ExternalRedirect url="https://nstxview.robotrachel.com" />}
+          />
+
+          {/* Canon - FDA Drug Data Research Routes */}
+          <Route
+            path="/canon"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonLookup />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/ask"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonQuery />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/adverse-events"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonAdverseEvents />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/compare"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonCompare />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/documents"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonDocuments />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canon/saved"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CanonSavedSearches />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Big Idea Generator - Marketing Idea Generation Routes */}
+          <Route
+            path="/bigidea"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <BigIdeaDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bigidea/library"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IdeasLibrary />
                 </Layout>
               </ProtectedRoute>
             }

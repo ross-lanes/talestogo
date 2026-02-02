@@ -16,6 +16,7 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -23,20 +24,27 @@ import {
   Analytics as AnalyticsIcon,
   Settings as SettingsIcon,
   Tune as CustomizeIcon,
+  TextFields as QueryIcon,
   Label as DescriptorIcon,
+  Groups as CompetitorIcon,
   TrendingUp as TrendingUpIcon,
   Visibility as VisibilityIcon,
   SentimentSatisfied as SentimentIcon,
   Warning as WarningIcon,
   Announcement as AnnouncementIcon,
+  ChatBubble as ResponseIcon,
   Description as ReportIcon,
   Logout as LogoutIcon,
   AdminPanelSettings as AdminIcon,
   CloudDownload as CollectionIcon,
+  MoreVert as MoreVertIcon,
   Info as InfoIcon,
   Schedule as ScheduleIcon,
   HelpOutline as HelpIcon,
   Business as BusinessIcon,
+  Search as SearchIcon,
+  CompareArrows as CompareIcon,
+  AutoAwesome as AutoAwesomeIcon,
   Storage as StorageIcon,
   SmartToy as LLMIcon,
 } from '@mui/icons-material';
@@ -46,6 +54,7 @@ import { useTenant } from '../contexts/TenantContext';
 import { useProduct } from '../contexts/ProductContext';
 import BrandSwitcher from './BrandSwitcher';
 import TenantSwitcher from './TenantSwitcher';
+import ProductSwitcher from './ProductSwitcher';
 import talesWhite from './tales_white.png';
 
 // Product logos map - using imported assets for bundled products
@@ -56,8 +65,17 @@ const PRODUCT_LOGOS: Record<string, string> = {
 
 const drawerWidth = 240;
 
-// Tales tagline
-const TALES_TAGLINE = 'Shape your AI story.';
+// Product taglines
+const PRODUCT_TAGLINES: Record<string, string> = {
+  tales: 'Shape your AI story.',
+  heads: 'Know your audience.',
+  canon: 'Research FDA data.',
+  bigidea: 'Spark powerful brainstorms.',
+  vision: 'See the market clearly.',
+  pulse: 'Measure what matters.',
+  voice: 'Optimize every word.',
+  guardian: 'Ensure compliance.',
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -132,7 +150,7 @@ export default function Layout({ children }: LayoutProps) {
 
 
   // Tales navigation menu items
-  const menuItems = [
+  const talesMenuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/', indent: false },
     { text: 'Manage Brand', icon: <CustomizeIcon />, path: '/manage/brands', indent: false },
     { text: 'Collect & Analyze', icon: <CollectionIcon />, path: '/collect-analyze', indent: false },
@@ -146,6 +164,42 @@ export default function Layout({ children }: LayoutProps) {
     { text: 'Reports', icon: <ReportIcon />, path: '/reports', indent: false },
     { text: 'How Tales Works', icon: <InfoIcon />, path: '/how-tales-works', indent: false },
   ];
+
+  // Canon navigation menu items
+  const canonMenuItems = [
+    { text: 'Look Up', icon: <SearchIcon />, path: '/canon', indent: false },
+    { text: 'Ask a Question', icon: <ResponseIcon />, path: '/canon/ask', indent: false },
+    { text: 'Check a Document', icon: <ReportIcon />, path: '/canon/documents', indent: false },
+    { text: 'Compare Drugs', icon: <CompareIcon />, path: '/canon/compare', indent: false },
+    { text: 'How Canon Works', icon: <InfoIcon />, path: '/how-canon-works', indent: false },
+  ];
+
+  // Heads navigation menu items
+  const headsMenuItems = [
+    { text: 'Generate Personas', icon: <AutoAwesomeIcon />, path: '/heads', indent: false },
+    { text: 'How Heads Works', icon: <InfoIcon />, path: '/how-heads-works', indent: false },
+  ];
+
+  // Big Idea Generator navigation menu items
+  const bigIdeaMenuItems = [
+    { text: 'Generate Ideas', icon: <AutoAwesomeIcon />, path: '/bigidea', indent: false },
+    { text: 'Ideas Library', icon: <StorageIcon />, path: '/bigidea/library', indent: false },
+  ];
+
+  // Select menu items based on current product
+  const getMenuItems = () => {
+    switch (currentProduct.id) {
+      case 'canon':
+        return canonMenuItems;
+      case 'heads':
+        return headsMenuItems;
+      case 'bigidea':
+        return bigIdeaMenuItems;
+      default:
+        return talesMenuItems;
+    }
+  };
+  const menuItems = getMenuItems();
 
   const handleMenuItemClick = (item: any) => {
     if (item.path) {
@@ -180,7 +234,12 @@ export default function Layout({ children }: LayoutProps) {
       color: 'common.white',             // ensure h1 text is white
     },
   }}
-  onClick={() => navigate('/')}
+  onClick={() => {
+    if (currentProduct.id === 'canon') navigate('/canon');
+    else if (currentProduct.id === 'heads') navigate('/heads');
+    else if (currentProduct.id === 'bigidea') navigate('/bigidea');
+    else navigate('/');
+  }}
 >
   <Typography
     variant="body2"
@@ -204,7 +263,7 @@ export default function Layout({ children }: LayoutProps) {
         margin: '0 auto',
       }}
     />
-    {TALES_TAGLINE}
+    {PRODUCT_TAGLINES[currentProduct.id] || 'Solstice AI Suite'}
   </Typography>
 </Toolbar>
 
@@ -420,7 +479,9 @@ export default function Layout({ children }: LayoutProps) {
                   '& *': { color: 'common.white' },
                 }}
               >
-                <BrandSwitcher />
+                {/* Hide BrandSwitcher for non-Tales products */}
+                {currentProduct.id === 'tales' && <BrandSwitcher />}
+                <ProductSwitcher />
                 <IconButton onClick={handleUserMenuOpen} color="inherit" sx={{ p: 0.5 }}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', color: 'common.white' }}>
                     {user?.email?.charAt(0)?.toUpperCase() || '?'}

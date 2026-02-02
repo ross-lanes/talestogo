@@ -1,7 +1,51 @@
-build:
-  script:
+# =============================================================================
+# Tales GitLab CI/CD Pipeline (PPPL-Compliant)
+# =============================================================================
+# Automatically builds and pushes Docker images to the GitLab Container Registry.
+#
+# Tagging Strategy:
+#   - Main branch: tagged as :latest
+#   - Version tags (v1.0.0): tagged with version number
+#   - Feature branches: tagged with branch name
+# =============================================================================
+
+stages:
+  - build
+
+variables:
+  # Full path to project container registry
+  IMAGE_NAME: $CI_REGISTRY_IMAGE
+  # Docker-in-Docker settings
+  DOCKER_TLS_CERTDIR: "/certs"
+
+build_container:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  before_script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker build --build-arg "VITE_ENTRA_CLIENT_ID=${VITE_ENTRA_CLIENT_ID}" -t "$CI_REGISTRY_IMAGE" .
-    - docker push "$CI_REGISTRY_IMAGE"
-  only:
-    - main
+  script:
+    # Determine image tag based on branch/tag
+    - |
+      if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+        # Main branch gets :latest tag
+        tag="latest"
+      elif [[ -n "$CI_COMMIT_TAG" ]]; then
+        # Git tags (v1.0.0) get their tag name
+        tag="$CI_COMMIT_TAG"
+      else
+        # Feature branches get branch name as tag
+        tag="$CI_COMMIT_REF_SLUG"
+      fi
+    - echo "Building and pushing $IMAGE_NAME:$tag"
+    # Build with build arguments
+    - |
+      docker build \
+        --build-arg "VITE_API_URL=${VITE_API_URL:-}" \
+        -t "$IMAGE_NAME:$tag" .
+    # Push to registry
+    - docker push "$IMAGE_NAME:$tag"
+  rules:
+    # Run on any branch or tag
+    - if: $CI_COMMIT_BRANCH || $CI_COMMIT_TAG

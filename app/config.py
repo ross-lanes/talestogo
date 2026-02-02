@@ -39,7 +39,7 @@ DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 """Maximum overflow connections beyond pool size."""
 
-# LLM API Settings (for Tales data collection)
+# LLM API Settings (for Heads persona generation and Tales data collection)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 """OpenAI API key for LLM-powered features."""
 
@@ -60,9 +60,9 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 """Directory for uploaded and generated files."""
 
 
-# Create a settings object for configuration access
+# Create a settings object for compatibility with Heads services
 class _Settings:
-    """Settings object for LLM configuration"""
+    """Minimal settings object for Heads integration"""
     def __init__(self):
         self.OPENAI_API_KEY = OPENAI_API_KEY
         self.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY
@@ -79,8 +79,11 @@ settings = _Settings()
 class TenantConfig:
     """Configuration for tenant-specific product access"""
 
-    # All tenants have access to Tales
+    # Map tenant names to allowed products
     TENANT_PRODUCTS: Dict[str, List[str]] = {
+        "Solstice HC": ["tales", "heads", "vision", "pulse", "voice", "guardian"],
+        "Princeton University": ["tales"],
+        # Default for any other tenant
         "default": ["tales"]
     }
 
@@ -95,7 +98,10 @@ class TenantConfig:
         Returns:
             List of product IDs that the tenant can access
         """
-        return ["tales"]
+        return TenantConfig.TENANT_PRODUCTS.get(
+            tenant_name,
+            TenantConfig.TENANT_PRODUCTS["default"]
+        )
 
     @staticmethod
     def is_product_enabled_for_tenant(tenant_name: str, product: str) -> bool:
@@ -104,9 +110,10 @@ class TenantConfig:
 
         Args:
             tenant_name: The name of the tenant
-            product: The product ID to check
+            product: The product ID to check (e.g., "tales", "heads")
 
         Returns:
             True if the tenant has access to the product, False otherwise
         """
-        return product == "tales"
+        allowed_products = TenantConfig.get_tenant_products(tenant_name)
+        return product in allowed_products

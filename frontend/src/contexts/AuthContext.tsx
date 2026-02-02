@@ -10,7 +10,7 @@ interface User {
   is_admin: boolean;
   is_active: boolean;
   is_invited: boolean;
-  allowed_products?: string[];  // List of product IDs user can access (e.g., ['tales'])
+  allowed_products?: string[];  // List of product IDs user can access (e.g., ['tales', 'heads', 'canon'])
   created_at: string;
   updated_at: string;
   gemini_api_key?: string;

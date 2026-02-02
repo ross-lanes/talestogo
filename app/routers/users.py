@@ -204,6 +204,10 @@ async def send_invitation_email(
     # Determine email domain
     domain = user.email.split('@')[1].lower()
 
+    # Determine which product(s) user has access to
+    allowed_products = (user.allowed_products or "tales").split(",")
+    primary_product = allowed_products[0].strip().lower()
+
     # Determine login method based on domain
     if domain == 'solsticehc.net':
         login_instruction = f'- Click "Sign in with Microsoft."\n- Log in with {user.email}.'
@@ -212,9 +216,33 @@ async def send_invitation_email(
     else:
         login_instruction = f'- Sign in with {user.email} using the Google or Microsoft login buttons.'
 
-    # Generate email content for Tales
-    subject = 'Welcome to Tales - Shape Your AI Story'
-    body = f"""Hi {user.full_name or user.email},
+    # Build contact line only if admin email is configured
+    contact_line = f"Questions? Contact {admin_email}." if admin_email else ""
+
+    # Generate email content based on primary product
+    if primary_product == 'heads':
+        subject = f'Welcome to {site_name} - Patient & HCP Voice Intelligence'
+        body = f"""Hi {user.full_name or user.email},
+
+You've been invited to {site_name}, where healthcare meets AI intelligence. Track what AI platforms are saying about conditions, treatments, and patient experiences.
+
+Your portal starts at {site_url}.
+{login_instruction}
+
+Features:
+- Track patient and HCP personas
+- Monitor AI responses about conditions and treatments
+- Analyze sentiment and positioning
+- Generate reports and insights
+
+{contact_line}
+
+Best regards,
+The {site_name} Team"""
+
+    else:  # tales (default)
+        subject = 'Welcome to Tales - Shape Your AI Story'
+        body = f"""Hi {user.full_name or user.email},
 
 You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your Lab!
 

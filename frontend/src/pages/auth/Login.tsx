@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -8,42 +8,124 @@ import {
   CircularProgress,
   Button,
 } from '@mui/material';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
+import type { CredentialResponse } from '@react-oauth/google';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 
-// PPPL Entra ID Client ID (public, not a secret)
-const MICROSOFT_CLIENT_ID = import.meta.env.VITE_ENTRA_CLIENT_ID || import.meta.env.VITE_MICROSOFT_CLIENT_ID || '2bee91ee-b116-4939-a84c-21ffbf5a7eed';
+// Auth configuration from backend
+interface AuthConfig {
+  local_auth_enabled: boolean;
+  microsoft_auth_enabled: boolean;
+  google_auth_enabled: boolean;
+  microsoft_client_id: string | null;
+  google_client_id: string | null;
+}
 
-const msalConfig = {
-  auth: {
-    clientId: MICROSOFT_CLIENT_ID,
-    authority: 'https://login.microsoftonline.com/common',
-    redirectUri: window.location.origin,
-  },
-  cache: {
-    cacheLocation: 'localStorage' as const,
-    storeAuthStateInCookie: false,
-  },
-};
-
-const msalInstance = new PublicClientApplication(msalConfig);
+// Branding configuration from backend
+interface BrandingConfig {
+  site_name: string;
+  site_logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { microsoftLogin } = useAuth();
+  const { googleLogin, microsoftLogin } = useAuth();
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
+  const [branding, setBranding] = useState<BrandingConfig | null>(null);
   const [msalInitialized, setMsalInitialized] = useState(false);
+  const msalInstanceRef = useRef<PublicClientApplication | null>(null);
 
+  // Fetch auth and branding config from backend
   useEffect(() => {
-    msalInstance.initialize().then(() => {
-      setMsalInitialized(true);
-    });
+    const fetchConfig = async () => {
+      try {
+        const [authResponse, brandingResponse] = await Promise.all([
+          api.get('/auth/config'),
+          api.get('/site/branding'),
+        ]);
+        setAuthConfig(authResponse.data);
+        setBranding(brandingResponse.data);
+      } catch (err) {
+        console.error('Failed to fetch config:', err);
+        // Set defaults if config fetch fails
+        setAuthConfig({
+          local_auth_enabled: true,
+          microsoft_auth_enabled: false,
+          google_auth_enabled: false,
+          microsoft_client_id: null,
+          google_client_id: null,
+        });
+        setBranding({
+          site_name: 'Tales',
+          site_logo_url: null,
+          primary_color: '#003e60',
+          secondary_color: '#75c9c8',
+        });
+      } finally {
+        setConfigLoading(false);
+      }
+    };
+
+    fetchConfig();
   }, []);
 
+  // Initialize MSAL when Microsoft auth is enabled and we have a client ID
+  useEffect(() => {
+    if (authConfig?.microsoft_auth_enabled && authConfig.microsoft_client_id) {
+      const msalConfig = {
+        auth: {
+          clientId: authConfig.microsoft_client_id,
+          authority: 'https://login.microsoftonline.com/common',
+          redirectUri: window.location.origin,
+        },
+        cache: {
+          cacheLocation: 'localStorage' as const,
+          storeAuthStateInCookie: false,
+        },
+      };
+
+      const instance = new PublicClientApplication(msalConfig);
+      msalInstanceRef.current = instance;
+
+      instance.initialize().then(() => {
+        setMsalInitialized(true);
+      });
+    }
+  }, [authConfig]);
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    setError('');
+    setLoading(true);
+
+    try {
+      if (!credentialResponse.credential) {
+        throw new Error('No credential received from Google');
+      }
+
+      await googleLogin(credentialResponse.credential);
+      navigate('/');
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError(err.response?.data?.detail || 'Google login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google login failed. Please try again.');
+  };
+
   const handleMicrosoftLogin = async () => {
-    if (!msalInitialized) {
+    if (!msalInitialized || !msalInstanceRef.current) {
       setError('Microsoft login is initializing. Please wait...');
       return;
     }
@@ -56,7 +138,7 @@ const Login: React.FC = () => {
         scopes: ['openid', 'profile', 'email'],
       };
 
-      const loginResponse = await msalInstance.loginPopup(loginRequest);
+      const loginResponse = await msalInstanceRef.current.loginPopup(loginRequest);
 
       if (loginResponse.idToken) {
         await microsoftLogin(loginResponse.idToken);
@@ -71,6 +153,43 @@ const Login: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Show loading while fetching config
+  if (configLoading) {
+    return (
+      <Box
+        sx={{
+          backgroundColor: '#000000',
+          minHeight: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <CircularProgress sx={{ color: '#75c9c8' }} />
+      </Box>
+    );
+  }
+
+  const siteName = branding?.site_name || 'Tales';
+  const primaryColor = branding?.primary_color || '#003e60';
+  const secondaryColor = branding?.secondary_color || '#75c9c8';
+
+  // Determine which auth methods to show
+  const showMicrosoft = authConfig?.microsoft_auth_enabled && authConfig.microsoft_client_id;
+  const showGoogle = authConfig?.google_auth_enabled && authConfig.google_client_id;
+
+  // Build the login method description
+  let loginMethodText = 'Sign in with your ';
+  const methods: string[] = [];
+  if (showGoogle) methods.push('Google');
+  if (showMicrosoft) methods.push('Microsoft');
+  if (methods.length > 0) {
+    loginMethodText += methods.join(' or ') + ' account';
+  } else {
+    loginMethodText = 'No authentication methods configured. Please contact your administrator.';
+  }
 
   return (
     <Box
@@ -105,6 +224,15 @@ const Login: React.FC = () => {
         }}
       >
         <Box sx={{ mb: 4 }}>
+          {branding?.site_logo_url && (
+            <Box sx={{ mb: 3 }}>
+              <img
+                src={branding.site_logo_url}
+                alt={siteName}
+                style={{ maxWidth: '220px', maxHeight: '80px' }}
+              />
+            </Box>
+          )}
           <Typography
             variant="h4"
             component="h1"
@@ -117,7 +245,7 @@ const Login: React.FC = () => {
               mb: 2,
             }}
           >
-            Welcome to Tales!
+            Welcome to {siteName}!
           </Typography>
         </Box>
 
@@ -129,45 +257,64 @@ const Login: React.FC = () => {
 
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <CircularProgress sx={{ color: '#75c9c8' }} />
+            <CircularProgress sx={{ color: secondaryColor }} />
           </Box>
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, alignItems: 'center', mb: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={handleMicrosoftLogin}
-            disabled={loading || !msalInitialized}
-            fullWidth
-            sx={{
-              borderColor: '#003e60',
-              color: '#003e60',
-              borderWidth: '1.5px',
-              '&:hover': {
-                borderColor: '#003e60',
+          {/* Google Login Button */}
+          {showGoogle && authConfig.google_client_id && (
+            <GoogleOAuthProvider clientId={authConfig.google_client_id}>
+              <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="outline"
+                  size="large"
+                  text="signin_with"
+                  shape="rectangular"
+                />
+              </Box>
+            </GoogleOAuthProvider>
+          )}
+
+          {/* Microsoft Login Button */}
+          {showMicrosoft && (
+            <Button
+              variant="outlined"
+              onClick={handleMicrosoftLogin}
+              disabled={loading || !msalInitialized}
+              fullWidth
+              sx={{
+                borderColor: primaryColor,
+                color: primaryColor,
                 borderWidth: '1.5px',
-                backgroundColor: 'rgba(0, 62, 96, 0.04)',
-              },
-              textTransform: 'none',
-              fontSize: '15px',
-              padding: '11px 24px',
-              fontWeight: 600,
-              fontFamily: '"Roboto Condensed", sans-serif',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 1.5,
-              borderRadius: 1,
-            }}
-          >
-            <svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
-              <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-              <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-              <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-            </svg>
-            Sign in with Microsoft
-          </Button>
+                '&:hover': {
+                  borderColor: primaryColor,
+                  borderWidth: '1.5px',
+                  backgroundColor: `${primaryColor}0a`,
+                },
+                textTransform: 'none',
+                fontSize: '15px',
+                padding: '11px 24px',
+                fontWeight: 600,
+                fontFamily: '"Roboto Condensed", sans-serif',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1.5,
+                borderRadius: 1,
+              }}
+            >
+              <svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+              </svg>
+              Sign in with Microsoft
+            </Button>
+          )}
         </Box>
 
         <Typography
@@ -178,7 +325,7 @@ const Login: React.FC = () => {
             fontFamily: '"Roboto Condensed", sans-serif',
           }}
         >
-          Sign in with your Microsoft account
+          {loginMethodText}
         </Typography>
 
         <Typography
@@ -206,7 +353,7 @@ const Login: React.FC = () => {
             fontFamily: '"Roboto Condensed", sans-serif',
           }}
         >
-          © 2025 RobotRachel • AI Reputation Intelligence
+          {siteName} - AI Reputation Intelligence
         </Typography>
       </Box>
     </Box>
