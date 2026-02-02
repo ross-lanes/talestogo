@@ -798,8 +798,8 @@ def get_share_of_voice_by_llm(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
-        models.Response.competitors_mentioned.isnot(None),
-        models.Response.competitors_mentioned != '',
+        models.Response.competitors.isnot(None),
+        models.Response.competitors != '',
         models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).group_by(
         models.Response.platform
@@ -907,14 +907,14 @@ def get_threats_by_llm(
     # Get all responses with competitors by platform
     responses = db.query(
         models.Response.platform,
-        models.Response.competitors_mentioned,
+        models.Response.competitors,
         models.Response.sentiment
     ).filter(
         models.Response.user_id == owner_user_id,
         models.Response.brand_id == brand_id,
         models.Response.platform.isnot(None),
-        models.Response.competitors_mentioned.isnot(None),
-        models.Response.competitors_mentioned != '',
+        models.Response.competitors.isnot(None),
+        models.Response.competitors != '',
         models.Response.batch_id.isnot(None)  # Only include responses with batch_id for consistency with trend data
     ).all()
 
