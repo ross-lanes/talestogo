@@ -15,20 +15,21 @@ stages:
 variables:
   # Full path to project container registry
   IMAGE_NAME: $CI_REGISTRY_IMAGE
-  # Docker-in-Docker settings
-  DOCKER_HOST: tcp://docker:2376
-  DOCKER_TLS_CERTDIR: "/certs"
-  DOCKER_CERT_PATH: "/certs/client"
-  DOCKER_TLS_VERIFY: "1"
+  # Docker-in-Docker settings (non-TLS for compatibility)
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
 
 build_container:
   stage: build
   image: docker:24.0.5
   services:
-    - docker:24.0.5-dind
+    - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
   before_script:
-    # Wait for Docker daemon to be ready
-    - until docker info; do sleep 1; done
+    # Wait for Docker daemon to be ready (up to 30 seconds)
+    - for i in $(seq 1 30); do docker info && break || sleep 1; done
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
     # Determine image tag based on branch/tag
