@@ -584,12 +584,20 @@ def admin_run_collection_for_user(
 def admin_generate_report_for_user(
     user_id: int,
     brand_id: int,
+    period_start: Optional[str] = None,
+    period_end: Optional[str] = None,
+    period_label: Optional[str] = None,
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(get_current_admin_user)
 ) -> Dict[str, Any]:
     """
     Admin endpoint to manually trigger ONLY report generation for any user/brand.
     Use this when data is already collected and analyzed but report generation failed.
+
+    Optional date filtering:
+    - period_start: Start date in ISO format (e.g., "2026-01-01T00:00:00")
+    - period_end: End date in ISO format (e.g., "2026-01-31T23:59:59")
+    - period_label: Custom label for the period (e.g., "January 2026")
     """
     import subprocess
     import os
@@ -618,21 +626,27 @@ def admin_generate_report_for_user(
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     report_script = os.path.join(project_root, "scripts", "admin", "generate_report.py")
 
+    # Build command with optional date parameters
+    cmd = ["python3", report_script, "--user-id", str(user_id), "--brand-id", str(brand_id)]
+    if period_start:
+        cmd.extend(["--period-start", period_start])
+    if period_end:
+        cmd.extend(["--period-end", period_end])
+    if period_label:
+        cmd.extend(["--period-label", period_label])
+
     # Run report generation in background thread
     def run_report():
         env = os.environ.copy()
         env['PYTHONPATH'] = project_root
-        subprocess.run(
-            ["python3", report_script, "--user-id", str(user_id), "--brand-id", str(brand_id)],
-            env=env,
-            cwd=project_root
-        )
+        subprocess.run(cmd, env=env, cwd=project_root)
 
     thread = threading.Thread(target=run_report, daemon=True)
     thread.start()
 
+    date_info = f" for {period_label}" if period_label else ""
     return {
-        "message": f"Report generation started for {user.email} - {brand.brand_name}",
+        "message": f"Report generation started for {user.email} - {brand.brand_name}{date_info}",
         "analyzed_responses": analyzed_count
     }
 
