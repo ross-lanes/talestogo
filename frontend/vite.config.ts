@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
-    allowedHosts: ['tales.robotrachel.com', 'localhost'],
+    // Disable host checking when behind Cloudflare proxy
   },
   preview: {
     host: true,
-    allowedHosts: ['tales.robotrachel.com', 'localhost'],
+    // Disable host checking when behind Cloudflare proxy
   },
 })
