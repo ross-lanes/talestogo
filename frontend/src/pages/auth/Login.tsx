@@ -62,6 +62,7 @@ const Login: React.FC = () => {
           microsoft_auth_enabled: false,
           google_auth_enabled: false,
           microsoft_client_id: null,
+          microsoft_authority: null,
           google_client_id: null,
         });
         setBranding({
