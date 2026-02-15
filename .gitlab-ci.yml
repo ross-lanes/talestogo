@@ -30,7 +30,7 @@ build_container:
     # Login to GitLab Container Registry
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     # Build the image
-    - docker build -t "$CI_REGISTRY_IMAGE:$tag" --build-arg "VITE_API_URL=${VITE_API_URL:-}" .
+    - docker build -t "$CI_REGISTRY_IMAGE:$tag" --build-arg "VITE_API_URL=${VITE_API_URL:-}" --build-arg "VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID:-}" .
     # Push to registry
     - docker push "$CI_REGISTRY_IMAGE:$tag"
   rules:

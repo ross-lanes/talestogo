@@ -26,7 +26,9 @@ COPY frontend/ ./
 
 # Build arguments for Vite
 ARG VITE_API_URL
+ARG VITE_MICROSOFT_CLIENT_ID
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_MICROSOFT_CLIENT_ID=${VITE_MICROSOFT_CLIENT_ID}
 
 # Build the frontend
 RUN npm run build

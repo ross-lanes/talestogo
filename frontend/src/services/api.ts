@@ -1,35 +1,27 @@
 import axios from 'axios';
 
 // API Base URL - points to your FastAPI backend
-// Auto-detect based on hostname and protocol, or use VITE_API_URL env var
+// Uses VITE_API_URL if set, otherwise falls back to same-origin (production)
+// or localhost:8000 (local development)
 const API_BASE_URL = (() => {
-  // First check for explicit environment variable (used for Railway deployments)
+  // First check for explicit environment variable
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // If running on production domain, always use HTTPS
-  if (window.location.hostname === 'apps.robotrachel.com') {
-    // Backend is served at the same domain (no /api prefix needed)
-    return 'https://apps.robotrachel.com';
-  }
-  if (window.location.hostname === 'tales.robotrachel.com') {
-    return 'https://tales.robotrachel.com';
-  }
+  // Special case: Solstice HC uses a separate API subdomain
   if (window.location.hostname === 'solsticehc.robotrachel.com') {
     return 'https://api.tales.robotrachel.com';
   }
-  // Railway development environment
-  if (window.location.hostname === 'tales-frontend-development.up.railway.app') {
-    return 'https://tales-backend-development.up.railway.app';
+
+  // For localhost, use local dev server
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000';
   }
-  // Railway production environment
-  if (window.location.hostname.includes('.up.railway.app')) {
-    // Default Railway backend pattern
-    return window.location.origin.replace('frontend', 'backend');
-  }
-  // For localhost, use HTTP
-  return 'http://localhost:8000';
+
+  // For all other environments (PPPL, Railway, robotrachel.com, etc.),
+  // the backend serves the frontend from the same origin
+  return window.location.origin;
 })();
 
 // Token storage keys
