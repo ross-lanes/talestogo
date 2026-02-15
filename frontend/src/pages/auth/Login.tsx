@@ -20,6 +20,7 @@ interface AuthConfig {
   microsoft_auth_enabled: boolean;
   google_auth_enabled: boolean;
   microsoft_client_id: string | null;
+  microsoft_authority: string | null;
   google_client_id: string | null;
 }
 
@@ -83,7 +84,7 @@ const Login: React.FC = () => {
       const msalConfig = {
         auth: {
           clientId: authConfig.microsoft_client_id,
-          authority: 'https://login.microsoftonline.com/common',
+          authority: authConfig.microsoft_authority || 'https://login.microsoftonline.com/common',
           redirectUri: window.location.origin,
         },
         cache: {

@@ -23,6 +23,7 @@ from ..auth import (
     ENABLE_GOOGLE_AUTH,
     MICROSOFT_CLIENT_ID,
     GOOGLE_CLIENT_ID,
+    OIDC_DISCOVERY_URL,
 )
 
 router = APIRouter(
@@ -38,11 +39,22 @@ def get_auth_config():
     This endpoint is public (no authentication required).
     Labs can configure which auth methods are available via environment variables.
     """
+    # Derive MSAL authority from OIDC discovery URL
+    # e.g. "https://login.microsoftonline.com/<tenant>/v2.0/.well-known/openid-configuration"
+    #   -> "https://login.microsoftonline.com/<tenant>"
+    microsoft_authority = None
+    if ENABLE_MICROSOFT_AUTH and OIDC_DISCOVERY_URL:
+        # Strip /v2.0/.well-known/openid-configuration (or similar suffixes)
+        authority = OIDC_DISCOVERY_URL.split("/v2.0/")[0]
+        if authority != OIDC_DISCOVERY_URL:
+            microsoft_authority = authority
+
     return schemas.AuthConfig(
         local_auth_enabled=ENABLE_LOCAL_AUTH,
         microsoft_auth_enabled=ENABLE_MICROSOFT_AUTH and bool(MICROSOFT_CLIENT_ID),
         google_auth_enabled=ENABLE_GOOGLE_AUTH and bool(GOOGLE_CLIENT_ID),
         microsoft_client_id=MICROSOFT_CLIENT_ID if ENABLE_MICROSOFT_AUTH else None,
+        microsoft_authority=microsoft_authority,
         google_client_id=GOOGLE_CLIENT_ID if ENABLE_GOOGLE_AUTH else None,
     )
 

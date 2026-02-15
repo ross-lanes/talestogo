@@ -488,6 +488,7 @@ class AuthConfig(BaseModel):
     microsoft_auth_enabled: bool = False
     google_auth_enabled: bool = False
     microsoft_client_id: Optional[str] = None
+    microsoft_authority: Optional[str] = None
     google_client_id: Optional[str] = None
 
 
