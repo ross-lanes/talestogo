@@ -13,6 +13,7 @@
 
 stages:
   - build
+  - deploy
 
 build_container:
   stage: build
@@ -36,3 +37,15 @@ build_container:
   rules:
     # Run on any branch or tag
     - if: $CI_COMMIT_BRANCH || $CI_COMMIT_TAG
+
+deploy_to_portainer:
+  stage: deploy
+  script:
+    - echo "Triggering Portainer service update..."
+    - 'curl -s -X POST "$PORTAINER_WEBHOOK_URL" || echo "Warning: Portainer webhook failed"'
+    - echo "Deploy triggered successfully"
+  rules:
+    # Only deploy from main branch
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  needs:
+    - build_container
