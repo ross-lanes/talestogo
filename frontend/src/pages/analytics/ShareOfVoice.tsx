@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, TrendingFlat, Download } from '@mui/icons-mat
 import { api } from '../../services/api';
 import { useRef, useState } from 'react';
 import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
-import { formatDateEST } from '../../utils/dateUtils';
+import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
