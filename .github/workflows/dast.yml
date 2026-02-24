@@ -25,7 +25,7 @@ jobs:
           DB_PASSWORD=test_password_123
           APP_SECRET=dast-test-secret-key-not-for-production
           JWT_SECRET_KEY=dast-test-secret-key-not-for-production
-          ENCRYPTION_KEY=ZGFzdC10ZXN0LWVuY3J5cHRpb24ta2V5LTMyYg==
+          ENCRYPTION_KEY=Vtw_ObnYOMsk7Ty9RD8eu8-nG2aVsiIP_pzZRDFtC14=
           GEMINI_API_KEY=fake-key-for-dast
           FRONTEND_URL=http://localhost:8080
           ENVIRONMENT=production
