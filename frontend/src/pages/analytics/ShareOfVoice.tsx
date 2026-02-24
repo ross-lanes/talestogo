@@ -3,10 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, LineChart, Line } from 'recharts';
 import { TrendingUp, TrendingDown, TrendingFlat, Download } from '@mui/icons-material';
 import { api } from '../../services/api';
-import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
-import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import { formatDateEST } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
@@ -161,51 +160,6 @@ export default function ShareOfVoice() {
     });
   }
 
-  // Download bar chart as PNG
-  const handleDownloadChart = async () => {
-    if (!chartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(chartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      const brandName = brandData?.name || 'Brand';
-      const brandNameFormatted = brandName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-
-      link.download = `${brandNameFormatted}_ShareOfVoice_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
-  // Download trend chart as PNG
-  const handleDownloadTrendChart = async () => {
-    if (!trendChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(trendChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `ShareOfVoiceTrend_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
   // Download Share of Voice Distribution as CSV
   const handleDownloadDistributionCSV = () => {
     if (!pieData || pieData.length === 0) return;
@@ -232,28 +186,6 @@ export default function ShareOfVoice() {
     link.click();
     URL.revokeObjectURL(link.href);
   };
-
-  // Download LLM chart as PNG
-  const handleDownloadLLMChart = async () => {
-    if (!llmChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(llmChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `ShareOfVoiceByLLM_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
 
   return (
     <Box>
@@ -313,14 +245,6 @@ export default function ShareOfVoice() {
                 Collection: {formatBatchDate(selectedBatch)}
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Comparison of share of voice for the top 10 organizations{!brandInTop10 && brandData ? ' (including your brand)' : ''}.
@@ -502,14 +426,6 @@ export default function ShareOfVoice() {
                 Brand vs. Competitor mentions across different AI platforms
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadLLMChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
@@ -577,16 +493,6 @@ export default function ShareOfVoice() {
               Track how your brand's share of voice compares to top competitors over time
             </Typography>
           </Box>
-          {sovTrends && sovTrends.length > 0 && (
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadTrendChart}
-              size="small"
-            >
-              Image
-            </Button>
-          )}
         </Box>
 
         {loadingTrends ? (

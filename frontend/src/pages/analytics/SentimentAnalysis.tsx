@@ -3,10 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, Legend, Tooltip, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
-import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
-import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import { formatDateEST } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
@@ -68,48 +67,6 @@ export default function SentimentAnalysis() {
       return response.data;
     },
   });
-
-  // Download sentiment chart as PNG
-  const handleDownloadSentimentChart = async () => {
-    if (!sentimentChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(sentimentChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `SentimentAnalysis_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
-  // Download sentiment trend chart as PNG
-  const handleDownloadSentimentTrendChart = async () => {
-    if (!sentimentTrendChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(sentimentTrendChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `SentimentTrend_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
 
   // Download negative statements as CSV
   const handleDownloadNegativeStatementsCSV = () => {
@@ -190,27 +147,6 @@ export default function SentimentAnalysis() {
     link.href = URL.createObjectURL(blob);
     link.click();
     URL.revokeObjectURL(link.href);
-  };
-
-  // Download LLM chart as PNG
-  const handleDownloadLLMChart = async () => {
-    if (!llmChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(llmChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `SentimentByLLM_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
   };
 
   if (isLoading) {
@@ -294,14 +230,6 @@ export default function SentimentAnalysis() {
               size="small"
             >
               Spreadsheet
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadSentimentChart}
-              size="small"
-            >
-              Image
             </Button>
           </Box>
         </Box>
@@ -401,14 +329,6 @@ export default function SentimentAnalysis() {
                 Sentiment breakdown across different AI platforms
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadLLMChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
@@ -495,14 +415,6 @@ export default function SentimentAnalysis() {
                 size="small"
               >
                 Spreadsheet
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<Download />}
-                onClick={handleDownloadSentimentTrendChart}
-                size="small"
-              >
-                Image
               </Button>
             </Box>
           )}

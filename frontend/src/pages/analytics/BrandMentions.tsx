@@ -1,11 +1,10 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Button, Card, CardContent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
-import { Download, TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon } from '@mui/icons-material';
+import { TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
-import html2canvas from 'html2canvas';
 import { useRef } from 'react';
-import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import { formatDateEST } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
@@ -58,48 +57,6 @@ export default function BrandMentions() {
         {sign}{change}%{dateText}
       </Typography>
     );
-  };
-
-  // Download trend chart as PNG
-  const handleDownloadTrendChart = async () => {
-    if (!trendChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(trendChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `BrandMentionsTrend_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
-  // Download LLM chart as PNG
-  const handleDownloadLLMChart = async () => {
-    if (!llmChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(llmChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `BrandMentionsByLLM_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
   };
 
   if (isLoading) {
@@ -188,18 +145,6 @@ export default function BrandMentions() {
               Percentage of AI responses that mention your brand across all collection periods
             </Typography>
           </Box>
-          {formattedData.length > 0 && (
-            <Button
-              variant="outlined"
-              startIcon={<Download sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-              onClick={handleDownloadTrendChart}
-              size="small"
-              sx={{ minWidth: { xs: 44, sm: 'auto' }, px: { xs: 1, sm: 2 } }}
-            >
-              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Image</Box>
-              <Download sx={{ display: { xs: 'inline', sm: 'none' } }} />
-            </Button>
-          )}
         </Box>
 
         {formattedData.length > 0 ? (
@@ -254,16 +199,6 @@ export default function BrandMentions() {
                 Comparison of mention rates across different AI platforms (all data collected over time)
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<Download sx={{ display: { xs: 'none', sm: 'inline' } }} />}
-              onClick={handleDownloadLLMChart}
-              size="small"
-              sx={{ minWidth: { xs: 44, sm: 'auto' }, px: { xs: 1, sm: 2 } }}
-            >
-              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Image</Box>
-              <Download sx={{ display: { xs: 'inline', sm: 'none' } }} />
-            </Button>
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: { xs: 1, sm: 2 }, border: '1px solid #e0e0e0', mt: 2, height: { xs: 300, sm: 350, md: 400 } }}>

@@ -1,12 +1,10 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
-import { Download as DownloadIcon, Image as ImageIcon } from '@mui/icons-material';
+import { Download as DownloadIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { api } from '../../services/api';
-import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector from '../../components/BatchSelector';
-import { formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
@@ -146,114 +144,6 @@ export default function DescriptorAnalysis() {
     URL.revokeObjectURL(link.href);
   };
 
-  const handleDownloadTop10Image = async () => {
-    if (!tableRef.current || !sortedDescriptorsData) return;
-
-    const allRows = tableRef.current.querySelectorAll('tbody tr');
-    const totalRows = allRows.length;
-    const rowsPerImage = 10;
-    const numImages = Math.ceil(totalRows / rowsPerImage);
-
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const year = today.getFullYear();
-    const dateStr = `${month}_${day}_${year}`;
-
-    // Store original padding
-    const allCells = tableRef.current.querySelectorAll('td, th');
-    const originalPadding: string[] = [];
-
-    allCells.forEach((cell) => {
-      const htmlCell = cell as HTMLElement;
-      originalPadding.push(htmlCell.style.padding);
-      htmlCell.style.padding = '4px 8px'; // Reduced padding for slides
-    });
-
-    try {
-      // Generate an image for each group of 10 descriptors
-      for (let imageIndex = 0; imageIndex < numImages; imageIndex++) {
-        const startRow = imageIndex * rowsPerImage;
-        const endRow = Math.min(startRow + rowsPerImage, totalRows);
-
-        // Hide all rows except the current group
-        allRows.forEach((row, index) => {
-          const htmlRow = row as HTMLElement;
-          if (index < startRow || index >= endRow) {
-            htmlRow.style.display = 'none';
-          } else {
-            htmlRow.style.display = '';
-          }
-        });
-
-        // Capture the table
-        const canvas = await html2canvas(tableRef.current, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          allowTaint: true,
-        });
-
-        // Download the image
-        await new Promise<void>((resolve) => {
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              const groupNumber = imageIndex + 1;
-              const rangeStart = startRow + 1;
-              const rangeEnd = endRow;
-
-              link.download = `TargetDescriptors_${rangeStart}-${rangeEnd}_${dateStr}.png`;
-              link.href = url;
-              link.click();
-              URL.revokeObjectURL(url);
-            }
-            resolve();
-          });
-        });
-
-        // Small delay between downloads to avoid browser blocking
-        if (imageIndex < numImages - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-    } finally {
-      // Restore all rows
-      allRows.forEach(row => {
-        (row as HTMLElement).style.display = '';
-      });
-
-      // Restore original padding
-      allCells.forEach((cell, index) => {
-        const htmlCell = cell as HTMLElement;
-        htmlCell.style.padding = originalPadding[index] || '';
-      });
-    }
-  };
-
-  // Download LLM chart as PNG
-  const handleDownloadLLMChart = async () => {
-    if (!llmChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(llmChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `DescriptorsByLLM_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -293,15 +183,6 @@ export default function DescriptorAnalysis() {
               disabled={!descriptors || descriptors.length === 0}
             >
               Spreadsheet
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadTop10Image}
-              size="small"
-              disabled={!descriptors || descriptors.length === 0}
-            >
-              Images
             </Button>
           </Box>
         </Box>
@@ -394,14 +275,6 @@ export default function DescriptorAnalysis() {
                 Most frequently used descriptors for your brand by each AI platform (Top 5)
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadLLMChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>

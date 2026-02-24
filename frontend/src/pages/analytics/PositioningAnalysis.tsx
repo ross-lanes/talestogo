@@ -3,10 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, LineChart, Line, Legend, AreaChart, Area } from 'recharts';
 import { Download } from '@mui/icons-material';
 import { api } from '../../services/api';
-import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
-import { formatDateEST, formatDateForFilename } from '../../utils/dateUtils';
+import { formatDateEST } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
@@ -77,48 +76,6 @@ export default function PositioningAnalysis() {
     },
   });
 
-  // Download positioning chart as PNG
-  const handleDownloadPositioningChart = async () => {
-    if (!positioningChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(positioningChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `BrandPositioning_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
-  // Download positioning trend chart as PNG
-  const handleDownloadPositioningTrendChart = async () => {
-    if (!positioningTrendChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(positioningTrendChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `PositioningTrend_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
   // Download positioning distribution as CSV
   const handleDownloadPositioningCSV = () => {
     if (!chartData || chartData.length === 0) return;
@@ -143,27 +100,6 @@ export default function PositioningAnalysis() {
     link.href = URL.createObjectURL(blob);
     link.click();
     URL.revokeObjectURL(link.href);
-  };
-
-  // Download LLM chart as PNG
-  const handleDownloadLLMChart = async () => {
-    if (!llmChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(llmChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `PositioningByLLM_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
   };
 
   if (isLoading) {
@@ -275,14 +211,6 @@ export default function PositioningAnalysis() {
             >
               Spreadsheet
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadPositioningChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
         </Box>
 
@@ -382,14 +310,6 @@ export default function PositioningAnalysis() {
                 Positioning breakdown across different AI platforms
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadLLMChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
@@ -461,16 +381,6 @@ export default function PositioningAnalysis() {
               How your brand's positioning has evolved across collection periods
             </Typography>
           </Box>
-          {positioningTrends && positioningTrends.length > 0 && (
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleDownloadPositioningTrendChart}
-              size="small"
-            >
-              Image
-            </Button>
-          )}
         </Box>
 
         {loadingPositioningTrends ? (

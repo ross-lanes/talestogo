@@ -1,0 +1,260 @@
+name: DAST Security Scan (OWASP ZAP)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  dast-scan:
+    name: OWASP ZAP DAST Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env for Docker Compose
+        run: |
+          cat > .env << 'EOF'
+          DB_PASSWORD=test_password_123
+          APP_SECRET=dast-test-secret-key-not-for-production
+          JWT_SECRET_KEY=dast-test-secret-key-not-for-production
+          ENCRYPTION_KEY=ZGFzdC10ZXN0LWVuY3J5cHRpb24ta2V5LTMyYg==
+          GEMINI_API_KEY=fake-key-for-dast
+          FRONTEND_URL=http://localhost:8080
+          ENVIRONMENT=production
+          ENABLE_LOCAL_AUTH=true
+          ENABLE_MICROSOFT_AUTH=false
+          ENABLE_GOOGLE_AUTH=false
+          ENABLE_SCHEDULER=false
+          EOF
+
+      - name: Build and start application
+        run: docker compose up -d --build
+
+      - name: Wait for application to be healthy
+        run: |
+          echo "Waiting for application to start..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+              echo "Application is healthy!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Application failed to start within 60 seconds"
+              docker compose logs app
+              exit 1
+            fi
+            echo "  Attempt $i/60 - waiting..."
+            sleep 2
+          done
+
+      - name: Create test user for authenticated scanning
+        run: |
+          docker compose exec -T app python -c "
+          from app.database import SessionLocal, engine, Base
+          from app import models
+          from passlib.context import CryptContext
+
+          pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+          db = SessionLocal()
+          try:
+              # Create a test tenant
+              tenant = models.Tenant(name='DAST Test Org')
+              db.add(tenant)
+              db.flush()
+
+              # Create a test user
+              user = models.User(
+                  email='dast-scanner@test.local',
+                  hashed_password=pwd_context.hash('DastTestPassword123!'),
+                  full_name='DAST Scanner',
+                  role='admin',
+                  tenant_id=tenant.id,
+                  is_active=True
+              )
+              db.add(user)
+              db.commit()
+              print('Test user created successfully')
+          except Exception as e:
+              db.rollback()
+              print(f'User may already exist: {e}')
+          finally:
+              db.close()
+          "
+
+      - name: Get authentication token
+        id: auth
+        run: |
+          TOKEN=$(curl -sf -X POST http://localhost:8080/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email": "dast-scanner@test.local", "password": "DastTestPassword123!"}' \
+            | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))")
+
+          if [ -z "$TOKEN" ]; then
+            echo "Warning: Could not obtain auth token, scanning unauthenticated only"
+            echo "token=" >> "$GITHUB_OUTPUT"
+          else
+            echo "Authentication token obtained"
+            echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch OpenAPI spec
+        run: |
+          curl -sf http://localhost:8080/openapi.json -o openapi.json
+          echo "OpenAPI spec downloaded ($(wc -c < openapi.json) bytes)"
+
+      - name: Create ZAP configuration
+        run: |
+          mkdir -p zap
+
+          # ZAP automation framework config for API scanning
+          cat > zap/af-config.yaml << 'ZAPEOF'
+          ---
+          env:
+            contexts:
+              - name: "TalesToGo"
+                urls:
+                  - "http://localhost:8080"
+                includePaths:
+                  - "http://localhost:8080.*"
+                excludePaths:
+                  - "http://localhost:8080/docs.*"
+                  - "http://localhost:8080/redoc.*"
+                  - "http://localhost:8080/openapi.json"
+            parameters:
+              failOnError: false
+              failOnWarning: false
+              progressToStdout: true
+          jobs:
+            - type: openapi
+              parameters:
+                apiFile: "/zap/wrk/openapi.json"
+                targetUrl: "http://localhost:8080"
+            - type: spider
+              parameters:
+                context: "TalesToGo"
+                maxDuration: 5
+                maxDepth: 5
+            - type: spiderAjax
+              parameters:
+                context: "TalesToGo"
+                maxDuration: 5
+            - type: passiveScan-wait
+              parameters:
+                maxDuration: 10
+            - type: activeScan
+              parameters:
+                context: "TalesToGo"
+                maxRuleDurationInMins: 5
+                maxScanDurationInMins: 15
+            - type: report
+              parameters:
+                template: "traditional-html-plus"
+                reportDir: "/zap/wrk/reports"
+                reportFile: "zap-dast-report"
+                reportTitle: "TalesToGo DAST Security Analysis"
+                reportDescription: "Dynamic Application Security Testing report generated by OWASP ZAP"
+            - type: report
+              parameters:
+                template: "traditional-json-plus"
+                reportDir: "/zap/wrk/reports"
+                reportFile: "zap-dast-report"
+                reportTitle: "TalesToGo DAST Security Analysis"
+          ZAPEOF
+
+      - name: Run OWASP ZAP DAST scan
+        run: |
+          mkdir -p reports
+
+          docker run --rm \
+            --network host \
+            -v "$(pwd)/openapi.json:/zap/wrk/openapi.json:ro" \
+            -v "$(pwd)/zap/af-config.yaml:/zap/wrk/af-config.yaml:ro" \
+            -v "$(pwd)/reports:/zap/wrk/reports" \
+            -u root \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap.sh -cmd \
+              -autorun /zap/wrk/af-config.yaml \
+              -config api.disablekey=true \
+              2>&1 | tee zap-output.log
+
+          echo "ZAP scan complete"
+
+      - name: Generate scan summary
+        if: always()
+        run: |
+          echo "## DAST Scan Results" > scan-summary.md
+          echo "" >> scan-summary.md
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> scan-summary.md
+          echo "**Tool:** OWASP ZAP (Stable)" >> scan-summary.md
+          echo "**Target:** TalesToGo Application" >> scan-summary.md
+          echo "" >> scan-summary.md
+
+          if [ -f reports/zap-dast-report.json ]; then
+            echo "### Alert Summary" >> scan-summary.md
+            python3 -c "
+          import json
+
+          with open('reports/zap-dast-report.json') as f:
+              data = json.load(f)
+
+          sites = data.get('site', [])
+          alerts = []
+          for site in sites:
+              alerts.extend(site.get('alerts', []))
+
+          risk_counts = {'High': 0, 'Medium': 0, 'Low': 0, 'Informational': 0}
+          for alert in alerts:
+              risk = alert.get('riskdesc', '').split(' ')[0]
+              if risk in risk_counts:
+                  risk_counts[risk] += 1
+
+          print(f'| Risk Level | Count |')
+          print(f'|-----------|-------|')
+          for risk, count in risk_counts.items():
+              print(f'| {risk} | {count} |')
+          print()
+          print(f'**Total unique alerts:** {len(alerts)}')
+          print()
+
+          if risk_counts['High'] > 0:
+              print('### High Risk Alerts')
+              for alert in alerts:
+                  if alert.get('riskdesc', '').startswith('High'):
+                      print(f\"- **{alert.get('alert', 'Unknown')}** - {alert.get('desc', '')[:200]}\")
+              print()
+
+          if risk_counts['Medium'] > 0:
+              print('### Medium Risk Alerts')
+              for alert in alerts:
+                  if alert.get('riskdesc', '').startswith('Medium'):
+                      print(f\"- **{alert.get('alert', 'Unknown')}**\")
+          " >> scan-summary.md 2>/dev/null || echo "Could not parse JSON report" >> scan-summary.md
+          else
+            echo "JSON report not generated. Check scan logs." >> scan-summary.md
+          fi
+
+          cat scan-summary.md
+
+      - name: Upload DAST reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-reports
+          path: |
+            reports/
+            scan-summary.md
+            zap-output.log
+          retention-days: 90
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

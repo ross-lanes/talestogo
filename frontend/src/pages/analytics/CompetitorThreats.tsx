@@ -1,13 +1,11 @@
 import { Box, Typography, Paper, CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Button } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { TrendingUp as ThreatIcon, Download as DownloadIcon, Image as ImageIcon } from '@mui/icons-material';
+import { TrendingUp as ThreatIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { api } from '../../services/api';
-import html2canvas from 'html2canvas';
 import { useRef, useState } from 'react';
 import { competitorsInclude } from '../../utils/organizationNormalizer';
 import BatchSelector, { type CollectionBatch } from '../../components/BatchSelector';
-import { formatDateForFilename } from '../../utils/dateUtils';
 import ChartContainer from '../../components/ChartContainer';
 import { usePlatformConfig } from '../../contexts/PlatformContext';
 
@@ -117,74 +115,6 @@ export default function CompetitorThreats() {
     URL.revokeObjectURL(link.href);
   };
 
-  const handleDownloadTop5Image = async () => {
-    if (!tableRef.current) return;
-
-    // Temporarily hide all rows except top 5
-    const allRows = tableRef.current.querySelectorAll('tbody tr');
-    const rowsToHide: HTMLElement[] = [];
-
-    allRows.forEach((row, index) => {
-      if (index >= 5) {
-        rowsToHide.push(row as HTMLElement);
-        (row as HTMLElement).style.display = 'none';
-      }
-    });
-
-    try {
-      const canvas = await html2canvas(tableRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-      });
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          const today = new Date();
-          const month = String(today.getMonth() + 1).padStart(2, '0');
-          const day = String(today.getDate()).padStart(2, '0');
-          const year = today.getFullYear();
-          const dateStr = `${month}_${day}_${year}`;
-
-          link.download = `Top5_ThreatAnalysis_${dateStr}.png`;
-          link.href = url;
-          link.click();
-          URL.revokeObjectURL(url);
-        }
-      });
-    } finally {
-      // Restore hidden rows
-      rowsToHide.forEach(row => {
-        row.style.display = '';
-      });
-    }
-  };
-
-  // Download LLM chart as PNG
-  const handleDownloadLLMChart = async () => {
-    if (!llmChartRef.current) return;
-
-    try {
-      const canvas = await html2canvas(llmChartRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-      });
-
-      const link = document.createElement('a');
-      const dateStr = formatDateForFilename();
-
-      link.download = `ThreatsByLLM_${dateStr}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
-    } catch (error) {
-      console.error('Error downloading chart:', error);
-    }
-  };
-
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -262,15 +192,6 @@ export default function CompetitorThreats() {
               disabled={threats.length === 0}
             >
               Download as CSV
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<ImageIcon />}
-              onClick={handleDownloadTop5Image}
-              size="small"
-              disabled={threats.length === 0}
-            >
-              Download Top 5 as Image
             </Button>
           </Box>
         </Box>
@@ -372,14 +293,6 @@ export default function CompetitorThreats() {
                 Most frequently mentioned competitors by each AI platform (Top 5)
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadLLMChart}
-              size="small"
-            >
-              Image
-            </Button>
           </Box>
 
           <Box ref={llmChartRef} sx={{ backgroundColor: 'white', p: 2, border: '1px solid #e0e0e0', mt: 2 }}>
