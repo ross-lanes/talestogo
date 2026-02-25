@@ -35,12 +35,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
         # Content Security Policy
+        # Note: 'unsafe-inline' in style-src is required for MUI/emotion runtime styles
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: blob: https:; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "font-src 'self'; "
+            "img-src 'self' data: blob:; "
             "connect-src 'self' https://accounts.google.com https://login.microsoftonline.com https://*.microsoftonline.com; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
@@ -327,7 +328,7 @@ if FRONTEND_DIST.exists():
 
         # Block cloud metadata paths to prevent SSRF/metadata attacks
         cloud_metadata_prefixes = (
-            "computeMetadata",
+            "computemetadata",
             "metadata",
             "latest/meta-data",
             "latest/user-data",
