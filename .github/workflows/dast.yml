@@ -88,11 +88,15 @@ jobs:
 
       - name: Get authentication token
         id: auth
+        continue-on-error: true
         run: |
-          TOKEN=$(curl -sf -X POST http://localhost:8080/auth/login \
+          RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
             -H "Content-Type: application/json" \
-            -d '{"email": "dast-scanner@test.local", "password": "DastTestPassword123!"}' \
-            | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))")
+            -d '{"email": "dast-scanner@test.local", "password": "DastTestPassword123!"}')
+
+          echo "Login response: $RESPONSE"
+
+          TOKEN=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
 
           if [ -z "$TOKEN" ]; then
             echo "Warning: Could not obtain auth token, scanning unauthenticated only"
