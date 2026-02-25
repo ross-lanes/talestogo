@@ -4,12 +4,50 @@ load_dotenv(override=True)  # Load environment variables from .env file
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from app import models
 from app.database import engine
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses to mitigate common web vulnerabilities."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # Prevent MIME-type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Control referrer information
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Prevent XSS in older browsers
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Permissions policy (restrict browser features)
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+
+        # Content Security Policy
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: blob: https:; "
+            "connect-src 'self' https://accounts.google.com https://login.microsoftonline.com https://*.microsoftonline.com; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+
+        return response
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
@@ -120,6 +158,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+# Add security headers to all responses
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Include all routers
 # Core functionality routers
 app.include_router(auth.router)
@@ -160,6 +201,12 @@ app.include_router(tasks.router)
 
 # Temporary migration helper (will be removed after rollback)
 app.include_router(migration_helper.router)
+
+# --- Health Check ---
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Health check endpoint for monitoring and container orchestration."""
+    return {"status": "healthy"}
 
 # --- Scheduler ---
 from app.scheduler import start_scheduler, stop_scheduler
@@ -278,8 +325,28 @@ if FRONTEND_DIST.exists():
         if full_path.startswith(api_prefixes):
             raise HTTPException(status_code=404, detail="API endpoint not found")
 
+        # Block cloud metadata paths to prevent SSRF/metadata attacks
+        cloud_metadata_prefixes = (
+            "computeMetadata",
+            "metadata",
+            "latest/meta-data",
+            "latest/user-data",
+            "latest/dynamic",
+        )
+        if full_path.lower().startswith(cloud_metadata_prefixes):
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        # Path traversal protection: resolve the path and verify it stays
+        # within FRONTEND_DIST to prevent directory traversal attacks
+        try:
+            file_path = (FRONTEND_DIST / full_path).resolve()
+            frontend_root = FRONTEND_DIST.resolve()
+            if not str(file_path).startswith(str(frontend_root)):
+                raise HTTPException(status_code=400, detail="Invalid path")
+        except (ValueError, OSError):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
         # Try to serve the specific file if it exists
-        file_path = FRONTEND_DIST / full_path
         if file_path.is_file():
             return FileResponse(file_path)
 
