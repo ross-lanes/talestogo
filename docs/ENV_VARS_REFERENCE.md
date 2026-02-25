@@ -67,11 +67,27 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 | `ENABLE_MICROSOFT_AUTH` | `true` | Enable Microsoft/Entra ID authentication |
 | `ENABLE_GOOGLE_AUTH` | `false` | Enable Google OAuth authentication |
 
-**Usage:** Labs can disable authentication methods that are not needed:
+**How login methods appear:** The login page dynamically shows only the authentication methods that are both enabled AND configured. For OAuth methods (Google, Microsoft), the corresponding client ID must also be set for the button to appear. For email/password, no additional configuration is needed beyond the enable flag.
+
+**Usage examples:**
 ```bash
-ENABLE_GOOGLE_AUTH=false    # Disable Google login
-ENABLE_LOCAL_AUTH=false     # Force SSO only
+# Default: email/password only (Google disabled, Microsoft needs client ID)
+ENABLE_LOCAL_AUTH=true
+ENABLE_MICROSOFT_AUTH=true
+ENABLE_GOOGLE_AUTH=false
+
+# SSO only (disable email/password)
+ENABLE_LOCAL_AUTH=false
+ENABLE_MICROSOFT_AUTH=true
+ENABLE_GOOGLE_AUTH=true
+
+# All three methods
+ENABLE_LOCAL_AUTH=true
+ENABLE_MICROSOFT_AUTH=true
+ENABLE_GOOGLE_AUTH=true
 ```
+
+**Important:** After changing OAuth settings, you must rebuild the container (`docker compose up -d --build`) for the frontend to pick up the new client IDs.
 
 ---
 
@@ -149,27 +165,31 @@ When environment variables are set but no database providers exist, Tales automa
 
 ## OAuth Configuration (Optional)
 
-OAuth is optional. Users can always log in with email/password created by the admin.
+OAuth is optional. Users can always log in with email/password when `ENABLE_LOCAL_AUTH=true` (the default). For an OAuth button to appear on the login page, you must set both the enable flag (see Authentication Enable/Disable Flags above) AND the client ID below.
 
 ### Google OAuth
+
+Requires `ENABLE_GOOGLE_AUTH=true` in addition to the variables below.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GOOGLE_CLIENT_ID` | No | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret |
-| `VITE_GOOGLE_CLIENT_ID` | No | Same as GOOGLE_CLIENT_ID (for frontend build) |
 
 **Setup:** https://console.cloud.google.com/apis/credentials
 
 ### Microsoft OAuth
 
+Requires `ENABLE_MICROSOFT_AUTH=true` (default) in addition to the variables below.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `MICROSOFT_CLIENT_ID` | No | Azure AD application client ID |
 | `MICROSOFT_CLIENT_SECRET` | No | Azure AD application secret |
-| `VITE_MICROSOFT_CLIENT_ID` | No | Same as MICROSOFT_CLIENT_ID (for frontend build) |
 
 **Setup:** https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade
+
+**Note:** The frontend reads OAuth client IDs from the backend's `/auth/config` endpoint at runtime, so `VITE_GOOGLE_CLIENT_ID` and `VITE_MICROSOFT_CLIENT_ID` build-time variables are no longer needed.
 
 ---
 
@@ -243,13 +263,13 @@ Redis enables caching for improved performance. Not required for basic operation
 
 ## Frontend Build Variables
 
-These are only needed when building the frontend (during Docker build).
+These are optional and only used when building the frontend (during Docker build).
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_URL` | Backend API URL for frontend |
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth client ID |
-| `VITE_MICROSOFT_CLIENT_ID` | Microsoft OAuth client ID |
+| `VITE_API_URL` | Backend API URL (only needed if frontend is hosted separately from backend) |
+
+**Note:** OAuth client IDs (`GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`) do not need `VITE_` prefixed variants. The frontend fetches them at runtime from the backend's `/auth/config` endpoint.
 
 ---
 

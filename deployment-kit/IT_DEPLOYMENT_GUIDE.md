@@ -249,6 +249,12 @@ Configure these settings:
 
 Tales supports multiple authentication methods. **Email/password authentication works out of the box with no additional setup.**
 
+The login page dynamically adapts based on your configuration. It shows only the authentication methods you have enabled, in any combination:
+
+- **Email/password only** (default) - a simple email and password form
+- **OAuth only** - Google and/or Microsoft sign-in buttons
+- **Both** - OAuth buttons at the top, an "or" divider, then the email/password form below
+
 ### Default: Email/Password
 
 This is the simplest option and requires no additional configuration:
@@ -265,6 +271,7 @@ For enterprise single sign-on, configure OIDC:
 ```bash
 OIDC_CLIENT_ID=<from-IT>
 OIDC_CLIENT_SECRET=<from-IT>
+ENABLE_MICROSOFT_AUTH=true  # enabled by default
 
 # Optional: For tenant-specific authentication
 OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration
@@ -274,7 +281,23 @@ OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-know
 |-------------|----------------|----------|
 | Email/Password | None (works immediately) | Quick deployments, small teams |
 | Microsoft/Entra ID | OIDC credentials from IT | Organizations using Microsoft 365 |
-| Google OAuth | Optional | Organizations using Google Workspace |
+| Google OAuth | Google Cloud Console setup | Organizations using Google Workspace |
+| Multiple methods | Configure each individually | Maximum flexibility for users |
+
+### How Login Methods Are Controlled
+
+Each authentication method requires two things to appear on the login page:
+
+1. **Enable flag** set to `true` in your `.env` file
+2. **Credentials configured** (client ID for OAuth methods)
+
+| Method | Enable Flag | Also Requires |
+|--------|------------|---------------|
+| Email/Password | `ENABLE_LOCAL_AUTH=true` | Nothing else (works immediately) |
+| Google | `ENABLE_GOOGLE_AUTH=true` | `GOOGLE_CLIENT_ID` set |
+| Microsoft | `ENABLE_MICROSOFT_AUTH=true` | `OIDC_CLIENT_ID` or `MICROSOFT_CLIENT_ID` set |
+
+If all methods are disabled or no credentials are provided, the login page displays: "No authentication methods configured. Please contact your administrator."
 
 ---
 
@@ -389,8 +412,9 @@ Should return a JSON response.
 ### 4. Test Login
 
 1. Open `http://localhost:8080` in a browser
-2. Log in with the admin credentials
-3. Verify you can access the dashboard
+2. Verify the login page shows the expected authentication methods (email/password form, OAuth buttons, or both, depending on your configuration)
+3. Log in with the admin credentials created in the setup step
+4. Verify you can access the dashboard
 
 ### 5. Test Data Collection
 
@@ -403,41 +427,80 @@ Should return a JSON response.
 
 ## Optional: OAuth Configuration
 
-Tales supports Google and Microsoft OAuth for user authentication. This is optional; users can always log in with email/password.
+Tales supports Google and Microsoft OAuth for user authentication. This is optional; email/password login is always available when `ENABLE_LOCAL_AUTH=true` (the default).
+
+For each OAuth provider, you need to: (1) set the enable flag, (2) add the credentials, and (3) rebuild the container so the frontend picks up the client IDs.
 
 ### Google OAuth Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create a new OAuth 2.0 Client ID
-3. Set authorized JavaScript origins: `http://your-tales-url`
-4. Set authorized redirect URIs: `http://your-tales-url/auth/callback`
+2. Create a new OAuth 2.0 Client ID (Application type: Web application)
+3. Set authorized JavaScript origins: `http://your-tales-url` (e.g., `http://localhost:8080`)
+4. Set authorized redirect URIs: `http://your-tales-url` (same as origins)
 5. Add to your `.env`:
 
 ```bash
+# Enable Google login
+ENABLE_GOOGLE_AUTH=true
+
+# Google OAuth credentials
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your-secret
-ENABLE_GOOGLE_AUTH=true
 ```
 
 ### Microsoft OAuth Setup
 
 1. Go to [Azure Portal App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
 2. Create a new App Registration
-3. Add redirect URI: `http://your-tales-url/auth/callback`
+3. Under "Authentication", add a Single-page application redirect URI: `http://your-tales-url` (e.g., `http://localhost:8080`)
 4. Create a client secret under Certificates & secrets
 5. Add to your `.env`:
 
 ```bash
+# Enable Microsoft login (enabled by default)
+ENABLE_MICROSOFT_AUTH=true
+
+# Microsoft OAuth credentials (OIDC naming)
 OIDC_CLIENT_ID=your-app-client-id
 OIDC_CLIENT_SECRET=your-secret
-ENABLE_MICROSOFT_AUTH=true
 ```
 
-After adding OAuth credentials, restart the container:
+### After Adding OAuth Credentials
+
+Rebuild the container so the frontend is built with the OAuth client IDs:
 
 ```bash
-docker compose restart app
+docker compose up -d --build
 ```
+
+After rebuilding, the login page will automatically show the new OAuth sign-in buttons alongside (or instead of) the email/password form, depending on your enable flags.
+
+---
+
+## Security
+
+Tales includes built-in security hardening that requires no additional configuration.
+
+### Security Headers
+
+All responses include the following security headers:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `Content-Security-Policy` | Nonce-based policy | Prevents XSS by restricting script and style sources |
+| `X-Frame-Options` | `DENY` | Prevents clickjacking |
+| `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer information |
+| `X-XSS-Protection` | `1; mode=block` | XSS protection for older browsers |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Restricts browser feature access |
+
+### Additional Protections
+
+- **Content Security Policy (CSP)**: Nonce-based CSP for style-src, compatible with MUI/Material-UI
+- **Path traversal protection**: Frontend file serving validates paths stay within the expected directory
+- **Cloud metadata blocking**: Requests to cloud provider metadata endpoints (AWS, GCP, Azure) are blocked
+- **Self-hosted fonts**: All fonts are served locally, eliminating external CDN dependencies
+- **Rate limiting**: API endpoints are rate-limited to prevent abuse
 
 ---
 
@@ -513,6 +576,24 @@ docker compose logs db
 ### "Account is not active" error
 
 The user needs to be activated by an admin. Log in as admin and activate the user in the Admin Panel.
+
+### OAuth buttons not showing on login page
+
+For an OAuth button to appear, both conditions must be met:
+1. The enable flag is set (e.g., `ENABLE_GOOGLE_AUTH=true`)
+2. The client ID is configured (e.g., `GOOGLE_CLIENT_ID=...`)
+
+After changing OAuth settings in `.env`, you must rebuild the container:
+```bash
+docker compose up -d --build
+```
+
+### Login page shows "No authentication methods configured"
+
+This means no authentication methods are available. Check that at least one of the following is true:
+- `ENABLE_LOCAL_AUTH=true` (default)
+- `ENABLE_GOOGLE_AUTH=true` with `GOOGLE_CLIENT_ID` set
+- `ENABLE_MICROSOFT_AUTH=true` with `OIDC_CLIENT_ID` or `MICROSOFT_CLIENT_ID` set
 
 ### Forgot admin password
 

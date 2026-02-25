@@ -20,10 +20,12 @@ Welcome to Tales, an AI reputation monitoring platform that tracks how your orga
 ### Logging In
 
 1. Navigate to your Tales URL
-2. Enter your email and password
-3. Click "Sign In"
+2. Sign in using the method(s) available at your organization:
+   - **Email/password**: Enter your email and password, then click "Sign In"
+   - **Google**: Click "Sign in with Google" and follow the Google authentication flow
+   - **Microsoft**: Click "Sign in with Microsoft" and follow the Microsoft authentication flow
 
-If your organization has configured Google or Microsoft login, you may also see options to sign in with those providers.
+Your login page will show whichever authentication methods your IT team has configured. You may see one method or multiple options.
 
 ### First-Time Setup
 
