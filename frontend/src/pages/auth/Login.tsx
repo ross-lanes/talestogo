@@ -7,6 +7,8 @@ import {
   Alert,
   CircularProgress,
   Button,
+  TextField,
+  Divider,
 } from '@mui/material';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 import type { CredentialResponse } from '@react-oauth/google';
@@ -34,7 +36,7 @@ interface BrandingConfig {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { googleLogin, microsoftLogin } = useAuth();
+  const { login, googleLogin, microsoftLogin } = useAuth();
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,8 @@ const Login: React.FC = () => {
   const [branding, setBranding] = useState<BrandingConfig | null>(null);
   const [msalInitialized, setMsalInitialized] = useState(false);
   const msalInstanceRef = useRef<PublicClientApplication | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // Fetch auth and branding config from backend
   useEffect(() => {
@@ -156,6 +160,29 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleLocalLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      navigate('/');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((d: any) => d.msg || d).join(', '));
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Show loading while fetching config
   if (configLoading) {
     return (
@@ -179,17 +206,15 @@ const Login: React.FC = () => {
   const secondaryColor = branding?.secondary_color || '#75c9c8';
 
   // Determine which auth methods to show
+  const showLocal = authConfig?.local_auth_enabled;
   const showMicrosoft = authConfig?.microsoft_auth_enabled && authConfig.microsoft_client_id;
   const showGoogle = authConfig?.google_auth_enabled && authConfig.google_client_id;
+  const hasOAuth = showGoogle || showMicrosoft;
+  const hasAnyAuth = showLocal || hasOAuth;
 
   // Build the login method description
-  let loginMethodText = 'Sign in with your ';
-  const methods: string[] = [];
-  if (showGoogle) methods.push('Google');
-  if (showMicrosoft) methods.push('Microsoft');
-  if (methods.length > 0) {
-    loginMethodText += methods.join(' or ') + ' account';
-  } else {
+  let loginMethodText = '';
+  if (!hasAnyAuth) {
     loginMethodText = 'No authentication methods configured. Please contact your administrator.';
   }
 
@@ -263,72 +288,131 @@ const Login: React.FC = () => {
           </Box>
         )}
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, alignItems: 'center', mb: 3 }}>
-          {/* Google Login Button */}
-          {showGoogle && authConfig.google_client_id && (
-            <GoogleOAuthProvider clientId={authConfig.google_client_id}>
-              <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="outline"
-                  size="large"
-                  text="signin_with"
-                  shape="rectangular"
-                />
-              </Box>
-            </GoogleOAuthProvider>
-          )}
+        {/* OAuth Buttons */}
+        {hasOAuth && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, alignItems: 'center', mb: 2 }}>
+            {/* Google Login Button */}
+            {showGoogle && authConfig.google_client_id && (
+              <GoogleOAuthProvider clientId={authConfig.google_client_id}>
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    theme="outline"
+                    size="large"
+                    text="signin_with"
+                    shape="rectangular"
+                  />
+                </Box>
+              </GoogleOAuthProvider>
+            )}
 
-          {/* Microsoft Login Button */}
-          {showMicrosoft && (
-            <Button
-              variant="outlined"
-              onClick={handleMicrosoftLogin}
-              disabled={loading || !msalInitialized}
-              fullWidth
-              sx={{
-                borderColor: primaryColor,
-                color: primaryColor,
-                borderWidth: '1.5px',
-                '&:hover': {
+            {/* Microsoft Login Button */}
+            {showMicrosoft && (
+              <Button
+                variant="outlined"
+                onClick={handleMicrosoftLogin}
+                disabled={loading || !msalInitialized}
+                fullWidth
+                sx={{
                   borderColor: primaryColor,
+                  color: primaryColor,
                   borderWidth: '1.5px',
-                  backgroundColor: `${primaryColor}0a`,
-                },
+                  '&:hover': {
+                    borderColor: primaryColor,
+                    borderWidth: '1.5px',
+                    backgroundColor: `${primaryColor}0a`,
+                  },
+                  textTransform: 'none',
+                  fontSize: '15px',
+                  padding: '11px 24px',
+                  fontWeight: 600,
+                  fontFamily: '"Roboto Condensed", sans-serif',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1.5,
+                  borderRadius: 1,
+                }}
+              >
+                <svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                Sign in with Microsoft
+              </Button>
+            )}
+          </Box>
+        )}
+
+        {/* Divider between OAuth and email/password */}
+        {hasOAuth && showLocal && (
+          <Divider sx={{ my: 2, fontFamily: '"Roboto Condensed", sans-serif', fontSize: '0.8rem', color: 'rgba(0,0,0,0.4)' }}>
+            or
+          </Divider>
+        )}
+
+        {/* Email/Password Login Form */}
+        {showLocal && (
+          <Box component="form" onSubmit={handleLocalLogin} sx={{ width: '100%', mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              size="small"
+              sx={{ mb: 2, fontFamily: '"Roboto Condensed", sans-serif' }}
+              disabled={loading}
+            />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              size="small"
+              sx={{ mb: 2, fontFamily: '"Roboto Condensed", sans-serif' }}
+              disabled={loading}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={loading || !email || !password}
+              sx={{
+                backgroundColor: primaryColor,
+                '&:hover': { backgroundColor: primaryColor, opacity: 0.9 },
                 textTransform: 'none',
                 fontSize: '15px',
-                padding: '11px 24px',
+                padding: '10px 24px',
                 fontWeight: 600,
                 fontFamily: '"Roboto Condensed", sans-serif',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1.5,
                 borderRadius: 1,
               }}
             >
-              <svg width="21" height="21" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
-                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-              </svg>
-              Sign in with Microsoft
+              Sign in
             </Button>
-          )}
-        </Box>
+          </Box>
+        )}
 
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'rgba(0, 0, 0, 0.6)',
-            fontSize: '0.875rem',
-            fontFamily: '"Roboto Condensed", sans-serif',
-          }}
-        >
-          {loginMethodText}
-        </Typography>
+        {/* No auth configured message */}
+        {loginMethodText && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'rgba(0, 0, 0, 0.6)',
+              fontSize: '0.875rem',
+              fontFamily: '"Roboto Condensed", sans-serif',
+            }}
+          >
+            {loginMethodText}
+          </Typography>
+        )}
 
         <Typography
           variant="caption"

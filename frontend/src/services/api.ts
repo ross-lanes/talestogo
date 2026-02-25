@@ -14,8 +14,11 @@ const API_BASE_URL = (() => {
     return 'https://api.tales.robotrachel.com';
   }
 
-  // For localhost, use local dev server
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  // For local Vite dev server (ports 5173/5177), use separate backend on port 8000
+  if (
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+    (window.location.port === '5173' || window.location.port === '5177')
+  ) {
     return 'http://localhost:8000';
   }
 
