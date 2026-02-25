@@ -49,15 +49,17 @@ def main():
     parser.add_argument('--prod', action='store_true', help='Run on PRODUCTION database')
     args = parser.parse_args()
 
-    # Get database URL
+    # Get database URL from environment
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        print("❌ DATABASE_URL environment variable is not set")
+        return 1
+
     if args.prod:
-        db_url = "postgresql://postgres:REDACTED_RAILWAY_PASSWORD@tramway.proxy.rlwy.net:47287/railway"
         confirm = input(f"⚠️  WARNING: This will modify PRODUCTION database. Make {args.email} a data reviewer? Type 'yes' to continue: ")
         if confirm.lower() != 'yes':
             print("❌ Aborted")
             return 1
-    else:
-        db_url = "postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway"
 
     try:
         success = make_data_reviewer(db_url, args.email)

@@ -44,8 +44,8 @@ Understand the actual database structure without making any assumptions about ta
 
 #### 1.1 Connect to DEV Database
 ```bash
-# Use DEV database connection string
-DATABASE_URL="postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway"
+# Use DEV database connection string from environment
+DATABASE_URL="$DATABASE_URL"
 ```
 
 #### 1.2 Table Discovery

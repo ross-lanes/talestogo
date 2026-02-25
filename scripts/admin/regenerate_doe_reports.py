@@ -11,8 +11,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-# Set the DATABASE_URL to production
-os.environ['DATABASE_URL'] = 'postgresql://postgres:REDACTED_RAILWAY_PASSWORD@tramway.proxy.rlwy.net:47287/railway'
+# Ensure DATABASE_URL is set
+if not os.getenv('DATABASE_URL'):
+    print("❌ DATABASE_URL environment variable is not set")
+    sys.exit(1)
 
 from scripts.admin.generate_report import generate_report_main
 

@@ -77,6 +77,27 @@ frontend/test-results/
 test_email*.py
 test_smtp*.py
 
+# Security scan reports (local only)
+bandit-report.json
+semgrep-report.json
+npm-audit-report.json
+pip-audit-report.json
+
 # Security remediation docs (local only)
 *_FIXES_APPLIED.md
 SECURITY_REMEDIATION.md
+
+# Prevent one-off scripts with potential credentials (root level only)
+/check_*.py
+/fix_*.py
+/test_*.py
+/manual_*.py
+/force_*.py
+/merge_*.py
+/migrate_*.py
+/export_*.py
+/emergency_*.py
+/trigger_*.py
+/send_*.py
+/query_*.py
+/start_tales.sh

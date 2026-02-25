@@ -97,7 +97,7 @@ brands = db.query(BrandInfo).filter_by(user_id=15).all()
 ### Backups Before Changes
 ```bash
 # ✅ Always backup before making changes
-pg_dump postgresql://...@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3 > backup_$(date +%Y%m%d).sql
+pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 ```
 
 ---
@@ -106,7 +106,7 @@ pg_dump postgresql://...@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/t
 
 ### Current Production Database URL
 ```
-postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3
+# Set via DATABASE_URL environment variable - see .env file
 ```
 
 ### Connecting Localhost to Production
@@ -127,8 +127,9 @@ cp .env.backup .env
 
 **For scripts (recommended):**
 ```python
-# Use production URL directly in scripts
-PROD_DB_URL = "postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3"
+# Use DATABASE_URL environment variable
+import os
+PROD_DB_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(PROD_DB_URL)
 SessionLocal = sessionmaker(bind=engine)
@@ -180,7 +181,7 @@ If you accidentally modify production:
 ls -lh backups/
 
 # 3. Restore from backup
-psql postgresql://...@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3 < backup_YYYYMMDD.sql
+psql $DATABASE_URL < backup_YYYYMMDD.sql
 
 # 4. Verify restoration worked
 python check_production_users.py

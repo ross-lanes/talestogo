@@ -6,13 +6,16 @@ This script will:
 3. Migrate responses and collection batches
 4. Compute batch analytics for the migrated data
 """
+import os
 import psycopg2
 from datetime import datetime
 import json
 
-# Database connections
-LOCALHOST_DB = "postgresql://localhost/tales_db"
-RENDER_DB = "postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3"
+# Database connections from environment
+LOCALHOST_DB = os.environ.get("SOURCE_DATABASE_URL", "postgresql://localhost/tales_db")
+RENDER_DB = os.environ.get("TARGET_DATABASE_URL")
+if not RENDER_DB:
+    raise RuntimeError("TARGET_DATABASE_URL environment variable is not set")
 
 # User ID for robotrachel@gmail.com in Render
 RENDER_USER_ID = 2

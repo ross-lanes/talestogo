@@ -10,8 +10,11 @@ import sys
 import os
 from sqlalchemy import create_engine, text
 
-# Production database URL
-PRODUCTION_DB_URL = "postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3"
+# Production database URL from environment
+PRODUCTION_DB_URL = os.getenv("DATABASE_URL")
+if not PRODUCTION_DB_URL:
+    print("❌ DATABASE_URL environment variable is not set")
+    sys.exit(1)
 
 def add_invitation_fields():
     """Add invitation fields to production users table."""

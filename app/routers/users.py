@@ -8,6 +8,8 @@ from typing import List
 from datetime import timedelta
 import datetime
 import os
+import secrets
+import string
 
 from .. import crud, models, schemas
 from ..database import get_db
@@ -62,8 +64,9 @@ def invite_user(
             detail="Email already registered"
         )
 
-    # Create temporary password (user should change on first login)
-    temp_password = "TempPassword123!"
+    # Generate a secure random temporary password (user should change on first login)
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    temp_password = ''.join(secrets.choice(alphabet) for _ in range(24))
     hashed_password = get_password_hash(temp_password)
 
     # Create user object

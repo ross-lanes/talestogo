@@ -13,8 +13,10 @@ from sqlalchemy.orm import sessionmaker
 from app import models
 from app.services.batch_analytics import compute_batch_analytics
 
-# Render database URL
-DATABASE_URL = "postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.ohio-postgres.render.com/tales_3bh3"
+# Database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is not set")
 
 # Create engine and session
 engine = create_engine(DATABASE_URL)

@@ -32,8 +32,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-# Production database URL
-PROD_DB_URL = "postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3"
+# Production database URL from environment
+PROD_DB_URL = os.getenv("PROD_DATABASE_URL") or os.getenv("DATABASE_URL")
+if not PROD_DB_URL:
+    raise RuntimeError("PROD_DATABASE_URL or DATABASE_URL environment variable is not set")
 
 # Local database URL (PostgreSQL by default)
 LOCAL_DB_URL = os.getenv("DATABASE_URL", "postgresql://localhost/tales_db")

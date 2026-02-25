@@ -94,7 +94,7 @@ run:
    MICROSOFT_CLIENT_SECRET=<your-value>
    GEMINI_API_KEY=<your-value>
    PERPLEXITY_API_KEY=<your-value>
-   DATABASE_URL=postgresql://tales_3bh3_user:REDACTED_RAILWAY_PASSWORD@dpg-d418u6be5dus738o7d0g-a.oregon-postgres.render.com/tales_3bh3
+   DATABASE_URL=postgresql://user:password@your-db-host:5432/your_database
    FRONTEND_URL=https://tales.robotrachel.com
    ```
 

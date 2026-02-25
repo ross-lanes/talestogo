@@ -1,7 +1,7 @@
 # NSTXView Outlier Detection - Phase 1 Discovery Findings
 
 **Date**: 2024-12-04
-**Database**: DEV (postgresql://...hopper.proxy.rlwy.net:32217/railway)
+**Database**: DEV (set via DATABASE_URL environment variable)
 **Status**: Discovery Complete ✅
 
 ## Executive Summary
@@ -229,12 +229,12 @@ Based on data ranges:
 
 **DEV Database:**
 ```
-postgresql://postgres:REDACTED_RAILWAY_PASSWORD@hopper.proxy.rlwy.net:32217/railway
+# Set via DATABASE_URL environment variable - see .env file
 ```
 
 **PROD Database:**
 ```
-postgresql://postgres:REDACTED_RAILWAY_PASSWORD@tramway.proxy.rlwy.net:47287/railway
+# Set via DATABASE_URL environment variable - see .env file
 ```
 
 ---

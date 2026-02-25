@@ -55,6 +55,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Permissions policy (restrict browser features)
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
+        # Enable HTTP Strict Transport Security
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
         # Set CSP with nonce for HTML responses, without nonce for API responses
         if "text/html" in response.headers.get("content-type", ""):
             response.headers["Content-Security-Policy"] = _build_csp(nonce)
