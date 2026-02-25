@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)  # Load environment variables from .env file
 
 import os
+import secrets
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -13,10 +14,30 @@ from app import models
 from app.database import engine
 
 
+def _build_csp(nonce: str = None) -> str:
+    """Build Content-Security-Policy header value."""
+    style_src = f"'self' 'nonce-{nonce}'" if nonce else "'self'"
+    return (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        f"style-src {style_src}; "
+        "font-src 'self'; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self' https://accounts.google.com https://login.microsoftonline.com https://*.microsoftonline.com; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses to mitigate common web vulnerabilities."""
 
     async def dispatch(self, request: Request, call_next):
+        # Generate a per-request nonce for CSP style-src (used by MUI/emotion)
+        nonce = secrets.token_urlsafe(16)
+        request.state.csp_nonce = nonce
+
         response = await call_next(request)
 
         # Prevent clickjacking
@@ -34,19 +55,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Permissions policy (restrict browser features)
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
 
-        # Content Security Policy
-        # Note: 'unsafe-inline' in style-src is required for MUI/emotion runtime styles
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "font-src 'self'; "
-            "img-src 'self' data: blob:; "
-            "connect-src 'self' https://accounts.google.com https://login.microsoftonline.com https://*.microsoftonline.com; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'"
-        )
+        # Set CSP with nonce for HTML responses, without nonce for API responses
+        if "text/html" in response.headers.get("content-type", ""):
+            response.headers["Content-Security-Policy"] = _build_csp(nonce)
+        else:
+            response.headers["Content-Security-Policy"] = _build_csp()
 
         return response
 
@@ -289,10 +302,13 @@ if FRONTEND_DIST.exists():
 
     # Serve other static files from dist root
     # NOTE: This must be defined AFTER all API routers to avoid intercepting API calls
+    # Cache the index.html template for nonce injection
+    _index_html_template = (FRONTEND_DIST / "index.html").read_text()
+
     @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
+    async def serve_frontend(request: Request, full_path: str):
         """Serve the React frontend for all non-API routes"""
-        from fastapi.responses import FileResponse
+        from fastapi.responses import FileResponse, HTMLResponse
         from fastapi import HTTPException
 
         # List of API path prefixes that should NOT be served by frontend
@@ -351,8 +367,13 @@ if FRONTEND_DIST.exists():
         if file_path.is_file():
             return FileResponse(file_path)
 
-        # Otherwise serve index.html (for React Router)
-        return FileResponse(FRONTEND_DIST / "index.html")
+        # Serve index.html with CSP nonce injected for MUI/emotion styles
+        nonce = getattr(request.state, "csp_nonce", "")
+        html = _index_html_template.replace(
+            "<head>",
+            f'<head>\n    <meta name="emotion-nonce" content="{nonce}">',
+        )
+        return HTMLResponse(content=html)
 else:
     # Development fallback - API only
     @app.get("/", tags=["Root"])

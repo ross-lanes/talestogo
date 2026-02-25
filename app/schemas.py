@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional, List, Any
 import datetime
 from app.models import PersonaType
@@ -431,7 +431,7 @@ class UserCreate(UserBase):
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1, max_length=128)
 
 class GoogleLogin(BaseModel):
     token: str  # Google OAuth ID token
