@@ -58,23 +58,19 @@ jobs:
       - name: Create test user for authenticated scanning
         run: |
           docker compose exec -T app python -c "
-          from app.database import SessionLocal, engine, Base
+          from app.database import SessionLocal
           from app import models
-          from passlib.context import CryptContext
-
-          pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+          from app.auth import get_password_hash
 
           db = SessionLocal()
           try:
-              # Create a test tenant
               tenant = models.Tenant(name='DAST Test Org')
               db.add(tenant)
               db.flush()
 
-              # Create a test user
               user = models.User(
                   email='dast-scanner@test.local',
-                  hashed_password=pwd_context.hash('DastTestPassword123!'),
+                  hashed_password=get_password_hash('DastTestPassword123!'),
                   full_name='DAST Scanner',
                   role='admin',
                   tenant_id=tenant.id,
