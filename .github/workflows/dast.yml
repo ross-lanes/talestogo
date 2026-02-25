@@ -184,6 +184,7 @@ jobs:
             zap.sh -cmd \
               -autorun /zap/wrk/af-config.yaml \
               -config api.disablekey=true \
+              -config network.localServers.mainProxy.port=8090 \
               2>&1 | tee zap-output.log
 
           echo "ZAP scan complete"
