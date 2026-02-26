@@ -488,6 +488,7 @@ All responses include the following security headers:
 | Header | Value | Purpose |
 |--------|-------|---------|
 | `Content-Security-Policy` | Nonce-based policy | Prevents XSS by restricting script and style sources |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Enforces HTTPS connections (HSTS) |
 | `X-Frame-Options` | `DENY` | Prevents clickjacking |
 | `X-Content-Type-Options` | `nosniff` | Prevents MIME-type sniffing |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | Controls referrer information |
