@@ -86,6 +86,7 @@ pip-audit-report.json
 # Security remediation docs (local only)
 *_FIXES_APPLIED.md
 SECURITY_REMEDIATION.md
+SAST_Remediation_Summary_PNNL.docx
 
 # Prevent one-off scripts with potential credentials (root level only)
 /check_*.py
