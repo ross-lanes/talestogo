@@ -149,12 +149,6 @@ def create_invitation(
     # Use specified tenant_id or default to admin's tenant
     tenant_id = invitation.tenant_id if invitation.tenant_id is not None else current_user.tenant_id
 
-    # Convert allowed_products list to comma-separated string for storage
-    # Database stores as TEXT field, not JSON array
-    allowed_products_str = None
-    if invitation.allowed_products:
-        allowed_products_str = ','.join(invitation.allowed_products)
-
     new_user = models.User(
         email=invitation.email,
         full_name=invitation.full_name,
@@ -164,7 +158,6 @@ def create_invitation(
         invitation_token=None,
         invitation_expires_at=None,
         tenant_id=tenant_id,  # Use specified tenant or admin's tenant
-        allowed_products=allowed_products_str  # Store as comma-separated string
     )
     db.add(new_user)
     db.commit()
@@ -190,7 +183,7 @@ async def send_invitation_email(
 ):
     """
     Send invitation email to a user (admin only).
-    Generates product-specific and domain-specific email content.
+    Generates domain-specific email content.
     """
     from ..email import send_email
 
@@ -207,14 +200,8 @@ async def send_invitation_email(
     # Determine email domain
     domain = user.email.split('@')[1].lower()
 
-    # Determine which product(s) user has access to
-    allowed_products = (user.allowed_products or "tales").split(",")
-    primary_product = allowed_products[0].strip().lower()
-
     # Determine login method based on domain
-    if domain == 'solsticehc.net':
-        login_instruction = f'- Click "Sign in with Microsoft."\n- Log in with {user.email}.'
-    elif domain == 'gmail.com':
+    if domain == 'gmail.com':
         login_instruction = f'- Click "Sign in with Google."\n- Log in with {user.email}.'
     else:
         login_instruction = f'- Sign in with {user.email} using the Google or Microsoft login buttons.'
@@ -222,30 +209,8 @@ async def send_invitation_email(
     # Build contact line only if admin email is configured
     contact_line = f"Questions? Contact {admin_email}." if admin_email else ""
 
-    # Generate email content based on primary product
-    if primary_product == 'heads':
-        subject = f'Welcome to {site_name} - Patient & HCP Voice Intelligence'
-        body = f"""Hi {user.full_name or user.email},
-
-You've been invited to {site_name}, where healthcare meets AI intelligence. Track what AI platforms are saying about conditions, treatments, and patient experiences.
-
-Your portal starts at {site_url}.
-{login_instruction}
-
-Features:
-- Track patient and HCP personas
-- Monitor AI responses about conditions and treatments
-- Analyze sentiment and positioning
-- Generate reports and insights
-
-{contact_line}
-
-Best regards,
-The {site_name} Team"""
-
-    else:  # tales (default)
-        subject = 'Welcome to Tales - Shape Your AI Story'
-        body = f"""Hi {user.full_name or user.email},
+    subject = 'Welcome to Tales - Shape Your AI Story'
+    body = f"""Hi {user.full_name or user.email},
 
 You've been invited to Tales, where AI meets brand intelligence. Now you have the power to track what the AIs are saying about your Lab!
 

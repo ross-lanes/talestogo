@@ -444,10 +444,6 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
     # Get OAuth provider based on email domain, fallback to provided provider
     oauth_provider = get_oauth_provider_for_email(oauth_info['email']) or provider
 
-    # Get default allowed products based on email
-    from .crud import get_default_allowed_products
-    allowed_products = get_default_allowed_products(oauth_info['email'])
-
     new_user = models.User(
         email=oauth_info['email'],
         google_id=oauth_info.get('google_id') if provider == 'google' else None,
@@ -456,7 +452,6 @@ def get_or_create_oauth_user(db: Session, oauth_info: dict, provider: str = 'goo
         full_name=oauth_info.get('name'),
         picture_url=oauth_info.get('picture') if provider == 'google' else None,
         tenant_id=tenant_id,  # Auto-assign tenant based on email domain
-        allowed_products=allowed_products,  # Auto-assign app access based on email
         is_active=is_admin_user,  # Bootstrap: Only auto-activate admin email, others need approval
         is_admin=is_admin_user,  # Bootstrap: Grant admin only if ADMIN_EMAIL on first creation
         is_invited=False,  # Require admin approval for all new users

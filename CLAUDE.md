@@ -2,6 +2,19 @@
 
 Tales is an AI reputation monitoring platform that tracks how brands are represented across major AI platforms (ChatGPT, Claude, Gemini, Perplexity).
 
+## ⚠️ Critical Rule: Do Not Touch tales_project
+
+This repository (`talestogo`, local path `/Users/rkremen/Documents/Code/TalesToGo/`) is the **public, sanitized version** of Tales — the one shared with U.S. National Labs (PPPL, PNNL, Argonne, LLNL, etc.) for self-deployment. It is intentionally a separate codebase from Rachel's private dev repo.
+
+The private dev repo is `tales_project` (local path `/Users/rkremen/Documents/Code/tales_project/`, GitHub `rtwodeetwo/tales_project`). It contains Rachel's keys, the front door, and unsanitized features.
+
+**Any work done in this repo (TalesToGo / talestogo) must NEVER:**
+- Read from, write to, or modify `/Users/rkremen/Documents/Code/tales_project/`
+- Push to or pull from `github.com/rtwodeetwo/tales_project`
+- Be confused with `tales_project` in commit messages, PR descriptions, or documentation
+
+If a change is needed in both repos, treat them as two separate, independent commits in two separate working trees.
+
 ## Tech Stack
 
 - **Backend**: Python/FastAPI with SQLAlchemy ORM
