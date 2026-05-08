@@ -1,7 +1,7 @@
 # Theme Flash Fix - Optimistic Loading Implementation
 
 ## Problem
-When a Solstice tenant user loads the page, there's a brief flash where the UI shows the default purple theme before switching to the navy theme. This creates a jarring user experience.
+When a tenant user loads the page, there's a brief flash where the UI shows the default theme before switching to the tenant-specific theme. This creates a jarring user experience.
 
 ## Root Cause
 The theme loading flow was:
@@ -104,9 +104,8 @@ return baseTheme;
 
 ## Testing Checklist
 
-- [ ] Load page as Solstice user → Should show navy immediately, no purple flash
-- [ ] Load page as PPPL user → Should show purple immediately (their actual color)
-- [ ] Clear localStorage → Should show default purple → Login → Shows correct theme
+- [ ] Load page as a tenant user → Should show their theme immediately, no flash
+- [ ] Clear localStorage → Should show default theme → Login → Shows correct theme
 - [ ] Admin override tenant → Should update immediately and persist on reload
 - [ ] Hard refresh (Cmd+Shift+R) → Should still show correct cached theme
 

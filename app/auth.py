@@ -310,14 +310,16 @@ def get_oauth_provider_for_email(email: str) -> Optional[str]:
     """
     Determine the default OAuth provider based on email domain.
     Returns 'google', 'microsoft', or None.
+
+    Add lab-specific domain mappings here if you want users from a particular
+    domain to default to a specific OAuth provider.
     """
     email_domain = email.split('@')[-1].lower()
 
     # Map email domains to OAuth providers
     domain_to_oauth = {
         'gmail.com': 'google',
-        'solsticehc.net': 'microsoft',
-        # Add more domain mappings here as needed
+        # Add more domain mappings here as needed (e.g., 'mylab.gov': 'microsoft')
     }
 
     return domain_to_oauth.get(email_domain)
@@ -327,26 +329,27 @@ def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
     """
     Determine which tenant a user should belong to based on their email domain.
     Returns tenant_id or None if no match found (will use default tenant).
-    Creates "RobotRachel" tenant if it doesn't exist.
+    Creates a "Default" tenant if it doesn't exist.
+
+    Admins can map specific email domains to tenants by adding entries to
+    `domain_to_tenant` below. Tenants are auto-created on first use.
     """
     email_domain = email.split('@')[-1].lower()
 
-    # Map email domains to tenant names
-    domain_to_tenant = {
-        'solsticehc.net': 'Solstice HC',
-        # Add more domain mappings here as needed
-    }
+    # Map email domains to tenant names (customize for your deployment).
+    # Example:
+    #   domain_to_tenant = {'mylab.gov': 'My Lab'}
+    domain_to_tenant: dict = {}
 
     tenant_name = domain_to_tenant.get(email_domain)
     if not tenant_name:
-        # Default to "RobotRachel" tenant - create if doesn't exist
-        tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == 'RobotRachel').first()
+        # Fall back to the default tenant - create if doesn't exist
+        tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == 'Default').first()
         if not tenant:
-            # Create default tenant
             tenant = models.Tenant(
-                tenant_name='RobotRachel',
-                primary_color='#75C9C8',
-                secondary_color='#665775'
+                tenant_name='Default',
+                primary_color='#003e60',
+                secondary_color='#75c9c8'
             )
             db.add(tenant)
             db.commit()
@@ -356,11 +359,10 @@ def get_tenant_id_for_email(db: Session, email: str) -> Optional[int]:
     # Find the tenant by name - create if doesn't exist
     tenant = db.query(models.Tenant).filter(models.Tenant.tenant_name == tenant_name).first()
     if not tenant:
-        # Create tenant with default colors
         tenant = models.Tenant(
             tenant_name=tenant_name,
-            primary_color='#75C9C8',
-            secondary_color='#665775'
+            primary_color='#003e60',
+            secondary_color='#75c9c8'
         )
         db.add(tenant)
         db.commit()

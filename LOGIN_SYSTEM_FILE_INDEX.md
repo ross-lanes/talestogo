@@ -221,12 +221,12 @@ This is called in `app/main.py` and ensures all models are available before the 
 - All users assigned to a tenant via `user.tenant_id`
 - Tenants created on first login based on email domain
 - Domain mapping in `get_tenant_id_for_email()`:
-  - `solsticehc.net` → Solstice Health Communications
-  - All others → RobotRachel (default tenant)
+  - Lab-specific email-domain → tenant mappings (configurable, none by default)
+  - All others → "Default" tenant
 - Users isolated by tenant_id in all queries
 
 ### Default Tenant
-- Name: "RobotRachel"
+- Name: "Default"
 - Primary Color: #75C9C8 (teal)
 - Secondary Color: #665775 (purple)
 - Created automatically if doesn't exist

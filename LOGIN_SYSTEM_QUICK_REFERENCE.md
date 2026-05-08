@@ -354,12 +354,12 @@ If deploying to a new domain, this list needs to be updated!
 ```python
 # From /app/auth.py get_tenant_id_for_email()
 domain_to_tenant = {
-    'solsticehc.net': 'Solstice Health Communications',
-    # Add more mappings here
+    # Add lab-specific mappings here, e.g.:
+    # 'mylab.gov': 'My Lab',
 }
 
-# If email domain not found, use default "RobotRachel" tenant
-# Creates tenant automatically if doesn't exist
+# If email domain not found, use default "Default" tenant.
+# Creates tenant automatically if doesn't exist.
 ```
 
 ### Admin Email

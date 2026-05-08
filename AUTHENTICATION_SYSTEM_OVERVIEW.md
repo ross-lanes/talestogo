@@ -161,7 +161,7 @@ Frontend accesses /dashboard
 │                      TENANTS TABLE                            │
 ├─────────────────────────────────────────────────────────────┤
 │ id (PK)           │ Primary Key                               │
-│ tenant_name       │ e.g., "RobotRachel", "Solstice Health"   │
+│ tenant_name       │ e.g., "Default", "Example Lab"           │
 │ primary_color     │ Hex color (e.g., #75C9C8)                │
 │ secondary_color   │ Hex color (e.g., #665775)                │
 │ logo_url          │ Tenant branding                           │
@@ -328,13 +328,14 @@ Default Admin Email:
   ADMIN_EMAIL = "robotrachel@gmail.com"
 
 Default Tenant:
-  tenant_name = "RobotRachel"
-  primary_color = "#75C9C8"
-  secondary_color = "#665775"
+  tenant_name = "Default"
+  primary_color = "#003e60"
+  secondary_color = "#75c9c8"
 
 Tenant Domain Mapping:
-  "solsticehc.net" → "Solstice Health Communications"
-  (other domains) → "RobotRachel" (default)
+  (none by default — admins can add lab-specific email-domain → tenant
+   mappings in app/auth.py:get_tenant_id_for_email().
+   Unmatched domains fall back to the "Default" tenant.)
 
 Token Storage Keys (localStorage):
   "tales_access_token" → JWT token

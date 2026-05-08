@@ -132,7 +132,7 @@ User registers/logs in with email
               ↓
 System extracts email domain
               ↓
-Maps domain to tenant or uses default "RobotRachel"
+Maps domain to tenant or uses default "Default"
               ↓
 User assigned to that tenant
               ↓

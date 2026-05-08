@@ -162,8 +162,8 @@ Status Codes:
 #### 2.5 Tenant Assignment
 - **get_tenant_id_for_email()**:
   - Determines tenant based on email domain
-  - Domain mapping: `solsticehc.net` → Solstice Health Communications
-  - Default: "RobotRachel" tenant for unmatched domains
+  - Domain mappings (lab-specific): configured in `get_tenant_id_for_email`
+  - Default: "Default" tenant for unmatched domains
   - Creates tenant if it doesn't exist
 
 ### Security Middleware
@@ -312,7 +312,7 @@ class Tenant(Base):
     __tablename__ = "tenants"
     
     id: Integer (primary key)
-    tenant_name: String(200) - e.g., "RobotRachel", "Solstice Health Communications"
+    tenant_name: String(200) - e.g., "Default", "Example Lab"
     subdomain: String(100, unique, nullable)
     logo_url: Text(nullable)
     primary_color: String(7) - hex color (default '#75C9C8')

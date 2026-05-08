@@ -71,9 +71,9 @@ Once Phase 2 is complete, you can create a new tenant like this:
 ```sql
 INSERT INTO tenants (tenant_name, subdomain, logo_url, primary_color, secondary_color)
 VALUES (
-    'Solstice Healthcare',
-    'solstice',
-    'https://example.com/solstice-logo.png',
+    'Example Lab',
+    'example',
+    'https://example.com/lab-logo.png',
     '#1E40AF',  -- Blue
     '#9333EA'   -- Purple
 );
@@ -82,7 +82,7 @@ VALUES (
 Then assign users to the tenant:
 
 ```sql
-UPDATE users SET tenant_id = 2 WHERE email IN ('user@solstice.com', 'admin@solstice.com');
+UPDATE users SET tenant_id = 2 WHERE email IN ('user@example.com', 'admin@example.com');
 ```
 
 ## Data Isolation
