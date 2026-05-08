@@ -19,8 +19,6 @@ import {
   Select,
   FormControl,
   InputLabel,
-  Checkbox,
-  FormGroup,
   Divider,
   Tooltip,
   Table,
@@ -62,7 +60,6 @@ interface User {
   is_admin: boolean;
   is_active: boolean;
   is_invited: boolean;
-  allowed_products?: string[];
   invitation_expires_at?: string;
   last_login?: string;
   created_at: string;
@@ -114,7 +111,6 @@ const UserManagement: React.FC = () => {
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteOrganization, setInviteOrganization] = useState('');
   const [inviteTenantId, setInviteTenantId] = useState<number | ''>('');
-  const [inviteAllowedProducts, setInviteAllowedProducts] = useState<string[]>([]);
 
   // User details dialog (combined view/edit)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
@@ -122,20 +118,10 @@ const UserManagement: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editIsActive, setEditIsActive] = useState(false);
   const [editIsAdmin, setEditIsAdmin] = useState(false);
-  const [editAllowedProducts, setEditAllowedProducts] = useState<string[]>([]);
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-
-  // Available products for app access management
-  const availableAppProducts = [
-    { id: 'tales', name: 'Tales', description: 'Brand Reputation Monitor' },
-    { id: 'heads', name: 'Heads', description: 'AI-Powered Persona Generator' },
-    { id: 'canon', name: 'Canon', description: 'FDA Drug Data Research' },
-    { id: 'bigidea', name: 'Big Idea', description: 'Marketing Idea Generator' },
-    { id: 'nstxview', name: 'NSTXView', description: 'NSTX-U Research Database' },
-  ];
 
   useEffect(() => {
     if (isAdmin) {
@@ -214,7 +200,6 @@ const UserManagement: React.FC = () => {
     setSelectedUser(user);
     setEditIsActive(user.is_active);
     setEditIsAdmin(user.is_admin);
-    setEditAllowedProducts(user.allowed_products || ['tales']);
     setIsEditMode(false);
     setDetailsDialogOpen(true);
   };
@@ -235,7 +220,6 @@ const UserManagement: React.FC = () => {
       await adminAPI.updateUserStatus(selectedUser.id, {
         is_active: editIsActive,
         is_admin: editIsAdmin,
-        allowed_products: editAllowedProducts,
       });
 
       setSuccess(`User ${selectedUser.email} updated successfully`);
@@ -246,27 +230,6 @@ const UserManagement: React.FC = () => {
       console.error('Failed to update user:', err);
       setError(err.response?.data?.detail || 'Failed to update user');
     }
-  };
-
-  const handleToggleProduct = (productId: string) => {
-    setEditAllowedProducts(prev => {
-      if (prev.includes(productId)) {
-        if (prev.length === 1) return prev;
-        return prev.filter(p => p !== productId);
-      } else {
-        return [...prev, productId];
-      }
-    });
-  };
-
-  const handleToggleInviteProduct = (productId: string) => {
-    setInviteAllowedProducts(prev => {
-      if (prev.includes(productId)) {
-        return prev.filter(p => p !== productId);
-      } else {
-        return [...prev, productId];
-      }
-    });
   };
 
   const handleInviteUser = async () => {
@@ -280,15 +243,13 @@ const UserManagement: React.FC = () => {
 
     try {
       const tenantIdToUse = inviteTenantId === '' ? undefined : inviteTenantId;
-      const productsToUse = inviteAllowedProducts.length > 0 ? inviteAllowedProducts : undefined;
-      await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse, productsToUse);
+      await adminAPI.createInvitation(inviteEmail, inviteFullName, inviteOrganization, tenantIdToUse);
 
       setInviteDialogOpen(false);
       setInviteEmail('');
       setInviteFullName('');
       setInviteOrganization('');
       setInviteTenantId('');
-      setInviteAllowedProducts([]);
 
       await loadUsers();
 
@@ -405,34 +366,6 @@ const UserManagement: React.FC = () => {
     setPage(0);
   };
 
-  // Get visible app access chips (max 2, then +N more)
-  const renderAppAccess = (products: string[] | undefined) => {
-    const prods = products || ['tales'];
-    const visible = prods.slice(0, 2);
-    const remaining = prods.length - 2;
-
-    return (
-      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'nowrap', alignItems: 'center' }}>
-        {visible.map((p: string) => (
-          <Chip
-            key={p}
-            label={p.charAt(0).toUpperCase() + p.slice(1)}
-            size="small"
-            variant="outlined"
-            sx={{ fontSize: '0.7rem', height: 22 }}
-          />
-        ))}
-        {remaining > 0 && (
-          <Chip
-            label={`+${remaining}`}
-            size="small"
-            sx={{ fontSize: '0.7rem', height: 22, bgcolor: 'grey.200' }}
-          />
-        )}
-      </Box>
-    );
-  };
-
   if (!isAdmin) {
     return (
       <Container maxWidth={false} sx={{ py: 4, px: 3 }}>
@@ -488,7 +421,7 @@ const UserManagement: React.FC = () => {
               <TableRow sx={{ bgcolor: 'grey.100' }}>
                 <TableCell sx={{ width: '30%', fontWeight: 600 }}>Email</TableCell>
                 <TableCell sx={{ width: '20%', fontWeight: 600 }}>Full Name</TableCell>
-                <TableCell sx={{ width: '20%', fontWeight: 600 }}>App Access</TableCell>
+                <TableCell sx={{ width: '20%', fontWeight: 600 }}>Tenant</TableCell>
                 <TableCell sx={{ width: '15%', fontWeight: 600 }}>Last Login</TableCell>
                 <TableCell sx={{ width: '15%', fontWeight: 600, textAlign: 'center' }}>Actions</TableCell>
               </TableRow>
@@ -537,7 +470,9 @@ const UserManagement: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      {renderAppAccess(user.allowed_products)}
+                      <Typography variant="body2" color="text.secondary">
+                        {getTenantName(user.tenant_id)}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
@@ -689,48 +624,6 @@ const UserManagement: React.FC = () => {
                 </Box>
               )}
 
-              <Divider sx={{ my: 2 }} />
-
-              {/* App Access Section */}
-              <Typography variant="subtitle2" sx={{ mb: 2 }}>App Access</Typography>
-
-              {isEditMode ? (
-                <FormGroup>
-                  {availableAppProducts.map((product) => (
-                    <FormControlLabel
-                      key={product.id}
-                      control={
-                        <Checkbox
-                          checked={editAllowedProducts.includes(product.id)}
-                          onChange={() => handleToggleProduct(product.id)}
-                          disabled={product.id === 'tales' && editAllowedProducts.length === 1}
-                          size="small"
-                        />
-                      }
-                      label={
-                        <Box>
-                          <Typography variant="body2">{product.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {product.description}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                  ))}
-                </FormGroup>
-              ) : (
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {(selectedUser.allowed_products || ['tales']).map((p: string) => (
-                    <Chip
-                      key={p}
-                      label={availableAppProducts.find(ap => ap.id === p)?.name || p}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
-                </Box>
-              )}
-
               {/* Quick Actions (only in view mode) */}
               {!isEditMode && (
                 <>
@@ -847,37 +740,6 @@ const UserManagement: React.FC = () => {
             </Select>
           </FormControl>
 
-          <Divider sx={{ my: 2 }} />
-
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            App Access (Optional)
-          </Typography>
-          <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 2 }}>
-            Select which apps this user can access. Leave unchecked for default.
-          </Typography>
-
-          <FormGroup>
-            {availableAppProducts.map((product) => (
-              <FormControlLabel
-                key={product.id}
-                control={
-                  <Checkbox
-                    checked={inviteAllowedProducts.includes(product.id)}
-                    onChange={() => handleToggleInviteProduct(product.id)}
-                    size="small"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body2">{product.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {product.description}
-                    </Typography>
-                  </Box>
-                }
-              />
-            ))}
-          </FormGroup>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>

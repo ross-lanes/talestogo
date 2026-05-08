@@ -188,18 +188,17 @@ export const adminAPI = {
     return response.data;
   },
 
-  createInvitation: async (email: string, full_name: string, organization?: string, tenant_id?: number, allowed_products?: string[]) => {
+  createInvitation: async (email: string, full_name: string, organization?: string, tenant_id?: number) => {
     const response = await api.post('/admin/users/create-invite', {
       email,
       full_name,
       organization,
       tenant_id,
-      allowed_products,
     });
     return response.data;
   },
 
-  updateUserStatus: async (userId: number, data: { is_active?: boolean; is_admin?: boolean; allowed_products?: string[] }) => {
+  updateUserStatus: async (userId: number, data: { is_active?: boolean; is_admin?: boolean }) => {
     const response = await api.put(`/admin/users/${userId}`, data);
     return response.data;
   },
@@ -397,35 +396,6 @@ export const brandsAPI = {
   // Get users brand is shared with
   getBrandShares: async (brandId: number) => {
     const response = await api.get(`/brands/${brandId}/shares`);
-    return response.data;
-  },
-};
-
-// Heads - Persona Intelligence Platform API functions
-export const headsAPI = {
-  // Get all generations for the current user/brand
-  getGenerations: async (brandId?: number) => {
-    const params = brandId ? { brand_id: brandId } : {};
-    const response = await api.get('/personas/generations', { params });
-    return response.data;
-  },
-
-  // Get a specific generation with personas
-  getGeneration: async (generationId: number) => {
-    const response = await api.get(`/personas/generations/${generationId}`);
-    return response.data;
-  },
-
-  // Create a new persona generation
-  generatePersonas: async (data: any, brandId?: number) => {
-    const params = brandId ? { brand_id: brandId } : {};
-    const response = await api.post('/personas/generate', data, { params });
-    return response.data;
-  },
-
-  // Get personas for a specific generation
-  getPersonas: async (generationId: number) => {
-    const response = await api.get(`/personas/generations/${generationId}/personas`);
     return response.data;
   },
 };
