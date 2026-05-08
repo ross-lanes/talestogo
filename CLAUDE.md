@@ -15,6 +15,67 @@ The private dev repo is `tales_project` (local path `/Users/rkremen/Documents/Co
 
 If a change is needed in both repos, treat them as two separate, independent commits in two separate working trees.
 
+## Session Log: 2026-05-08 — Strip-to-Tales-Only Cleanup
+
+### Context
+
+Rachel sent the talestogo deployment kit to PNNL (Pacific Northwest National Laboratory) on Feb 2, 2026. PNNL responded in early May 2026 wanting a meeting before deploying. Their main asks: solidify repo location/access, establish contribution guidelines, and confirm scope.
+
+While preparing for that meeting, we discovered the talestogo repo still contained code for **8 non-Tales products** (Heads, Canon, Big Idea, NSTXView, Vision, Pulse, Voice, Guardian) — vestiges of the broader "Solstice AI Suite" architecture. PNNL only needs Tales. So we started a cleanup branch to strip the repo down to just Tales.
+
+### Work completed today
+
+1. **Discovered local TalesToGo folder was not a git clone.** Grafted `.git` from `github.com/rtwodeetwo/talestogo` into the local folder, did a `git checkout HEAD -- .` to bring local files in line with GitHub (12 files were ~4 days behind GitHub; 11 files including the `frontend/src/pages/heads/` directory existed on GitHub but were missing locally).
+
+2. **Pushed an MIT LICENSE** to `github.com/rtwodeetwo/talestogo` via the GitHub API (commit `3e8b170`). Copyright: "Rachel Kremen" — Rachel confirmed she is the legal copyright holder after checking with PPPL legal.
+
+3. **Created a Google Doc with PNNL meeting Q&A:** "PNNL Tales Deployment - Meeting Prep & Q&A" (https://docs.google.com/document/d/1NlOGu-8YmWOkGeue36GlcefuzxyGok3WdzJGQBdUYBI/edit). Covers: how PNNL gets updates, build-locally vs. Docker Hub, how to access the full source code, registry-mirror requirements.
+
+4. **Drafted a reply to Ross Lanes at PNNL** confirming the GitHub URL is the canonical source and offering to add `ross-lanes` and `domskurka-pnnl` as collaborators.
+
+5. **Started branch `strip-to-tales-only`** with the following commits:
+   - `Phase 1a: Remove non-Tales backend routers and services` — deleted `app/routers/{heads,personas,canon,bigidea}.py`, `app/services/{persona_generator,pptx_generator}.py`, plus stale `.backup`/dead-code files. Updated `main.py`. (11 files changed, +146 -3,344)
+   - `Phase 1b: Strip non-Tales code from shared backend files` — removed `PersonaType`, `PersonaGeneration`, `Persona` models; `allowed_products` column on User; all persona schemas/CRUD; `_Settings` and `TenantConfig` in config.py; `check_product_access` middleware (deleted `app/dependencies.py`); deleted `app/services/perplexity_service.py` (was Heads-only). (9 files changed, +23 -846)
+   - `Phase 2a: Delete non-Tales frontend pages, services, types, and assets` — deleted `frontend/src/pages/{heads,canon,bigidea}/` directories, `HowHeadsWorks.tsx`, `HowCanonWorks.tsx`, `headsService.ts`, `bigideaService.ts`, `types/heads.ts`, `types/bigidea.ts`, and 4 product logo PNG/SVG files in `frontend/public/`. (35 files deleted)
+   - `Phase 2b: Remove multi-product abstraction from frontend` — deleted `ProductContext.tsx` and `ProductSwitcher.tsx`; rewrote `AppContent.tsx` (~480 → ~280 lines); cleaned up `Layout.tsx` (removed product-conditional logic, switcher, `getMenuItems` switch); cleaned up `UserManagement.tsx` (removed `allowed_products` UI, replaced "App Access" column with "Tenant"); cleaned up `api.ts`, `AuthContext.tsx`, `types/index.ts`. (8 files changed, +294 -1,229)
+
+**Cumulative as of pause:** ~85 files removed, ~5,400 lines deleted, ~470 added. Backend has zero orphan refs to deleted modules. Frontend has zero orphan refs to ProductContext/ProductSwitcher/useProduct/allowed_products/persona/heads/canon/bigidea.
+
+### Key decision: KEEP multi-tenancy
+
+Rachel originally asked to strip multi-tenancy entirely. After investigation we found:
+- Only 91 `tenant_id` references across 10 files (heavily concentrated in tenants.py, llm_providers.py)
+- Pages do NOT load tenant_id — data is scoped by `user_id`
+- `tenant_id` is mostly used for: brand-sharing scope, LLM provider scoping, tenant management API
+- The actually-problematic part (the "Solstice HC" hardcoded mapping, product-tenant config) was already gone after Phase 1b
+
+We chose **Option D: keep multi-tenancy** infrastructure. Each lab can be a tenant if they want, or ignore the feature entirely (`tenant_id` is nullable). What was removed: `Solstice HC` config, `solsticehc.net` email-domain mapping, the `TENANT_PRODUCTS` product-tenant access map.
+
+### Remaining phases (as of pause on 2026-05-08)
+
+| Phase | Scope |
+|---|---|
+| **3** | Migrations cleanup — delete `migrations/{add_heads_tables.py, add_solstice_tenant.py, add_allowed_products.py}` |
+| **4** | Docs cleanup — `CLAUDE.md`, `README.md`, `USER_GUIDE.md`, `IT_DEPLOYMENT_GUIDE.md` — remove Heads/Canon/Solstice references, "Solstice AI Suite" branding |
+| **5** | Remove "Generate Report All Data" button — frontend only (`ReportsPage.tsx` lines 244-253 + `generateAllDataMutation` lines 77-94). **Leave the backend endpoint** `/tasks/generate-all-data-report/` in place. **NOTE:** apps.robotrachel.com is built from `tales_project`, NOT this repo. Removing the button here only affects the public PNNL version. The production app needs an independent change in `tales_project`. |
+| **6** | Full evals & testing — backend `pytest`, frontend `npm install` + `npm run build`, fresh DB integration test, backend smoke test, manual Tales feature checklist, multi-tenancy verification |
+| **7** | Fresh SAST + dependency audit — `bandit`, `semgrep`, `pip-audit`, `npm audit`. Diff against existing reports (`bandit-report.json`, `semgrep-report.json`, `pip-audit-report.json`, `npm-audit-report.json`) to confirm no new vulnerabilities. **No DAST.** |
+| **8** | Push `strip-to-tales-only` branch to GitHub `talestogo`, merge to `main` |
+
+### Where state lives
+
+- **Local working tree:** `/Users/rkremen/Documents/Code/TalesToGo/` on branch `strip-to-tales-only`
+- **Remote:** `origin → github.com/rtwodeetwo/talestogo.git`
+- **Branch is local-only** at pause time — has not been pushed to GitHub
+- Commit count on branch: 4 (Phases 1a, 1b, 2a, 2b)
+
+### Outstanding follow-ups (outside this branch)
+
+- **Reply to Ross Lanes (PNNL)** with the GitHub URL and offer to add him + Domenic Skurka as collaborators (draft is in conversation, not yet sent)
+- **Add LICENSE to `tales_project`** if Rachel wants the same MIT license there (separate task, separate repo)
+- **Remove "Generate Report All Data" button from `tales_project`** if Rachel wants it gone from production (separate task, separate repo)
+- **Consider GitHub repo description / contributing guidelines** before PNNL clones
+
 ## Tech Stack
 
 - **Backend**: Python/FastAPI with SQLAlchemy ORM
