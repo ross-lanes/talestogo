@@ -87,10 +87,6 @@ from app.routers import (
     brands,
     operations,
     tenants,
-    personas,  # Heads - Persona Intelligence Platform (Pharma)
-    heads,  # Heads - Marketing Persona Generation
-    canon,  # Canon - FDA Drug Data Research
-    bigidea,  # Big Idea Generator - Marketing Idea Generation
     migration_helper,  # Temporary migration helper
     llm_providers,  # LLM Provider configuration for Lab deployments
     site,  # Site configuration and branding for Lab deployments
@@ -193,18 +189,6 @@ app.include_router(brands.router_brand_info)
 app.include_router(reports.router)
 app.include_router(reports.how_tales_works_router)
 app.include_router(operations.router)
-
-# Heads - Persona Intelligence Platform (Pharma)
-app.include_router(personas.router)
-
-# Heads - Marketing Persona Generation
-app.include_router(heads.router)
-
-# Canon - FDA Drug Data Research
-app.include_router(canon.router)
-
-# Big Idea Generator - Marketing Idea Generation
-app.include_router(bigidea.router)
 
 # Analytics and admin routers
 app.include_router(analytics.router)
@@ -329,10 +313,6 @@ if FRONTEND_DIST.exists():
             "reports/",
             "operations/",
             "tenants/",
-            "personas/",
-            "heads/",
-            "canon/",
-            "bigidea/",
             "batches/",
             "scheduled-tasks/",
             "help/",
