@@ -1,3 +1,0 @@
-app
-celery_app
-venv

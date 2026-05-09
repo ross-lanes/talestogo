@@ -58,6 +58,28 @@ test_analytics.py
 test_api_responses.py
 upload_pppl_data.py
 
+# Python package metadata (auto-generated)
+*.egg-info/
+
+# Generated chart and report artifacts
+report_charts/
+/report_*.md
+/report_*.html
+/report_*.docx
+
+# Local databases and miscellaneous SQLite artifacts (e.g., from misconfigured
+# DATABASE_URL like 'file:foo' which SQLite materializes as a literal filename)
+file:*
+
+# Distribution archives
+/tales_to_go_*.zip
+/*.zip
+
+# Data exports (these often contain real user data)
+/sqlite_export.json
+/tales_export_*.json
+/user_data_export*.sql
+
 # NSTXView planning files (large PDFs, local reference docs)
 app/services/nstxview/planning/
 
