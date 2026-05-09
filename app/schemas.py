@@ -1,7 +1,6 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from typing import Optional, List, Any
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from typing import Optional, List
 import datetime
-from app.models import PersonaType
 
 # --- Tenant Schemas ---
 class TenantBase(BaseModel):
@@ -454,21 +453,10 @@ class User(UserBase):
     picture_url: Optional[str] = None
     invitation_expires_at: Optional[datetime.datetime] = None
     tenant_id: Optional[int] = None
-    allowed_products: Optional[List[str]] = None  # List of product IDs user can access
     last_login: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
-
-    @field_validator('allowed_products', mode='before')
-    @classmethod
-    def convert_allowed_products(cls, v: Any) -> Optional[List[str]]:
-        """Convert comma-separated string to list for allowed_products."""
-        if v is None:
-            return ['tales']  # Default to tales if not set
-        if isinstance(v, str):
-            return v.split(',') if v else ['tales']
-        return v
 
 class Token(BaseModel):
     access_token: str
@@ -500,6 +488,7 @@ class BrandingConfig(BaseModel):
     site_logo_url: Optional[str] = None
     primary_color: str = "#003e60"
     secondary_color: str = "#75c9c8"
+    admin_email: Optional[str] = None  # Public contact email shown in user-facing UI
 
 class UserInvite(BaseModel):
     email: EmailStr
@@ -507,10 +496,9 @@ class UserInvite(BaseModel):
     organization: Optional[str] = None
 
 class UserAdminUpdate(BaseModel):
-    """Schema for admin to update user status and app access"""
+    """Schema for admin to update user status"""
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
-    allowed_products: Optional[List[str]] = None  # List of product IDs: ["tales", "heads", "canon"]
     model_config = ConfigDict(extra='forbid')
 
 # --- Invitation Schemas ---
@@ -520,7 +508,6 @@ class InvitationCreate(BaseModel):
     full_name: str
     organization: Optional[str] = None
     tenant_id: Optional[int] = None  # Optional: assign to specific tenant, defaults to admin's tenant
-    allowed_products: Optional[List[str]] = None  # Product IDs: ["tales", "heads", "canon"]
 
 class InvitationResponse(BaseModel):
     """Schema for invitation response with token"""
@@ -558,132 +545,6 @@ class TaskStatus(BaseModel):
     completed_at: Optional[datetime.datetime] = None
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)
-
-
-# ============================================================================
-# HEADS - PERSONA GENERATION SCHEMAS
-# ============================================================================
-
-class PersonaInput(BaseModel):
-    """Single persona input for manual generation"""
-    # Patient fields
-    patient_occupation: Optional[str] = None
-    patient_clinical_scenario: Optional[str] = None
-    patient_gender: Optional[str] = None
-    patient_symptoms: Optional[str] = None
-    patient_age_range: Optional[str] = None
-
-    # HCP fields
-    hcp_doctor_type: Optional[str] = None
-    hcp_disease: Optional[str] = None
-    hcp_location: Optional[str] = None
-
-
-class PersonaGenerationCreate(BaseModel):
-    # New fields for AI/manual distinction
-    persona_type: str  # 'patient' or 'hcp'
-    ai_generation: bool = False  # True for AI, False for manual
-    count: Optional[int] = None  # Number of personas for AI generation (1-10)
-    personas: Optional[List[PersonaInput]] = None  # Manual persona inputs
-
-    # Legacy fields for backward compatibility
-    patient_occupation: Optional[str] = None
-    patient_clinical_scenario: Optional[str] = None
-    patient_gender: Optional[str] = None
-    patient_symptoms: Optional[str] = None
-    patient_age_range: Optional[str] = None
-    hcp_doctor_type: Optional[str] = None
-    hcp_disease: Optional[str] = None
-    hcp_location: Optional[str] = None
-
-
-class PersonaGenerationUpdate(BaseModel):
-    status: Optional[str] = None
-    error_message: Optional[str] = None
-    deck_url: Optional[str] = None
-
-
-class PersonaGeneration(BaseModel):
-    id: int
-    user_id: int
-    brand_id: int
-    tenant_id: int
-    patient_occupation: Optional[str] = None
-    patient_clinical_scenario: Optional[str] = None
-    patient_gender: Optional[str] = None
-    patient_symptoms: Optional[str] = None
-    patient_age_range: Optional[str] = None
-    hcp_doctor_type: Optional[str] = None
-    hcp_disease: Optional[str] = None
-    hcp_location: Optional[str] = None
-    status: str
-    error_message: Optional[str] = None
-    llm_provider: Optional[str] = None
-    deck_url: Optional[str] = None
-    created_at: datetime.datetime
-    completed_at: Optional[datetime.datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ============================================================================
-# HEADS - PERSONA SCHEMAS
-# ============================================================================
-
-class PersonaBase(BaseModel):
-    persona_type: PersonaType
-    order_index: int = 0
-    name: str
-    age: Optional[int] = None
-    location: Optional[str] = None
-    quote: Optional[str] = None
-    about: Optional[str] = None
-    goals: Optional[str] = None
-    fears: Optional[str] = None
-    pain_points: Optional[str] = None
-
-    # Patient-specific
-    family_status: Optional[str] = None
-    occupation: Optional[str] = None
-    tech_savviness: Optional[str] = None
-    clinical_scenario: Optional[str] = None
-    recent_diagnosis: Optional[str] = None
-    mindset: Optional[str] = None
-    symptoms: Optional[str] = None
-    information_channels: Optional[str] = None
-    key_question_for_doctor: Optional[str] = None
-    marketing_message: Optional[str] = None
-    marketing_tone: Optional[str] = None
-    call_to_action: Optional[str] = None
-    how_they_view_brand: Optional[str] = None
-
-    # HCP-specific
-    job_title: Optional[str] = None
-    practice_type: Optional[str] = None
-    specialty: Optional[str] = None
-    motivations: Optional[str] = None
-    frustrations: Optional[str] = None
-    marketing_channels: Optional[str] = None
-    marketing_messaging: Optional[str] = None
-    marketing_tactics: Optional[str] = None
-
-    personality_traits: Optional[str] = None
-
-
-class PersonaCreate(PersonaBase):
-    generation_id: int
-
-
-class Persona(PersonaBase):
-    id: int
-    generation_id: int
-    created_at: datetime.datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PersonaGenerationWithPersonas(PersonaGeneration):
-    personas: List[Persona] = []
 
 
 # ============================================================================

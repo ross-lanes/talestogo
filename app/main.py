@@ -3,6 +3,7 @@ load_dotenv(override=True)  # Load environment variables from .env file
 
 import os
 import secrets
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -87,10 +88,6 @@ from app.routers import (
     brands,
     operations,
     tenants,
-    personas,  # Heads - Persona Intelligence Platform (Pharma)
-    heads,  # Heads - Marketing Persona Generation
-    canon,  # Canon - FDA Drug Data Research
-    bigidea,  # Big Idea Generator - Marketing Idea Generation
     migration_helper,  # Temporary migration helper
     llm_providers,  # LLM Provider configuration for Lab deployments
     site,  # Site configuration and branding for Lab deployments
@@ -100,11 +97,63 @@ from app.routers import (
 # It's convenient for development. For production, you'd use a migration tool.
 models.Base.metadata.create_all(bind=engine)
 
+# --- Lifespan (startup / shutdown) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown."""
+    from app.scheduler import start_scheduler, stop_scheduler
+
+    # --- Startup ---
+    from app.database import SessionLocal
+    from datetime import datetime
+    import app.models as _models
+
+    db = SessionLocal()
+    try:
+        running_tasks = db.query(_models.TaskStatus).filter(
+            _models.TaskStatus.status == "running"
+        ).all()
+
+        if running_tasks:
+            print(f"\n🔧 Startup cleanup: Found {len(running_tasks)} tasks stuck in 'running' state")
+            for task in running_tasks:
+                if task.started_at:
+                    runtime = datetime.utcnow() - task.started_at
+                    runtime_hours = runtime.total_seconds() / 3600
+                    task.status = "failed"
+                    task.completed_at = datetime.utcnow()
+                    deployment_msg = f"Server restarted during task execution (task was running for {runtime_hours:.1f} hours). This typically happens during deployments."
+                    if task.error_message:
+                        task.error_message = f"{task.error_message}\n\n{deployment_msg}"
+                    else:
+                        task.error_message = deployment_msg
+                    print(f"   • Task #{task.id} ({task.task_type}) - marked as failed (was running for {runtime_hours:.1f}h)")
+            db.commit()
+            print(f"✅ Cleanup complete: {len(running_tasks)} stale tasks marked as failed\n")
+        else:
+            print("✅ No stale running tasks found on startup\n")
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to clean up stale tasks on startup: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+    print("\n📅 Checking scheduler configuration...")
+    start_scheduler()
+    print("✅ Scheduler check complete\n")
+
+    yield  # Application runs here
+
+    # --- Shutdown ---
+    stop_scheduler()
+
+
 # Create the FastAPI app instance
 app = FastAPI(
     title="Tales",
     description="An AI tool for tracking and analyzing LLM brand depictions.",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Add rate limiter to app state
@@ -121,22 +170,8 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
     """Add CORS headers to error responses"""
     origin = request.headers.get("origin")
 
-    # List of allowed origins (must match CORS config)
-    allowed_origins = [
-        "http://localhost:5173",
-        "http://localhost:5177",  # Alternate Vite dev server port
-        "https://tales-frontend.onrender.com",
-        "https://apps.robotrachel.com",  # Primary production domain
-        "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
-        "https://solsticehc.robotrachel.com",
-        "https://api.tales.robotrachel.com",
-        "https://tales-frontend-development.up.railway.app",  # Railway dev frontend
-        "https://tales-frontend-production.up.railway.app",  # Railway prod frontend
-    ]
-    # Add FRONTEND_URL from environment if set
-    frontend_url = os.environ.get("FRONTEND_URL")
-    if frontend_url and frontend_url not in allowed_origins:
-        allowed_origins.append(frontend_url)
+    # List of allowed origins (must match CORS config below)
+    allowed_origins = _build_allowed_origins()
 
     headers = {}
     if origin in allowed_origins:
@@ -149,22 +184,30 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
         headers=headers
     )
 
-# Build CORS origins list
-cors_origins = [
-    "http://localhost:5173",  # Local development (default Vite port)
-    "http://localhost:5177",  # Local development (alternate Vite port)
-    "https://tales-frontend.onrender.com",  # Production frontend (legacy)
-    "https://apps.robotrachel.com",  # Primary production domain
-    "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
-    "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain
-    "https://api.tales.robotrachel.com",  # API subdomain
-    "https://tales-frontend-development.up.railway.app",  # Railway dev frontend
-    "https://tales-frontend-production.up.railway.app",  # Railway prod frontend
-]
-# Add FRONTEND_URL from environment if set (for dynamic configuration)
-_frontend_url = os.environ.get("FRONTEND_URL")
-if _frontend_url and _frontend_url not in cors_origins:
-    cors_origins.append(_frontend_url)
+# Build CORS origins list.
+#
+# Configure via environment variables:
+#   FRONTEND_URL     - the primary frontend URL (e.g., https://tales.mylab.gov)
+#   ALLOWED_ORIGINS  - additional origins, comma-separated (optional)
+#
+# Localhost dev origins are always included so local Vite dev servers work.
+def _build_allowed_origins() -> list[str]:
+    origins = [
+        "http://localhost:5173",  # Vite default dev port
+        "http://localhost:5177",  # Vite alternate dev port
+        "http://localhost:8080",  # Default docker-compose port
+    ]
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if frontend_url and frontend_url not in origins:
+        origins.append(frontend_url)
+    extra = os.environ.get("ALLOWED_ORIGINS", "")
+    for o in (x.strip() for x in extra.split(",")):
+        if o and o not in origins:
+            origins.append(o)
+    return origins
+
+
+cors_origins = _build_allowed_origins()
 
 # Configure CORS to allow frontend to access backend
 app.add_middleware(
@@ -194,18 +237,6 @@ app.include_router(reports.router)
 app.include_router(reports.how_tales_works_router)
 app.include_router(operations.router)
 
-# Heads - Persona Intelligence Platform (Pharma)
-app.include_router(personas.router)
-
-# Heads - Marketing Persona Generation
-app.include_router(heads.router)
-
-# Canon - FDA Drug Data Research
-app.include_router(canon.router)
-
-# Big Idea Generator - Marketing Idea Generation
-app.include_router(bigidea.router)
-
 # Analytics and admin routers
 app.include_router(analytics.router)
 app.include_router(admin.router)
@@ -224,70 +255,6 @@ app.include_router(migration_helper.router)
 async def health_check():
     """Health check endpoint for monitoring and container orchestration."""
     return {"status": "healthy"}
-
-# --- Scheduler ---
-from app.scheduler import start_scheduler, stop_scheduler
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Start the background scheduler when the app starts.
-    Also clean up any tasks that were left in 'running' state from previous server instance.
-    """
-    # Clean up stale running tasks from previous deployment
-    from app.database import SessionLocal
-    from datetime import datetime
-
-    db = SessionLocal()
-    try:
-        # Find all tasks still marked as "running"
-        running_tasks = db.query(models.TaskStatus).filter(
-            models.TaskStatus.status == "running"
-        ).all()
-
-        if running_tasks:
-            print(f"\n🔧 Startup cleanup: Found {len(running_tasks)} tasks stuck in 'running' state")
-
-            for task in running_tasks:
-                # Calculate how long the task has been running
-                if task.started_at:
-                    runtime = datetime.utcnow() - task.started_at
-                    runtime_hours = runtime.total_seconds() / 3600
-
-                    # Mark as failed with explanation
-                    task.status = "failed"
-                    task.completed_at = datetime.utcnow()
-
-                    # Preserve any existing error messages and add deployment info
-                    deployment_msg = f"Server restarted during task execution (task was running for {runtime_hours:.1f} hours). This typically happens during deployments."
-
-                    if task.error_message:
-                        task.error_message = f"{task.error_message}\n\n{deployment_msg}"
-                    else:
-                        task.error_message = deployment_msg
-
-                    print(f"   • Task #{task.id} ({task.task_type}) - marked as failed (was running for {runtime_hours:.1f}h)")
-
-            db.commit()
-            print(f"✅ Cleanup complete: {len(running_tasks)} stale tasks marked as failed\n")
-        else:
-            print("✅ No stale running tasks found on startup\n")
-
-    except Exception as e:
-        print(f"⚠️  Warning: Failed to clean up stale tasks on startup: {e}")
-        db.rollback()
-    finally:
-        db.close()
-
-    # Start the scheduler (will only run if ENABLE_SCHEDULER=true)
-    print("\n📅 Checking scheduler configuration...")
-    start_scheduler()
-    print("✅ Scheduler check complete\n")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Stop the background scheduler when the app shuts down"""
-    stop_scheduler()
 
 # --- Static Files & Frontend ---
 from fastapi.staticfiles import StaticFiles
@@ -329,10 +296,6 @@ if FRONTEND_DIST.exists():
             "reports/",
             "operations/",
             "tenants/",
-            "personas/",
-            "heads/",
-            "canon/",
-            "bigidea/",
             "batches/",
             "scheduled-tasks/",
             "help/",

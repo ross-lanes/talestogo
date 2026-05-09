@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Resend API configuration (required)
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
-FROM_EMAIL = os.getenv('FROM_EMAIL', 'admin@robotrachel.com')
+FROM_EMAIL = os.getenv('FROM_EMAIL', '')
 
 
 async def send_email(to_email: str, subject: str, body: str):

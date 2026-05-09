@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    import google.generativeai as genai
+    from google import genai as google_genai
     GOOGLE_AVAILABLE = True
 except ImportError:
     GOOGLE_AVAILABLE = False
@@ -19,25 +19,35 @@ except ImportError:
 from sqlalchemy.orm import Session
 from app import models
 
+# Default Gemini model for AI generation (Gemini 1.5 models are retired)
+GEMINI_MODEL = 'gemini-2.5-flash'
+
 
 class AIGenerator:
     """Generates content using Gemini AI based on brand information."""
 
     def __init__(self, db: Session):
         self.db = db
-        self.google_model = None
+        self.google_client = None
+        self.model_name = GEMINI_MODEL
 
         # Set up Google Gemini
         if GOOGLE_AVAILABLE:
             google_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
             if google_key:
-                genai.configure(api_key=google_key)
-                # Use gemini-2.5-flash (Gemini 1.5 models are retired)
-                self.google_model = genai.GenerativeModel('gemini-2.5-flash')
+                self.google_client = google_genai.Client(api_key=google_key)
             else:
                 raise ValueError("GEMINI_API_KEY not found in environment variables")
         else:
-            raise ImportError("google-generativeai package not installed")
+            raise ImportError("google-genai package not installed")
+
+    def _generate(self, prompt: str) -> str:
+        """Helper: invoke the configured Gemini model and return text."""
+        response = self.google_client.models.generate_content(
+            model=self.model_name,
+            contents=prompt,
+        )
+        return response.text
 
     def generate_queries(self, brand_info: models.BrandInfo) -> List[Dict[str, str]]:
         """Generate relevant queries with metadata based on brand information."""
@@ -86,8 +96,7 @@ Format example:
 ]
 """
 
-        response = self.google_model.generate_content(prompt)
-        result_text = response.text.strip()
+        result_text = self._generate(prompt).strip()
 
         # Remove markdown code blocks if present
         if result_text.startswith('```json'):
@@ -134,8 +143,7 @@ Format example:
 ]
 """
 
-        response = self.google_model.generate_content(prompt)
-        result_text = response.text.strip()
+        result_text = self._generate(prompt).strip()
 
         # Remove markdown code blocks if present
         if result_text.startswith('```json'):
@@ -192,8 +200,7 @@ Format example:
 ]
 """
 
-        response = self.google_model.generate_content(prompt)
-        result_text = response.text.strip()
+        result_text = self._generate(prompt).strip()
 
         # Remove markdown code blocks if present
         if result_text.startswith('```json'):

@@ -38,6 +38,7 @@ import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import { formatDateEST } from '../utils/dateUtils';
+import type { BrandingConfig } from '../types';
 
 interface ScheduleData {
   id: number;
@@ -109,6 +110,24 @@ export default function CollectAndAnalyze() {
   const queryClient = useQueryClient();
   const [currentTab, setCurrentTab] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
+  const [adminEmail, setAdminEmail] = useState<string | null>(null);
+
+  // Fetch the public admin contact email (configured via Site Settings) so we
+  // can show a real mailto link when one is set, instead of a generic message.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<BrandingConfig>('/site/branding')
+      .then((res) => {
+        if (!cancelled) setAdminEmail(res.data.admin_email || null);
+      })
+      .catch(() => {
+        if (!cancelled) setAdminEmail(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -299,7 +318,15 @@ export default function CollectAndAnalyze() {
             </Typography>
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
-                <strong>Note:</strong> By default, this will analyze only the latest collected data. For longer-term analysis (quarterly, annual, or custom date ranges), please contact <a href="mailto:admin@robotrachel.com" style={{ color: 'inherit' }}>admin@robotrachel.com</a>.
+                <strong>Note:</strong> By default, this will analyze only the latest collected data. For longer-term analysis (quarterly, annual, or custom date ranges), please contact{' '}
+                {adminEmail ? (
+                  <a href={`mailto:${adminEmail}`} style={{ color: 'inherit' }}>
+                    {adminEmail}
+                  </a>
+                ) : (
+                  'your administrator'
+                )}
+                .
               </Typography>
             </Alert>
 

@@ -172,64 +172,13 @@ export interface StrategicPriority {
   supporting_data?: any;
 }
 
-// Heads - Persona Intelligence Platform types
-export type PersonaType = 'patient' | 'hcp';
-
-export interface PersonaGeneration {
-  id: number;
-  user_id: number;
-  brand_id: number;
-  tenant_id: number;
-  status: 'pending' | 'generating' | 'completed' | 'failed';
-  // Patient persona inputs
-  patient_occupation?: string;
-  patient_clinical_scenario?: string;
-  patient_gender?: string;
-  patient_symptoms?: string;
-  patient_age_range?: string;
-  // HCP persona inputs
-  hcp_doctor_type?: string;
-  hcp_disease?: string;
-  hcp_location?: string;
-  // Output
-  deck_url?: string;
-  error_message?: string;
-  created_at: string;
-  completed_at?: string;
+// Public site branding configuration returned by GET /site/branding.
+// Mirrors app/schemas.py::BrandingConfig.
+export interface BrandingConfig {
+  site_name: string;
+  site_logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  admin_email: string | null;
 }
 
-export interface PersonaGenerationCreate {
-  // Patient persona inputs
-  patient_occupation?: string;
-  patient_clinical_scenario?: string;
-  patient_gender?: string;
-  patient_symptoms?: string;
-  patient_age_range?: string;
-  // HCP persona inputs
-  hcp_doctor_type?: string;
-  hcp_disease?: string;
-  hcp_location?: string;
-}
-
-export interface Persona {
-  id: number;
-  generation_id: number;
-  persona_type: PersonaType;
-  order_index: number;
-  name: string;
-  age?: number;
-  gender?: string;
-  occupation?: string;
-  location?: string;
-  background?: string;
-  goals?: string;
-  challenges?: string;
-  preferences?: string;
-  // HCP-specific fields
-  specialty?: string;
-  years_experience?: number;
-  practice_setting?: string;
-  patient_population?: string;
-  treatment_approach?: string;
-  created_at: string;
-}

@@ -1,5 +1,4 @@
 import datetime
-import enum
 from sqlalchemy import (
     Column, Integer, String, DateTime, Boolean, Float, Text, Date,
     MetaData, Table, create_engine, ForeignKey, Index, UniqueConstraint
@@ -8,12 +7,6 @@ from sqlalchemy.orm import relationship
 # Import Base from your database setup file
 from .database import Base
 
-
-# === Enums ===
-class PersonaType(str, enum.Enum):
-    """Types of personas for Heads product"""
-    PATIENT = "patient"
-    HCP = "hcp"
 
 # === Tenant Model (for multi-tenancy) ===
 class Tenant(Base):
@@ -48,8 +41,6 @@ class User(Base):
     microsoft_id = Column(String(255), unique=True, index=True, nullable=True)  # Microsoft OAuth ID
     oauth_provider = Column(String(50), nullable=True)  # 'google', 'microsoft', etc.
     picture_url = Column(String(500), nullable=True)  # Profile picture URL from OAuth
-    # App access control - comma-separated list of allowed products (e.g., "tales,heads,canon")
-    allowed_products = Column(Text, nullable=True, default="tales")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     last_login = Column(DateTime, nullable=True)  # Last successful login timestamp
@@ -433,107 +424,6 @@ class ScheduledTaskHistory(Base):
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-
-# ============================================================================
-# HEADS - Persona Generation Models (Part of Solstice AI Suite)
-# ============================================================================
-
-class PersonaGeneration(Base):
-    """Tracks a persona generation request and its output"""
-    __tablename__ = "persona_generations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=False, index=True)
-
-    # Generation parameters
-    patient_occupation = Column(String(200), nullable=True)
-    patient_diagnosis = Column(String(200), nullable=True)
-    patient_gender = Column(String(50), nullable=True)
-    patient_symptoms = Column(Text, nullable=True)
-    patient_age_range = Column(String(50), nullable=True)
-
-    hcp_type = Column(String(200), nullable=True)  # Type of doctor
-    hcp_disease_focus = Column(String(200), nullable=True)
-    hcp_location = Column(String(200), nullable=True)
-
-    # Output
-    pptx_file_path = Column(String(500), nullable=True)  # Path to generated PPTX
-    pptx_file_url = Column(String(500), nullable=True)  # Public URL if uploaded to cloud
-
-    # Status tracking
-    status = Column(String(20), default='pending')  # pending, generating, completed, failed
-    error_message = Column(Text, nullable=True)
-
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
-    completed_at = Column(DateTime, nullable=True)
-
-    # Composite indexes
-    __table_args__ = (
-        Index('idx_persona_gen_user_brand', 'user_id', 'brand_id'),
-        Index('idx_persona_gen_status', 'status', 'created_at'),
-    )
-
-
-class Persona(Base):
-    """Individual persona (4 patient + 4 HCP personas per generation)"""
-    __tablename__ = "personas"
-
-    id = Column(Integer, primary_key=True, index=True)
-    generation_id = Column(Integer, ForeignKey("persona_generations.id"), nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    brand_id = Column(Integer, ForeignKey("brand_info.id"), nullable=False, index=True)
-
-    # Persona type
-    persona_type = Column(String(20), nullable=False)  # 'patient' or 'hcp'
-    persona_number = Column(Integer, nullable=False)  # 1-4
-
-    # Patient Persona Fields
-    # Demographics
-    name = Column(String(200), nullable=True)
-    age = Column(String(50), nullable=True)
-    location = Column(String(200), nullable=True)
-    family_status = Column(String(200), nullable=True)
-    occupation = Column(String(200), nullable=True)
-    tech_savviness = Column(String(100), nullable=True)
-
-    # Clinical Profile
-    clinical_scenario = Column(Text, nullable=True)
-    recent_diagnosis = Column(String(300), nullable=True)
-    mindset = Column(Text, nullable=True)
-
-    # Goals & Fears
-    goals = Column(Text, nullable=True)
-    fears = Column(Text, nullable=True)
-
-    # Information Journey
-    information_channels = Column(Text, nullable=True)  # Comma-separated or JSON
-    key_doctor_question = Column(Text, nullable=True)
-
-    # Marketing/Messaging Cues
-    marketing_message = Column(Text, nullable=True)
-    marketing_tone = Column(String(200), nullable=True)
-    call_to_action = Column(Text, nullable=True)
-
-    # HCP Persona Fields
-    specialty = Column(String(200), nullable=True)
-    years_experience = Column(String(50), nullable=True)
-    practice_setting = Column(String(200), nullable=True)
-    patient_volume = Column(String(100), nullable=True)
-    disease_focus = Column(String(200), nullable=True)
-
-    # HCP-specific fields
-    prescribing_preferences = Column(Text, nullable=True)
-    information_sources = Column(Text, nullable=True)
-    clinical_challenges = Column(Text, nullable=True)
-
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-
-    # Composite indexes
-    __table_args__ = (
-        Index('idx_persona_generation', 'generation_id', 'persona_type'),
-        Index('idx_persona_user_brand', 'user_id', 'brand_id'),
-    )
 
 # --- End of Models ---
 

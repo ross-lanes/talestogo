@@ -15,6 +15,7 @@ import type { CredentialResponse } from '@react-oauth/google';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
+import type { BrandingConfig } from '../../types';
 
 // Auth configuration from backend
 interface AuthConfig {
@@ -24,14 +25,6 @@ interface AuthConfig {
   microsoft_client_id: string | null;
   microsoft_authority: string | null;
   google_client_id: string | null;
-}
-
-// Branding configuration from backend
-interface BrandingConfig {
-  site_name: string;
-  site_logo_url: string | null;
-  primary_color: string;
-  secondary_color: string;
 }
 
 const Login: React.FC = () => {
@@ -74,6 +67,7 @@ const Login: React.FC = () => {
           site_logo_url: null,
           primary_color: '#003e60',
           secondary_color: '#75c9c8',
+          admin_email: null,
         });
       } finally {
         setConfigLoading(false);

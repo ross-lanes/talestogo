@@ -5,7 +5,7 @@ This module contains configurable parameters for the analytics system,
 including performance optimizations and default values.
 """
 import os
-from typing import Optional, List, Dict
+from typing import Optional
 
 
 # Analytics Performance Settings
@@ -39,7 +39,7 @@ DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 """Maximum overflow connections beyond pool size."""
 
-# LLM API Settings (for Heads persona generation and Tales data collection)
+# LLM API Settings
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 """OpenAI API key for LLM-powered features."""
 
@@ -58,62 +58,3 @@ DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
 # Upload directory for generated files
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 """Directory for uploaded and generated files."""
-
-
-# Create a settings object for compatibility with Heads services
-class _Settings:
-    """Minimal settings object for Heads integration"""
-    def __init__(self):
-        self.OPENAI_API_KEY = OPENAI_API_KEY
-        self.ANTHROPIC_API_KEY = ANTHROPIC_API_KEY
-        self.GEMINI_API_KEY = GEMINI_API_KEY
-        self.PERPLEXITY_API_KEY = PERPLEXITY_API_KEY
-        self.DEFAULT_LLM_PROVIDER = DEFAULT_LLM_PROVIDER
-        self.UPLOAD_DIR = UPLOAD_DIR
-
-
-settings = _Settings()
-
-
-# Tenant Product Access Configuration
-class TenantConfig:
-    """Configuration for tenant-specific product access"""
-
-    # Map tenant names to allowed products
-    TENANT_PRODUCTS: Dict[str, List[str]] = {
-        "Solstice HC": ["tales", "heads", "vision", "pulse", "voice", "guardian"],
-        "Princeton University": ["tales"],
-        # Default for any other tenant
-        "default": ["tales"]
-    }
-
-    @staticmethod
-    def get_tenant_products(tenant_name: str) -> List[str]:
-        """
-        Get list of products enabled for a tenant
-
-        Args:
-            tenant_name: The name of the tenant
-
-        Returns:
-            List of product IDs that the tenant can access
-        """
-        return TenantConfig.TENANT_PRODUCTS.get(
-            tenant_name,
-            TenantConfig.TENANT_PRODUCTS["default"]
-        )
-
-    @staticmethod
-    def is_product_enabled_for_tenant(tenant_name: str, product: str) -> bool:
-        """
-        Check if a product is enabled for a specific tenant
-
-        Args:
-            tenant_name: The name of the tenant
-            product: The product ID to check (e.g., "tales", "heads")
-
-        Returns:
-            True if the tenant has access to the product, False otherwise
-        """
-        allowed_products = TenantConfig.get_tenant_products(tenant_name)
-        return product in allowed_products

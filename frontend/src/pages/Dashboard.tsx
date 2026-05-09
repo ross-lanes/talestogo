@@ -328,6 +328,36 @@ export default function Dashboard() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Show onboarding when brand context has finished loading but user has no brands yet.
+  // Without this check, isLoading stays true forever because !activeBrand is always true.
+  if (!brandLoading && brands.length === 0) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h4" gutterBottom>
+          Welcome to TALES
+        </Typography>
+        <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+          Get started by adding your first brand to monitor.
+        </Typography>
+        <Box>
+          <a href="/manage/brand-info?new=true" style={{ textDecoration: 'none' }}>
+            <Box
+              component="button"
+              sx={{
+                px: 3, py: 1.5, fontSize: '1rem', cursor: 'pointer',
+                backgroundColor: 'primary.main', color: 'white',
+                border: 'none', borderRadius: 1,
+                '&:hover': { backgroundColor: 'primary.dark' },
+              }}
+            >
+              Add Your First Brand
+            </Box>
+          </a>
+        </Box>
+      </Box>
+    );
+  }
+
   if (isLoading) {
     return <BrandedLoader message="Loading dashboard..." />;
   }
@@ -598,7 +628,7 @@ export default function Dashboard() {
                   ))}
                 </Box>
                 {/* Pie chart on the right/bottom - bigger on larger screens */}
-                <ChartContainer width="100%" height={sentimentChartHeight} showLogo={false}>
+                <ChartContainer width="100%" height={sentimentChartHeight}>
                   <PieChart>
                     <Pie
                       data={[
