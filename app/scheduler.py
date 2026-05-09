@@ -36,6 +36,7 @@ import logging
 
 from .database import SessionLocal
 from .models import ScheduledTask, ScheduledTaskHistory, User, BrandInfo, CollectionBatch
+from .services.site_config import get_site_url
 from .email import send_email
 
 logger = logging.getLogger(__name__)
@@ -807,7 +808,7 @@ Error: {error_message}
 The system will automatically retry during the next scheduled run.
 You can also manually generate a report from the Reports page.
 
-View your dashboard: {os.getenv('FRONTEND_URL', '').rstrip('/')}/analytics
+View your dashboard: {get_site_url(db).rstrip('/')}/analytics
 
 --
 TALES - AI Reputation Intelligence & Optimization
@@ -901,7 +902,7 @@ Collection Date: {history.started_at.strftime('%B %d, %Y')}
 Responses Collected: {history.collection_responses or 'Processing'}
 Responses Analyzed: {history.analysis_responses or 'Processing'}
 
-View your results: {os.getenv('FRONTEND_URL', '').rstrip('/')}/analytics
+View your results: {get_site_url(db).rstrip('/')}/analytics
 
 Next scheduled collection: {next_collection.strftime('%B %d, %Y at %I:%M %p') if next_collection else 'Not scheduled'}
 
@@ -920,7 +921,7 @@ Error: {history.error_message or 'Unknown error'}
 Responses Collected: {history.collection_responses or 0}
 Responses Analyzed: {history.analysis_responses or 0}
 
-Please log in to review and manually re-run if needed: {os.getenv('FRONTEND_URL', '').rstrip('/')}/data
+Please log in to review and manually re-run if needed: {get_site_url(db).rstrip('/')}/data
 
 Next scheduled collection: {next_collection.strftime('%B %d, %Y at %I:%M %p') if next_collection else 'Not scheduled'}
 
@@ -955,7 +956,7 @@ Brand: {brand.brand_name}
 Report Period: {period_label}
 Report Type: {period_type_display} Report
 
-View your report: {os.getenv('FRONTEND_URL', '').rstrip('/')}/reports
+View your report: {get_site_url(db).rstrip('/')}/reports
 
 This report contains comprehensive analysis of all data collected during {period_label}.
 
