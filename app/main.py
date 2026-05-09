@@ -3,6 +3,7 @@ load_dotenv(override=True)  # Load environment variables from .env file
 
 import os
 import secrets
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -96,11 +97,63 @@ from app.routers import (
 # It's convenient for development. For production, you'd use a migration tool.
 models.Base.metadata.create_all(bind=engine)
 
+# --- Lifespan (startup / shutdown) ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown."""
+    from app.scheduler import start_scheduler, stop_scheduler
+
+    # --- Startup ---
+    from app.database import SessionLocal
+    from datetime import datetime
+    import app.models as _models
+
+    db = SessionLocal()
+    try:
+        running_tasks = db.query(_models.TaskStatus).filter(
+            _models.TaskStatus.status == "running"
+        ).all()
+
+        if running_tasks:
+            print(f"\n🔧 Startup cleanup: Found {len(running_tasks)} tasks stuck in 'running' state")
+            for task in running_tasks:
+                if task.started_at:
+                    runtime = datetime.utcnow() - task.started_at
+                    runtime_hours = runtime.total_seconds() / 3600
+                    task.status = "failed"
+                    task.completed_at = datetime.utcnow()
+                    deployment_msg = f"Server restarted during task execution (task was running for {runtime_hours:.1f} hours). This typically happens during deployments."
+                    if task.error_message:
+                        task.error_message = f"{task.error_message}\n\n{deployment_msg}"
+                    else:
+                        task.error_message = deployment_msg
+                    print(f"   • Task #{task.id} ({task.task_type}) - marked as failed (was running for {runtime_hours:.1f}h)")
+            db.commit()
+            print(f"✅ Cleanup complete: {len(running_tasks)} stale tasks marked as failed\n")
+        else:
+            print("✅ No stale running tasks found on startup\n")
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to clean up stale tasks on startup: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+    print("\n📅 Checking scheduler configuration...")
+    start_scheduler()
+    print("✅ Scheduler check complete\n")
+
+    yield  # Application runs here
+
+    # --- Shutdown ---
+    stop_scheduler()
+
+
 # Create the FastAPI app instance
 app = FastAPI(
     title="Tales",
     description="An AI tool for tracking and analyzing LLM brand depictions.",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Add rate limiter to app state
@@ -202,70 +255,6 @@ app.include_router(migration_helper.router)
 async def health_check():
     """Health check endpoint for monitoring and container orchestration."""
     return {"status": "healthy"}
-
-# --- Scheduler ---
-from app.scheduler import start_scheduler, stop_scheduler
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Start the background scheduler when the app starts.
-    Also clean up any tasks that were left in 'running' state from previous server instance.
-    """
-    # Clean up stale running tasks from previous deployment
-    from app.database import SessionLocal
-    from datetime import datetime
-
-    db = SessionLocal()
-    try:
-        # Find all tasks still marked as "running"
-        running_tasks = db.query(models.TaskStatus).filter(
-            models.TaskStatus.status == "running"
-        ).all()
-
-        if running_tasks:
-            print(f"\n🔧 Startup cleanup: Found {len(running_tasks)} tasks stuck in 'running' state")
-
-            for task in running_tasks:
-                # Calculate how long the task has been running
-                if task.started_at:
-                    runtime = datetime.utcnow() - task.started_at
-                    runtime_hours = runtime.total_seconds() / 3600
-
-                    # Mark as failed with explanation
-                    task.status = "failed"
-                    task.completed_at = datetime.utcnow()
-
-                    # Preserve any existing error messages and add deployment info
-                    deployment_msg = f"Server restarted during task execution (task was running for {runtime_hours:.1f} hours). This typically happens during deployments."
-
-                    if task.error_message:
-                        task.error_message = f"{task.error_message}\n\n{deployment_msg}"
-                    else:
-                        task.error_message = deployment_msg
-
-                    print(f"   • Task #{task.id} ({task.task_type}) - marked as failed (was running for {runtime_hours:.1f}h)")
-
-            db.commit()
-            print(f"✅ Cleanup complete: {len(running_tasks)} stale tasks marked as failed\n")
-        else:
-            print("✅ No stale running tasks found on startup\n")
-
-    except Exception as e:
-        print(f"⚠️  Warning: Failed to clean up stale tasks on startup: {e}")
-        db.rollback()
-    finally:
-        db.close()
-
-    # Start the scheduler (will only run if ENABLE_SCHEDULER=true)
-    print("\n📅 Checking scheduler configuration...")
-    start_scheduler()
-    print("✅ Scheduler check complete\n")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Stop the background scheduler when the app shuts down"""
-    stop_scheduler()
 
 # --- Static Files & Frontend ---
 from fastapi.staticfiles import StaticFiles
