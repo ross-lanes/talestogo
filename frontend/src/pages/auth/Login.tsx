@@ -67,6 +67,7 @@ const Login: React.FC = () => {
           site_logo_url: null,
           primary_color: '#003e60',
           secondary_color: '#75c9c8',
+          admin_email: null,
         });
       } finally {
         setConfigLoading(false);
