@@ -141,7 +141,7 @@ def verify_database(conn):
     all_clean = True
     for table in tables_to_check:
         try:
-            cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id IS NULL")
+            cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id IS NULL")  # nosec B608 — table is from a hardcoded whitelist, not user input
             count = cursor.fetchone()[0]
 
             if count > 0:

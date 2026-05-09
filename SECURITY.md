@@ -1,0 +1,127 @@
+# Security Policy
+
+## Overview
+
+This document describes the security practices, testing methodology, and vulnerability disclosure policy for Tales — an AI reputation monitoring platform designed for self-hosted deployment at research institutions.
+
+Tales is maintained by RobotRachel and shared with U.S. Department of Energy national laboratories (PPPL, PNNL, Argonne, LLNL) under an MIT license for self-hosted, air-gappable deployment.
+
+---
+
+## Reporting a Vulnerability
+
+**Do not open a public GitHub issue for security vulnerabilities.**
+
+Please report security concerns directly to the maintainer:
+
+- **Email**: robotrachel@gmail.com
+- **Subject line**: `[SECURITY] Tales — <brief description>`
+- **Expected response time**: Within 72 hours
+
+Please include:
+- A description of the vulnerability and its potential impact
+- Steps to reproduce
+- Any suggested mitigations
+
+You will receive acknowledgement within 72 hours and a resolution plan within 14 days for confirmed vulnerabilities.
+
+---
+
+## Security Testing
+
+Tales undergoes static analysis and dependency auditing before each release. The results below reflect the state of the `main` branch as of **2026-05-09**.
+
+### Static Application Security Testing (SAST)
+
+| Tool | Scope | Findings | Notes |
+|------|-------|----------|-------|
+| [Bandit](https://bandit.readthedocs.io/) v1.8+ | Python backend (`app/`, 58 files, 15,728 lines) | **0** medium/high severity | 3 B608 (SQL injection) false positives suppressed with `# nosec B608`; all use format-validated identifiers, not user input |
+| [npm audit](https://docs.npmjs.com/cli/commands/npm-audit) | Frontend JavaScript dependencies | **0** vulnerabilities | |
+
+**Bandit suppression rationale** — The three `# nosec B608` annotations appear in migration utility files (`run_migrations.py`, `migration_helper.py`). In each case, the SQL identifier (table name or sequence name) is validated against a strict allowlist or regex format check before being interpolated. No user-supplied input reaches these queries.
+
+### Dependency Vulnerability Scanning
+
+| Tool | Scope | Findings | Notes |
+|------|-------|----------|-------|
+| [pip-audit](https://pypi.org/project/pip-audit/) | Python packages | **0** application CVEs | 2 CVEs affect the `pip` package manager itself (CVE-2026-3219, CVE-2026-6357); the Dockerfile upgrades pip during build (`pip install --upgrade pip`) |
+| [npm audit](https://docs.npmjs.com/cli/commands/npm-audit) | npm packages | **0** | |
+
+### Software Bill of Materials (SBOM)
+
+SBOMs are provided in [CycloneDX 1.6](https://cyclonedx.org/) JSON format, as recommended under [Executive Order 14028](https://www.whitehouse.gov/briefing-room/presidential-actions/2021/05/12/executive-order-on-improving-the-nations-cybersecurity/) (Improving the Nation's Cybersecurity).
+
+| File | Contents |
+|------|----------|
+| [`docs/security/sbom-python.cdx.json`](docs/security/sbom-python.cdx.json) | 31 Python runtime dependencies |
+| [`docs/security/sbom-npm.cdx.json`](docs/security/sbom-npm.cdx.json) | 520 JavaScript dependencies (direct + transitive) |
+
+SBOMs are regenerated with each release using:
+- Python: [`cyclonedx-bom`](https://pypi.org/project/cyclonedx-bom/)
+- JavaScript: [`@cyclonedx/cyclonedx-npm`](https://www.npmjs.com/package/@cyclonedx/cyclonedx-npm)
+
+---
+
+## Secure Development Practices
+
+### Authentication & Authorization
+
+- JWT-based authentication with configurable expiry
+- Passwords hashed with bcrypt (cost factor 12)
+- All API endpoints require authentication except `/health`, `/auth/login`, `/auth/config`, and `/site/branding`
+- Admin-only endpoints enforce `is_admin` flag; no email-based role hardcoding
+- Optional OAuth 2.0 / OIDC via Microsoft Entra ID or Google
+
+### API Keys
+
+- LLM provider API keys are stored encrypted at rest using Fernet symmetric encryption (AES-128-CBC + HMAC-SHA256)
+- Keys are never returned in API responses; only masked previews are exposed
+
+### Transport Security
+
+- HTTPS is enforced at the reverse proxy / load balancer layer (see `docs/IT_DEPLOYMENT_GUIDE.md`)
+- HSTS, X-Frame-Options, X-Content-Type-Options, and Referrer-Policy headers are set by the application
+- Content Security Policy (CSP) is applied with a per-request nonce for inline styles
+- Fonts are self-hosted; no external CDN calls from the browser
+
+### Rate Limiting
+
+- Login and registration endpoints are rate-limited via [SlowAPI](https://pypi.org/project/slowapi/) (default: 5 requests/minute per IP)
+
+### Input Validation
+
+- All API request bodies are validated with Pydantic v2 schemas before reaching business logic
+- Email addresses validated with `email-validator` (RFC-compliant)
+- File uploads (query bulk import) are restricted to `.xlsx` format with column validation
+
+### Database
+
+- All user-facing queries use SQLAlchemy ORM with parameterized queries
+- Raw SQL is used only in migration utilities, with identifier allowlisting
+- Row-level data isolation: all queries are scoped by `user_id`; users cannot access other users' data
+
+### Docker Hardening
+
+- Multi-stage build — build tools are not present in the runtime image
+- Application runs as a non-root user (`appuser`)
+- Only `libpq5` runtime library added to the slim base image
+- Health check configured for container orchestration
+
+---
+
+## Supported Versions
+
+| Version | Supported |
+|---------|-----------|
+| `main` branch | ✅ Active |
+| Older branches | ❌ Not maintained |
+
+PNNL and other deploying institutions are encouraged to pull from `main` and report any issues through the channel above.
+
+---
+
+## Known Limitations
+
+- **Frontend bundle size**: The main JavaScript bundle is ~2.2 MB uncompressed / 613 KB gzipped. This is a performance concern (slow first paint), not a security issue. Code splitting is tracked as a future improvement.
+- **No DAST**: Dynamic Application Security Testing (e.g., OWASP ZAP) has not been performed against a live deployment. Institutions with strict DAST requirements may wish to run their own scan post-deployment.
+- **Scheduler**: The built-in APScheduler runs in-process. For high-security environments, consider setting `ENABLE_SCHEDULER=false` and triggering collection/analysis via the API from an external cron job.
