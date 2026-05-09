@@ -76,6 +76,56 @@ We chose **Option D: keep multi-tenancy** infrastructure. Each lab can be a tena
 - **Remove "Generate Report All Data" button from `tales_project`** if Rachel wants it gone from production (separate task, separate repo)
 - **Consider GitHub repo description / contributing guidelines** before PNNL clones
 
+### Known Issues — pre-existing or deferred (NOT fixed by this branch)
+
+These were discovered during the strip-to-Tales cleanup but were either pre-existing in the talestogo repo before this branch began or were intentionally left out of scope. None of them block PNNL deployment. Listed here so a future session has the full picture and so they aren't silently forgotten.
+
+#### Pre-existing bugs (broken since the initial talestogo commit)
+
+- **`tests/test_api.py` — broken import.** `from app.main import app as fastapi_app, get_db` fails with `ImportError: cannot import name 'get_db'`. `get_db` lives in `app.database`, not `app.main`. Fix is a one-line import change. We did not touch this test file.
+- **`tests/test_celery_tasks.py` — broken import.** `from celery_app.tasks import (...)` fails with `ModuleNotFoundError: No module named 'celery_app'`. Celery was apparently removed from the codebase at some point but this test file was never updated or deleted.
+- **`tests/test_tasks.py` — broken import** (same shape as `test_celery_tasks.py`).
+- **`tests/test_crud.py` — 32 failing tests.** All fail with `TypeError: create_analysis_history() missing 1 required positional argument: 'user_id'`. The `user_id` argument was added when multi-tenancy was introduced, but `test_crud.py` was never updated to match. Git log confirms `user_id` has been required since the initial commit on talestogo.
+
+  Net pytest state: of ~5 test files, 3 fail to even collect, 1 has 32 failing tests, 1 (`test_main.py`) is empty. Our cleanup did not touch any of them.
+
+#### Pre-existing dependency issues
+
+- **`google.generativeai` package is end-of-life.** Importing the backend logs `FutureWarning: All support for the 'google.generativeai' package has ended. ... Please switch to the 'google.genai' package as soon as possible.` Used in `app/services/generic_llm_client.py`. Migration to `google.genai` is straightforward but pre-existing.
+- **18 npm vulnerabilities reported on `npm install`** (9 moderate, 8 high, 1 critical). All from transitive deps in `frontend/package-lock.json`. Phase 7 will surface specifics; deferred to that phase.
+
+#### Deprecation warnings from upstream library upgrades
+
+These are not bugs today but are scheduled-for-removal API uses:
+
+- **Pydantic v1-style `class Config`** in:
+  - `app/routers/batches.py:33` (`BatchResponse`)
+  - `app/routers/scheduled_tasks.py:51` (`ScheduleResponse`)
+  - `app/routers/scheduled_tasks.py:79` (`HistoryResponse`)
+  Should be migrated to Pydantic v2 `model_config = ConfigDict(...)`.
+- **FastAPI `@app.on_event("startup")` / `@app.on_event("shutdown")`** in `app/main.py:209` and `app/main.py:265`. Should be migrated to lifespan event handlers.
+
+#### Repo cleanliness — out of scope for the strip-to-Tales mission
+
+These won't affect PNNL's deployment but are noise the public repo could do without:
+
+- **~16 generated sample report markdown files at repo root** (`report_*.md` for PPPL, Princeton Engineering, Physics of Plasmas, TALES test reports). Real reports Rachel generated; not deployment artifacts.
+- **~13 personal debug/admin scripts at repo root** (`check_*.py`, `fix_*.py`, `manual_*.py`, `force_*.py`, `emergency_*.py`, `merge_*.py`, etc.). Personal Tales operator scripts that don't belong in a public deployment repo.
+- **~50 historical dev docs at repo root** (login system investigations, methodology docs, OAuth visual guides, implementation summaries, theme flash notes, etc.). Many predate or are unrelated to PNNL deployment. The PNNL-facing docs (`docs/`, `deployment-kit/`) are clean.
+- **Tracked binary artifacts at repo root:**
+  - `file:crudtest` — SQLite DB literally with a colon in the filename, accidentally committed in the initial commit
+  - `tales.db`, `tales.db.old`, `tales.db.backup_*` — local SQLite DBs and backups
+  - `celerybeat-schedule.db`, `celerybeat-schedule-shm` — Celery scheduler artifacts despite Celery no longer being in the code
+- **Old distribution / export files** at repo root: `tales_to_go_20260127.zip`, `tales_export_20251106_202307.json`, `sqlite_export.json`, `user_data_export.sql`, `user_data_export_v2.sql`.
+- **Duplicate methodology files**: `Methodology_Additions.md` and `Methodology_Additions.txt` (.txt is a duplicate of the .md).
+- **Two Word docs at repo root**: `Internal_Developer_Guide_With_Additions.docx` and `PPPL_Developer_Guide_Suggested_Additions.docx`.
+- **`deployment-kit-pppl/data/pppl_brand.json`** still contains `"original_owner_email": "robotrachel@gmail.com"` (PPPL-specific demo data, intentionally not edited).
+- **Old SAST/audit JSON files at repo root**: `bandit-report.json`, `npm-audit-report.json`, `pip-audit-report.json`, `semgrep-report.json`. Will be regenerated in Phase 7.
+
+#### Frontend performance note (not a bug)
+
+- `npm run build` warns: "Some chunks are larger than 500 kB after minification" (the main JS bundle is ~2.18 MB / 612 KB gzipped). Suggestion is dynamic `import()` for code-splitting, or `build.rollupOptions.output.manualChunks`. Pre-existing; Tales loads fine, just a slow first-paint.
+
 ## Tech Stack
 
 - **Backend**: Python/FastAPI with SQLAlchemy ORM
