@@ -172,3 +172,13 @@ export interface StrategicPriority {
   supporting_data?: any;
 }
 
+// Public site branding configuration returned by GET /site/branding.
+// Mirrors app/schemas.py::BrandingConfig.
+export interface BrandingConfig {
+  site_name: string;
+  site_logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  admin_email: string | null;
+}
+

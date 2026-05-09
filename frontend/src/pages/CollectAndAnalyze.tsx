@@ -38,6 +38,7 @@ import { api } from '../services/api';
 import { useBrand } from '../contexts/BrandContext';
 import TaskProgressIndicator from '../components/TaskProgressIndicator';
 import { formatDateEST } from '../utils/dateUtils';
+import type { BrandingConfig } from '../types';
 
 interface ScheduleData {
   id: number;
@@ -116,9 +117,9 @@ export default function CollectAndAnalyze() {
   useEffect(() => {
     let cancelled = false;
     api
-      .get('/site/branding')
+      .get<BrandingConfig>('/site/branding')
       .then((res) => {
-        if (!cancelled) setAdminEmail(res.data?.admin_email || null);
+        if (!cancelled) setAdminEmail(res.data.admin_email || null);
       })
       .catch(() => {
         if (!cancelled) setAdminEmail(null);

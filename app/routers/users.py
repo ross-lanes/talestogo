@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import timedelta
 import datetime
-import os
 import secrets
 import string
 
@@ -163,15 +162,13 @@ def create_invitation(
     db.commit()
     db.refresh(new_user)
 
-    # Return simple login URL
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-
+    # Return the configured site URL (Site Settings DB > FRONTEND_URL env > localhost fallback)
     return schemas.InvitationResponse(
         email=invitation.email,
         full_name=invitation.full_name,
         invitation_token="",  # No token needed
         expires_at=None,
-        invitation_url=frontend_url  # Just send them to the main site
+        invitation_url=get_site_url(db)  # Just send them to the main site
     )
 
 
