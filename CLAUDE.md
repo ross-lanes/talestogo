@@ -76,27 +76,38 @@ We chose **Option D: keep multi-tenancy** infrastructure. Each lab can be a tena
 - **Remove "Generate Report All Data" button from `tales_project`** if Rachel wants it gone from production (separate task, separate repo)
 - **Consider GitHub repo description / contributing guidelines** before PNNL clones
 
-### Known Issues — pre-existing or deferred (NOT fixed by this branch)
+### Known Issues — pre-existing or deferred
 
-These were discovered during the strip-to-Tales cleanup but were either pre-existing in the talestogo repo before this branch began or were intentionally left out of scope. None of them block PNNL deployment. Listed here so a future session has the full picture and so they aren't silently forgotten.
+These were discovered during the strip-to-Tales cleanup. The first three groups have been **resolved on this branch** (Phase 6.1 - 6.4). The remaining group is genuinely deferred. None block PNNL deployment.
 
-#### Pre-existing bugs (broken since the initial talestogo commit)
+#### ✅ Fixed in Phase 6.2: pytest test suite
 
-- **`tests/test_api.py` — broken import.** `from app.main import app as fastapi_app, get_db` fails with `ImportError: cannot import name 'get_db'`. `get_db` lives in `app.database`, not `app.main`. Fix is a one-line import change. We did not touch this test file.
-- **`tests/test_celery_tasks.py` — broken import.** `from celery_app.tasks import (...)` fails with `ModuleNotFoundError: No module named 'celery_app'`. Celery was apparently removed from the codebase at some point but this test file was never updated or deleted.
-- **`tests/test_tasks.py` — broken import** (same shape as `test_celery_tasks.py`).
-- **`tests/test_crud.py` — 32 failing tests.** All fail with `TypeError: create_analysis_history() missing 1 required positional argument: 'user_id'`. The `user_id` argument was added when multi-tenancy was introduced, but `test_crud.py` was never updated to match. Git log confirms `user_id` has been required since the initial commit on talestogo.
+  Was: 33 broken tests (3 collection-error files, 32 stale-signature failures in test_crud.py).
+  Now: 32 passing, 0 failing.
+  - `tests/test_api.py`, `tests/test_celery_tasks.py`, `tests/test_tasks.py`, `tests/test_main.py` deleted (all referenced removed modules / outdated API assumptions).
+  - `tests/test_crud.py` updated to seed a TEST_USER_ID and pass `user_id=TEST_USER_ID` through all 64 CRUD call sites; descriptor schema updated from old `category`/`target_for_pppl` fields to current `is_target`.
+  - Production bug found and fixed: `app/crud.py:get_target_descriptors` was filtering on `models.TargetDescriptor.target_for_pppl == True`, but that column was renamed to `is_target` long ago. Would have raised AttributeError at runtime when admins viewed target descriptors.
 
-  Net pytest state: of ~5 test files, 3 fail to even collect, 1 has 32 failing tests, 1 (`test_main.py`) is empty. Our cleanup did not touch any of them.
+#### ✅ Fixed in Phase 6.3: google.generativeai end-of-life
 
-#### Pre-existing dependency issues
+  Migrated `app/ai_generator.py`, `app/services/generic_llm_client.py`, and `app/services/llm_service.py` from the deprecated `google.generativeai` SDK to the supported `google-genai` SDK. `requirements.txt` updated. The "All support for google.generativeai has ended" FutureWarning that was logged on every backend startup is gone.
 
-- **`google.generativeai` package is end-of-life.** Importing the backend logs `FutureWarning: All support for the 'google.generativeai' package has ended. ... Please switch to the 'google.genai' package as soon as possible.` Used in `app/services/generic_llm_client.py`. Migration to `google.genai` is straightforward but pre-existing.
-- **18 npm vulnerabilities reported on `npm install`** (9 moderate, 8 high, 1 critical). All from transitive deps in `frontend/package-lock.json`. Phase 7 will surface specifics; deferred to that phase.
+#### ✅ Fixed in Phase 6.4: npm vulnerabilities
 
-#### Deprecation warnings from upstream library upgrades
+  Was: 18 vulnerabilities (9 moderate, 8 high, 1 critical).
+  Now: 0 vulnerabilities.
+  - `npm audit fix` upgraded transitive deps with safe patches.
+  - The remaining critical (jspdf) and high (xlsx) were both packages declared in `package.json` but not actually used: `jspdf` had zero imports anywhere, `xlsx` had three import-but-never-used statements. Both packages uninstalled and the dead imports removed. Bundle size unchanged.
 
-These are not bugs today but are scheduled-for-removal API uses:
+#### ✅ Fixed in Phase 6.1: repo cleanliness
+
+  ~200 files removed from the repo root: ~18 sample `report_*.md` files, ~36 personal debug/admin scripts, ~45 historical dev-doc markdowns, tracked binary artifacts (`file:crudtest`, `tales.db`, `tales.db.backup_*`, `celerybeat-schedule.db`, etc.), old distribution archives, exports, Word docs, the `deployment-kit-pppl/` PPPL bundle, the `images/` and `report_charts/` directories, and Rachel-specific platform configs (`apprunner.yaml`, `nixpacks.toml`, `Procfile`, `render.yaml`, `railway_build.sh`, `docker-compose.{nstxview,pppl}.yml`). `.gitignore` updated to prevent these patterns from sneaking back in.
+
+  Repo root is now AGENTS.md, CLAUDE.md, Dockerfile, LICENSE, README.md, app/, deployment-kit/, docker-compose.yml, docs/, frontend/, migrations/, pyproject.toml, requirements.txt, scripts/, start_tales.sh, tests/.
+
+#### ⏳ Deferred — deprecation warnings from upstream library upgrades
+
+These are not bugs today but are scheduled-for-removal API uses. Out of scope for the strip-to-Tales mission; deferred to a future maintenance pass.
 
 - **Pydantic v1-style `class Config`** in:
   - `app/routers/batches.py:33` (`BatchResponse`)
@@ -105,26 +116,9 @@ These are not bugs today but are scheduled-for-removal API uses:
   Should be migrated to Pydantic v2 `model_config = ConfigDict(...)`.
 - **FastAPI `@app.on_event("startup")` / `@app.on_event("shutdown")`** in `app/main.py:209` and `app/main.py:265`. Should be migrated to lifespan event handlers.
 
-#### Repo cleanliness — out of scope for the strip-to-Tales mission
+#### ⏳ Deferred — frontend bundle size
 
-These won't affect PNNL's deployment but are noise the public repo could do without:
-
-- **~16 generated sample report markdown files at repo root** (`report_*.md` for PPPL, Princeton Engineering, Physics of Plasmas, TALES test reports). Real reports Rachel generated; not deployment artifacts.
-- **~13 personal debug/admin scripts at repo root** (`check_*.py`, `fix_*.py`, `manual_*.py`, `force_*.py`, `emergency_*.py`, `merge_*.py`, etc.). Personal Tales operator scripts that don't belong in a public deployment repo.
-- **~50 historical dev docs at repo root** (login system investigations, methodology docs, OAuth visual guides, implementation summaries, theme flash notes, etc.). Many predate or are unrelated to PNNL deployment. The PNNL-facing docs (`docs/`, `deployment-kit/`) are clean.
-- **Tracked binary artifacts at repo root:**
-  - `file:crudtest` — SQLite DB literally with a colon in the filename, accidentally committed in the initial commit
-  - `tales.db`, `tales.db.old`, `tales.db.backup_*` — local SQLite DBs and backups
-  - `celerybeat-schedule.db`, `celerybeat-schedule-shm` — Celery scheduler artifacts despite Celery no longer being in the code
-- **Old distribution / export files** at repo root: `tales_to_go_20260127.zip`, `tales_export_20251106_202307.json`, `sqlite_export.json`, `user_data_export.sql`, `user_data_export_v2.sql`.
-- **Duplicate methodology files**: `Methodology_Additions.md` and `Methodology_Additions.txt` (.txt is a duplicate of the .md).
-- **Two Word docs at repo root**: `Internal_Developer_Guide_With_Additions.docx` and `PPPL_Developer_Guide_Suggested_Additions.docx`.
-- **`deployment-kit-pppl/data/pppl_brand.json`** still contains `"original_owner_email": "robotrachel@gmail.com"` (PPPL-specific demo data, intentionally not edited).
-- **Old SAST/audit JSON files at repo root**: `bandit-report.json`, `npm-audit-report.json`, `pip-audit-report.json`, `semgrep-report.json`. Will be regenerated in Phase 7.
-
-#### Frontend performance note (not a bug)
-
-- `npm run build` warns: "Some chunks are larger than 500 kB after minification" (the main JS bundle is ~2.18 MB / 612 KB gzipped). Suggestion is dynamic `import()` for code-splitting, or `build.rollupOptions.output.manualChunks`. Pre-existing; Tales loads fine, just a slow first-paint.
+- `npm run build` warns: "Some chunks are larger than 500 kB after minification" (main bundle ~2.18 MB / 613 KB gzipped). Suggestion is dynamic `import()` for code-splitting or `manualChunks`. Pre-existing; Tales loads fine, just a slow first-paint. Out of scope for cleanup.
 
 ## Tech Stack
 
