@@ -6,79 +6,26 @@ interface ChartContainerProps {
   children: ReactNode;
   width?: number | `${number}%`;
   height?: number;
-  logoOpacity?: number;
-  logoPosition?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
-  logoSize?: number;
-  showLogo?: boolean;
 }
 
 /**
- * ChartContainer - A wrapper component for all Recharts visualizations
- * that adds consistent RobotRachel branding to charts.
- *
- * Features:
- * - Wraps ResponsiveContainer from Recharts
- * - Adds RobotRachel logo overlay in configurable position
- * - Logo appears in chart screenshots/downloads (html2canvas)
- * - Fully responsive and customizable
+ * ChartContainer - A wrapper around Recharts' ResponsiveContainer for
+ * consistent chart sizing across the app.
  *
  * @param children - Recharts components (BarChart, LineChart, PieChart, etc.)
  * @param width - Chart width (default: "100%")
  * @param height - Chart height (default: 400)
- * @param logoOpacity - Logo opacity 0-1 (default: 1.0)
- * @param logoPosition - Logo corner placement (default: "bottom-right")
- * @param logoSize - Logo width in pixels (default: 86)
- * @param showLogo - Whether to display logo (default: false)
  */
 export const ChartContainer: React.FC<ChartContainerProps> = ({
   children,
   width = '100%',
   height = 400,
-  logoOpacity = 1.0,
-  logoPosition = 'bottom-right',
-  logoSize = 86,
-  showLogo = false,
 }) => {
-  // Calculate logo positioning based on logoPosition prop
-  const getLogoPosition = () => {
-    const offset = 8; // 8px padding from edges
-
-    switch (logoPosition) {
-      case 'bottom-right':
-        return { bottom: offset, right: offset };
-      case 'bottom-left':
-        return { bottom: offset, left: offset };
-      case 'top-right':
-        return { top: offset, right: offset };
-      case 'top-left':
-        return { top: offset, left: offset };
-      default:
-        return { bottom: offset, right: offset };
-    }
-  };
-
   return (
     <Box sx={{ position: 'relative', width: '100%' }}>
       <ResponsiveContainer width={width} height={height}>
         {children}
       </ResponsiveContainer>
-
-      {showLogo && (
-        <Box
-          component="img"
-          src="/logos/robotrachel-logo.png"
-          alt="RobotRachel"
-          sx={{
-            position: 'absolute',
-            width: `${logoSize}px`,
-            height: 'auto',
-            opacity: logoOpacity,
-            pointerEvents: 'none', // Don't interfere with chart interactions
-            zIndex: 1,
-            ...getLogoPosition(),
-          }}
-        />
-      )}
     </Box>
   );
 };

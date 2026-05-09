@@ -807,7 +807,7 @@ Error: {error_message}
 The system will automatically retry during the next scheduled run.
 You can also manually generate a report from the Reports page.
 
-View your dashboard: https://apps.robotrachel.com/analytics
+View your dashboard: {os.getenv('FRONTEND_URL', '').rstrip('/')}/analytics
 
 --
 TALES - AI Reputation Intelligence & Optimization
@@ -901,7 +901,7 @@ Collection Date: {history.started_at.strftime('%B %d, %Y')}
 Responses Collected: {history.collection_responses or 'Processing'}
 Responses Analyzed: {history.analysis_responses or 'Processing'}
 
-View your results: https://apps.robotrachel.com/analytics
+View your results: {os.getenv('FRONTEND_URL', '').rstrip('/')}/analytics
 
 Next scheduled collection: {next_collection.strftime('%B %d, %Y at %I:%M %p') if next_collection else 'Not scheduled'}
 
@@ -920,7 +920,7 @@ Error: {history.error_message or 'Unknown error'}
 Responses Collected: {history.collection_responses or 0}
 Responses Analyzed: {history.analysis_responses or 0}
 
-Please log in to review and manually re-run if needed: https://apps.robotrachel.com/data
+Please log in to review and manually re-run if needed: {os.getenv('FRONTEND_URL', '').rstrip('/')}/data
 
 Next scheduled collection: {next_collection.strftime('%B %d, %Y at %I:%M %p') if next_collection else 'Not scheduled'}
 
@@ -955,7 +955,7 @@ Brand: {brand.brand_name}
 Report Period: {period_label}
 Report Type: {period_type_display} Report
 
-View your report: https://apps.robotrachel.com/reports
+View your report: {os.getenv('FRONTEND_URL', '').rstrip('/')}/reports
 
 This report contains comprehensive analysis of all data collected during {period_label}.
 

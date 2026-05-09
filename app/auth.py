@@ -63,7 +63,7 @@ OIDC_DISCOVERY_URL = os.getenv(
 # NOTE: ADMIN_EMAIL is ONLY used for initial bootstrap (first-time admin OAuth login).
 # After a user is created, all admin checks use the database is_admin flag.
 # To promote/demote admins, update the is_admin field in the database directly.
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "robotrachel@gmail.com")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
 
 # Encryption key for API keys (must be stored securely in production)
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY", Fernet.generate_key().decode())

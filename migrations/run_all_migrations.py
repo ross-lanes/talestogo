@@ -6,8 +6,8 @@ Runs all necessary database migrations in the correct order to fix production lo
 This script will:
 1. Create tenants table if it doesn't exist
 2. Add tenant_id column to users table if missing
-3. Create RobotRachel tenant
-4. Assign all users to RobotRachel tenant
+3. Create Default tenant
+4. Assign all users to Default tenant
 5. Activate all users (set is_active=True)
 6. Set OAuth providers based on email domain
 
@@ -98,30 +98,30 @@ def step2_add_tenant_column():
             return False
 
 
-def step3_create_robotrachel_tenant():
-    """Step 3: Create RobotRachel tenant"""
+def step3_create_default_tenant():
+    """Step 3: Create Default tenant"""
     print("\n" + "="*60)
-    print("STEP 3: Creating RobotRachel Tenant")
+    print("STEP 3: Creating Default Tenant")
     print("="*60)
 
     db = SessionLocal()
     try:
         tenant = db.query(Tenant).filter(
-            Tenant.tenant_name == 'RobotRachel'
+            Tenant.tenant_name == 'Default'
         ).first()
 
         if tenant:
-            print(f"✓ RobotRachel tenant already exists (ID: {tenant.id})")
+            print(f"✓ Default tenant already exists (ID: {tenant.id})")
         else:
             tenant = Tenant(
-                tenant_name='RobotRachel',
+                tenant_name='Default',
                 primary_color='#75C9C8',
                 secondary_color='#665775'
             )
             db.add(tenant)
             db.commit()
             db.refresh(tenant)
-            print(f"✓ Created RobotRachel tenant (ID: {tenant.id})")
+            print(f"✓ Created Default tenant (ID: {tenant.id})")
 
         return True
     except Exception as e:
@@ -140,13 +140,13 @@ def step4_assign_users_and_activate():
 
     db = SessionLocal()
     try:
-        # Get RobotRachel tenant
+        # Get Default tenant
         tenant = db.query(Tenant).filter(
-            Tenant.tenant_name == 'RobotRachel'
+            Tenant.tenant_name == 'Default'
         ).first()
 
         if not tenant:
-            print("✗ RobotRachel tenant not found!")
+            print("✗ Default tenant not found!")
             return False
 
         # Get all users
@@ -218,7 +218,7 @@ def run_all_migrations():
     steps = [
         ("Create Tenants Table", step1_create_tenants_table),
         ("Add Tenant Column", step2_add_tenant_column),
-        ("Create RobotRachel Tenant", step3_create_robotrachel_tenant),
+        ("Create Default Tenant", step3_create_default_tenant),
         ("Assign & Activate Users", step4_assign_users_and_activate),
     ]
 
@@ -231,7 +231,7 @@ def run_all_migrations():
     print("\n" + "="*60)
     print("🎉 ALL MIGRATIONS COMPLETED SUCCESSFULLY!")
     print("="*60)
-    print("\nAll users can now login to tales.robotrachel.com!")
+    print("\nAll users can now login to tales.default.com!")
     print()
 
     return True

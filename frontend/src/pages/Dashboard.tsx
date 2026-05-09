@@ -598,7 +598,7 @@ export default function Dashboard() {
                   ))}
                 </Box>
                 {/* Pie chart on the right/bottom - bigger on larger screens */}
-                <ChartContainer width="100%" height={sentimentChartHeight} showLogo={false}>
+                <ChartContainer width="100%" height={sentimentChartHeight}>
                   <PieChart>
                     <Pie
                       data={[

@@ -58,7 +58,7 @@ const ManageBrand: React.FC = () => {
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
-  const isAdmin = user?.email === 'robotrachel@gmail.com';
+  const isAdmin = user?.is_admin === true;
 
   const handleTransferSubmit = async () => {
     if (!activeBrand || !transferEmail) return;
@@ -329,8 +329,7 @@ const ManageBrand: React.FC = () => {
         <DialogContent>
           <DialogContentText>
             Remove "{activeBrand.brand_name}" from your account? This will transfer ownership to
-            the admin (robotrachel@gmail.com). All data will be preserved but you will
-            no longer have access to this brand.
+            an admin. All data will be preserved but you will no longer have access to this brand.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

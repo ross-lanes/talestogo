@@ -299,7 +299,7 @@ export default function CollectAndAnalyze() {
             </Typography>
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
-                <strong>Note:</strong> By default, this will analyze only the latest collected data. For longer-term analysis (quarterly, annual, or custom date ranges), please contact <a href="mailto:admin@robotrachel.com" style={{ color: 'inherit' }}>admin@robotrachel.com</a>.
+                <strong>Note:</strong> By default, this will analyze only the latest collected data. For longer-term analysis (quarterly, annual, or custom date ranges), please contact your administrator.
               </Typography>
             </Alert>
 

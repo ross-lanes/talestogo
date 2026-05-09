@@ -117,22 +117,8 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
     """Add CORS headers to error responses"""
     origin = request.headers.get("origin")
 
-    # List of allowed origins (must match CORS config)
-    allowed_origins = [
-        "http://localhost:5173",
-        "http://localhost:5177",  # Alternate Vite dev server port
-        "https://tales-frontend.onrender.com",
-        "https://apps.robotrachel.com",  # Primary production domain
-        "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
-        "https://solsticehc.robotrachel.com",
-        "https://api.tales.robotrachel.com",
-        "https://tales-frontend-development.up.railway.app",  # Railway dev frontend
-        "https://tales-frontend-production.up.railway.app",  # Railway prod frontend
-    ]
-    # Add FRONTEND_URL from environment if set
-    frontend_url = os.environ.get("FRONTEND_URL")
-    if frontend_url and frontend_url not in allowed_origins:
-        allowed_origins.append(frontend_url)
+    # List of allowed origins (must match CORS config below)
+    allowed_origins = _build_allowed_origins()
 
     headers = {}
     if origin in allowed_origins:
@@ -145,22 +131,30 @@ async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
         headers=headers
     )
 
-# Build CORS origins list
-cors_origins = [
-    "http://localhost:5173",  # Local development (default Vite port)
-    "http://localhost:5177",  # Local development (alternate Vite port)
-    "https://tales-frontend.onrender.com",  # Production frontend (legacy)
-    "https://apps.robotrachel.com",  # Primary production domain
-    "https://tales.robotrachel.com",  # Legacy domain (redirects to apps.robotrachel.com)
-    "https://solsticehc.robotrachel.com",  # Solstice HC tenant subdomain
-    "https://api.tales.robotrachel.com",  # API subdomain
-    "https://tales-frontend-development.up.railway.app",  # Railway dev frontend
-    "https://tales-frontend-production.up.railway.app",  # Railway prod frontend
-]
-# Add FRONTEND_URL from environment if set (for dynamic configuration)
-_frontend_url = os.environ.get("FRONTEND_URL")
-if _frontend_url and _frontend_url not in cors_origins:
-    cors_origins.append(_frontend_url)
+# Build CORS origins list.
+#
+# Configure via environment variables:
+#   FRONTEND_URL     - the primary frontend URL (e.g., https://tales.mylab.gov)
+#   ALLOWED_ORIGINS  - additional origins, comma-separated (optional)
+#
+# Localhost dev origins are always included so local Vite dev servers work.
+def _build_allowed_origins() -> list[str]:
+    origins = [
+        "http://localhost:5173",  # Vite default dev port
+        "http://localhost:5177",  # Vite alternate dev port
+        "http://localhost:8080",  # Default docker-compose port
+    ]
+    frontend_url = os.environ.get("FRONTEND_URL")
+    if frontend_url and frontend_url not in origins:
+        origins.append(frontend_url)
+    extra = os.environ.get("ALLOWED_ORIGINS", "")
+    for o in (x.strip() for x in extra.split(",")):
+        if o and o not in origins:
+            origins.append(o)
+    return origins
+
+
+cors_origins = _build_allowed_origins()
 
 # Configure CORS to allow frontend to access backend
 app.add_middleware(

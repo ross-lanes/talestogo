@@ -1,20 +1,17 @@
 import axios from 'axios';
 
-// API Base URL - points to your FastAPI backend
-// Uses VITE_API_URL if set, otherwise falls back to same-origin (production)
-// or localhost:8000 (local development)
+// API Base URL - points to the FastAPI backend.
+// Resolution order:
+//   1. VITE_API_URL build-time env var (set explicitly when frontend and
+//      backend are deployed to different origins)
+//   2. localhost:8000 when running the Vite dev server (ports 5173/5177)
+//   3. same-origin (default for the standard docker-compose deployment
+//      where the backend serves the built frontend)
 const API_BASE_URL = (() => {
-  // First check for explicit environment variable
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // Special case: Solstice HC uses a separate API subdomain
-  if (window.location.hostname === 'solsticehc.robotrachel.com') {
-    return 'https://api.tales.robotrachel.com';
-  }
-
-  // For local Vite dev server (ports 5173/5177), use separate backend on port 8000
   if (
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
     (window.location.port === '5173' || window.location.port === '5177')
@@ -22,8 +19,6 @@ const API_BASE_URL = (() => {
     return 'http://localhost:8000';
   }
 
-  // For all other environments (PPPL, Railway, robotrachel.com, etc.),
-  // the backend serves the frontend from the same origin
   return window.location.origin;
 })();
 

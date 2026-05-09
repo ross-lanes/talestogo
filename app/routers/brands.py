@@ -118,16 +118,17 @@ def delete_brand_endpoint(
     """
     Permanently delete a brand and all associated data.
 
-    ADMIN ONLY: Only robotrachel@gmail.com can permanently delete brands.
-    Regular users should use POST /brands/{brand_id}/remove to transfer to admin instead.
+    ADMIN ONLY: only users with is_admin=true can permanently delete brands.
+    Regular users should use POST /brands/{brand_id}/remove to transfer to an
+    admin instead.
 
     WARNING: This permanently deletes all data with no recovery option.
     """
     # Restrict hard delete to admin only
-    if current_user.email != "robotrachel@gmail.com":
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=403,
-            detail="Only admin can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
+            detail="Only admins can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
         )
 
     deleted_brand = crud.delete_brand_info(db, brand_id=brand_id, user_id=current_user.id, admin_override=True)
@@ -326,28 +327,34 @@ def remove_brand_endpoint(
     db: Session = Depends(get_db)
 ):
     """
-    Remove brand from your account by transferring it to admin.
+    Remove brand from your account by transferring it to an admin.
 
-    This preserves all data by transferring ownership to robotrachel@gmail.com.
+    This preserves all data by transferring ownership to an admin user.
     Only the brand owner can remove. You will no longer see this brand.
     """
     # Verify user OWNS this brand (not just has access)
     brand = get_user_owned_brand_or_403(db, brand_id, current_user.id)
 
-    # Prevent admin from removing brands (admin can only hard delete)
-    if current_user.email == "robotrachel@gmail.com":
+    # Prevent admins from removing brands (admins can only hard delete)
+    if current_user.is_admin:
         raise HTTPException(
             status_code=400,
             detail="Admin cannot remove brands. Use delete endpoint instead."
         )
 
-    # Find admin user
-    admin = db.query(models.User).filter(models.User.email == "robotrachel@gmail.com").first()
+    # Find an admin user to transfer ownership to (prefer the oldest admin
+    # account for stability)
+    admin = (
+        db.query(models.User)
+        .filter(models.User.is_admin == True, models.User.is_active == True)
+        .order_by(models.User.id.asc())
+        .first()
+    )
 
     if not admin:
         raise HTTPException(
             status_code=500,
-            detail="Admin user not found. Cannot remove brand."
+            detail="No active admin user found. Cannot remove brand."
         )
 
     # Transfer to admin
@@ -421,14 +428,14 @@ def delete_brand_info_endpoint(
     """
     Delete active brand info (legacy endpoint - ADMIN ONLY).
 
-    Only robotrachel@gmail.com can permanently delete brands.
+    Only users with is_admin=true can permanently delete brands.
     Regular users should use POST /brands/{brand_id}/remove instead.
     """
     # Restrict hard delete to admin only
-    if current_user.email != "robotrachel@gmail.com":
+    if not current_user.is_admin:
         raise HTTPException(
             status_code=403,
-            detail="Only admin can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
+            detail="Only admins can permanently delete brands. Use POST /brands/{brand_id}/remove to remove from your account (data will be preserved)."
         )
 
     active_brand = crud.get_active_brand(db, user_id=current_user.id)

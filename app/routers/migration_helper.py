@@ -99,7 +99,7 @@ def reset_sequences(
     Admin only.
     """
     # Only admin can run this
-    if current_user.email != "robotrachel@gmail.com":
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     tables = [
@@ -178,7 +178,7 @@ def debug_brand_shares(
     Admin only.
     """
     # Only admin can run this
-    if current_user.email != "robotrachel@gmail.com":
+    if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin only")
 
     try:

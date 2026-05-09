@@ -52,7 +52,8 @@ def generate_slideshow(
         if brand:
             brand_name = brand.brand_name
 
-    # RobotRachel brand colors
+    # Default slide brand colors (admins can theme via Site Settings;
+    # these are the fallback palette for generated PowerPoint reports)
     BRAND_BLUE = RGBColor(128, 161, 212)    # #80a1d4 - Primary blue
     BRAND_PURPLE = RGBColor(102, 87, 117)   # #665775 - Secondary purple
     BRAND_TEAL = RGBColor(117, 201, 200)    # #75c9c8 - Accent teal
