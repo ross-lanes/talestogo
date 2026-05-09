@@ -110,7 +110,7 @@ DEFAULT_PROVIDERS = [
         "provider_key": "claude",
         "display_name": "Claude",
         "api_type": "anthropic",
-        "model_name": "claude-3-haiku-20240307",
+        "model_name": "claude-haiku-4-5-20251001",
         "color": "#CC785C",
         "sort_order": 1,
         "supports_web_search": False,

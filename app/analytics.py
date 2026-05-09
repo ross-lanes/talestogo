@@ -289,8 +289,6 @@ def get_sentiment_breakdown(db: Session, user_id: int, brand_id: Optional[int] =
         db: Database session
         brand_id: Optional brand ID to filter by
     """
-    from app.services.llm_service import _call_gemini_api
-
     # Get all brand mentions grouped by sentiment
     query = db.query(
         models.Response.sentiment,
@@ -671,8 +669,6 @@ def get_descriptor_insights(db: Session, user_id: int, brand_id: Optional[int] =
     Returns:
         Dictionary containing LLM-generated analysis of descriptor patterns
     """
-    from app.services.llm_service import _call_gemini_api
-
     # Get the brand name
     brand_query = db.query(models.BrandInfo)
     if brand_id:
