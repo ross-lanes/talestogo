@@ -21,57 +21,86 @@ If a change is needed in both repos, treat them as two separate, independent com
 
 Rachel sent the talestogo deployment kit to PNNL (Pacific Northwest National Laboratory) on Feb 2, 2026. PNNL responded in early May 2026 wanting a meeting before deploying. Their main asks: solidify repo location/access, establish contribution guidelines, and confirm scope.
 
-While preparing for that meeting, we discovered the talestogo repo still contained code for **8 non-Tales products** (Heads, Canon, Big Idea, NSTXView, Vision, Pulse, Voice, Guardian) — vestiges of the broader "Solstice AI Suite" architecture. PNNL only needs Tales. So we started a cleanup branch to strip the repo down to just Tales.
+While preparing for that meeting, we discovered the talestogo repo still contained code for **8 non-Tales products** (Heads, Canon, Big Idea, NSTXView, Vision, Pulse, Voice, Guardian) — vestiges of the broader "Solstice AI Suite" architecture, plus dozens of personal/historical files that didn't belong in a public deployment repo. PNNL only needs Tales. So we created a `strip-to-tales-only` branch to clean it all up.
 
-### Work completed today
+### Pre-branch work
 
-1. **Discovered local TalesToGo folder was not a git clone.** Grafted `.git` from `github.com/rtwodeetwo/talestogo` into the local folder, did a `git checkout HEAD -- .` to bring local files in line with GitHub (12 files were ~4 days behind GitHub; 11 files including the `frontend/src/pages/heads/` directory existed on GitHub but were missing locally).
+1. **Discovered the local TalesToGo folder was not a git clone.** Grafted `.git` from `github.com/rtwodeetwo/talestogo` into the local folder, ran `git checkout HEAD -- .` to bring local files in line with GitHub (12 files were ~4 days behind; 11 GitHub files including the `frontend/src/pages/heads/` directory were missing locally).
 
-2. **Pushed an MIT LICENSE** to `github.com/rtwodeetwo/talestogo` via the GitHub API (commit `3e8b170`). Copyright: "Rachel Kremen" — Rachel confirmed she is the legal copyright holder after checking with PPPL legal.
+2. **Pushed an MIT LICENSE** to `github.com/rtwodeetwo/talestogo` via the GitHub API (commit `3e8b170`). Copyright: "Rachel Kremen" (confirmed legal copyright holder after checking with PPPL legal).
 
 3. **Created a Google Doc with PNNL meeting Q&A:** "PNNL Tales Deployment - Meeting Prep & Q&A" (https://docs.google.com/document/d/1NlOGu-8YmWOkGeue36GlcefuzxyGok3WdzJGQBdUYBI/edit). Covers: how PNNL gets updates, build-locally vs. Docker Hub, how to access the full source code, registry-mirror requirements.
 
 4. **Drafted a reply to Ross Lanes at PNNL** confirming the GitHub URL is the canonical source and offering to add `ross-lanes` and `domskurka-pnnl` as collaborators.
 
-5. **Started branch `strip-to-tales-only`** with the following commits:
-   - `Phase 1a: Remove non-Tales backend routers and services` — deleted `app/routers/{heads,personas,canon,bigidea}.py`, `app/services/{persona_generator,pptx_generator}.py`, plus stale `.backup`/dead-code files. Updated `main.py`. (11 files changed, +146 -3,344)
-   - `Phase 1b: Strip non-Tales code from shared backend files` — removed `PersonaType`, `PersonaGeneration`, `Persona` models; `allowed_products` column on User; all persona schemas/CRUD; `_Settings` and `TenantConfig` in config.py; `check_product_access` middleware (deleted `app/dependencies.py`); deleted `app/services/perplexity_service.py` (was Heads-only). (9 files changed, +23 -846)
-   - `Phase 2a: Delete non-Tales frontend pages, services, types, and assets` — deleted `frontend/src/pages/{heads,canon,bigidea}/` directories, `HowHeadsWorks.tsx`, `HowCanonWorks.tsx`, `headsService.ts`, `bigideaService.ts`, `types/heads.ts`, `types/bigidea.ts`, and 4 product logo PNG/SVG files in `frontend/public/`. (35 files deleted)
-   - `Phase 2b: Remove multi-product abstraction from frontend` — deleted `ProductContext.tsx` and `ProductSwitcher.tsx`; rewrote `AppContent.tsx` (~480 → ~280 lines); cleaned up `Layout.tsx` (removed product-conditional logic, switcher, `getMenuItems` switch); cleaned up `UserManagement.tsx` (removed `allowed_products` UI, replaced "App Access" column with "Tenant"); cleaned up `api.ts`, `AuthContext.tsx`, `types/index.ts`. (8 files changed, +294 -1,229)
-
-**Cumulative as of pause:** ~85 files removed, ~5,400 lines deleted, ~470 added. Backend has zero orphan refs to deleted modules. Frontend has zero orphan refs to ProductContext/ProductSwitcher/useProduct/allowed_products/persona/heads/canon/bigidea.
-
 ### Key decision: KEEP multi-tenancy
 
-Rachel originally asked to strip multi-tenancy entirely. After investigation we found:
+Rachel initially asked to strip multi-tenancy entirely. After investigation we found:
 - Only 91 `tenant_id` references across 10 files (heavily concentrated in tenants.py, llm_providers.py)
 - Pages do NOT load tenant_id — data is scoped by `user_id`
 - `tenant_id` is mostly used for: brand-sharing scope, LLM provider scoping, tenant management API
 - The actually-problematic part (the "Solstice HC" hardcoded mapping, product-tenant config) was already gone after Phase 1b
 
-We chose **Option D: keep multi-tenancy** infrastructure. Each lab can be a tenant if they want, or ignore the feature entirely (`tenant_id` is nullable). What was removed: `Solstice HC` config, `solsticehc.net` email-domain mapping, the `TENANT_PRODUCTS` product-tenant access map.
+We chose **Option D: keep multi-tenancy infrastructure.** Each lab can be a tenant if they want, or ignore the feature entirely (`tenant_id` is nullable). What was removed: `Solstice HC` config, `solsticehc.net` email-domain mapping, the `TENANT_PRODUCTS` product-tenant access map.
 
-### Remaining phases (as of pause on 2026-05-08)
+### What was done — `strip-to-tales-only` branch (21 local commits)
 
-| Phase | Scope |
-|---|---|
-| **3** | Migrations cleanup — delete `migrations/{add_heads_tables.py, add_solstice_tenant.py, add_allowed_products.py}` |
-| **4** | Docs cleanup — `CLAUDE.md`, `README.md`, `USER_GUIDE.md`, `IT_DEPLOYMENT_GUIDE.md` — remove Heads/Canon/Solstice references, "Solstice AI Suite" branding |
-| **5** | Remove "Generate Report All Data" button — frontend only (`ReportsPage.tsx` lines 244-253 + `generateAllDataMutation` lines 77-94). **Leave the backend endpoint** `/tasks/generate-all-data-report/` in place. **NOTE:** apps.robotrachel.com is built from `tales_project`, NOT this repo. Removing the button here only affects the public PNNL version. The production app needs an independent change in `tales_project`. |
-| **6** | Full evals & testing — backend `pytest`, frontend `npm install` + `npm run build`, fresh DB integration test, backend smoke test, manual Tales feature checklist, multi-tenancy verification |
-| **7** | Fresh SAST + dependency audit — `bandit`, `semgrep`, `pip-audit`, `npm audit`. Diff against existing reports (`bandit-report.json`, `semgrep-report.json`, `pip-audit-report.json`, `npm-audit-report.json`) to confirm no new vulnerabilities. **No DAST.** |
-| **8** | Push `strip-to-tales-only` branch to GitHub `talestogo`, merge to `main` |
+| Phase | Scope | Net diff |
+|---|---|---|
+| **1a** | Delete non-Tales backend routers (heads, personas, canon, bigidea) and Heads-only services (persona_generator, pptx_generator) | +146 −3,344 |
+| **1b** | Strip non-Tales code from shared backend files: removed `PersonaType` / `PersonaGeneration` / `Persona` models, `allowed_products` column, all persona schemas/CRUD, `_Settings` and `TenantConfig`, `check_product_access` middleware (deleted `app/dependencies.py`), `perplexity_service.py` | +23 −846 |
+| **2a** | Delete non-Tales frontend pages, services, types, public assets (heads/, canon/, bigidea/, HowHeadsWorks, HowCanonWorks, headsService, bigideaService, types/heads, types/bigidea, 4 product logo files) | 35 files deleted |
+| **2b** | Remove multi-product abstraction from frontend: deleted `ProductContext`, `ProductSwitcher`; rewrote `AppContent.tsx`; cleaned `Layout.tsx`, `UserManagement.tsx`, `api.ts`, `AuthContext.tsx`, `types/index.ts` | +294 −1,229 |
+| **3** | Delete obsolete migrations (`add_heads_tables`, `add_solstice_tenant`, `add_allowed_products`) | −429 |
+| **4** | Docs cleanup + `auth.py` Solstice/RobotRachel fix (default tenant changed `RobotRachel` → `Default`) | +44 −3,244 |
+| **4.5** | Sanitize hardcoded personal infrastructure: env-var-configurable CORS, `is_admin` flag everywhere instead of `email == 'robotrachel@gmail.com'`, FRONTEND_URL in scheduler emails, removed RobotRachel/solstice logos and "Made by RobotRachel" footer | +105 −230 |
+| **4.6** | Expose `admin_email` publicly via `/site/branding` so the "contact your administrator" note in the UI can render a real mailto link; clean up doc examples | +49 −21 |
+| **4.7** | **Critical fix** — `setup_initial_admin.py` would have crashed on first run (left over `allowed_products="tales,heads,canon"` kwarg). PNNL's documented first deployment step now works. Also deleted 6 stale Rachel-specific scripts. | −558 |
+| **4.8** | Fix `scheduler.py` email URL bug introduced in 4.5: was rendering as broken relative path `/analytics`; now uses canonical `get_site_url(db)` helper | +5 −4 |
+| **4.9** | Audit follow-ups: unify `BrandingConfig` TypeScript type, switch `users.py` invitation flow to `get_site_url(db)` | +16 −15 |
+| **5** | Remove "Generate Report All Data" button from `ReportsPage.tsx` (frontend only; backend endpoint preserved per Rachel's instruction) | −41 |
+| **6 fixup** | Fix Login.tsx fallback `BrandingConfig` to include `admin_email: null` (caught by TypeScript build) | +1 |
+| **6.1** | Major repo cleanup — ~200 files removed (sample reports, debug scripts, historical dev docs, tracked binaries, old distributions, Word docs, PPPL bundle, branding assets, Rachel-specific platform configs). `.gitignore` updated to prevent recurrence. | massive |
+| **6.2** | Fix the broken pytest suite (was 33 broken since the initial commit). 32 passing now. Bonus: **caught a real production bug** — `app/crud.py:get_target_descriptors` was filtering on the long-renamed `target_for_pppl` column; would have crashed at runtime when admins viewed target descriptors | +102 −624 |
+| **6.3** | Migrate `google.generativeai` → `google-genai` SDK (the old package is end-of-life). Updated `app/ai_generator.py`, `app/services/generic_llm_client.py`, `app/services/llm_service.py`, and `requirements.txt`. | +54 −46 |
+| **6.4** | Resolve all 18 npm vulnerabilities (9 moderate, 8 high, 1 critical) → 0. Non-breaking transitive bumps got us to 2; uninstalling unused `jspdf` and `xlsx` packages eliminated the rest. | +369 −526 (mostly package-lock) |
 
-### Where state lives
+**Cumulative diff vs. start of branch:** ~115 files removed, ~12,000 lines deleted, ~610 added.
 
-- **Local working tree:** `/Users/rkremen/Documents/Code/TalesToGo/` on branch `strip-to-tales-only`
-- **Remote:** `origin → github.com/rtwodeetwo/talestogo.git`
-- **Branch is local-only** at pause time — has not been pushed to GitHub
-- Commit count on branch: 4 (Phases 1a, 1b, 2a, 2b)
+### Repo state at end of session
+
+- **Branch:** `strip-to-tales-only` (local-only, 21 commits, NOT yet pushed to GitHub)
+- **Backend:** imports cleanly (169 routes), no deprecation warnings from removed/migrated code, all 32 tests pass
+- **Frontend:** TypeScript builds clean, 0 vulnerabilities, no orphan imports
+- **Repo root:** minimal and PNNL-ready — `AGENTS.md`, `CLAUDE.md`, `Dockerfile`, `LICENSE`, `README.md`, `app/`, `deployment-kit/`, `docker-compose.yml`, `docs/`, `frontend/`, `migrations/`, `pyproject.toml`, `requirements.txt`, `scripts/`, `start_tales.sh`, `tests/`
+
+### What's left in the original 8-phase plan
+
+- **Phase 7** — Fresh SAST + dependency audit. Run `bandit`, `semgrep`, `pip-audit`, `npm audit`. Diff against the old reports (deleted in Phase 6.1) to confirm we made things better, not worse. **No DAST.**
+- **Phase 8** — Push `strip-to-tales-only` to GitHub and merge to `main`.
+
+### NEXT SESSION: Rachel wants to do these three things first
+
+When picking this back up, Rachel asked to address these items before resuming the original plan:
+
+1. **Deal with the deferred deprecations** (still listed in the "Known Issues — deferred" section below):
+   - Pydantic v1-style `class Config` in `app/routers/batches.py:33`, `app/routers/scheduled_tasks.py:51`, and `app/routers/scheduled_tasks.py:79`. Migrate to Pydantic v2 `model_config = ConfigDict(...)`.
+   - FastAPI `@app.on_event("startup")` and `@app.on_event("shutdown")` in `app/main.py:209` and `app/main.py:265`. Migrate to lifespan event handlers.
+
+2. **Investigate the background-smoketest exit code 144** seen during Phase 6:
+   In Phase 6 we started the backend in the background for live smoke testing, then later killed it with `pkill -f "uvicorn app.main"`. The task harness reported `Background command "Start backend in background for smoke testing" failed with exit code 144`. We didn't dig into what 144 means here. Possibilities to check:
+   - Whether 144 = 128 + 16 (signal 16, which is SIGURG on macOS — odd, would mean something other than our pkill killed it)
+   - Whether the task harness has its own meaning for 144 unrelated to Unix signals
+   - Whether uvicorn's own shutdown path returned non-zero
+   The smoke test itself completed successfully BEFORE the pkill, so this is a cosmetic/cleanup issue, not evidence of a real failure during testing.
+
+3. **Run manual feature tests with Claude's guidance.** The Phase 6 plan included a manual feature checklist (browse the running app and verify Tales features work end-to-end), but we never executed it interactively. Rachel wants to walk through this with Claude offering guidance: spin up the app locally, click through brand CRUD, query CRUD, all 7 analytics pages, reports, admin user/tenant management, LLM configuration, site settings, and verify there are no regressions or missing pieces.
+
+After those three items are settled, the remaining original plan is just Phase 7 (SAST scan) and Phase 8 (push + merge to GitHub).
 
 ### Outstanding follow-ups (outside this branch)
 
-- **Reply to Ross Lanes (PNNL)** with the GitHub URL and offer to add him + Domenic Skurka as collaborators (draft is in conversation, not yet sent)
+- **Reply to Ross Lanes (PNNL)** with the GitHub URL and offer to add him + Domenic Skurka as collaborators (draft is in earlier conversation, not yet sent)
 - **Add LICENSE to `tales_project`** if Rachel wants the same MIT license there (separate task, separate repo)
 - **Remove "Generate Report All Data" button from `tales_project`** if Rachel wants it gone from production (separate task, separate repo)
 - **Consider GitHub repo description / contributing guidelines** before PNNL clones
