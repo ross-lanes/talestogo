@@ -312,7 +312,7 @@ def get_target_descriptors(db: Session, user_id: int, brand_id: Optional[int] = 
     """Gets a list of descriptors that are marked as targets for the user's brand."""
     query = db.query(models.TargetDescriptor).filter(
         models.TargetDescriptor.user_id == user_id,
-        models.TargetDescriptor.target_for_pppl == True
+        models.TargetDescriptor.is_target == True
     )
     if brand_id is not None:
         query = query.filter(models.TargetDescriptor.brand_id == brand_id)

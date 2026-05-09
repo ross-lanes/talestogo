@@ -12,14 +12,35 @@ from app.database import Base
 from app import crud, models, schemas
 
 
+# All multi-tenant CRUD calls require a user_id. The fixture seeds a single
+# test user and the tests pass TEST_USER_ID through to every CRUD call.
+TEST_USER_ID = 1
+
+
 @pytest.fixture()
 def test_db():
-    """Create an in-memory test database for CRUD tests."""
+    """Create an in-memory test database for CRUD tests with a seeded test user."""
     import app.models  # noqa - ensure models are registered
     test_db_uri = "sqlite:///file:crudtest?mode=memory&cache=shared"
     engine = create_engine(test_db_uri, connect_args={"check_same_thread": False, "uri": True})
     Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    # Seed a default test user — every CRUD call below filters by user_id.
+    seed = TestingSessionLocal()
+    try:
+        seed.add(models.User(
+            id=TEST_USER_ID,
+            email="testuser@example.com",
+            full_name="Test User",
+            organization="Test Org",
+            is_active=True,
+            is_admin=False,
+            is_invited=True,
+        ))
+        seed.commit()
+    finally:
+        seed.close()
 
     yield TestingSessionLocal
 
@@ -45,7 +66,7 @@ class TestQueryCRUD:
                 notes="Test query"
             )
 
-            created_query = crud.create_query(db, query=query_data)
+            created_query = crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             assert created_query.id is not None
             assert created_query.query_id == "Q001"
@@ -68,10 +89,10 @@ class TestQueryCRUD:
                 target_outcome="test",
                 active=True
             )
-            created = crud.create_query(db, query=query_data)
+            created = crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             # Retrieve by internal ID
-            retrieved = crud.get_query(db, query_id_internal=created.id)
+            retrieved = crud.get_query(db, query_id_internal=created.id, user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.id == created.id
@@ -92,10 +113,10 @@ class TestQueryCRUD:
                 target_outcome="test",
                 active=False
             )
-            crud.create_query(db, query=query_data)
+            crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             # Retrieve by query_id
-            retrieved = crud.get_query_by_query_id(db, query_id="Q003")
+            retrieved = crud.get_query_by_query_id(db, query_id="Q003", user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.query_id == "Q003"
@@ -117,14 +138,14 @@ class TestQueryCRUD:
                     target_outcome="test",
                     active=True
                 )
-                crud.create_query(db, query=query_data)
+                crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             # Get first 3
-            queries = crud.get_queries(db, skip=0, limit=3)
+            queries = crud.get_queries(db, skip=0, limit=3, user_id=TEST_USER_ID)
             assert len(queries) == 3
 
             # Get next 2
-            queries = crud.get_queries(db, skip=3, limit=3)
+            queries = crud.get_queries(db, skip=3, limit=3, user_id=TEST_USER_ID)
             assert len(queries) == 2
         finally:
             db.close()
@@ -143,7 +164,7 @@ class TestQueryCRUD:
                     target_outcome="test",
                     active=True
                 )
-                crud.create_query(db, query=query_data)
+                crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             for i in range(2):
                 query_data = schemas.QueryCreate(
@@ -154,10 +175,10 @@ class TestQueryCRUD:
                     target_outcome="test",
                     active=False
                 )
-                crud.create_query(db, query=query_data)
+                crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             # Get only active queries
-            active_queries = crud.get_active_queries(db)
+            active_queries = crud.get_active_queries(db, user_id=TEST_USER_ID)
 
             assert len(active_queries) == 3
             assert all(q.active for q in active_queries)
@@ -177,7 +198,7 @@ class TestQueryCRUD:
                 target_outcome="test",
                 active=True
             )
-            crud.create_query(db, query=query_data)
+            crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             # Update it
             update_data = schemas.QueryUpdate(
@@ -185,7 +206,7 @@ class TestQueryCRUD:
                 priority="High",
                 active=False
             )
-            updated = crud.update_query(db, query_id="Q100", query_update=update_data)
+            updated = crud.update_query(db, query_id="Q100", query_update=update_data, user_id=TEST_USER_ID)
 
             assert updated is not None
             assert updated.query_text == "Updated text"
@@ -201,7 +222,7 @@ class TestQueryCRUD:
         db = test_db()
         try:
             update_data = schemas.QueryUpdate(query_text="Updated")
-            result = crud.update_query(db, query_id="NONEXISTENT", query_update=update_data)
+            result = crud.update_query(db, query_id="NONEXISTENT", query_update=update_data, user_id=TEST_USER_ID)
 
             assert result is None
         finally:
@@ -220,16 +241,16 @@ class TestQueryCRUD:
                 target_outcome="test",
                 active=True
             )
-            crud.create_query(db, query=query_data)
+            crud.create_query(db, query=query_data, user_id=TEST_USER_ID)
 
             # Delete it
-            deleted = crud.delete_query(db, query_id="Q200")
+            deleted = crud.delete_query(db, query_id="Q200", user_id=TEST_USER_ID)
 
             assert deleted is not None
             assert deleted.query_id == "Q200"
 
             # Verify it's gone
-            retrieved = crud.get_query_by_query_id(db, query_id="Q200")
+            retrieved = crud.get_query_by_query_id(db, query_id="Q200", user_id=TEST_USER_ID)
             assert retrieved is None
         finally:
             db.close()
@@ -249,7 +270,7 @@ class TestResponseCRUD:
                 response_text="Fusion is the process of combining atomic nuclei..."
             )
 
-            created = crud.create_response(db, response=response_data)
+            created = crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
 
             assert created.id is not None
             assert created.query_id == "Q001"
@@ -269,9 +290,9 @@ class TestResponseCRUD:
                 platform="Gemini",
                 response_text="Response text"
             )
-            created = crud.create_response(db, response=response_data)
+            created = crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
 
-            retrieved = crud.get_response(db, response_id=created.id)
+            retrieved = crud.get_response(db, response_id=created.id, user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.id == created.id
@@ -291,9 +312,9 @@ class TestResponseCRUD:
                     platform="Claude",
                     response_text=f"Response {i}"
                 )
-                crud.create_response(db, response=response_data)
+                crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
 
-            responses = crud.get_responses(db, limit=10)
+            responses = crud.get_responses(db, limit=10, user_id=TEST_USER_ID)
 
             assert len(responses) == 3
             # Should be in descending order (newest first)
@@ -314,7 +335,7 @@ class TestResponseCRUD:
                     platform="Claude",
                     response_text="Response"
                 )
-                crud.create_response(db, response=response_data)
+                crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
 
             # Create an analyzed response
             response_data = schemas.ResponseCreate(
@@ -323,17 +344,18 @@ class TestResponseCRUD:
                 platform="Gemini",
                 response_text="Analyzed response"
             )
-            analyzed = crud.create_response(db, response=response_data)
+            analyzed = crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
 
             # Mark it as analyzed
             crud.update_response_analysis(
                 db,
                 response_id=analyzed.id,
-                analysis_data={"brand_mentioned": "Yes"}
+                analysis_data={"brand_mentioned": "Yes"},
+                user_id=TEST_USER_ID,
             )
 
             # Get unanalyzed
-            unanalyzed = crud.get_unanalyzed_responses(db)
+            unanalyzed = crud.get_unanalyzed_responses(db, user_id=TEST_USER_ID)
 
             assert len(unanalyzed) == 2
             assert all(r.analyzed_at is None for r in unanalyzed)
@@ -351,7 +373,7 @@ class TestResponseCRUD:
                 platform="Claude",
                 response_text="PPPL is a leading fusion research facility..."
             )
-            response = crud.create_response(db, response=response_data)
+            response = crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
 
             # Update with analysis
             analysis_data = {
@@ -366,7 +388,8 @@ class TestResponseCRUD:
             updated = crud.update_response_analysis(
                 db,
                 response_id=response.id,
-                analysis_data=analysis_data
+                analysis_data=analysis_data,
+                user_id=TEST_USER_ID,
             )
 
             assert updated is not None
@@ -391,12 +414,12 @@ class TestResponseCRUD:
                     platform="Claude",
                     response_text=f"Response {i}"
                 )
-                response = crud.create_response(db, response=response_data)
+                response = crud.create_response(db, response=response_data, user_id=TEST_USER_ID)
                 created_ids.append(response.id)
 
             # Get subset by IDs
             target_ids = [created_ids[1], created_ids[3], created_ids[4]]
-            responses = crud.get_responses_by_ids(db, response_ids=target_ids)
+            responses = crud.get_responses_by_ids(db, response_ids=target_ids, user_id=TEST_USER_ID)
 
             assert len(responses) == 3
             response_ids = [r.id for r in responses]
@@ -408,7 +431,7 @@ class TestResponseCRUD:
         """Test getting responses with empty ID list"""
         db = test_db()
         try:
-            responses = crud.get_responses_by_ids(db, response_ids=[])
+            responses = crud.get_responses_by_ids(db, response_ids=[], user_id=TEST_USER_ID)
             assert responses == []
         finally:
             db.close()
@@ -429,7 +452,7 @@ class TestCompetitorCRUD:
                 website="https://www.iter.org"
             )
 
-            created = crud.create_competitor(db, competitor=competitor_data)
+            created = crud.create_competitor(db, competitor=competitor_data, user_id=TEST_USER_ID)
 
             assert created.id is not None
             assert created.organization == "ITER"
@@ -447,9 +470,9 @@ class TestCompetitorCRUD:
                 type="National Lab",
                 track=True
             )
-            created = crud.create_competitor(db, competitor=competitor_data)
+            created = crud.create_competitor(db, competitor=competitor_data, user_id=TEST_USER_ID)
 
-            retrieved = crud.get_competitor(db, competitor_id=created.id)
+            retrieved = crud.get_competitor(db, competitor_id=created.id, user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.organization == "National Ignition Facility"
@@ -465,9 +488,9 @@ class TestCompetitorCRUD:
                 type="University",
                 track=True
             )
-            crud.create_competitor(db, competitor=competitor_data)
+            crud.create_competitor(db, competitor=competitor_data, user_id=TEST_USER_ID)
 
-            retrieved = crud.get_competitor_by_organization(db, organization="MIT Plasma Science")
+            retrieved = crud.get_competitor_by_organization(db, organization="MIT Plasma Science", user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.organization == "MIT Plasma Science"
@@ -486,9 +509,9 @@ class TestCompetitorCRUD:
                     type="Test",
                     track=True
                 )
-                crud.create_competitor(db, competitor=competitor_data)
+                crud.create_competitor(db, competitor=competitor_data, user_id=TEST_USER_ID)
 
-            competitors = crud.get_competitors(db, limit=10)
+            competitors = crud.get_competitors(db, limit=10, user_id=TEST_USER_ID)
 
             assert len(competitors) == 4
             # Should be ordered alphabetically by organization
@@ -506,14 +529,14 @@ class TestCompetitorCRUD:
                 type="University",
                 track=True
             )
-            created = crud.create_competitor(db, competitor=competitor_data)
+            created = crud.create_competitor(db, competitor=competitor_data, user_id=TEST_USER_ID)
 
             update_data = schemas.CompetitorUpdate(
                 type="National Lab",
                 track=False,
                 notes="No longer tracking"
             )
-            updated = crud.update_competitor(db, competitor_id=created.id, competitor_update=update_data)
+            updated = crud.update_competitor(db, competitor_id=created.id, competitor_update=update_data, user_id=TEST_USER_ID)
 
             assert updated is not None
             assert updated.type == "National Lab"
@@ -533,15 +556,15 @@ class TestCompetitorCRUD:
                 type="Test",
                 track=False
             )
-            created = crud.create_competitor(db, competitor=competitor_data)
+            created = crud.create_competitor(db, competitor=competitor_data, user_id=TEST_USER_ID)
 
-            deleted = crud.delete_competitor(db, competitor_id=created.id)
+            deleted = crud.delete_competitor(db, competitor_id=created.id, user_id=TEST_USER_ID)
 
             assert deleted is not None
             assert deleted.organization == "To Delete"
 
             # Verify it's gone
-            retrieved = crud.get_competitor(db, competitor_id=created.id)
+            retrieved = crud.get_competitor(db, competitor_id=created.id, user_id=TEST_USER_ID)
             assert retrieved is None
         finally:
             db.close()
@@ -556,16 +579,15 @@ class TestDescriptorCRUD:
         try:
             descriptor_data = schemas.TargetDescriptorCreate(
                 descriptor="fusion energy leader",
-                category="Leadership",
-                target_for_pppl=True,
+                is_target=True,
                 priority="High"
             )
 
-            created = crud.create_descriptor(db, descriptor=descriptor_data)
+            created = crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
             assert created.id is not None
             assert created.descriptor == "fusion energy leader"
-            assert created.target_for_pppl is True
+            assert created.is_target is True
             assert created.created_at is not None
         finally:
             db.close()
@@ -576,13 +598,12 @@ class TestDescriptorCRUD:
         try:
             descriptor_data = schemas.TargetDescriptorCreate(
                 descriptor="pioneering research",
-                category="Technical",
-                target_for_pppl=True,
+                is_target=True,
                 priority="Medium"
             )
-            created = crud.create_descriptor(db, descriptor=descriptor_data)
+            created = crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
-            retrieved = crud.get_descriptor(db, descriptor_id=created.id)
+            retrieved = crud.get_descriptor(db, descriptor_id=created.id, user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.descriptor == "pioneering research"
@@ -595,49 +616,46 @@ class TestDescriptorCRUD:
         try:
             descriptor_data = schemas.TargetDescriptorCreate(
                 descriptor="innovative technology",
-                category="Innovation",
-                target_for_pppl=False,
+                is_target=False,
                 priority="Low"
             )
-            crud.create_descriptor(db, descriptor=descriptor_data)
+            crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
-            retrieved = crud.get_descriptor_by_name(db, name="innovative technology")
+            retrieved = crud.get_descriptor_by_name(db, name="innovative technology", user_id=TEST_USER_ID)
 
             assert retrieved is not None
-            assert retrieved.category == "Innovation"
-            assert retrieved.target_for_pppl is False
+            assert retrieved.descriptor == "innovative technology"
+            assert retrieved.is_target is False
         finally:
             db.close()
 
     def test_get_target_descriptors_only(self, test_db):
-        """Test retrieving only descriptors marked as targets for PPPL"""
+        """Test retrieving only descriptors marked as targets"""
         db = test_db()
         try:
             # Create target descriptors
             for i in range(3):
                 descriptor_data = schemas.TargetDescriptorCreate(
                     descriptor=f"target descriptor {i}",
-                    category="Test",
-                    target_for_pppl=True,
+                    is_target=True,
                     priority="High"
                 )
-                crud.create_descriptor(db, descriptor=descriptor_data)
+                crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
             # Create non-target descriptors
             for i in range(2):
                 descriptor_data = schemas.TargetDescriptorCreate(
                     descriptor=f"non-target descriptor {i}",
-                    category="Test",
-                    target_for_pppl=False,
+                    is_target=False,
                     priority="Low"
                 )
-                crud.create_descriptor(db, descriptor=descriptor_data)
+                crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
             # Get only target descriptors
-            targets = crud.get_target_descriptors(db)
+            targets = crud.get_target_descriptors(db, user_id=TEST_USER_ID)
 
             assert len(targets) == 3
-            assert all(d.target_for_pppl for d in targets)
+            assert all(d.is_target for d in targets)
         finally:
             db.close()
 
@@ -647,23 +665,20 @@ class TestDescriptorCRUD:
         try:
             descriptor_data = schemas.TargetDescriptorCreate(
                 descriptor="original descriptor",
-                category="Original",
-                target_for_pppl=False,
+                is_target=False,
                 priority="Low"
             )
-            created = crud.create_descriptor(db, descriptor=descriptor_data)
+            created = crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
             update_data = schemas.TargetDescriptorUpdate(
-                category="Updated",
-                target_for_pppl=True,
+                is_target=True,
                 priority="High",
                 current_ownership="ITER"
             )
-            updated = crud.update_descriptor(db, descriptor_id=created.id, descriptor_update=update_data)
+            updated = crud.update_descriptor(db, descriptor_id=created.id, descriptor_update=update_data, user_id=TEST_USER_ID)
 
             assert updated is not None
-            assert updated.category == "Updated"
-            assert updated.target_for_pppl is True
+            assert updated.is_target is True
             assert updated.priority == "High"
             assert updated.current_ownership == "ITER"
             # Descriptor text should remain unchanged
@@ -681,15 +696,15 @@ class TestDescriptorCRUD:
                 target_for_pppl=False,
                 priority="Low"
             )
-            created = crud.create_descriptor(db, descriptor=descriptor_data)
+            created = crud.create_descriptor(db, descriptor=descriptor_data, user_id=TEST_USER_ID)
 
-            deleted = crud.delete_descriptor(db, descriptor_id=created.id)
+            deleted = crud.delete_descriptor(db, descriptor_id=created.id, user_id=TEST_USER_ID)
 
             assert deleted is not None
             assert deleted.descriptor == "to be deleted"
 
             # Verify it's gone
-            retrieved = crud.get_descriptor(db, descriptor_id=created.id)
+            retrieved = crud.get_descriptor(db, descriptor_id=created.id, user_id=TEST_USER_ID)
             assert retrieved is None
         finally:
             db.close()
@@ -710,7 +725,7 @@ class TestCampaignCRUD:
                 target_narrative="Position PPPL as fusion energy leader"
             )
 
-            created = crud.create_campaign(db, campaign=campaign_data)
+            created = crud.create_campaign(db, campaign=campaign_data, user_id=TEST_USER_ID)
 
             assert created.id is not None
             assert created.campaign_name == "Q1 2025 Leadership Campaign"
@@ -728,9 +743,9 @@ class TestCampaignCRUD:
                 start_date=date(2025, 1, 1),
                 status="Planned"
             )
-            created = crud.create_campaign(db, campaign=campaign_data)
+            created = crud.create_campaign(db, campaign=campaign_data, user_id=TEST_USER_ID)
 
-            retrieved = crud.get_campaign(db, campaign_id=created.id)
+            retrieved = crud.get_campaign(db, campaign_id=created.id, user_id=TEST_USER_ID)
 
             assert retrieved is not None
             assert retrieved.campaign_name == "Test Campaign"
@@ -748,9 +763,9 @@ class TestCampaignCRUD:
                     start_date=date(2025, i + 1, 1),
                     status="Active"
                 )
-                crud.create_campaign(db, campaign=campaign_data)
+                crud.create_campaign(db, campaign=campaign_data, user_id=TEST_USER_ID)
 
-            campaigns = crud.get_campaigns(db, limit=10)
+            campaigns = crud.get_campaigns(db, limit=10, user_id=TEST_USER_ID)
 
             assert len(campaigns) == 3
             # Should be in descending order (newest first)
@@ -775,7 +790,7 @@ class TestAnalysisHistoryCRUD:
                 report_url="https://docs.google.com/document/d/xxx"
             )
 
-            created = crud.create_analysis_history(db, analysis=analysis_data)
+            created = crud.create_analysis_history(db, analysis=analysis_data, user_id=TEST_USER_ID)
 
             assert created.id is not None
             assert created.analysis_type == "Full"
@@ -796,9 +811,9 @@ class TestAnalysisHistoryCRUD:
                     recommendations=f"Recommendation {i}",
                     full_analysis_text=f"Analysis {i}"
                 )
-                crud.create_analysis_history(db, analysis=analysis_data)
+                crud.create_analysis_history(db, analysis=analysis_data, user_id=TEST_USER_ID)
 
-            histories = crud.get_analysis_histories(db, limit=10)
+            histories = crud.get_analysis_histories(db, limit=10, user_id=TEST_USER_ID)
 
             assert len(histories) == 3
             # Should be in descending order (newest first)
