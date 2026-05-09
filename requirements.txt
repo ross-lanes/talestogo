@@ -2,7 +2,7 @@ python-dotenv
 tenacity
 openai
 anthropic
-google-generativeai
+google-genai
 fastapi
 uvicorn[standard]
 sqlalchemy

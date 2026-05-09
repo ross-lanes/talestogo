@@ -23,8 +23,8 @@ except ImportError:
     ANTHROPIC_AVAILABLE = False
 
 try:
-    import google.generativeai as genai
-    from google.generativeai.types import Tool
+    from google import genai as google_genai
+    from google.genai import types as google_genai_types
     GOOGLE_AVAILABLE = True
 except ImportError:
     GOOGLE_AVAILABLE = False
@@ -230,22 +230,18 @@ class GenericLLMClient:
         """Call Google GenAI API (Gemini models)."""
         if not GOOGLE_AVAILABLE:
             raise LLMConfigurationError(
-                "Google GenAI SDK not installed. Run: pip install google-generativeai"
+                "Google GenAI SDK not installed. Run: pip install google-genai"
             )
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(
-                model_name,
-                generation_config={
-                    "max_output_tokens": max_tokens,
-                    "temperature": temperature
-                }
-            )
-
-            response = model.generate_content(
-                prompt,
-                request_options={'timeout': timeout}
+            client = google_genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=google_genai_types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=temperature,
+                ),
             )
             return response.text
 
@@ -262,20 +258,18 @@ class GenericLLMClient:
         """Call Google GenAI API with Google Search grounding (for web search)."""
         if not GOOGLE_AVAILABLE:
             raise LLMConfigurationError(
-                "Google GenAI SDK not installed. Run: pip install google-generativeai"
+                "Google GenAI SDK not installed. Run: pip install google-genai"
             )
 
         try:
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
-
-            # Enable Google Search grounding
-            search_tool = Tool(google_search_retrieval={})
-
-            response = model.generate_content(
-                prompt,
-                tools=[search_tool],
-                request_options={'timeout': timeout}
+            client = google_genai.Client(api_key=api_key)
+            search_tool = google_genai_types.Tool(
+                google_search=google_genai_types.GoogleSearch()
+            )
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=google_genai_types.GenerateContentConfig(tools=[search_tool]),
             )
             return response.text
 

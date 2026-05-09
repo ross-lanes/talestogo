@@ -38,7 +38,7 @@ from openai import OpenAI
 import anthropic
 
 # --- Google (Gemini) Integration ---
-import google.generativeai as genai
+from google import genai as google_genai
 
 # Load API keys from .env file
 load_dotenv()
@@ -61,8 +61,11 @@ except Exception as e:
     print(f"⚠️ Warning: Could not initialize Anthropic client. Error: {e}")
     anthropic_client = None
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+try:
+    gemini_client = google_genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+except Exception as e:
+    print(f"⚠️ Warning: Could not initialize Gemini client. Error: {e}")
+    gemini_client = None
 
 # --- Tenacity Retry Decorator ---
 retry_decorator = retry(
@@ -135,8 +138,10 @@ def _call_gemini_api(query: str) -> str:
 
     try:
         logger.info(f"Calling Gemini API for query: '{query[:50]}...'")
-        model = genai.GenerativeModel('gemini-2.5-pro')
-        response = model.generate_content(query)
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-pro',
+            contents=query,
+        )
         return response.text
     except Exception as e:
         logger.error(f"Gemini API call failed for query '{query[:50]}...': {str(e)}")
@@ -231,8 +236,10 @@ def analyze_raw_response(
     logger.info(f"Analyzing response with Gemini for query: '{query_text[:50]}...'")
 
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro')
-        response = model.generate_content(prompt)
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-pro',
+            contents=prompt,
+        )
 
         response_content = response.text
 
