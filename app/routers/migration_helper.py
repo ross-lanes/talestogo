@@ -138,15 +138,10 @@ def reset_sequences(
                     validated_sequence = validate_sequence_name(sequence_name)
 
                     # Reset the sequence to max(id) + 1
-                    # Note: PostgreSQL doesn't allow parameterized sequence names in setval
-                    # But we've validated the sequence name format, so this is safe
-                    db.execute(text(f"""
-                        SELECT setval(
-                            '{validated_sequence}',
-                            COALESCE((SELECT MAX(id) FROM {validated_table}), 1),
-                            true
-                        )
-                    """))
+                    # Note: PostgreSQL doesn't allow parameterized identifiers in setval.
+                    # Both identifiers are format-validated above before use.
+                    reset_sql = f"SELECT setval('{validated_sequence}', COALESCE((SELECT MAX(id) FROM {validated_table}), 1), true)"  # nosec B608
+                    db.execute(text(reset_sql))
                     results[table] = "reset"
                 else:
                     results[table] = "no sequence"
@@ -199,7 +194,7 @@ def debug_brand_shares(
             validated_sequence = validate_sequence_name(sequence_name)
             # PostgreSQL doesn't allow parameterized identifiers for FROM clause
             # But we've validated the format, so this is safe
-            seq_val_result = db.execute(text(f"SELECT last_value FROM {validated_sequence}"))
+            seq_val_result = db.execute(text(f"SELECT last_value FROM {validated_sequence}"))  # nosec B608 — validated_sequence is format-validated above
             seq_value = seq_val_result.scalar()
 
         return {
