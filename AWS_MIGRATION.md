@@ -23,11 +23,11 @@ AWS App Runner is a fully managed service that automatically builds and deploys 
 ## Architecture
 
 ```
-tales.robotrachel.com (CloudFront + S3)
+tales.yourlab.gov (CloudFront + S3)
     ↓
     Frontend (React/Vite static files)
 
-api.tales.robotrachel.com (App Runner)
+api.tales.yourlab.gov (App Runner)
     ↓
     Backend (FastAPI + Python)
     ↓
@@ -40,7 +40,7 @@ api.tales.robotrachel.com (App Runner)
 
 1. **AWS Account** - Create at https://aws.amazon.com
 2. **GitHub Personal Access Token** - App Runner needs this to access your repo
-3. **Domain DNS Access** - To point tales.robotrachel.com to AWS
+3. **Domain DNS Access** - To point tales.yourlab.gov to AWS
 
 ---
 
@@ -95,7 +95,7 @@ run:
    GEMINI_API_KEY=<your-value>
    PERPLEXITY_API_KEY=<your-value>
    DATABASE_URL=postgresql://user:password@your-db-host:5432/your_database
-   FRONTEND_URL=https://tales.robotrachel.com
+   FRONTEND_URL=https://tales.yourlab.gov
    ```
 
 6. **Click "Create & Deploy"**
@@ -178,10 +178,10 @@ aws s3 website s3://tales-frontend-<your-bucket-name>/ --index-document index.ht
    - Cache policy: CachingOptimized
 
 5. **Settings:**
-   - Alternate domain names (CNAMEs): `tales.robotrachel.com`
+   - Alternate domain names (CNAMEs): `tales.yourlab.gov`
    - Custom SSL certificate: **Request certificate** (opens new tab)
      - In new tab: Request public certificate
-     - Domain: `tales.robotrachel.com`
+     - Domain: `tales.yourlab.gov`
      - Validation: DNS validation
      - **Follow AWS instructions to add CNAME to your DNS**
      - Wait for validation (~5 minutes)
@@ -197,12 +197,12 @@ aws s3 website s3://tales-frontend-<your-bucket-name>/ --index-document index.ht
 
 ### Update DNS Records (at your domain registrar):
 
-1. **tales.robotrachel.com** (Frontend)
+1. **tales.yourlab.gov** (Frontend)
    - Type: CNAME
    - Name: tales
    - Value: `d1234abcd.cloudfront.net` (your CloudFront domain)
 
-2. **api.tales.robotrachel.com** (Backend)
+2. **api.tales.yourlab.gov** (Backend)
    - Type: CNAME
    - Name: api.tales
    - Value: `abc123.us-east-1.awsapprunner.com` (your App Runner domain)
@@ -216,7 +216,7 @@ aws s3 website s3://tales-frontend-<your-bucket-name>/ --index-document index.ht
 Update `frontend/.env.production`:
 
 ```env
-VITE_API_URL=https://api.tales.robotrachel.com
+VITE_API_URL=https://api.tales.yourlab.gov
 VITE_GOOGLE_CLIENT_ID=<your-value>
 VITE_MICROSOFT_CLIENT_ID=<your-value>
 ```

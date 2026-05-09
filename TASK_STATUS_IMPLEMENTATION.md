@@ -113,7 +113,7 @@ send_task_completion_email(db, user_id, task_type, task_id, status, brand_id, er
    SMTP_PASSWORD=your-app-password
    SMTP_FROM_EMAIL=noreply@yourdomain.com
    SMTP_FROM_NAME=TALES
-   FRONTEND_URL=https://tales.robotrachel.com
+   FRONTEND_URL=https://tales.yourlab.gov
    ```
 
 2. **Update task completion handlers** to call email service:

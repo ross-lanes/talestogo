@@ -151,7 +151,7 @@
 - GOOGLE_CLIENT_SECRET (from env)
 - MICROSOFT_CLIENT_ID (from env)
 - MICROSOFT_CLIENT_SECRET (from env)
-- ADMIN_EMAIL: "robotrachel@gmail.com" (from env)
+- ADMIN_EMAIL: e.g. "admin@yourlab.gov" (from env; empty by default)
 - ENCRYPTION_KEY (from env, auto-generated if missing)
 
 ### Frontend Configuration (`services/api.ts`)

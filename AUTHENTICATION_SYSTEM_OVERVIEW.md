@@ -325,7 +325,7 @@ JWT Algorithm:
   ALGORITHM = "HS256"
 
 Default Admin Email:
-  ADMIN_EMAIL = "robotrachel@gmail.com"
+  ADMIN_EMAIL = "admin@yourlab.gov"  # configured per deployment; empty by default
 
 Default Tenant:
   tenant_name = "Default"

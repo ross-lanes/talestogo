@@ -222,7 +222,7 @@ DATABASE_URL=sqlite:///./tales.db
 DATABASE_URL=postgresql://user:password@localhost/dbname
 
 # Admin email (auto-activated on first OAuth login)
-ADMIN_EMAIL=robotrachel@gmail.com
+ADMIN_EMAIL=admin@yourlab.gov
 ```
 
 ### Frontend (.env)
@@ -343,8 +343,8 @@ if (now > token.exp) {
 # In /app/main.py
 allow_origins=[
     "http://localhost:5173",        # Local dev
-    "https://tales.robotrachel.com", # Production
-    "https://*.robotrachel.com",     # All subdomains
+    # Production origins are configured via FRONTEND_URL and the
+    # ALLOWED_ORIGINS env var (comma-separated), not hardcoded here.
 ]
 ```
 
@@ -365,7 +365,7 @@ domain_to_tenant = {
 ### Admin Email
 ```python
 # From /app/auth.py
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "robotrachel@gmail.com")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
 
 # Only this email is auto-activated on first OAuth login
 # All other new users require admin approval

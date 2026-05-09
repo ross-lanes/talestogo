@@ -106,7 +106,7 @@ Responses Analyzed: [X]
 Started: [timestamp]
 Completed: [timestamp]
 
-View your results: https://tales.robotrachel.com/analytics
+View your results: https://tales.yourlab.gov/analytics
 
 --
 TALES - AI Reputation Intelligence
@@ -122,7 +122,7 @@ Brand: [Brand Name]
 Status: FAILED
 Error: [error message]
 
-Please log in to review: https://tales.robotrachel.com/collect-analyze
+Please log in to review: https://tales.yourlab.gov/collect-analyze
 
 --
 TALES - AI Reputation Intelligence
@@ -189,7 +189,7 @@ SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=noreply@yourdomain.com
 SMTP_FROM_NAME=TALES
-FRONTEND_URL=https://tales.robotrachel.com
+FRONTEND_URL=https://tales.yourlab.gov
 ```
 
 ### Timeout Settings

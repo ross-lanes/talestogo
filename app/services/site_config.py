@@ -230,4 +230,5 @@ def get_branding_config(db: Session) -> dict:
         'site_logo_url': get_site_logo_url(db),
         'primary_color': get_primary_color(db),
         'secondary_color': get_secondary_color(db),
+        'admin_email': get_admin_email(db) or None,
     }

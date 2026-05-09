@@ -488,6 +488,7 @@ class BrandingConfig(BaseModel):
     site_logo_url: Optional[str] = None
     primary_color: str = "#003e60"
     secondary_color: str = "#75c9c8"
+    admin_email: Optional[str] = None  # Public contact email shown in user-facing UI
 
 class UserInvite(BaseModel):
     email: EmailStr

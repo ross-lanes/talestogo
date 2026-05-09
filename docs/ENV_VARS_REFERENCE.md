@@ -225,7 +225,7 @@ Email is used for sending user invitations. If not configured, admins can share 
 |----------|----------|-------------|---------|
 | `ENVIRONMENT` | No | Environment name | `development` |
 | `FRONTEND_URL` | No | Frontend URL for CORS | `http://localhost:5173` |
-| `ADMIN_EMAIL` | No | Bootstrap admin email (OAuth only) | `robotrachel@gmail.com` |
+| `ADMIN_EMAIL` | No | Bootstrap admin email (OAuth only). If a user logs in via OAuth with this email, they are auto-promoted to admin. Leave unset to require explicit admin creation via `setup_initial_admin.py`. | `admin@yourlab.gov` |
 | `PORT` | No | Application port | `8000` |
 
 ---
