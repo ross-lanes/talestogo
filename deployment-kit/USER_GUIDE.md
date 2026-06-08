@@ -309,16 +309,17 @@ Setting up LLM providers requires TWO steps, both performed by IT administrators
 - Set display name, model name, chart colors, and options
 - API keys are NOT entered in this interface
 
-**Default LLM Providers:**
+**Built-in LLM Providers:**
 
-Tales supports four default providers. Each reads its API key from a specific environment variable:
+Tales is provider-agnostic. Five `api_type` values are built in, each reading its API key from a specific environment variable:
 
 | Provider | Environment Variable |
 |----------|---------------------|
-| ChatGPT | `OPENAI_API_KEY` |
-| Claude | `ANTHROPIC_API_KEY` |
-| Gemini | `GEMINI_API_KEY` |
+| ChatGPT (OpenAI) | `OPENAI_API_KEY` |
+| Claude (Anthropic) | `ANTHROPIC_API_KEY` |
+| Gemini (Google) | `GEMINI_API_KEY` |
 | Perplexity | `PERPLEXITY_API_KEY` |
+| Azure OpenAI | `AZURE_OPENAI_API_KEY` |
 
 Only providers whose API key is configured in the environment will be available.
 
@@ -326,20 +327,22 @@ Only providers whose API key is configured in the environment will be available.
 
 1. Click "Add LLM"
 2. Fill in the settings (NOT the API key):
-   - **Display Name** - Human-readable name for charts (e.g., "Gemini", "Claude")
-   - **Provider Key** - Unique identifier, auto-generated from display name (e.g., "gemini", "claude")
-   - **API Type** - Select: OpenAI, Anthropic, Google, or OpenAI Compatible
-   - **Model Name** - The model to use (e.g., "gpt-4o", "gemini-2.0-flash", "claude-3-haiku-20240307")
+   - **Display Name** - Human-readable name for charts (e.g., "Gemini", "Claude", "Azure GPT-4o")
+   - **Provider Key** - Unique identifier, auto-generated from display name (e.g., "gemini", "claude", "azure_openai")
+   - **API Type** - Select: OpenAI, Anthropic, Google, Azure OpenAI, or OpenAI Compatible
+   - **Model Name** - The model to use (e.g., "gpt-4o", "gemini-2.0-flash", "claude-3-haiku-20240307"). For Azure OpenAI, this is the **deployment name** you created in Azure OpenAI Studio.
+   - **Azure Resource URL** *(Azure only)* - e.g., `https://my-resource.openai.azure.com/`
+   - **API Version** *(Azure only)* - e.g., `2024-10-21`
    - **Chart Color** - Color for this platform in charts
 3. Configure options:
    - **Enabled** - Include in data collection
-   - **Use for Analysis** - Designate as the analysis LLM
-   - **Supports Web Search** - Enable for Gemini or Perplexity
+   - **Use for Analysis** - Designate as the analysis LLM (only one provider should have this set)
+   - **Supports Web Search** - Enable for Gemini or Perplexity (these are the only providers with web search support)
 4. Click "Add LLM"
 
 **Adding Custom Providers:**
 
-In addition to the four defaults, admins can add up to two custom LLM providers (maximum 6 total). Custom providers require:
+Beyond the five built-in types, admins can add custom OpenAI-compatible providers (Mistral, local models, etc.) up to a total of 6:
 - **Environment Variable Name** - The env var containing the API key (e.g., "MISTRAL_API_KEY")
 - **API Endpoint** - Required for OpenAI-compatible APIs
 
@@ -347,8 +350,8 @@ Contact your IT administrator to add the corresponding API key to the server env
 
 **Notes:**
 - Click "Test" to verify the API connection works
-- At least one provider should be designated for analysis
-- For "State of the LLMs" report section, enable web search on Gemini or Perplexity
+- Exactly one provider should be flagged "Use for Analysis"
+- For the "State of the LLMs" report section, enable web search on Gemini or Perplexity. If no web-search-capable provider is configured (e.g., an Azure-only deployment), that section is omitted from reports; everything else works.
 - Providers without valid API keys are automatically hidden
 
 ### User Management (Admin > Users)

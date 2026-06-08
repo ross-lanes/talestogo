@@ -41,12 +41,13 @@ TalesToGo/
 
 ## LLM Configuration
 
-Tales supports up to 6 LLM providers for data collection and analysis:
+Tales is provider-agnostic. Five `api_type` values are built in; you can add custom OpenAI-compatible providers up to 6 total. Configure provider details (model, endpoint, web-search flag, and for Azure: resource URL + api_version + deployment name) in **Admin → LLM Providers** after first login.
 - **ChatGPT** (OpenAI) - via `OPENAI_API_KEY`
-- **Codex** (Anthropic) - via `ANTHROPIC_API_KEY`
-- **Gemini** (Google) - via `GEMINI_API_KEY` (recommended for analysis and web search)
+- **Claude** (Anthropic) - via `ANTHROPIC_API_KEY`
+- **Gemini** (Google) - via `GEMINI_API_KEY` (supports web search)
 - **Perplexity** - via `PERPLEXITY_API_KEY` (supports web search)
-- Up to 2 custom OpenAI-compatible providers
+- **Azure OpenAI** - via `AZURE_OPENAI_API_KEY` (resource URL, api_version, deployment name set in the UI)
+- Plus custom OpenAI-compatible providers (Mistral, local models, etc.)
 
 ## Development Commands
 
@@ -83,12 +84,12 @@ docker compose exec app python scripts/admin/setup_initial_admin.py
 
 Required for deployment:
 - `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET_KEY` - For authentication tokens
+- `JWT_SECRET_KEY` (or `APP_SECRET`) - For authentication tokens
 - `ENCRYPTION_KEY` - Fernet key for API key storage
-- `GEMINI_API_KEY` - Required for analysis (other LLM keys optional)
+- At least ONE LLM provider env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `PERPLEXITY_API_KEY`, or `AZURE_OPENAI_API_KEY`)
 
 Optional:
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` - For querying those platforms
+- Additional LLM provider env vars beyond your primary one
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - For Google OAuth
 - `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` - For Microsoft OAuth
 - `RESEND_API_KEY` - For sending invitation emails

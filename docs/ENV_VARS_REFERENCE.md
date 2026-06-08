@@ -288,11 +288,13 @@ ENCRYPTION_KEY=your-secure-random-encryption-key-here
 # Database (REQUIRED)
 DATABASE_URL=postgresql://tales:password@db:5432/tales
 
-# LLM API Keys (at least Gemini required)
-GEMINI_API_KEY=your-gemini-api-key
-OPENAI_API_KEY=your-openai-api-key
-ANTHROPIC_API_KEY=your-anthropic-api-key
-PERPLEXITY_API_KEY=your-perplexity-api-key
+# LLM API Keys — set at least one. Provider details (model, endpoint,
+# Azure resource URL, etc.) are configured in Admin → LLM Providers.
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
+PERPLEXITY_API_KEY=
+AZURE_OPENAI_API_KEY=
 
 # Optional: OAuth (for Google/Microsoft login)
 # GOOGLE_CLIENT_ID=your-google-client-id

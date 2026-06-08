@@ -363,24 +363,24 @@ Each API type reads from a specific environment variable:
 | OpenAI | `OPENAI_API_KEY` | ChatGPT (gpt-4o, gpt-3.5-turbo) |
 | Anthropic | `ANTHROPIC_API_KEY` | Claude (claude-3-haiku, claude-3-sonnet) |
 | Google | `GEMINI_API_KEY` | Gemini (gemini-2.0-flash, gemini-pro) |
+| Azure | `AZURE_OPENAI_API_KEY` | Azure OpenAI (your-deployment-name) |
 | OpenAI Compatible | `PERPLEXITY_API_KEY` | Perplexity (sonar) |
 
 Only providers whose environment variable is set will work. If an API key is missing, the "Test" button will show an error.
 
-### Recommended Provider Configuration
+### Provider Capabilities
 
-**We recommend configuring at least one of the following providers: Google Gemini or Perplexity (or both).**
+Tales is provider-agnostic — pick whichever provider(s) fit your environment. The one you flag `use_for_analysis=True` handles response analysis and brand auto-generation. The "State of the LLMs" report section needs a provider with web search:
 
-**Why?** Tales reports include a "State of the LLMs" section that provides current information about changes and updates to major AI platforms. This section requires **live web search capability** to gather fresh information. Only Gemini (with Google Search grounding) and Perplexity (with built-in web search) support this feature.
+| Provider | Web Search Capable | Notes |
+|----------|--------------------|-------|
+| Google Gemini | Yes (Google Search grounding) | Excellent for analysis and web search |
+| Perplexity | Yes (built-in search via sonar model) | Good for web search; analysis works too |
+| OpenAI (ChatGPT) | No | Good for analysis and data collection |
+| Anthropic (Claude) | No | Good for analysis and data collection |
+| Azure OpenAI | No | Good for analysis and data collection |
 
-| Provider | Web Search | Recommendation |
-|----------|------------|----------------|
-| Google Gemini | Yes (Google Search grounding) | **Highly recommended** - Excellent for analysis and web search |
-| Perplexity | Yes (built-in search via sonar model) | **Recommended** - Good alternative for web search |
-| OpenAI (ChatGPT) | No | Good for data collection, not for web search |
-| Anthropic (Claude) | No | Good for data collection, not for web search |
-
-If neither Gemini nor Perplexity is configured, the "State of the LLMs" section will be omitted from generated reports. All other report sections will work normally.
+If no web-search-capable provider is configured (e.g., an Azure-only or OpenAI-only deployment), the "State of the LLMs" section will be omitted from generated reports. **All other report sections will work normally.**
 
 ---
 

@@ -21,7 +21,7 @@ This kit contains everything you need to deploy Tales at your organization.
 
 - Docker (version 20.10+)
 - Docker Compose (version 2.0+)
-- At least one LLM API key (Gemini recommended)
+- An API key for at least one LLM provider (OpenAI, Anthropic, Google Gemini, Azure OpenAI, or Perplexity) — Tales is provider-agnostic
 - OIDC credentials from IT (if using Entra ID authentication)
 
 ### Step 1: Configure Environment
@@ -39,8 +39,14 @@ Edit `.env` and add at minimum:
 APP_SECRET=your-random-secret-key
 ENCRYPTION_KEY=your-random-encryption-key
 
-# REQUIRED: At least one LLM API key
-GEMINI_API_KEY=your-gemini-api-key
+# REQUIRED: At least one LLM API key — pick whichever you have.
+# Configure the provider's details (model, endpoint, etc.) in the Admin UI
+# after first login: Admin → LLM Providers.
+OPENAI_API_KEY=          # ChatGPT (gpt-4o, etc.)
+ANTHROPIC_API_KEY=       # Claude
+GEMINI_API_KEY=          # Google Gemini (supports web search)
+PERPLEXITY_API_KEY=      # Perplexity sonar (supports web search)
+AZURE_OPENAI_API_KEY=    # Azure OpenAI (set this if your IT runs OpenAI on Azure)
 
 # OIDC Configuration (IT provides these)
 OIDC_CLIENT_ID=from-it-department
@@ -133,16 +139,21 @@ After logging in:
 
 ## LLM Provider Configuration
 
-Tales auto-detects which API keys you've configured and makes those providers available.
+Tales auto-detects which API keys you've configured and makes those providers available. After first login, finalize provider details (model, color, web-search flag — and for Azure, the resource URL + api_version + deployment name) in **Admin → LLM Providers**.
 
-| Provider | Environment Variable | Get API Key | Notes |
-|----------|---------------------|-------------|-------|
-| Google Gemini | `GEMINI_API_KEY` | https://makersuite.google.com/app/apikey | **Recommended** - Cheapest, supports analysis + web search |
-| OpenAI (ChatGPT) | `OPENAI_API_KEY` | https://platform.openai.com/api-keys | Good for data collection |
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys | Good for data collection |
-| Perplexity | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api | Supports web search |
+| Provider | Environment Variable | Get API Key | Web Search |
+|----------|---------------------|-------------|------------|
+| OpenAI (ChatGPT) | `OPENAI_API_KEY` | https://platform.openai.com/api-keys | No |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys | No |
+| Google Gemini | `GEMINI_API_KEY` | https://makersuite.google.com/app/apikey | Yes |
+| Perplexity | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api | Yes |
+| Azure OpenAI | `AZURE_OPENAI_API_KEY` | Azure Portal → your OpenAI resource → Keys | No |
 
-**Minimum requirement:** At least one LLM API key. We recommend Gemini because it's the cheapest and supports both analysis and web search features.
+**Minimum requirement:** at least one of these env vars set. Tales is provider-agnostic — any one of them can run the full pipeline (collection, analysis, reports). The one you flag `use_for_analysis=True` in the UI handles response analysis and brand auto-generation.
+
+**About the "State of the LLMs" report section:** it needs a provider with web search (Gemini or Perplexity). If neither is configured (e.g., an Azure-only or OpenAI-only deployment), that one section is omitted; everything else works.
+
+**Azure-only deployment:** set `AZURE_OPENAI_API_KEY`, then in **Admin → LLM Providers** add a provider with api_type = Azure OpenAI, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), api_version (e.g., `2024-10-21`), and the deployment name from Azure OpenAI Studio. Mark `use_for_analysis=True`.
 
 ---
 
