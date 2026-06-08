@@ -154,11 +154,14 @@ def get_response(db: Session, response_id: int, user_id: int, brand_id: Optional
         query = query.filter(models.Response.brand_id == brand_id)
     return query.first()
 
-def get_responses(db: Session, user_id: int, brand_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Response]:
-    """Gets a list of all responses for a specific user and optionally a specific brand, with pagination."""
+def get_responses(db: Session, user_id: int, brand_id: Optional[int] = None,
+                  batch_id: Optional[int] = None, skip: int = 0, limit: int = 100) -> List[models.Response]:
+    """Gets a list of responses for a user, optionally narrowed by brand and/or batch, with pagination."""
     query = db.query(models.Response).filter(models.Response.user_id == user_id)
     if brand_id is not None:
         query = query.filter(models.Response.brand_id == brand_id)
+    if batch_id is not None:
+        query = query.filter(models.Response.batch_id == batch_id)
     return query.order_by(models.Response.timestamp.desc()).offset(skip).limit(limit).all()
 
 def create_response(db: Session, response: schemas.ResponseCreate, user_id: int, brand_id: Optional[int] = None) -> models.Response:
