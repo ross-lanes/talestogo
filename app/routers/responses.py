@@ -11,7 +11,7 @@ import io
 from .. import crud, models, schemas
 from ..auth import get_current_user
 from ..database import SessionLocal, get_db
-from .analytics import get_active_brand_id
+from ..utils.brand_access import get_active_brand_id, get_data_owner_user_id
 
 
 router = APIRouter(
@@ -34,13 +34,30 @@ def create_response(
 @router.get("/", response_model=List[schemas.Response])
 def read_responses(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10000,
+    batch_id: Optional[int] = None,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    brand_id: Optional[int] = Depends(get_active_brand_id)
+    brand_id: Optional[int] = Depends(get_active_brand_id),
 ):
-    """Retrieve a list of responses for the current user's active brand."""
-    return crud.get_responses(db, user_id=current_user.id, brand_id=brand_id, skip=skip, limit=limit)
+    """Retrieve responses for the active brand.
+
+    Resolves the brand owner's user_id so that users viewing a brand that's
+    been shared with them see the owner's data (Bug #1 fix). Accepts a
+    `batch_id` query param to narrow to a single collection batch (Bug #2 fix).
+    Default limit raised to 10000 to cover real-world brand sizes like PPPL
+    (~1,200 responses); matches the precedent used by the Excel export below
+    (Bug #3 fix).
+    """
+    owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
+    return crud.get_responses(
+        db,
+        user_id=owner_user_id,
+        brand_id=brand_id,
+        batch_id=batch_id,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/unanalyzed/", response_model=List[schemas.Response])

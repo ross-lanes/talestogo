@@ -436,6 +436,80 @@ class TestResponseCRUD:
         finally:
             db.close()
 
+    def test_get_responses_filters_by_batch_id(self, test_db):
+        """Regression: get_responses must filter by batch_id when provided.
+
+        Bug #2 — the /responses/ endpoint silently dropped the frontend's
+        batch_id query param because crud.get_responses had no batch_id filter.
+        Verify the filter now narrows results.
+        """
+        db = test_db()
+        try:
+            # Create 3 responses in batch 100, 2 responses in batch 200
+            for i in range(3):
+                response = models.Response(
+                    user_id=TEST_USER_ID,
+                    query_id=f"QB1{i}",
+                    query_text="Test",
+                    platform="Claude",
+                    response_text=f"Response in batch 100, idx {i}",
+                    batch_id=100,
+                )
+                db.add(response)
+            for i in range(2):
+                response = models.Response(
+                    user_id=TEST_USER_ID,
+                    query_id=f"QB2{i}",
+                    query_text="Test",
+                    platform="Claude",
+                    response_text=f"Response in batch 200, idx {i}",
+                    batch_id=200,
+                )
+                db.add(response)
+            db.commit()
+
+            in_batch_100 = crud.get_responses(db, user_id=TEST_USER_ID, batch_id=100)
+            in_batch_200 = crud.get_responses(db, user_id=TEST_USER_ID, batch_id=200)
+            all_responses = crud.get_responses(db, user_id=TEST_USER_ID)
+
+            assert len(in_batch_100) == 3
+            assert all(r.batch_id == 100 for r in in_batch_100)
+            assert len(in_batch_200) == 2
+            assert all(r.batch_id == 200 for r in in_batch_200)
+            assert len(all_responses) == 5
+        finally:
+            db.close()
+
+    def test_get_responses_respects_high_limit(self, test_db):
+        """Regression: caller-supplied limit above the old default must return all rows.
+
+        Bug #3 — the old default of limit=100 silently truncated brands with
+        more than 100 responses (PPPL has ~1,243). Verify that an explicit
+        higher limit returns the full set.
+        """
+        db = test_db()
+        try:
+            for i in range(150):
+                response = models.Response(
+                    user_id=TEST_USER_ID,
+                    query_id=f"Q{i:03d}",
+                    query_text="Test",
+                    platform="Claude",
+                    response_text=f"Response {i}",
+                )
+                db.add(response)
+            db.commit()
+
+            # Old default (100) would truncate.
+            truncated = crud.get_responses(db, user_id=TEST_USER_ID, limit=100)
+            assert len(truncated) == 100
+
+            # New router default (10000) returns all 150.
+            full = crud.get_responses(db, user_id=TEST_USER_ID, limit=10000)
+            assert len(full) == 150
+        finally:
+            db.close()
+
 
 class TestCompetitorCRUD:
     """Tests for Competitor CRUD operations"""
