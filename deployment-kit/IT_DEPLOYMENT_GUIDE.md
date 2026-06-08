@@ -24,18 +24,21 @@ This guide is for IT teams deploying Tales at their organization. Tales is an AI
 
 ### Required API Keys
 
-You will need API keys from one or more LLM providers. Tales supports up to 6 LLM providers. API keys are configured exclusively through environment variables in the `.env` file.
+You will need API keys from at least one LLM provider. Tales is provider-agnostic — any one of the supported providers can run the full pipeline. API keys are configured exclusively through environment variables in the `.env` file; non-key settings (Azure resource URL, deployment name, web-search flag) are configured in **Admin → LLM Providers** after first login.
 
-| Provider | Purpose | Environment Variable | Get API Key |
-|----------|---------|---------------------|-------------|
-| Google Gemini | AI queries + analysis + web search | `GEMINI_API_KEY` | https://makersuite.google.com/app/apikey |
-| OpenAI | ChatGPT queries | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
-| Anthropic | Claude queries | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
-| Perplexity | Perplexity queries + web search | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api |
+| Provider | Environment Variable | Get API Key |
+|----------|---------------------|-------------|
+| OpenAI (GPT) | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
+| Google Gemini | `GEMINI_API_KEY` | https://makersuite.google.com/app/apikey |
+| Perplexity | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api |
+| Azure OpenAI | `AZURE_OPENAI_API_KEY` | Azure Portal → your OpenAI resource → Keys |
 
-**Note:** You can configure any combination of LLMs you choose. At minimum, configure one provider with analysis capability (Gemini recommended). For the "State of the LLMs" report section, you need at least one provider with web search capability (Gemini or Perplexity).
+**Note:** Configure any combination of providers. The one flagged `use_for_analysis=True` in the UI handles response analysis and brand auto-generation. The "State of the LLMs" report section needs a provider with web search (Gemini or Perplexity); if neither is configured, that section is omitted but the rest of the report works.
 
-**Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available. For example, if you only set `GEMINI_API_KEY`, only Gemini will appear as an available provider.
+**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in `.env`. After first login, open **Admin → LLM Providers**, add a new provider with `api_type = Azure OpenAI`, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), `api_version` (e.g., `2024-10-21`), and the deployment name from Azure OpenAI Studio. Mark `use_for_analysis=True`. The "State of the LLMs" section will be omitted; everything else works.
+
+**Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available.
 
 ### Network Requirements
 
@@ -66,13 +69,13 @@ nano .env  # or use your preferred editor
 APP_SECRET=<generate-random-string>
 ENCRYPTION_KEY=<generate-random-string>
 
-# LLM API Keys (at minimum, you need Gemini for analysis)
-GEMINI_API_KEY=<your-gemini-api-key>
-
-# Optional but recommended: keys for querying other AI platforms
-OPENAI_API_KEY=<your-openai-api-key>
-ANTHROPIC_API_KEY=<your-anthropic-api-key>
-PERPLEXITY_API_KEY=<your-perplexity-api-key>
+# LLM API Keys — set at least one. Configure provider details in the Admin UI
+# after first login (Admin → LLM Providers).
+OPENAI_API_KEY=<optional>
+ANTHROPIC_API_KEY=<optional>
+GEMINI_API_KEY=<optional>
+PERPLEXITY_API_KEY=<optional>
+AZURE_OPENAI_API_KEY=<optional>
 ```
 
 **Generate secure random keys:**

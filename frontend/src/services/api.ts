@@ -411,6 +411,7 @@ export const llmProvidersAPI = {
     api_endpoint?: string;
     model_name: string;
     env_var_name?: string;
+    api_version?: string;
     color?: string;
     sort_order?: number;
     is_enabled?: boolean;
@@ -428,6 +429,7 @@ export const llmProvidersAPI = {
     api_endpoint?: string;
     model_name?: string;
     env_var_name?: string;
+    api_version?: string;
     color?: string;
     sort_order?: number;
     is_enabled?: boolean;

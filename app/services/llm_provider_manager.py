@@ -20,6 +20,7 @@ API_TYPE_TO_ENV_VAR = {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "google": "GEMINI_API_KEY",
+    "azure": "AZURE_OPENAI_API_KEY",
     "openai_compatible": "PERPLEXITY_API_KEY",
 }
 
@@ -39,6 +40,7 @@ class ProviderConfig:
     model_name: str
     api_endpoint: Optional[str] = None
     env_var_name: Optional[str] = None  # Custom env var for non-default providers
+    api_version: Optional[str] = None  # Azure OpenAI api_version (e.g., "2024-10-21")
     color: str = "#666666"
     sort_order: int = 0
     is_enabled: bool = True
@@ -74,6 +76,7 @@ class ProviderConfig:
             model_name=self.model_name,
             prompt=prompt,
             api_endpoint=self.api_endpoint,
+            api_version=self.api_version,
             max_tokens=max_tokens,
             temperature=temperature
         )
@@ -135,6 +138,9 @@ DEFAULT_PROVIDERS = [
         "sort_order": 3,
         "supports_web_search": True,
     },
+    # Azure OpenAI is NOT in defaults: it requires api_endpoint (resource URL),
+    # api_version, and a deployment name that are all tenant-specific. Admins
+    # configure it explicitly via Admin → LLM Providers.
 ]
 
 
@@ -209,6 +215,7 @@ class LLMProviderManager:
                     model_name=p.model_name,
                     api_endpoint=p.api_endpoint,
                     env_var_name=p.env_var_name,
+                    api_version=p.api_version,
                     color=p.color or "#666666",
                     sort_order=p.sort_order or 0,
                     is_enabled=p.is_enabled,
@@ -236,6 +243,7 @@ class LLMProviderManager:
                 model_name=config["model_name"],
                 api_endpoint=config.get("api_endpoint"),
                 env_var_name=None,  # Default providers use standard mapping
+                api_version=config.get("api_version"),
                 color=config.get("color", "#666666"),
                 sort_order=config.get("sort_order", 0),
                 is_enabled=True,

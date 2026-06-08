@@ -1,53 +1,44 @@
 """
 AI Generation Service for TALES Project
-Generates queries, descriptors, and competitors based on brand information using Gemini AI.
+Generates queries, descriptors, and competitors based on brand information using
+whichever LLM is designated as the analysis provider (use_for_analysis=True) in
+Admin → LLM Providers. Works with any configured provider (OpenAI, Anthropic,
+Gemini, Azure OpenAI, or an OpenAI-compatible endpoint).
 """
 
-import os
 from typing import List, Dict, Optional
+
 import json
-from dotenv import load_dotenv
-
-load_dotenv()
-
-try:
-    from google import genai as google_genai
-    GOOGLE_AVAILABLE = True
-except ImportError:
-    GOOGLE_AVAILABLE = False
 
 from sqlalchemy.orm import Session
 from app import models
-
-# Default Gemini model for AI generation (Gemini 1.5 models are retired)
-GEMINI_MODEL = 'gemini-2.5-flash'
+from app.services.llm_provider_manager import LLMProviderManager
+from app.services.generic_llm_client import LLMAPIError, LLMConfigurationError
 
 
 class AIGenerator:
-    """Generates content using Gemini AI based on brand information."""
+    """Generates content from brand info using the configured analysis LLM."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user: Optional[models.User] = None):
         self.db = db
-        self.google_client = None
-        self.model_name = GEMINI_MODEL
+        tenant_id = user.tenant_id if user else None
+        self.provider_manager = LLMProviderManager(db, tenant_id)
+        self.provider = self.provider_manager.get_analysis_provider()
 
-        # Set up Google Gemini
-        if GOOGLE_AVAILABLE:
-            google_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-            if google_key:
-                self.google_client = google_genai.Client(api_key=google_key)
-            else:
-                raise ValueError("GEMINI_API_KEY not found in environment variables")
-        else:
-            raise ImportError("google-genai package not installed")
+        if self.provider is None:
+            raise ValueError(
+                "No analysis LLM configured. Configure one in Admin → LLM Providers "
+                "(set use_for_analysis=True on the provider you want to use)."
+            )
 
     def _generate(self, prompt: str) -> str:
-        """Helper: invoke the configured Gemini model and return text."""
-        response = self.google_client.models.generate_content(
-            model=self.model_name,
-            contents=prompt,
-        )
-        return response.text
+        """Invoke the configured analysis provider and return text."""
+        try:
+            return self.provider.call(prompt=prompt, max_tokens=4000, temperature=0.7)
+        except (LLMAPIError, LLMConfigurationError) as e:
+            raise ValueError(
+                f"Analysis LLM ({self.provider.display_name}) failed: {str(e)}"
+            )
 
     def generate_queries(self, brand_info: models.BrandInfo) -> List[Dict[str, str]]:
         """Generate relevant queries with metadata based on brand information."""

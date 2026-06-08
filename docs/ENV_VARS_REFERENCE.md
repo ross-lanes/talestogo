@@ -133,33 +133,38 @@ postgresql://username:password@host:port/database_name
 
 ## LLM API Keys
 
-**Important:** LLM providers can also be configured through the Admin UI (recommended). Environment variables serve as a fallback when no providers are configured in the database.
+Tales is LLM-provider-agnostic. Configure at least one provider; the one you flag `use_for_analysis=True` in **Admin → LLM Providers** handles response analysis and brand auto-generation. The "State of the LLMs" report section requires a provider with web search (Gemini or Perplexity); if neither is configured, that section is omitted but the rest of the report works.
 
-| Variable | Required | Description | Get Key From |
-|----------|----------|-------------|--------------|
-| `GEMINI_API_KEY` | No* | Google Gemini API key (analysis + web search) | https://makersuite.google.com/app/apikey |
-| `OPENAI_API_KEY` | No | OpenAI API key (for ChatGPT queries) | https://platform.openai.com/api-keys |
-| `ANTHROPIC_API_KEY` | No | Anthropic API key (for Claude queries) | https://console.anthropic.com/settings/keys |
-| `PERPLEXITY_API_KEY` | No | Perplexity API key (queries + web search) | https://www.perplexity.ai/settings/api |
+| Variable | Description | Get Key From |
+|----------|-------------|--------------|
+| `OPENAI_API_KEY` | OpenAI (GPT models) | https://platform.openai.com/api-keys |
+| `ANTHROPIC_API_KEY` | Anthropic (Claude models) | https://console.anthropic.com/settings/keys |
+| `GEMINI_API_KEY` | Google Gemini (supports web search) | https://makersuite.google.com/app/apikey |
+| `PERPLEXITY_API_KEY` | Perplexity (supports web search) | https://www.perplexity.ai/settings/api |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI (resource URL, api_version, deployment name configured in the UI) | Azure Portal → your OpenAI resource → Keys |
 
-*At minimum, one LLM with analysis capability (Gemini recommended) should be configured either via environment variables or the Admin UI.
+At least one provider env var must be set. The provider is then enabled and configured in **Admin → LLM Providers** in the UI.
 
-**Admin UI Configuration (Recommended):**
-After deployment, configure LLM providers via Admin Menu > LLM Configuration. This allows:
-- Adding/removing providers without restarting the application
-- Testing API connections before saving
-- Customizing chart colors per provider
-- Designating which LLM to use for analysis
-- Enabling web search capability (for "State of the LLMs" report section)
+**Admin UI Configuration:**
+After deployment, configure providers via Admin Menu > LLM Configuration. This is where you:
+- Add/remove providers without restarting the application
+- Set the resource URL, api_version, and deployment name for Azure OpenAI
+- Test API connections before saving
+- Customize chart colors per provider
+- Designate which LLM to use for analysis (`use_for_analysis`)
+- Mark which providers support web search (`supports_web_search`)
 
-**Environment Variable Behavior:**
-When environment variables are set but no database providers exist, Tales automatically creates providers from these keys on startup. Once providers are configured in the database, environment variables are ignored.
+**Defaults Behavior:**
+On a fresh install with no provider records in the database, Tales auto-discovers OpenAI/Anthropic/Gemini/Perplexity from env vars and creates corresponding provider entries. Azure OpenAI is not auto-created (it requires UI configuration for endpoint/version/deployment). Once you add or edit any provider in the UI, the database becomes the source of truth.
+
+**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in env, then in the UI add a new provider with api_type=Azure OpenAI, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), api_version (e.g., `2024-10-21`), and deployment name. Mark `use_for_analysis=True`. The "State of the LLMs" report section will be omitted.
 
 **Key Formats:**
 - OpenAI: `sk-proj-...` or `sk-...`
 - Anthropic: `sk-ant-api03-...`
 - Gemini: Alphanumeric string
 - Perplexity: `pplx-...`
+- Azure OpenAI: Alphanumeric string (from Azure Portal)
 
 ---
 
