@@ -98,6 +98,46 @@ class TestAzureCall:
                 api_version="2024-10-21",
             )
 
+    @patch("app.services.generic_llm_client.AzureOpenAI")
+    def test_azure_call_raises_on_empty_choices(self, mock_azure_cls):
+        """If Azure returns no choices (content filter / misconfig), raise cleanly
+        instead of letting IndexError leak out."""
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = MagicMock(choices=[])
+        mock_azure_cls.return_value = mock_client
+
+        with pytest.raises(LLMAPIError, match="no choices"):
+            GenericLLMClient.call(
+                api_type="azure",
+                api_key="k",
+                model_name="m",
+                prompt="hi",
+                api_endpoint="https://x.openai.azure.com/",
+                api_version="2024-10-21",
+            )
+
+    @patch("app.services.generic_llm_client.AzureOpenAI")
+    def test_azure_call_handles_none_content(self, mock_azure_cls):
+        """If Azure returns choices but content is None (refusal / tool_calls),
+        return an empty string rather than letting None propagate."""
+        mock_client = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = None
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
+        mock_client.chat.completions.create.return_value = MagicMock(choices=[mock_choice])
+        mock_azure_cls.return_value = mock_client
+
+        result = GenericLLMClient.call(
+            api_type="azure",
+            api_key="k",
+            model_name="m",
+            prompt="hi",
+            api_endpoint="https://x.openai.azure.com/",
+            api_version="2024-10-21",
+        )
+        assert result == ""
+
 
 class TestWebSearchUnsupportedForAzure:
     def test_call_with_web_search_rejects_azure(self):

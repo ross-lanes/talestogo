@@ -319,22 +319,32 @@ class GenericLLMClient:
             raise LLMConfigurationError("OpenAI SDK not installed. Run: pip install openai")
 
         try:
-            http_client = httpx.Client(timeout=timeout)
-            client = AzureOpenAI(
-                api_key=api_key,
-                azure_endpoint=azure_endpoint,
-                api_version=api_version,
-                http_client=http_client,
-            )
+            with httpx.Client(timeout=timeout) as http_client:
+                client = AzureOpenAI(
+                    api_key=api_key,
+                    azure_endpoint=azure_endpoint,
+                    api_version=api_version,
+                    http_client=http_client,
+                )
 
-            response = client.chat.completions.create(
-                model=deployment_name,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            return response.choices[0].message.content
+                response = client.chat.completions.create(
+                    model=deployment_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
 
+            # Guard against empty choices (content filtering, API issues) and
+            # None content (model refusal, tool_calls without text).
+            if not response.choices:
+                raise LLMAPIError(
+                    f"Azure OpenAI returned no choices ({azure_endpoint}). "
+                    "This usually means the prompt was filtered or the deployment is misconfigured."
+                )
+            return response.choices[0].message.content or ""
+
+        except LLMAPIError:
+            raise
         except Exception as e:
             raise LLMAPIError(f"Azure OpenAI API error ({azure_endpoint}): {str(e)}")
 

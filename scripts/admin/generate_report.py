@@ -2249,7 +2249,19 @@ def generate_report_main(
             if analysis_provider:
                 print(f"  - Using {analysis_provider.display_name} for report writing")
             else:
-                print(f"  - WARNING: no analysis LLM configured; report writing will fail")
+                # Fail fast: no provider means every downstream LLM call will raise.
+                # Doing it here avoids burning DB queries / web searches and ensures
+                # the task is marked failed so the UI doesn't hang in "running".
+                error_msg = (
+                    "No analysis LLM configured. Configure one in Admin → LLM Providers "
+                    "and set use_for_analysis=True on the provider you want."
+                )
+                print(f"  - ERROR: {error_msg}")
+                if task:
+                    task.status = "failed"
+                    task.error_message = error_msg
+                    db.commit()
+                return
 
             if web_search_providers:
                 print(f"  - Web search providers: {', '.join(p.display_name for p in web_search_providers)}")

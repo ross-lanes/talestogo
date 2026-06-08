@@ -306,7 +306,7 @@ class LLMProvider(Base):
     api_endpoint = Column(String(500), nullable=True)  # Custom endpoint for OpenAI-compatible / Azure resource URL
     model_name = Column(String(100), nullable=False)  # e.g., "gpt-4o", "claude-3-haiku-20240307"; for Azure, this is the deployment name
     env_var_name = Column(String(100), nullable=True)  # Custom env var name for non-default providers (e.g., "MISTRAL_API_KEY")
-    api_version = Column(String(20), nullable=True)  # Azure OpenAI api_version (e.g., "2024-10-21"); unused for other api_types
+    api_version = Column(String(50), nullable=True)  # Azure OpenAI api_version (e.g., "2024-10-21" or "2024-12-01-preview"); unused for other api_types
 
     # Display settings
     color = Column(String(7), default="#666666")  # Hex color for charts

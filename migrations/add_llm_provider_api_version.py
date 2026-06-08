@@ -43,7 +43,7 @@ def run_migration():
 
     with engine.begin() as conn:
         conn.execute(text(
-            f"ALTER TABLE {TABLE_NAME} ADD COLUMN {COLUMN_NAME} VARCHAR(20)"
+            f"ALTER TABLE {TABLE_NAME} ADD COLUMN {COLUMN_NAME} VARCHAR(50)"
         ))
 
     if column_exists():
