@@ -184,18 +184,27 @@ def create_provider(
                 detail="api_version is required for bing_grounded (Azure AI Foundry API version)"
             )
 
-    # Search-only providers (Bing) only implement call_with_web_search() — they
-    # have no .call() branch in GenericLLMClient. Designating one as the analysis
-    # provider would crash report generation and brand auto-generation at runtime.
-    if provider.use_for_analysis and provider.api_type in ("bing_v7", "bing_grounded"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"api_type '{provider.api_type}' is web-search-only and cannot be the "
-                "analysis provider. Set use_for_analysis=True on an LLM provider "
-                "(OpenAI, Anthropic, Google, Azure OpenAI, or OpenAI-compatible) instead."
+    # If marked as the analysis provider, the provider must (a) be enabled — a
+    # disabled provider gets filtered out of get_analysis_provider() and analysis
+    # silently falls back to whichever provider is first enabled, which is exactly
+    # the kind of "I configured this but it isn't being used" footgun we want to
+    # surface at config time — and (b) not be a search-only Bing type, since
+    # those have no .call() branch and would crash report generation.
+    if provider.use_for_analysis:
+        if not provider.is_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A provider marked use_for_analysis=True must also be enabled.",
             )
-        )
+        if provider.api_type in ("bing_v7", "bing_grounded"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"api_type '{provider.api_type}' is web-search-only and cannot be the "
+                    "analysis provider. Set use_for_analysis=True on an LLM provider "
+                    "(OpenAI, Anthropic, Google, Azure OpenAI, or OpenAI-compatible) instead."
+                )
+            )
 
     # For custom providers (not in default mapping), require env_var_name
     is_default_type = provider.api_type in API_TYPE_TO_ENV_VAR
@@ -363,15 +372,26 @@ def update_provider(
                 detail="api_version is required for bing_grounded"
             )
 
-    # Search-only providers cannot be the analysis provider (same guard as create).
-    if effective_use_for_analysis and effective_api_type in ("bing_v7", "bing_grounded"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"api_type '{effective_api_type}' is web-search-only and cannot be the "
-                "analysis provider. Set use_for_analysis=True on an LLM provider instead."
+    # Same analysis-provider invariants as create: must be enabled, and must
+    # not be a search-only Bing type. The "must be enabled" guard catches two
+    # subtle failure modes via PUT: (a) disabling a provider that's also
+    # use_for_analysis=True, (b) flipping use_for_analysis=True on a provider
+    # whose existing is_enabled is False.
+    if effective_use_for_analysis:
+        effective_is_enabled = update_data.get("is_enabled", provider.is_enabled)
+        if not effective_is_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A provider marked use_for_analysis=True must also be enabled.",
             )
-        )
+        if effective_api_type in ("bing_v7", "bing_grounded"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"api_type '{effective_api_type}' is web-search-only and cannot be the "
+                    "analysis provider. Set use_for_analysis=True on an LLM provider instead."
+                )
+            )
 
     # Apply updates
     for key, value in update_data.items():
