@@ -184,6 +184,19 @@ def create_provider(
                 detail="api_version is required for bing_grounded (Azure AI Foundry API version)"
             )
 
+    # Search-only providers (Bing) only implement call_with_web_search() — they
+    # have no .call() branch in GenericLLMClient. Designating one as the analysis
+    # provider would crash report generation and brand auto-generation at runtime.
+    if provider.use_for_analysis and provider.api_type in ("bing_v7", "bing_grounded"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"api_type '{provider.api_type}' is web-search-only and cannot be the "
+                "analysis provider. Set use_for_analysis=True on an LLM provider "
+                "(OpenAI, Anthropic, Google, Azure OpenAI, or OpenAI-compatible) instead."
+            )
+        )
+
     # For custom providers (not in default mapping), require env_var_name
     is_default_type = provider.api_type in API_TYPE_TO_ENV_VAR
     if not is_default_type and not provider.env_var_name:
@@ -309,12 +322,18 @@ def update_provider(
                 detail=f"Invalid api_type. Must be one of: {', '.join(valid_api_types)}"
             )
 
-    # If the post-update api_type is azure, require api_endpoint + api_version
-    # (use new values from update_data if present, else fall back to existing provider values).
+    # Validate the post-update api_type's requirements. Use the new field values
+    # from update_data if present, otherwise fall back to the existing provider's
+    # values — this catches both "api_type was changed" and "only the endpoint
+    # was cleared" failure modes.
     effective_api_type = update_data.get("api_type", provider.api_type)
+    effective_endpoint = update_data.get("api_endpoint", provider.api_endpoint)
+    effective_api_version = update_data.get("api_version", provider.api_version)
+    effective_use_for_analysis = update_data.get(
+        "use_for_analysis", provider.use_for_analysis
+    )
+
     if effective_api_type == "azure":
-        effective_endpoint = update_data.get("api_endpoint", provider.api_endpoint)
-        effective_api_version = update_data.get("api_version", provider.api_version)
         if not effective_endpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -325,6 +344,34 @@ def update_provider(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="api_version is required for azure API type"
             )
+
+    if effective_api_type == "bing_v7" and not effective_endpoint:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="api_endpoint is required for bing_v7"
+        )
+
+    if effective_api_type == "bing_grounded":
+        if not effective_endpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_endpoint (Azure AI Foundry project endpoint) is required for bing_grounded"
+            )
+        if not effective_api_version:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_version is required for bing_grounded"
+            )
+
+    # Search-only providers cannot be the analysis provider (same guard as create).
+    if effective_use_for_analysis and effective_api_type in ("bing_v7", "bing_grounded"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"api_type '{effective_api_type}' is web-search-only and cannot be the "
+                "analysis provider. Set use_for_analysis=True on an LLM provider instead."
+            )
+        )
 
     # Apply updates
     for key, value in update_data.items():

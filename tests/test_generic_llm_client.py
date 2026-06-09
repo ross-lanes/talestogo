@@ -205,27 +205,92 @@ class TestBingV7Search:
 
 class TestBingV7GroundedSynthesis:
     @patch("app.services.generic_llm_client.GenericLLMClient._call_bing_v7_search")
-    def test_synthesis_calls_analysis_provider_with_augmented_prompt(self, mock_search):
+    def test_synthesis_distills_query_then_calls_analysis_provider(self, mock_search):
+        """The full v7 path now does: distill → search → synthesize. The analysis
+        provider gets called twice: once for distillation (short prompt), once
+        for synthesis (the augmented prompt with Bing results)."""
         mock_search.return_value = [
             {"title": "T1", "url": "https://u1", "snippet": "S1"},
         ]
         analysis_provider = MagicMock()
-        analysis_provider.call.return_value = "synthesized prose"
+        # Distillation returns a focused query; synthesis returns the final prose.
+        analysis_provider.call.side_effect = ["LLM platform changes 2026", "synthesized prose"]
 
         result = GenericLLMClient._call_bing_v7_grounded_synthesis(
-            bing_api_key="k", prompt="Q?", bing_endpoint="https://api.bing.microsoft.com/",
-            analysis_provider=analysis_provider, timeout=10.0,
+            bing_api_key="k",
+            prompt="Long instruction about LLM platform changes ..." * 20,
+            bing_endpoint="https://api.bing.microsoft.com/",
+            analysis_provider=analysis_provider,
+            timeout=10.0,
         )
         assert result == "synthesized prose"
 
-        analysis_provider.call.assert_called_once()
-        call_kwargs = analysis_provider.call.call_args.kwargs
-        # The augmented prompt should contain both the original question and
-        # the formatted Bing results.
-        assert "Q?" in call_kwargs["prompt"]
-        assert "T1" in call_kwargs["prompt"]
-        assert "[1]" in call_kwargs["prompt"]
+        # Two calls: distill + synthesize.
+        assert analysis_provider.call.call_count == 2
 
+        # The distilled query (first call's return) is what got passed to Bing.
+        mock_search.assert_called_once()
+        assert mock_search.call_args.args[1] == "LLM platform changes 2026"
+
+        # The synthesis prompt (second call) embeds the Bing results.
+        synthesis_kwargs = analysis_provider.call.call_args_list[1].kwargs
+        assert "T1" in synthesis_kwargs["prompt"]
+        assert "[1]" in synthesis_kwargs["prompt"]
+
+    @patch("app.services.generic_llm_client.GenericLLMClient._call_bing_v7_search")
+    def test_synthesis_falls_back_to_truncated_prompt_if_distillation_fails(self, mock_search):
+        """If the analysis provider errors during distillation, fall back to a
+        truncated word-list of the original prompt rather than hard-failing."""
+        mock_search.return_value = []
+        analysis_provider = MagicMock()
+        analysis_provider.call.side_effect = [
+            RuntimeError("LLM transient error"),  # distillation fails
+            "fallback synthesis",                  # synthesis still works
+        ]
+
+        result = GenericLLMClient._call_bing_v7_grounded_synthesis(
+            bing_api_key="k",
+            prompt="alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu",
+            bing_endpoint="https://api.bing.microsoft.com/",
+            analysis_provider=analysis_provider,
+            timeout=10.0,
+        )
+        assert result == "fallback synthesis"
+
+        # Fallback query = first 10 words of the prompt.
+        mock_search.assert_called_once()
+        assert mock_search.call_args.args[1] == "alpha beta gamma delta epsilon zeta eta theta iota kappa"
+
+
+class TestBingV7EndpointNormalization:
+    """Operators may paste the endpoint with or without /v7.0/search appended.
+    The code must canonicalize without ever doubling up the path."""
+
+    @pytest.mark.parametrize("endpoint", [
+        "https://api.bing.microsoft.com",
+        "https://api.bing.microsoft.com/",
+        "https://api.bing.microsoft.com/v7.0",
+        "https://api.bing.microsoft.com/v7.0/",
+        "https://api.bing.microsoft.com/v7.0/search",
+        "https://api.bing.microsoft.com/v7.0/search/",
+    ])
+    @patch("app.services.generic_llm_client.httpx.Client")
+    def test_endpoint_normalizes_to_canonical_url(self, mock_client_cls, endpoint):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _mock_bing_response([])
+        mock_resp.raise_for_status.return_value = None
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+
+        GenericLLMClient._call_bing_v7_search(
+            api_key="k", query="q", api_endpoint=endpoint, timeout=10.0,
+        )
+        url = mock_client_cls.return_value.__enter__.return_value.get.call_args.args[0]
+        assert url == "https://api.bing.microsoft.com/v7.0/search", (
+            f"Endpoint {endpoint!r} normalized to {url!r}, expected canonical form"
+        )
+
+
+class TestBingV7Required:
     def test_bing_v7_requires_analysis_provider(self):
         with pytest.raises(LLMConfigurationError, match="analysis"):
             GenericLLMClient.call_with_web_search(
@@ -277,3 +342,162 @@ class TestBingGroundedSDKGuard:
                 model_name="agent-id",
                 prompt="Q?",
             )
+
+
+class TestBingGroundedAuth:
+    """Bing Grounded supports two auth paths:
+    - AzureKeyCredential when AZURE_FOUNDRY_API_KEY is set (key-based)
+    - DefaultAzureCredential when no key (managed identity / az-login / SP env vars)
+    """
+
+    def _setup_sdk_mocks(self, monkeypatch):
+        """Patch AIProjectClient, credentials, and the SDK-available flag.
+        Returns (mock_project_client_cls, mock_key_cred_cls, mock_default_cred_cls).
+        """
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
+
+        mock_project_cls = MagicMock()
+        mock_key_cred_cls = MagicMock()
+        mock_default_cred_cls = MagicMock()
+
+        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredential", mock_key_cred_cls, raising=False)
+        monkeypatch.setattr(glc, "DefaultAzureCredential", mock_default_cred_cls, raising=False)
+
+        # Make the inner agent flow return a successful run with one assistant message.
+        client = MagicMock()
+        mock_project_cls.return_value = client
+        # The `with client:` context manager hands back the client itself.
+        client.__enter__.return_value = client
+        client.__exit__.return_value = False
+
+        thread = MagicMock(id="thread-1")
+        client.agents.threads.create.return_value = thread
+
+        run = MagicMock()
+        run.status = "completed"
+        client.agents.runs.create_and_process.return_value = run
+
+        msg = MagicMock()
+        msg.role = "assistant"
+        msg.content = "agent response"
+        client.agents.messages.list.return_value = [msg]
+
+        return mock_project_cls, mock_key_cred_cls, mock_default_cred_cls
+
+    def test_uses_azure_key_credential_when_api_key_set(self, monkeypatch):
+        project_cls, key_cred_cls, default_cred_cls = self._setup_sdk_mocks(monkeypatch)
+
+        GenericLLMClient.call_with_web_search(
+            api_type="bing_grounded",
+            api_key="secret-key",
+            model_name="agent-id",
+            prompt="Q?",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+        )
+
+        # AzureKeyCredential should be constructed with our key, and
+        # DefaultAzureCredential should NOT be touched.
+        key_cred_cls.assert_called_once_with("secret-key")
+        default_cred_cls.assert_not_called()
+
+    def test_falls_back_to_default_credential_when_no_key(self, monkeypatch):
+        project_cls, key_cred_cls, default_cred_cls = self._setup_sdk_mocks(monkeypatch)
+
+        GenericLLMClient.call_with_web_search(
+            api_type="bing_grounded",
+            api_key="",  # empty key → managed-identity path
+            model_name="agent-id",
+            prompt="Q?",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+        )
+
+        default_cred_cls.assert_called_once_with()
+        key_cred_cls.assert_not_called()
+
+
+class TestBingGroundedRunStatus:
+    """Bing Grounded must verify the agent run actually completed — not just
+    that it didn't fail. cancelled / expired / requires_action runs would
+    return empty or stale messages."""
+
+    @pytest.mark.parametrize("status", ["cancelled", "expired", "requires_action", None])
+    def test_non_completed_status_raises(self, monkeypatch, status):
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
+
+        mock_project_cls = MagicMock()
+        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredential", MagicMock(), raising=False)
+        monkeypatch.setattr(glc, "DefaultAzureCredential", MagicMock(), raising=False)
+
+        client = MagicMock()
+        mock_project_cls.return_value = client
+        client.__enter__.return_value = client
+        client.__exit__.return_value = False
+        client.agents.threads.create.return_value = MagicMock(id="t1")
+
+        run = MagicMock()
+        run.status = status
+        run.last_error = "transient failure"
+        client.agents.runs.create_and_process.return_value = run
+
+        with pytest.raises(LLMAPIError, match=str(status)):
+            GenericLLMClient.call_with_web_search(
+                api_type="bing_grounded",
+                api_key="k",
+                model_name="agent-id",
+                prompt="Q?",
+                api_endpoint="https://my-foundry.example/",
+                api_version="2025-05-15-preview",
+            )
+
+
+class TestBingGroundedMessageExtraction:
+    """No str(t) fallback — if a content block has no .text.value, skip it
+    rather than returning the Python object repr as 'content'."""
+
+    def test_skips_messagetext_block_without_value(self, monkeypatch):
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
+
+        mock_project_cls = MagicMock()
+        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredential", MagicMock(), raising=False)
+        monkeypatch.setattr(glc, "DefaultAzureCredential", MagicMock(), raising=False)
+
+        client = MagicMock()
+        mock_project_cls.return_value = client
+        client.__enter__.return_value = client
+        client.__exit__.return_value = False
+        client.agents.threads.create.return_value = MagicMock(id="t1")
+        client.agents.runs.create_and_process.return_value = MagicMock(status="completed")
+
+        # Build a message with two blocks: first has no .text.value, second does.
+        first_block = MagicMock()
+        first_block.text = MagicMock(spec=["whatever"])  # no .value attribute
+        first_block.text.value = None  # explicit: no value
+
+        second_block = MagicMock()
+        second_block.text = MagicMock()
+        second_block.text.value = "actual text content"
+
+        msg = MagicMock()
+        msg.role = "assistant"
+        msg.content = [first_block, second_block]
+        client.agents.messages.list.return_value = [msg]
+
+        result = GenericLLMClient.call_with_web_search(
+            api_type="bing_grounded",
+            api_key="k",
+            model_name="agent-id",
+            prompt="Q?",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+        )
+        # Should return the second block's value, NOT a Python repr of the first.
+        assert result == "actual text content"
+        assert "<" not in result and "object at" not in result

@@ -38,6 +38,7 @@ except ImportError:
 try:
     from azure.ai.projects import AIProjectClient
     from azure.identity import DefaultAzureCredential
+    from azure.core.credentials import AzureKeyCredential
     AZURE_AI_FOUNDRY_AVAILABLE = True
 except ImportError:
     AZURE_AI_FOUNDRY_AVAILABLE = False
@@ -361,9 +362,19 @@ class GenericLLMClient:
         api_endpoint is the Bing host (e.g., 'https://api.bing.microsoft.com/').
         The '/v7.0/search' path is appended automatically.
         """
-        # Normalize endpoint and append the search path.
+        # Normalize endpoint. Operators may paste any of:
+        #   https://api.bing.microsoft.com
+        #   https://api.bing.microsoft.com/
+        #   https://api.bing.microsoft.com/v7.0
+        #   https://api.bing.microsoft.com/v7.0/search
+        # We canonicalize to .../v7.0/search regardless of which they pasted.
         base = api_endpoint.rstrip("/")
-        url = f"{base}/v7.0/search"
+        if base.endswith("/v7.0/search"):
+            url = base
+        elif base.endswith("/v7.0"):
+            url = f"{base}/search"
+        else:
+            url = f"{base}/v7.0/search"
 
         try:
             with httpx.Client(timeout=timeout) as client:
@@ -403,6 +414,42 @@ class GenericLLMClient:
         return "\n".join(lines).rstrip()
 
     @staticmethod
+    def _distill_search_query(prompt: str, analysis_provider, max_words: int = 10) -> str:
+        """Reduce a long report-writing prompt to a concise search-engine query.
+
+        Report prompts in scripts/admin/generate_report.py are paragraph-length
+        instructions ("Research the latest trends...") — passing them verbatim
+        to Bing as q= would return noise because search engines rank by keyword
+        density. We ask the analysis LLM to extract the actual searchable intent
+        (3-10 keywords) first, then use that as the query.
+
+        Falls back to a truncated word-list of the prompt if the LLM call fails.
+        """
+        query_prompt = (
+            "You are generating a query for a web search engine.\n"
+            "Read the instruction below and write a single concise search query "
+            f"(maximum {max_words} words) that would surface the most relevant, "
+            "current information needed to answer it.\n\n"
+            f"INSTRUCTION:\n{prompt}\n\n"
+            "Respond with ONLY the search query — no quotes, no explanation, "
+            "no markdown, no leading or trailing whitespace."
+        )
+        try:
+            raw = analysis_provider.call(
+                prompt=query_prompt, max_tokens=80, temperature=0.0
+            )
+            cleaned = (raw or "").strip().strip("\"'`")
+            # Take the first line only — some models add a follow-up explanation
+            # despite being asked not to.
+            cleaned = cleaned.splitlines()[0].strip() if cleaned else ""
+            if cleaned:
+                return cleaned
+        except Exception:
+            pass
+        # Fallback: first N words of the original prompt.
+        return " ".join(prompt.split()[:max_words])
+
+    @staticmethod
     def _call_bing_v7_grounded_synthesis(
         bing_api_key: str,
         prompt: str,
@@ -412,24 +459,36 @@ class GenericLLMClient:
     ) -> str:
         """Retrieve via Bing v7 then synthesize the results with analysis_provider.
 
-        Two-step pattern: search → augment prompt with results → call LLM. The
-        analysis_provider is the SAME provider the deployment uses for response
-        analysis (the one flagged use_for_analysis=True), so this composes Bing
-        with whatever LLM the deployment already trusts.
+        Three-step pattern:
+          1. Distill the long report prompt into a concise Bing-friendly query
+             (otherwise Bing's relevance ranker returns noise — long paragraph
+             prompts score by every keyword, not by topical intent).
+          2. Search Bing v7 with the distilled query.
+          3. Synthesize prose from the results using the analysis_provider.
+
+        The analysis_provider is the SAME provider the deployment uses for
+        response analysis (use_for_analysis=True), so this composes Bing with
+        whatever LLM the deployment already trusts.
         """
+        # Step 1: distill the prompt into a search query.
+        search_query = GenericLLMClient._distill_search_query(prompt, analysis_provider)
+
+        # Step 2: search.
         results = GenericLLMClient._call_bing_v7_search(
-            bing_api_key, prompt, bing_endpoint, timeout
+            bing_api_key, search_query, bing_endpoint, timeout
         )
+
+        # Step 3: synthesize using the analysis provider.
         context = GenericLLMClient._format_bing_results_as_context(results)
         augmented_prompt = (
             "You are answering a question using fresh web search results.\n\n"
+            f"SEARCH QUERY USED: {search_query}\n\n"
             f"SEARCH RESULTS (from Bing):\n{context}\n\n"
             f"QUESTION:\n{prompt}\n\n"
             "Cite search results inline as [1], [2], etc. where relevant. "
             "If the results don't contain enough information to answer, say so "
             "rather than inventing details."
         )
-        # analysis_provider.call() returns a string; signature matches ProviderConfig.call.
         return analysis_provider.call(
             prompt=augmented_prompt, max_tokens=4000, temperature=0.5
         )
@@ -473,17 +532,24 @@ class GenericLLMClient:
 
         try:
             # The endpoint here is the AI Foundry project endpoint, not an OpenAI
-            # deployment URL. We use DefaultAzureCredential which auto-discovers
-            # the right auth path (managed identity in production, az-login locally).
-            # AZURE_FOUNDRY_API_KEY in the environment is consumed by the credential
-            # chain as `AZURE_CLIENT_SECRET` when configured for service-principal
-            # auth; operators with non-standard setups will adjust per their tenant.
+            # deployment URL. Two auth paths are supported:
+            # - If AZURE_FOUNDRY_API_KEY is set (api_key non-empty), use
+            #   AzureKeyCredential — explicit key-based auth.
+            # - Otherwise fall back to DefaultAzureCredential, which auto-discovers
+            #   managed identity (when running on Azure), az-login, or the standard
+            #   AZURE_CLIENT_ID + AZURE_TENANT_ID + AZURE_CLIENT_SECRET service-
+            #   principal env vars.
+            if api_key:
+                credential = AzureKeyCredential(api_key)  # type: ignore[name-defined]
+            else:
+                credential = DefaultAzureCredential()  # type: ignore[name-defined]
+
             credential_kwargs: Dict[str, Any] = {}
             if api_version:
                 credential_kwargs["api_version"] = api_version
             client = AIProjectClient(  # type: ignore[name-defined]
                 endpoint=api_endpoint,
-                credential=DefaultAzureCredential(),  # type: ignore[name-defined]
+                credential=credential,
                 **credential_kwargs,
             )
 
@@ -498,9 +564,16 @@ class GenericLLMClient:
                 run = client.agents.runs.create_and_process(
                     thread_id=thread.id, agent_id=agent_id_or_deployment
                 )
-                if getattr(run, "status", None) == "failed":
+
+                # Check positively for completion. Any other status (failed,
+                # cancelled, expired, requires_action, …) means we shouldn't try
+                # to read messages — they'll be empty or stale.
+                run_status = getattr(run, "status", None)
+                if run_status != "completed":
+                    last_error = getattr(run, "last_error", None) or "(no error detail)"
                     raise LLMAPIError(
-                        f"Azure AI Foundry agent run failed: {getattr(run, 'last_error', '?')}"
+                        f"Azure AI Foundry agent run did not complete "
+                        f"(status={run_status!r}): {last_error}"
                     )
 
                 # Read back the assistant's reply from the thread.
@@ -515,7 +588,11 @@ class GenericLLMClient:
                             for block in text_content:
                                 t = getattr(block, "text", None)
                                 if t is not None:
-                                    val = getattr(t, "value", None) or str(t)
+                                    # Only return if we can extract real text —
+                                    # don't fall back to str(t), which would
+                                    # return a Python object repr, not the
+                                    # message content.
+                                    val = getattr(t, "value", None)
                                     if val:
                                         return val
                 return ""
