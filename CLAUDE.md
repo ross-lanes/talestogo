@@ -15,6 +15,20 @@ The private dev repo is `tales_project` (local path `/Users/rkremen/Documents/Co
 
 If a change is needed in both repos, treat them as two separate, independent commits in two separate working trees.
 
+## 📍 Canonical Source: GitHub
+
+The single source of truth for TalesToGo is **`github.com/rtwodeetwo/talestogo`**. This is the version shared with PNNL and other U.S. National Labs for self-deployment.
+
+- **All new work lands here.** Commits, branches, PRs, and merges happen on `rtwodeetwo/talestogo`.
+- **`origin` remote = GitHub** in this working tree. Pushes default to GitHub.
+
+### Other places `talestogo` exists — do NOT confuse for canonical
+
+- **`git.pppl.gov/rkremen/talestogo`** — an older PPPL GitLab sister repo that predates the May 2026 strip-to-Tales-only cleanup. It still has the pre-strip codebase (the 8 removed products, `deployment-kit-pppl/`, ~200 stripped files). It is **NOT** the canonical source and is **NOT** kept in sync. Do not push new work there assuming it's a mirror — its `main` is on a different history line from GitHub's `main` and force-pushing would destroy work that may still be referenced by something. If a future operation needs to update it, treat it as a separate codebase that needs a thought-out migration, not a quick `git push`.
+- **`tales_project`** — see the Critical Rule above. Private dev repo, never touched from this working tree.
+
+If you find yourself about to push TalesToGo work to anywhere other than `origin` / `rtwodeetwo/talestogo`, stop and confirm with Rachel first.
+
 ## Session Log: 2026-05-08 — Strip-to-Tales-Only Cleanup
 
 ### Context
