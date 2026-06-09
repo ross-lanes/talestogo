@@ -22,6 +22,11 @@ API_TYPE_TO_ENV_VAR = {
     "google": "GEMINI_API_KEY",
     "azure": "AZURE_OPENAI_API_KEY",
     "openai_compatible": "PERPLEXITY_API_KEY",
+    # Bing-backed web search (additive, used only for the State of the LLMs
+    # report section). bing_v7 pairs with the configured analysis provider;
+    # bing_grounded uses Azure AI Foundry's agent-with-grounding tool.
+    "bing_v7": "BING_SEARCH_V7_API_KEY",
+    "bing_grounded": "AZURE_FOUNDRY_API_KEY",
 }
 
 
@@ -81,8 +86,18 @@ class ProviderConfig:
             temperature=temperature
         )
 
-    def call_with_web_search(self, prompt: str) -> str:
-        """Call this provider with web search grounding."""
+    def call_with_web_search(
+        self,
+        prompt: str,
+        analysis_provider: Optional["ProviderConfig"] = None,
+    ) -> str:
+        """Call this provider with web search grounding.
+
+        For api_type=="bing_v7", an `analysis_provider` is required — Bing v7
+        retrieves search results but does NOT synthesize them; the analysis
+        provider writes the prose from those results. Other web-search
+        api_types ignore the parameter.
+        """
         api_key = self._get_api_key()
         if not api_key:
             env_var = self.env_var_name or API_TYPE_TO_ENV_VAR.get(self.api_type, "UNKNOWN")
@@ -93,7 +108,9 @@ class ProviderConfig:
             api_key=api_key,
             model_name=self.model_name,
             prompt=prompt,
-            api_endpoint=self.api_endpoint
+            api_endpoint=self.api_endpoint,
+            api_version=self.api_version,
+            analysis_provider=analysis_provider,
         )
 
 

@@ -119,3 +119,69 @@ def test_get_analysis_provider_returns_none_when_nothing_configured(test_db, mon
     db = test_db()
     mgr = LLMProviderManager(db)
     assert mgr.get_analysis_provider() is None
+
+
+# ==================== Bing web-search providers ====================
+
+def test_api_type_to_env_var_includes_bing():
+    """Both Bing api_types must have default env var bindings."""
+    assert API_TYPE_TO_ENV_VAR["bing_v7"] == "BING_SEARCH_V7_API_KEY"
+    assert API_TYPE_TO_ENV_VAR["bing_grounded"] == "AZURE_FOUNDRY_API_KEY"
+
+
+def test_bing_v7_db_provider_threads_analysis_provider_into_call(test_db, monkeypatch):
+    """A bing_v7 ProviderConfig.call_with_web_search must pass analysis_provider
+    through to GenericLLMClient. Mocking GenericLLMClient.call_with_web_search to
+    verify the parameter is threaded correctly."""
+    monkeypatch.setenv("BING_SEARCH_V7_API_KEY", "bing-key")
+    db = test_db()
+    db.add(models.LLMProvider(
+        tenant_id=None,
+        provider_key="bing_v7",
+        display_name="Bing v7",
+        api_type="bing_v7",
+        api_endpoint="https://api.bing.microsoft.com/",
+        model_name="bing",
+        is_enabled=True,
+        supports_web_search=True,
+    ))
+    db.commit()
+
+    mgr = LLMProviderManager(db)
+    web_providers = mgr.get_web_search_providers()
+    assert any(p.api_type == "bing_v7" for p in web_providers)
+
+    bing = next(p for p in web_providers if p.api_type == "bing_v7")
+    fake_analysis = object()  # opaque sentinel — just needs to thread through
+
+    with patch("app.services.llm_provider_manager.GenericLLMClient.call_with_web_search") as mock_ws:
+        mock_ws.return_value = "ok"
+        bing.call_with_web_search(prompt="Q?", analysis_provider=fake_analysis)
+
+    mock_ws.assert_called_once()
+    kwargs = mock_ws.call_args.kwargs
+    assert kwargs["api_type"] == "bing_v7"
+    assert kwargs["analysis_provider"] is fake_analysis
+    assert kwargs["api_endpoint"] == "https://api.bing.microsoft.com/"
+
+
+def test_get_web_search_providers_includes_bing(test_db, monkeypatch):
+    """Both Bing types must be discoverable via get_web_search_providers."""
+    monkeypatch.setenv("BING_SEARCH_V7_API_KEY", "x")
+    monkeypatch.setenv("AZURE_FOUNDRY_API_KEY", "y")
+    db = test_db()
+    db.add(models.LLMProvider(
+        tenant_id=None, provider_key="bing_v7", display_name="Bing v7",
+        api_type="bing_v7", api_endpoint="https://api.bing.microsoft.com/",
+        model_name="bing", is_enabled=True, supports_web_search=True,
+    ))
+    db.add(models.LLMProvider(
+        tenant_id=None, provider_key="bing_grounded", display_name="Foundry Bing",
+        api_type="bing_grounded", api_endpoint="https://x.example/",
+        api_version="2025-05-15-preview", model_name="agent-id",
+        is_enabled=True, supports_web_search=True,
+    ))
+    db.commit()
+
+    types = {p.api_type for p in LLMProviderManager(db).get_web_search_providers()}
+    assert {"bing_v7", "bing_grounded"}.issubset(types)

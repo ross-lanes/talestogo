@@ -2,11 +2,12 @@
 Generic LLM Client for Tales Project
 
 Routes API calls to different LLM providers based on configuration.
-Supports OpenAI, Anthropic, Google (Gemini), Azure OpenAI, and OpenAI-compatible APIs.
+Supports OpenAI, Anthropic, Google (Gemini), Azure OpenAI, OpenAI-compatible
+APIs, and Bing web search (v7 REST + Azure AI Foundry Grounding with Bing).
 """
 
 import os
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import httpx
 
 # Import LLM SDKs
@@ -28,6 +29,18 @@ try:
     GOOGLE_AVAILABLE = True
 except ImportError:
     GOOGLE_AVAILABLE = False
+
+# Azure AI Foundry SDK — used only by the `bing_grounded` api_type. Declared
+# as an optional extra in pyproject.toml ([project.optional-dependencies]
+# bing-grounded). Installed via `pip install .[bing-grounded]`. If absent,
+# `bing_grounded` calls return a clear "install the bing-grounded extra"
+# error rather than a bare ImportError. `bing_v7` does not need this SDK.
+try:
+    from azure.ai.projects import AIProjectClient
+    from azure.identity import DefaultAzureCredential
+    AZURE_AI_FOUNDRY_AVAILABLE = True
+except ImportError:
+    AZURE_AI_FOUNDRY_AVAILABLE = False
 
 
 class LLMClientError(Exception):
@@ -135,36 +148,43 @@ class GenericLLMClient:
         model_name: str,
         prompt: str,
         api_endpoint: Optional[str] = None,
-        timeout: float = DEFAULT_TIMEOUT
+        api_version: Optional[str] = None,
+        analysis_provider: Optional[Any] = None,
+        timeout: float = DEFAULT_TIMEOUT,
     ) -> str:
         """
         Call an LLM API with web search grounding (for State of the LLMs feature).
 
-        Only supported for:
-        - "google": Uses Google Search grounding tool
-        - "openai_compatible" with Perplexity: Uses sonar model's built-in search
+        Supported api_types:
+        - "google": Gemini + Google Search grounding (single round-trip)
+        - "openai_compatible" with Perplexity sonar: built-in web search
+        - "bing_v7": Bing Search v7 REST retrieval, synthesized by analysis_provider
+          (requires analysis_provider to be passed in)
+        - "bing_grounded": Azure AI Foundry agent with Grounding-with-Bing tool
+          (requires the optional `bing-grounded` extra to be installed)
 
-        Azure OpenAI is intentionally NOT supported here. Azure-only deployments
-        gracefully omit the "State of the LLMs" report section (the caller in
-        scripts/admin/generate_report.py handles this by returning a "Skipped"
-        status that the report orchestrator reads to skip the section entirely).
-        To re-enable web search, configure a Gemini or Perplexity provider
-        alongside Azure.
+        Azure OpenAI itself (api_type="azure") is intentionally NOT supported here —
+        it has no native web search. Azure-only deployments configure a Bing
+        provider alongside Azure to populate the State of the LLMs section.
 
         Args:
-            api_type: One of "google", "openai_compatible"
+            api_type: One of "google", "openai_compatible", "bing_v7", "bing_grounded"
             api_key: The decrypted API key
-            model_name: The model to use
+            model_name: Provider-specific identifier (model / deployment / agent ID)
             prompt: The prompt to send
-            api_endpoint: Custom endpoint URL (for Perplexity)
+            api_endpoint: Custom endpoint URL (Perplexity / Bing v7 / AI Foundry)
+            api_version: Azure AI Foundry api_version (bing_grounded only)
+            analysis_provider: ProviderConfig used to synthesize Bing v7 search
+                results. Required when api_type=="bing_v7". Ignored otherwise.
             timeout: Request timeout in seconds
 
         Returns:
-            The response text from the LLM
+            The response text from the LLM (or synthesized prose for bing_v7).
 
         Raises:
-            LLMConfigurationError: If the API type does not support web search
-            LLMAPIError: If the API call fails
+            LLMConfigurationError: If the api_type doesn't support web search or
+                if required configuration is missing.
+            LLMAPIError: If the upstream API call fails.
         """
         if api_type == "google":
             return GenericLLMClient._call_google_with_grounding(
@@ -179,10 +199,34 @@ class GenericLLMClient:
             return GenericLLMClient._call_openai_compatible(
                 api_key, model_name, prompt, api_endpoint, max_tokens=4000, temperature=0.7, timeout=timeout
             )
+        elif api_type == "bing_v7":
+            if not api_endpoint:
+                raise LLMConfigurationError(
+                    "api_endpoint is required for bing_v7 (e.g., 'https://api.bing.microsoft.com/')"
+                )
+            if analysis_provider is None:
+                raise LLMConfigurationError(
+                    "bing_v7 retrieves search results but does not synthesize them — "
+                    "designate one of your providers with use_for_analysis=True so it "
+                    "can write the State of the LLMs section from the search results."
+                )
+            return GenericLLMClient._call_bing_v7_grounded_synthesis(
+                api_key, prompt, api_endpoint, analysis_provider, timeout
+            )
+        elif api_type == "bing_grounded":
+            if not api_endpoint:
+                raise LLMConfigurationError(
+                    "api_endpoint (Azure AI Foundry project endpoint) is required for bing_grounded"
+                )
+            return GenericLLMClient._call_bing_grounded(
+                api_key, model_name, prompt, api_endpoint, api_version, timeout
+            )
         else:
             raise LLMConfigurationError(
                 f"API type '{api_type}' does not support web search. "
-                "Only 'google' and 'openai_compatible' (Perplexity) support web search."
+                "Web search is provided by: 'google' (Gemini grounding), 'openai_compatible' "
+                "(Perplexity sonar), 'bing_v7' (Bing Search v7 + analysis LLM), "
+                "or 'bing_grounded' (Azure AI Foundry Grounding with Bing)."
             )
 
     @staticmethod
@@ -297,6 +341,192 @@ class GenericLLMClient:
 
         except Exception as e:
             raise LLMAPIError(f"Google GenAI API (with grounding) error: {str(e)}")
+
+    # ==================== Bing Search v7 (REST retrieval) ====================
+
+    @staticmethod
+    def _call_bing_v7_search(
+        api_key: str,
+        query: str,
+        api_endpoint: str,
+        timeout: float,
+        count: int = 10,
+    ) -> List[Dict[str, str]]:
+        """Call Bing Search v7 REST API and return a list of {title, url, snippet}.
+
+        Pure retrieval — does not call any LLM. Used by
+        `_call_bing_v7_grounded_synthesis` to fetch fresh web results that the
+        analysis provider then synthesizes into prose.
+
+        api_endpoint is the Bing host (e.g., 'https://api.bing.microsoft.com/').
+        The '/v7.0/search' path is appended automatically.
+        """
+        # Normalize endpoint and append the search path.
+        base = api_endpoint.rstrip("/")
+        url = f"{base}/v7.0/search"
+
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                resp = client.get(
+                    url,
+                    headers={"Ocp-Apim-Subscription-Key": api_key},
+                    params={"q": query, "mkt": "en-US", "count": count, "responseFilter": "Webpages"},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as e:
+            raise LLMAPIError(f"Bing Search v7 API error ({url}): {str(e)}")
+        except Exception as e:
+            raise LLMAPIError(f"Bing Search v7 unexpected error ({url}): {str(e)}")
+
+        web_pages = (data.get("webPages") or {}).get("value") or []
+        results: List[Dict[str, str]] = []
+        for page in web_pages:
+            results.append({
+                "title": page.get("name", "") or "",
+                "url": page.get("url", "") or "",
+                "snippet": page.get("snippet", "") or "",
+            })
+        return results
+
+    @staticmethod
+    def _format_bing_results_as_context(results: List[Dict[str, str]]) -> str:
+        """Format Bing search results as a numbered list the LLM can cite as [1], [2], etc."""
+        if not results:
+            return "(no search results returned)"
+        lines = []
+        for i, r in enumerate(results, start=1):
+            lines.append(f"[{i}] {r['title']}")
+            lines.append(f"    URL: {r['url']}")
+            lines.append(f"    {r['snippet']}")
+            lines.append("")
+        return "\n".join(lines).rstrip()
+
+    @staticmethod
+    def _call_bing_v7_grounded_synthesis(
+        bing_api_key: str,
+        prompt: str,
+        bing_endpoint: str,
+        analysis_provider,  # ProviderConfig — imported lazily to avoid circular import
+        timeout: float,
+    ) -> str:
+        """Retrieve via Bing v7 then synthesize the results with analysis_provider.
+
+        Two-step pattern: search → augment prompt with results → call LLM. The
+        analysis_provider is the SAME provider the deployment uses for response
+        analysis (the one flagged use_for_analysis=True), so this composes Bing
+        with whatever LLM the deployment already trusts.
+        """
+        results = GenericLLMClient._call_bing_v7_search(
+            bing_api_key, prompt, bing_endpoint, timeout
+        )
+        context = GenericLLMClient._format_bing_results_as_context(results)
+        augmented_prompt = (
+            "You are answering a question using fresh web search results.\n\n"
+            f"SEARCH RESULTS (from Bing):\n{context}\n\n"
+            f"QUESTION:\n{prompt}\n\n"
+            "Cite search results inline as [1], [2], etc. where relevant. "
+            "If the results don't contain enough information to answer, say so "
+            "rather than inventing details."
+        )
+        # analysis_provider.call() returns a string; signature matches ProviderConfig.call.
+        return analysis_provider.call(
+            prompt=augmented_prompt, max_tokens=4000, temperature=0.5
+        )
+
+    # ==================== Azure AI Foundry — Grounding with Bing ====================
+
+    @staticmethod
+    def _call_bing_grounded(
+        api_key: str,
+        agent_id_or_deployment: str,
+        prompt: str,
+        api_endpoint: str,
+        api_version: Optional[str],
+        timeout: float,
+    ) -> str:
+        """Call an Azure AI Foundry agent that has the Grounding-with-Bing tool attached.
+
+        Single round-trip — the agent retrieves via Bing and synthesizes the answer
+        internally; we just send the prompt and read the response.
+
+        Requires the optional `bing-grounded` extra to be installed:
+            pip install talestogo[bing-grounded]
+
+        NOTE: This implementation targets Azure AI Foundry's Agents API. The SDK
+        surface is evolving; operators may need to adjust based on their tenant's
+        actual API version. The plan documents this as "beta — needs live
+        validation against a real provisioned resource."
+        """
+        if not AZURE_AI_FOUNDRY_AVAILABLE:
+            raise LLMConfigurationError(
+                "Azure AI Foundry SDK not installed. Run: "
+                "pip install talestogo[bing-grounded] (or "
+                "pip install azure-ai-projects azure-ai-agents azure-identity)"
+            )
+
+        if not agent_id_or_deployment:
+            raise LLMConfigurationError(
+                "bing_grounded requires model_name to be set to the Azure AI Foundry "
+                "agent ID (the agent must have the Grounding-with-Bing-Search tool attached)"
+            )
+
+        try:
+            # The endpoint here is the AI Foundry project endpoint, not an OpenAI
+            # deployment URL. We use DefaultAzureCredential which auto-discovers
+            # the right auth path (managed identity in production, az-login locally).
+            # AZURE_FOUNDRY_API_KEY in the environment is consumed by the credential
+            # chain as `AZURE_CLIENT_SECRET` when configured for service-principal
+            # auth; operators with non-standard setups will adjust per their tenant.
+            credential_kwargs: Dict[str, Any] = {}
+            if api_version:
+                credential_kwargs["api_version"] = api_version
+            client = AIProjectClient(  # type: ignore[name-defined]
+                endpoint=api_endpoint,
+                credential=DefaultAzureCredential(),  # type: ignore[name-defined]
+                **credential_kwargs,
+            )
+
+            # Run the configured agent with the user prompt. The Grounding-with-Bing
+            # tool is attached at agent-definition time (in Azure AI Foundry Studio),
+            # not per-call, so we only need to invoke the agent and read the response.
+            with client:
+                thread = client.agents.threads.create()
+                client.agents.messages.create(
+                    thread_id=thread.id, role="user", content=prompt
+                )
+                run = client.agents.runs.create_and_process(
+                    thread_id=thread.id, agent_id=agent_id_or_deployment
+                )
+                if getattr(run, "status", None) == "failed":
+                    raise LLMAPIError(
+                        f"Azure AI Foundry agent run failed: {getattr(run, 'last_error', '?')}"
+                    )
+
+                # Read back the assistant's reply from the thread.
+                messages = list(client.agents.messages.list(thread_id=thread.id))
+                for msg in messages:
+                    if getattr(msg, "role", "") == "assistant":
+                        text_content = getattr(msg, "content", None)
+                        if isinstance(text_content, str):
+                            return text_content
+                        # Newer SDKs wrap content as a list of typed blocks
+                        if isinstance(text_content, list) and text_content:
+                            for block in text_content:
+                                t = getattr(block, "text", None)
+                                if t is not None:
+                                    val = getattr(t, "value", None) or str(t)
+                                    if val:
+                                        return val
+                return ""
+        except LLMConfigurationError:
+            raise
+        except LLMAPIError:
+            raise
+        except Exception as e:
+            raise LLMAPIError(
+                f"Azure AI Foundry (Grounding with Bing) error ({api_endpoint}): {str(e)}"
+            )
 
     @staticmethod
     def _call_azure(

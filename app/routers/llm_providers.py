@@ -134,7 +134,10 @@ def create_provider(
         )
 
     # Validate api_type
-    valid_api_types = ["openai", "anthropic", "google", "openai_compatible", "azure"]
+    valid_api_types = [
+        "openai", "anthropic", "google", "openai_compatible", "azure",
+        "bing_v7", "bing_grounded",
+    ]
     if provider.api_type not in valid_api_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -159,6 +162,26 @@ def create_provider(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="api_version (e.g., '2024-10-21') is required for azure API type"
+            )
+
+    # Bing Search v7 needs a Bing endpoint URL. The api_key comes from env.
+    if provider.api_type == "bing_v7" and not provider.api_endpoint:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="api_endpoint (e.g., 'https://api.bing.microsoft.com/') is required for bing_v7"
+        )
+
+    # Bing Grounded (Azure AI Foundry) needs the project endpoint + version.
+    if provider.api_type == "bing_grounded":
+        if not provider.api_endpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_endpoint (Azure AI Foundry project endpoint) is required for bing_grounded"
+            )
+        if not provider.api_version:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_version is required for bing_grounded (Azure AI Foundry API version)"
             )
 
     # For custom providers (not in default mapping), require env_var_name
@@ -276,7 +299,10 @@ def update_provider(
 
     # Validate api_type if being updated
     if "api_type" in update_data:
-        valid_api_types = ["openai", "anthropic", "google", "openai_compatible", "azure"]
+        valid_api_types = [
+            "openai", "anthropic", "google", "openai_compatible", "azure",
+            "bing_v7", "bing_grounded",
+        ]
         if update_data["api_type"] not in valid_api_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

@@ -2,6 +2,27 @@
 name = "tales_project"
 version = "0.1.0"
 
+# Optional dependencies — install with: pip install .[<extra>]
+# These are NOT installed by `pip install -r requirements.txt`. They light up
+# additional providers in Admin → LLM Providers; the rest of the app runs
+# fine without them.
+[project.optional-dependencies]
+# Azure AI Foundry "Grounding with Bing Search" — adds the bing_grounded
+# api_type so an Azure-only deployment can populate the State of the LLMs
+# report section without bringing in Gemini or Perplexity.
+#
+# Install: pip install .[bing-grounded]
+#
+# The exact SDK surface for grounding-with-bing is evolving; pin to a
+# minimum version and adjust based on operator feedback. Without this
+# extra, attempting to configure a bing_grounded provider returns a
+# clear "install the bing-grounded extra" error rather than ImportError.
+bing-grounded = [
+    "azure-ai-projects>=1.0.0b1",
+    "azure-ai-agents>=1.0.0b1",
+    "azure-identity>=1.15.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["tests*"]

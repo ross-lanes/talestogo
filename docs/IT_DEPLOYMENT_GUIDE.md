@@ -116,9 +116,13 @@ You will need API keys from at least one LLM provider. Tales is provider-agnosti
 | Perplexity | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api |
 | Azure OpenAI | `AZURE_OPENAI_API_KEY` | Azure Portal → your OpenAI resource → Keys |
 
-**Note:** Configure any combination of providers. The one flagged `use_for_analysis=True` in the UI handles response analysis and brand auto-generation. The "State of the LLMs" report section needs a provider with web search (Gemini or Perplexity); if neither is configured, that section is omitted but the rest of the report works.
+**Note:** Configure any combination of providers. The one flagged `use_for_analysis=True` in the UI handles response analysis and brand auto-generation. The "State of the LLMs" report section needs a provider with web search (Gemini, Perplexity, or Bing); if none is configured, that section is omitted but the rest of the report works.
 
-**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in `.env`. After first login, open **Admin → LLM Providers**, add a new provider with `api_type = Azure OpenAI`, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), `api_version` (e.g., `2024-10-21`), and the deployment name from Azure OpenAI Studio. Mark `use_for_analysis=True`. The "State of the LLMs" section will be omitted; everything else works.
+**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in `.env`. After first login, open **Admin → LLM Providers**, add a new provider with `api_type = Azure OpenAI`, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), `api_version` (e.g., `2024-10-21`), and the deployment name from Azure OpenAI Studio. Mark `use_for_analysis=True`. By default the "State of the LLMs" section will be omitted; everything else works.
+
+**Azure-only deployment WITH the State of the LLMs section:** add a second provider after the Azure one — either:
+- **Bing Search v7**: set `BING_SEARCH_V7_API_KEY` in `.env`, add a provider with `api_type = Bing Search v7`, endpoint `https://api.bing.microsoft.com/`. Bing v7 fetches search results; your Azure OpenAI provider (flagged `use_for_analysis=True`) writes the section's prose from those results.
+- **Azure AI Foundry — Bing Grounding** (single-vendor Azure story): run `pip install talestogo[bing-grounded]` server-side, set `AZURE_FOUNDRY_API_KEY`, add a provider with `api_type = Azure AI Foundry — Bing Grounding`, your AI Foundry project endpoint, `api_version`, and the agent ID. The agent must have the Grounding-with-Bing-Search tool attached in AI Foundry Studio. **This path is currently treated as beta — needs live validation against your tenant; report any SDK-surface adjustments to the maintainer.**
 
 **Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available.
 
@@ -484,7 +488,9 @@ Tales is provider-agnostic — pick whichever provider(s) fit your environment. 
 | Perplexity | Yes (built-in search via sonar model) | Good for web search; analysis works too |
 | OpenAI (ChatGPT) | No | Good for analysis and data collection |
 | Anthropic (Claude) | No | Good for analysis and data collection |
-| Azure OpenAI | No | Good for analysis and data collection |
+| Azure OpenAI | No (directly) | Good for analysis and data collection. Pair with **Bing** for web search. |
+| **Bing Search v7** | Yes (retrieval only) | Pairs with the configured analysis provider for synthesis. Microsoft retired v7 in Aug 2025 — still operational for existing resources. |
+| **Azure AI Foundry — Bing Grounding** | Yes (single-vendor Azure story) | Requires `pip install talestogo[bing-grounded]`. Single-provider config: agent retrieves + synthesizes. Beta — needs live validation. |
 
 If no web-search-capable provider is configured (e.g., an Azure-only or OpenAI-only deployment), the "State of the LLMs" section will be omitted from generated reports. **All other report sections will work normally.**
 

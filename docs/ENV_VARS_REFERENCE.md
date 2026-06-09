@@ -133,7 +133,7 @@ postgresql://username:password@host:port/database_name
 
 ## LLM API Keys
 
-Tales is LLM-provider-agnostic. Configure at least one provider; the one you flag `use_for_analysis=True` in **Admin → LLM Providers** handles response analysis and brand auto-generation. The "State of the LLMs" report section requires a provider with web search (Gemini or Perplexity); if neither is configured, that section is omitted but the rest of the report works.
+Tales is LLM-provider-agnostic. Configure at least one provider; the one you flag `use_for_analysis=True` in **Admin → LLM Providers** handles response analysis and brand auto-generation. The "State of the LLMs" report section requires a provider with web search (Gemini, Perplexity, or Bing); if none is configured, that section is omitted but the rest of the report works.
 
 | Variable | Description | Get Key From |
 |----------|-------------|--------------|
@@ -142,6 +142,8 @@ Tales is LLM-provider-agnostic. Configure at least one provider; the one you fla
 | `GEMINI_API_KEY` | Google Gemini (supports web search) | https://makersuite.google.com/app/apikey |
 | `PERPLEXITY_API_KEY` | Perplexity (supports web search) | https://www.perplexity.ai/settings/api |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI (resource URL, api_version, deployment name configured in the UI) | Azure Portal → your OpenAI resource → Keys |
+| `BING_SEARCH_V7_API_KEY` | Bing Search v7 (web search retrieval; pairs with the analysis provider). Optional — only needed for the State of the LLMs section in an Azure/OpenAI-only deployment. | Azure Portal → Bing Search v7 resource → Keys |
+| `AZURE_FOUNDRY_API_KEY` | Azure AI Foundry "Grounding with Bing Search" (single-vendor Azure web search). Optional; requires `pip install talestogo[bing-grounded]` server-side. | Azure AI Foundry project credentials |
 
 At least one provider env var must be set. The provider is then enabled and configured in **Admin → LLM Providers** in the UI.
 
@@ -157,7 +159,9 @@ After deployment, configure providers via Admin Menu > LLM Configuration. This i
 **Defaults Behavior:**
 On a fresh install with no provider records in the database, Tales auto-discovers OpenAI/Anthropic/Gemini/Perplexity from env vars and creates corresponding provider entries. Azure OpenAI is not auto-created (it requires UI configuration for endpoint/version/deployment). Once you add or edit any provider in the UI, the database becomes the source of truth.
 
-**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in env, then in the UI add a new provider with api_type=Azure OpenAI, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), api_version (e.g., `2024-10-21`), and deployment name. Mark `use_for_analysis=True`. The "State of the LLMs" report section will be omitted.
+**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in env, then in the UI add a new provider with api_type=Azure OpenAI, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), api_version (e.g., `2024-10-21`), and deployment name. Mark `use_for_analysis=True`. By default the "State of the LLMs" report section will be omitted.
+
+**Azure-only + State of the LLMs:** add `BING_SEARCH_V7_API_KEY` (and configure a Bing Search v7 provider in the UI), or for a fully Azure-native story add `AZURE_FOUNDRY_API_KEY` (requires `pip install talestogo[bing-grounded]` and configuring a Bing Grounding provider). See `IT_DEPLOYMENT_GUIDE.md` for the full recipe.
 
 **Key Formats:**
 - OpenAI: `sk-proj-...` or `sk-...`
