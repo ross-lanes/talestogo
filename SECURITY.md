@@ -29,13 +29,14 @@ You will receive acknowledgement within 72 hours and a resolution plan within 14
 
 ## Security Testing
 
-Tales undergoes static analysis and dependency auditing before each release. The results below reflect the state of the `main` branch as of **2026-05-09**.
+Tales undergoes static analysis and dependency auditing before each release. The results below reflect the state of the `main` branch as of **2026-06-08**.
 
 ### Static Application Security Testing (SAST)
 
 | Tool | Scope | Findings | Notes |
 |------|-------|----------|-------|
-| [Bandit](https://bandit.readthedocs.io/) v1.8+ | Python backend (`app/`, 58 files, 15,728 lines) | **0** medium/high severity | 3 B608 (SQL injection) false positives suppressed with `# nosec B608`; all use format-validated identifiers, not user input |
+| [Bandit](https://bandit.readthedocs.io/) v1.9+ | Python backend (`app/`, runtime web application) | **0** medium/high severity | 3 B608 (SQL injection) false positives suppressed with `# nosec B608`; all use format-validated identifiers, not user input |
+| Bandit (same run) | Python ops scripts (`scripts/testing/`) | **0** medium/high severity | `scripts/admin/` and `scripts/migrations/` are excluded via `[tool.bandit]` in `pyproject.toml` — these are one-shot local-dev scripts not part of the deployed surface area and not user-reachable |
 | [npm audit](https://docs.npmjs.com/cli/commands/npm-audit) | Frontend JavaScript dependencies | **0** vulnerabilities | |
 
 **Bandit suppression rationale** — The three `# nosec B608` annotations appear in migration utility files (`run_migrations.py`, `migration_helper.py`). In each case, the SQL identifier (table name or sequence name) is validated against a strict allowlist or regex format check before being interpolated. No user-supplied input reaches these queries.
@@ -46,6 +47,28 @@ Tales undergoes static analysis and dependency auditing before each release. The
 |------|-------|----------|-------|
 | [pip-audit](https://pypi.org/project/pip-audit/) | Python packages | **0** application CVEs | 2 CVEs affect the `pip` package manager itself (CVE-2026-3219, CVE-2026-6357); the Dockerfile upgrades pip during build (`pip install --upgrade pip`) |
 | [npm audit](https://docs.npmjs.com/cli/commands/npm-audit) | npm packages | **0** | |
+
+### Reproducing the audit
+
+```bash
+# Static analysis
+bandit -r app/ scripts/ -ll -c pyproject.toml
+
+# Python dependency CVEs
+pip-audit --strict -r requirements.txt
+
+# JavaScript dependency CVEs
+cd frontend && npm audit
+```
+
+All three commands exit zero with no findings on the current `main`.
+
+### Audit log
+
+| Date | Branch / commit | bandit | pip-audit | npm audit | Notes |
+|------|-----------------|--------|-----------|-----------|-------|
+| 2026-06-08 | `main` @ `f77ee3a8` | 0 medium/high | 0 CVEs | 0 vulns | Today's audit. Bumped `vitest` / `@vitest/ui` from 4.0.8 → 4.1.8 to clear [GHSA-5xrq-8626-4rwp](https://github.com/advisories/GHSA-5xrq-8626-4rwp) (critical, dev-only). Added `[tool.bandit]` exclusions for offline ops scripts. |
+| 2026-05-09 | `strip-to-tales-only` | 0 medium/high (after 3 `# nosec B608`) | 0 CVEs | 0 vulns | Initial post-strip baseline. Established the SBOMs below. |
 
 ### Software Bill of Materials (SBOM)
 
