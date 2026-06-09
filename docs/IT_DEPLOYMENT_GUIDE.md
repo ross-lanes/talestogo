@@ -106,18 +106,21 @@ OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-know
 
 ### Required API Keys
 
-You will need API keys from one or more LLM providers. Tales supports up to 6 LLM providers. API keys are configured exclusively through environment variables in the `.env` file.
+You will need API keys from at least one LLM provider. Tales is provider-agnostic — any one of the supported providers can run the full pipeline. API keys are configured exclusively through environment variables in the `.env` file; non-key settings (Azure resource URL, deployment name, web-search flag) are configured in **Admin → LLM Providers** after first login.
 
-| Provider | Purpose | Environment Variable | Get API Key |
-|----------|---------|---------------------|-------------|
-| Google Gemini | AI queries + analysis + web search | `GEMINI_API_KEY` | https://makersuite.google.com/app/apikey |
-| OpenAI | ChatGPT queries | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
-| Anthropic | Claude queries | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
-| Perplexity | Perplexity queries + web search | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api |
+| Provider | Environment Variable | Get API Key |
+|----------|---------------------|-------------|
+| OpenAI (GPT) | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | https://console.anthropic.com/settings/keys |
+| Google Gemini | `GEMINI_API_KEY` | https://makersuite.google.com/app/apikey |
+| Perplexity | `PERPLEXITY_API_KEY` | https://www.perplexity.ai/settings/api |
+| Azure OpenAI | `AZURE_OPENAI_API_KEY` | Azure Portal → your OpenAI resource → Keys |
 
-**Note:** You can configure any combination of LLMs you choose. At minimum, configure one provider with analysis capability (Gemini recommended). For the "State of the LLMs" report section, you need at least one provider with web search capability (Gemini or Perplexity).
+**Note:** Configure any combination of providers. The one flagged `use_for_analysis=True` in the UI handles response analysis and brand auto-generation. The "State of the LLMs" report section needs a provider with web search (Gemini or Perplexity); if neither is configured, that section is omitted but the rest of the report works.
 
-**Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available. For example, if you only set `GEMINI_API_KEY`, only Gemini will appear as an available provider.
+**Azure-only deployment:** Set `AZURE_OPENAI_API_KEY` in `.env`. After first login, open **Admin → LLM Providers**, add a new provider with `api_type = Azure OpenAI`, your Azure resource URL (e.g., `https://my-resource.openai.azure.com/`), `api_version` (e.g., `2024-10-21`), and the deployment name from Azure OpenAI Studio. Mark `use_for_analysis=True`. The "State of the LLMs" section will be omitted; everything else works.
+
+**Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available.
 
 ### Network Requirements
 
@@ -151,13 +154,13 @@ nano .env  # or use your preferred editor
 JWT_SECRET_KEY=<generate-random-string>
 ENCRYPTION_KEY=<generate-random-string>
 
-# LLM API Keys (at minimum, you need Gemini for analysis)
-GEMINI_API_KEY=<your-gemini-api-key>
-
-# Optional but recommended: keys for querying other AI platforms
-OPENAI_API_KEY=<your-openai-api-key>
-ANTHROPIC_API_KEY=<your-anthropic-api-key>
-PERPLEXITY_API_KEY=<your-perplexity-api-key>
+# LLM API Keys — set at least one. Configure provider details in the Admin UI
+# after first login (Admin → LLM Providers).
+OPENAI_API_KEY=<optional>
+ANTHROPIC_API_KEY=<optional>
+GEMINI_API_KEY=<optional>
+PERPLEXITY_API_KEY=<optional>
+AZURE_OPENAI_API_KEY=<optional>
 ```
 
 **Generate secure random keys:**
@@ -371,7 +374,7 @@ If all methods are disabled or no credentials are provided, the login page displ
 
 ## LLM Provider Configuration
 
-Tales supports up to 6 LLM providers: 4 default providers (ChatGPT, Claude, Gemini, Perplexity) plus up to 2 custom providers.
+Tales supports up to 6 LLM providers. Five `api_type` values are built in (OpenAI, Anthropic, Google Gemini, Azure OpenAI, OpenAI Compatible), and you can add custom providers up to the 6-total limit. Tales is provider-agnostic — any one of them can run the full pipeline.
 
 ### Important: Two-Part Setup Required
 
@@ -412,10 +415,12 @@ docker compose restart app
 2. Go to LLM Configuration (profile menu > LLM Configuration)
 3. Click "Add LLM"
 4. Fill in the form fields (NO API key field exists):
-   - **Display Name** - Human-readable name (e.g., "Gemini", "Claude")
-   - **Provider Key** - Auto-generated unique ID (e.g., "gemini", "claude")
-   - **API Type** - Select: OpenAI, Anthropic, Google, or OpenAI Compatible
-   - **Model Name** - Model identifier (e.g., "gemini-2.0-flash", "claude-3-haiku-20240307")
+   - **Display Name** - Human-readable name (e.g., "Gemini", "Claude", "Azure GPT-4o")
+   - **Provider Key** - Auto-generated unique ID (e.g., "gemini", "claude", "azure_openai")
+   - **API Type** - Select: OpenAI, Anthropic, Google, Azure OpenAI, or OpenAI Compatible
+   - **Model Name** - Model identifier (e.g., "gemini-2.0-flash", "claude-3-haiku-20240307"). For Azure OpenAI, this is the **deployment name** you created in Azure OpenAI Studio.
+   - **Azure Resource URL** *(Azure only)* - e.g., `https://my-resource.openai.azure.com/`
+   - **API Version** *(Azure only)* - e.g., `2024-10-21`
    - **Chart Color** - Color for analytics charts
 5. Configure options (Enabled, Use for Analysis, Supports Web Search)
 6. Click "Add LLM"
@@ -430,6 +435,7 @@ Each API type reads from a specific environment variable:
 | OpenAI | `OPENAI_API_KEY` | ChatGPT (gpt-4o, gpt-3.5-turbo) |
 | Anthropic | `ANTHROPIC_API_KEY` | Claude (claude-3-haiku, claude-3-sonnet) |
 | Google | `GEMINI_API_KEY` | Gemini (gemini-2.0-flash, gemini-pro) |
+| Azure | `AZURE_OPENAI_API_KEY` | Azure OpenAI (your-deployment-name) |
 | OpenAI Compatible | `PERPLEXITY_API_KEY` | Perplexity (sonar) |
 
 Only providers whose environment variable is set will work. If an API key is missing, the "Test" button will show an error.
@@ -465,22 +471,22 @@ For providers beyond the 4 defaults (e.g., Mistral, DeepSeek), you can add up to
 | OpenAI | OpenAI API | ChatGPT (GPT-4, GPT-3.5) |
 | Anthropic | Anthropic API | Claude models |
 | Google | Google GenAI API | Gemini models |
-| OpenAI Compatible | Any OpenAI-compatible API | Perplexity, Mistral, Azure OpenAI, local LLMs |
+| Azure | Azure OpenAI (with `api_version` + resource URL + deployment name) | Your Azure-hosted GPT-4o, GPT-4, etc. |
+| OpenAI Compatible | Any OpenAI-compatible API | Perplexity, Mistral, local LLMs |
 
-### Recommended Provider Configuration
+### Provider Capabilities
 
-**We recommend configuring at least one of the following providers: Google Gemini or Perplexity (or both).**
+Tales is provider-agnostic — pick whichever provider(s) fit your environment. The one you flag `use_for_analysis=True` handles response analysis and brand auto-generation. The "State of the LLMs" report section needs a provider with web search:
 
-**Why?** Tales reports include a "State of the LLMs" section that provides current information about changes and updates to major AI platforms. This section requires **live web search capability** to gather fresh information. Only Gemini (with Google Search grounding) and Perplexity (with built-in web search) support this feature.
+| Provider | Web Search Capable | Notes |
+|----------|--------------------|-------|
+| Google Gemini | Yes (Google Search grounding) | Excellent for analysis and web search |
+| Perplexity | Yes (built-in search via sonar model) | Good for web search; analysis works too |
+| OpenAI (ChatGPT) | No | Good for analysis and data collection |
+| Anthropic (Claude) | No | Good for analysis and data collection |
+| Azure OpenAI | No | Good for analysis and data collection |
 
-| Provider | Web Search | Recommendation |
-|----------|------------|----------------|
-| Google Gemini | Yes (Google Search grounding) | **Highly recommended** - Excellent for analysis and web search |
-| Perplexity | Yes (built-in search via sonar model) | **Recommended** - Good alternative for web search |
-| OpenAI (ChatGPT) | No | Good for data collection, not for web search |
-| Anthropic (Claude) | No | Good for data collection, not for web search |
-
-If neither Gemini nor Perplexity is configured, the "State of the LLMs" section will be omitted from generated reports. All other report sections will work normally.
+If no web-search-capable provider is configured (e.g., an Azure-only or OpenAI-only deployment), the "State of the LLMs" section will be omitted from generated reports. **All other report sections will work normally.**
 
 ---
 

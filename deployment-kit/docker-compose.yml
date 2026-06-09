@@ -50,11 +50,14 @@ services:
       - SITE_PRIMARY_COLOR=${SITE_PRIMARY_COLOR:-#003e60}
       - SITE_SECONDARY_COLOR=${SITE_SECONDARY_COLOR:-#75c9c8}
 
-      # LLM API Keys (at least GEMINI_API_KEY required for analysis)
+      # LLM API Keys. At least one provider must be configured (see Admin → LLM
+      # Providers in the UI). All are optional at the env-var level; the app
+      # surfaces a clear error if nothing is configured.
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
 
       # Email (optional - for sending user invitations)
       - RESEND_API_KEY=${RESEND_API_KEY:-}

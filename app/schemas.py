@@ -33,12 +33,13 @@ class Tenant(TenantBase):
 # --- LLM Provider Schemas ---
 class LLMProviderBase(BaseModel):
     """Base schema for LLM provider configuration."""
-    provider_key: str  # Unique identifier: "chatgpt", "claude", "gemini", "perplexity"
+    provider_key: str  # Unique identifier: "chatgpt", "claude", "gemini", "perplexity", "azure_openai"
     display_name: str  # Shown in UI: "ChatGPT", "Claude 3.5"
-    api_type: str  # "openai", "anthropic", "google", "openai_compatible"
-    model_name: str  # e.g., "gpt-4o", "claude-3-haiku-20240307"
-    api_endpoint: Optional[str] = None  # Custom endpoint for OpenAI-compatible APIs
+    api_type: str  # "openai", "anthropic", "google", "openai_compatible", "azure"
+    model_name: str  # e.g., "gpt-4o", "claude-3-haiku-20240307"; for Azure, the deployment name
+    api_endpoint: Optional[str] = None  # Custom endpoint for OpenAI-compatible / Azure resource URL
     env_var_name: Optional[str] = None  # Custom env var for non-default providers (e.g., "MISTRAL_API_KEY")
+    api_version: Optional[str] = None  # Azure OpenAI api_version (e.g., "2024-10-21"); unused for other api_types
     color: str = "#666666"  # Hex color for charts
     sort_order: int = 0  # Display order in UI
     is_enabled: bool = True  # Whether to collect from this LLM
@@ -59,6 +60,7 @@ class LLMProviderUpdate(BaseModel):
     api_endpoint: Optional[str] = None
     model_name: Optional[str] = None
     env_var_name: Optional[str] = None  # Custom env var for non-default providers
+    api_version: Optional[str] = None  # Azure OpenAI api_version
     color: Optional[str] = None
     sort_order: Optional[int] = None
     is_enabled: Optional[bool] = None

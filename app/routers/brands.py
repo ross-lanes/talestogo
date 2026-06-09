@@ -463,7 +463,7 @@ def generate_content_from_brand_info(
         raise HTTPException(status_code=400, detail="No active brand found. Please select a brand first.")
 
     try:
-        generator = AIGenerator(db)
+        generator = AIGenerator(db, user=current_user)
         result = generator.generate_all(user_id=current_user.id, brand_id=brand_id)
         return {
             "message": "Content generated successfully",

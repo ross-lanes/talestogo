@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Response Collection Script for TALES Project
-Queries AI platforms (ChatGPT, Claude, Gemini) and records responses.
+Queries the LLM platforms configured in Admin → LLM Providers and records responses.
 """
 
 import os
@@ -25,32 +25,6 @@ from app.services.llm_provider_manager import LLMProviderManager, ProviderConfig
 from app.services.generic_llm_client import GenericLLMClient, LLMAPIError, LLMConfigurationError
 
 
-# API clients
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-    print("⚠️  OpenAI not available. Install with: pip install openai")
-
-try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
-    print("⚠️  Anthropic not available. Install with: pip install anthropic")
-
-try:
-    import google.generativeai as genai
-    GOOGLE_AVAILABLE = True
-except ImportError:
-    GOOGLE_AVAILABLE = False
-    print("⚠️  Google AI not available. Install with: pip install google-generativeai")
-
-# Perplexity uses OpenAI-compatible API
-PERPLEXITY_AVAILABLE = OPENAI_AVAILABLE
-
-
 class ResponseCollector:
     """Collects responses from AI platforms."""
 
@@ -61,90 +35,23 @@ class ResponseCollector:
         self.task_status_id = task_status_id
         self.batch_id = None  # Will be set when collection starts
 
-        # Try to load LLM providers from database first
-        self.provider_manager = None
-        self.dynamic_providers: List[ProviderConfig] = []
-        self.use_dynamic_providers = False
+        # Load LLM providers from the database/env via the provider manager.
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        tenant_id = user.tenant_id if user else None
 
-        try:
-            # Get user's tenant_id
-            user = db.query(models.User).filter(models.User.id == user_id).first()
-            tenant_id = user.tenant_id if user else None
+        self.provider_manager = LLMProviderManager(db, tenant_id)
+        self.dynamic_providers: List[ProviderConfig] = self.provider_manager.get_enabled_providers()
 
-            self.provider_manager = LLMProviderManager(db, tenant_id)
-
-            # Check if we have database-configured providers
-            if self.provider_manager.is_using_database_providers():
-                self.dynamic_providers = self.provider_manager.get_enabled_providers()
-                self.use_dynamic_providers = True
-                print(f"✓ Using {len(self.dynamic_providers)} configured LLM providers from database")
-                for p in self.dynamic_providers:
-                    print(f"  - {p.display_name} ({p.api_type})")
-            else:
-                # Fall back to environment variables
-                self.dynamic_providers = self.provider_manager.get_enabled_providers()
-                print(f"✓ Using {len(self.dynamic_providers)} LLM providers from environment variables")
-                for p in self.dynamic_providers:
-                    print(f"  - {p.display_name} ({p.api_type})")
-        except Exception as e:
-            print(f"⚠️  Could not load LLM providers from database: {e}")
-            print("    Falling back to legacy environment variable configuration")
-
-        # Initialize legacy API clients (for backwards compatibility if provider loading fails)
-        self.openai_client = None
-        self.anthropic_client = None
-        self.google_model = None
-        self.perplexity_client = None
-
-        # Only set up legacy clients if we don't have dynamic providers
-        # This is for backwards compatibility when LLMProviderManager fails to load
         if not self.dynamic_providers:
-            print("⚠️  No dynamic providers available, using legacy environment variable setup")
-
-            # Set up OpenAI
-            if OPENAI_AVAILABLE:
-                openai_key = os.getenv('OPENAI_API_KEY')
-                if openai_key:
-                    self.openai_client = openai.OpenAI(api_key=openai_key)
-                    print("✓ OpenAI (ChatGPT) configured")
-                else:
-                    print("⚠️  OPENAI_API_KEY not found in environment")
-
-            # Set up Anthropic
-            if ANTHROPIC_AVAILABLE:
-                anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-                if anthropic_key:
-                    self.anthropic_client = anthropic.Anthropic(api_key=anthropic_key)
-                    print("✓ Anthropic (Claude) configured")
-                else:
-                    print("⚠️  ANTHROPIC_API_KEY not found in environment")
-
-            # Set up Google
-            if GOOGLE_AVAILABLE:
-                google_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-                if google_key:
-                    genai.configure(api_key=google_key)
-                    self.google_model = genai.GenerativeModel('gemini-2.5-flash')
-                    print("✓ Google (Gemini) configured")
-                else:
-                    print("⚠️  GEMINI_API_KEY not found in environment")
-
-            # Set up Perplexity (uses OpenAI-compatible API)
-            if PERPLEXITY_AVAILABLE:
-                perplexity_key = os.getenv('PERPLEXITY_API_KEY')
-                if perplexity_key:
-                    # Import httpx for custom timeout
-                    import httpx
-                    # Perplexity needs longer timeout (4min) as it searches the web
-                    http_client = httpx.Client(timeout=240.0)
-                    self.perplexity_client = openai.OpenAI(
-                        api_key=perplexity_key,
-                        base_url="https://api.perplexity.ai",
-                        http_client=http_client
-                    )
-                    print("✓ Perplexity configured (with 4-minute timeout for web search)")
-                else:
-                    print("⚠️  PERPLEXITY_API_KEY not found in environment")
+            print(
+                "⚠️  No LLM providers are enabled. Configure at least one in "
+                "Admin → LLM Providers (and ensure its API key env var is set)."
+            )
+        else:
+            source = "database" if self.provider_manager.is_using_database_providers() else "environment defaults"
+            print(f"✓ Using {len(self.dynamic_providers)} LLM provider(s) from {source}")
+            for p in self.dynamic_providers:
+                print(f"  - {p.display_name} ({p.api_type})")
 
     def update_task_progress(self, processed: int, total: int, message: str = ""):
         """Update task status progress in database."""
@@ -192,141 +99,6 @@ class ResponseCollector:
         except Exception as e:
             print(f"  Warning: Could not log platform error: {e}")
 
-    def query_chatgpt(self, query_text: str) -> Optional[str]:
-        """Query OpenAI ChatGPT."""
-        if not self.openai_client:
-            return None
-
-        try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4o",  # or "gpt-3.5-turbo" for faster/cheaper
-                messages=[
-                    {"role": "user", "content": query_text}
-                ],
-                max_tokens=1000,
-                temperature=0.7,
-                timeout=240.0  # 4 minute timeout
-            )
-            return response.choices[0].message.content
-        except openai.APITimeoutError as e:
-            error_msg = f"ChatGPT timeout after 4min: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("ChatGPT", error_msg, query_text)
-            return None
-        except openai.RateLimitError as e:
-            error_msg = f"ChatGPT rate limit exceeded: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("ChatGPT", error_msg, query_text)
-            return None
-        except openai.APIError as e:
-            error_msg = f"ChatGPT API error: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("ChatGPT", error_msg, query_text)
-            return None
-        except Exception as e:
-            error_msg = f"ChatGPT unexpected error: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("ChatGPT", error_msg, query_text)
-            return None
-
-    def query_claude(self, query_text: str) -> Optional[str]:
-        """Query Anthropic Claude."""
-        if not self.anthropic_client:
-            return None
-
-        try:
-            response = self.anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=1000,
-                messages=[
-                    {"role": "user", "content": query_text}
-                ],
-                timeout=240.0  # 4 minute timeout
-            )
-            return response.content[0].text
-        except anthropic.APITimeoutError as e:
-            error_msg = f"Claude timeout after 4min: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Claude", error_msg, query_text)
-            return None
-        except anthropic.RateLimitError as e:
-            error_msg = f"Claude rate limit exceeded: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Claude", error_msg, query_text)
-            return None
-        except anthropic.APIError as e:
-            error_msg = f"Claude API error: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Claude", error_msg, query_text)
-            return None
-        except Exception as e:
-            error_msg = f"Claude unexpected error: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Claude", error_msg, query_text)
-            return None
-
-    def query_gemini(self, query_text: str) -> Optional[str]:
-        """Query Google Gemini."""
-        if not self.google_model:
-            return None
-
-        try:
-            # Gemini API has built-in timeout but we can catch specific errors
-            response = self.google_model.generate_content(
-                query_text,
-                request_options={'timeout': 240}
-            )
-            return response.text
-        except Exception as e:
-            # Google API doesn't have specific exception types, so parse the message
-            error_str = str(e).lower()
-            if 'timeout' in error_str or 'deadline' in error_str:
-                error_msg = f"Gemini timeout after 4min: {str(e)}"
-            elif 'quota' in error_str or 'rate' in error_str:
-                error_msg = f"Gemini rate limit exceeded: {str(e)}"
-            else:
-                error_msg = f"Gemini error: {str(e)}"
-
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Gemini", error_msg, query_text)
-            return None
-
-    def query_perplexity(self, query_text: str) -> Optional[str]:
-        """Query Perplexity AI."""
-        if not self.perplexity_client:
-            return None
-
-        try:
-            response = self.perplexity_client.chat.completions.create(
-                model="sonar",  # Updated to new model naming (was llama-3.1-sonar-large-128k-online)
-                messages=[
-                    {"role": "user", "content": query_text}
-                ],
-                max_tokens=1000,
-                timeout=240.0  # 4 minute timeout
-            )
-            return response.choices[0].message.content
-        except openai.APITimeoutError as e:
-            error_msg = f"Perplexity timeout after 4min: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Perplexity", error_msg, query_text)
-            return None
-        except openai.RateLimitError as e:
-            error_msg = f"Perplexity rate limit exceeded: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Perplexity", error_msg, query_text)
-            return None
-        except openai.APIError as e:
-            error_msg = f"Perplexity API error: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Perplexity", error_msg, query_text)
-            return None
-        except Exception as e:
-            error_msg = f"Perplexity unexpected error: {str(e)}"
-            print(f"  ✗ {error_msg}")
-            self.log_platform_error("Perplexity", error_msg, query_text)
-            return None
-
     def query_with_provider(self, provider: ProviderConfig, query_text: str) -> Optional[str]:
         """
         Query an LLM using the GenericLLMClient with a configured provider.
@@ -371,63 +143,35 @@ class ResponseCollector:
         return response
 
     def collect_for_query(self, query: models.Query, platforms: List[str] = None) -> Dict[str, bool]:
-        """
-        Collect responses for a single query across configured platforms.
-
-        If dynamic providers are available (from database or LLMProviderManager),
-        uses those. Otherwise falls back to legacy hardcoded platform methods.
-        """
+        """Collect responses for a single query across configured providers."""
         results = {}
         print(f"\n📝 Query {query.query_id}: {query.query_text[:60]}...")
 
-        # Use dynamic providers if available
-        if self.dynamic_providers:
-            for provider in self.dynamic_providers:
-                if not provider.is_enabled:
-                    continue
+        if not self.dynamic_providers:
+            print("  ✗ No LLM providers configured; skipping.")
+            return results
 
-                print(f"  → {provider.display_name}...", end=" ", flush=True)
+        # If the caller passed a platforms filter, intersect by display_name.
+        for provider in self.dynamic_providers:
+            if not provider.is_enabled:
+                continue
+            if platforms is not None and provider.display_name not in platforms:
+                continue
 
-                response_text = self.query_with_provider(provider, query.query_text)
+            print(f"  → {provider.display_name}...", end=" ", flush=True)
 
-                if response_text:
-                    self.save_response(query.query_id, query.query_text, provider.display_name, response_text)
-                    print(f"✓ ({len(response_text)} chars)")
-                    results[provider.display_name] = True
-                else:
-                    print("✗ No response")
-                    results[provider.display_name] = False
+            response_text = self.query_with_provider(provider, query.query_text)
 
-                # Rate limiting - be nice to APIs
-                time.sleep(1)
-        else:
-            # Legacy fallback: use hardcoded platform methods
-            if platforms is None:
-                platforms = ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
+            if response_text:
+                self.save_response(query.query_id, query.query_text, provider.display_name, response_text)
+                print(f"✓ ({len(response_text)} chars)")
+                results[provider.display_name] = True
+            else:
+                print("✗ No response")
+                results[provider.display_name] = False
 
-            for platform in platforms:
-                print(f"  → {platform}...", end=" ", flush=True)
-
-                response_text = None
-                if platform == 'ChatGPT':
-                    response_text = self.query_chatgpt(query.query_text)
-                elif platform == 'Claude':
-                    response_text = self.query_claude(query.query_text)
-                elif platform == 'Gemini':
-                    response_text = self.query_gemini(query.query_text)
-                elif platform == 'Perplexity':
-                    response_text = self.query_perplexity(query.query_text)
-
-                if response_text:
-                    self.save_response(query.query_id, query.query_text, platform, response_text)
-                    print(f"✓ ({len(response_text)} chars)")
-                    results[platform] = True
-                else:
-                    print("✗ No response")
-                    results[platform] = False
-
-                # Rate limiting - be nice to APIs
-                time.sleep(1)
+            # Rate limiting - be nice to APIs
+            time.sleep(1)
 
         return results
 
@@ -596,18 +340,19 @@ def main():
             print("❌ Invalid user_id. Must be an integer.")
             sys.exit(1)
 
-    # Check for API keys
-    print("\nChecking API keys...")
-    has_openai = bool(os.getenv('OPENAI_API_KEY'))
-    has_anthropic = bool(os.getenv('ANTHROPIC_API_KEY'))
-    has_google = bool(os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY'))
-
-    if not any([has_openai, has_anthropic, has_google]):
-        print("\n❌ ERROR: No API keys found in .env file!")
-        print("\nPlease add at least one of these to your .env file:")
-        print("  OPENAI_API_KEY=your-key-here")
-        print("  ANTHROPIC_API_KEY=your-key-here")
-        print("  GEMINI_API_KEY=your-key-here")
+    # Sanity-check that at least one provider env var is set. The provider
+    # manager will re-validate at construction time; this is just an early
+    # friendly error before opening a DB connection.
+    known_env_vars = [
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
+        "GOOGLE_API_KEY", "PERPLEXITY_API_KEY", "AZURE_OPENAI_API_KEY",
+    ]
+    if not any(os.getenv(v) for v in known_env_vars):
+        print("\n❌ ERROR: No LLM provider API keys found in environment.")
+        print("\nSet at least one of:")
+        for v in known_env_vars:
+            print(f"  {v}=...")
+        print("\nThen configure the provider in Admin → LLM Providers.")
         sys.exit(1)
 
     print()

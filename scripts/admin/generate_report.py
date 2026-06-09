@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
 TALES Report Generation Script
-Generates professional analysis reports from analyzed response data using Gemini 2.5 Pro.
-Brand-aware version that generates reports for specific brands.
+Generates professional analysis reports from analyzed response data.
+
+LLM provider is configured per-tenant via Admin → LLM Providers. The provider
+flagged use_for_analysis=True writes the report prose. Providers flagged
+supports_web_search=True (Gemini or Perplexity) ground the "State of the LLMs"
+section in fresh web data; if no web-search provider is configured, that
+section is gracefully omitted from the report.
 
 Report Types:
 - monthly: Focuses on the last complete calendar month of data, with historical context for trends
@@ -22,7 +27,6 @@ from calendar import monthrange
 from typing import Dict, List, Any, Optional
 from collections import Counter
 from dotenv import load_dotenv
-import google.generativeai as genai
 
 from app.database import SessionLocal
 from app.utils.timezone import now_eastern, format_eastern, format_eastern_date
@@ -53,19 +57,7 @@ from app.services.cached_metrics import (
     get_share_of_voice_trend_cached,
 )
 
-# For Perplexity API (available but not used for LLM state research)
-from openai import OpenAI
-
-# Load environment variables (for backwards compatibility)
-# These may be overridden by database-configured providers
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
-
-# Configure Gemini from env var if available (legacy support)
-# Database-configured providers take precedence when available
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
 
 
 # ==================== LLM HELPER FUNCTIONS ====================
@@ -77,107 +69,56 @@ def call_report_llm(
     temperature: float = 0.7
 ) -> str:
     """
-    Call the report-writing LLM with configurable provider support.
-
-    Uses the provider if specified, otherwise falls back to Gemini from env vars.
+    Call the report-writing LLM. Requires an explicitly configured provider —
+    legacy env-var fallbacks were removed when the codebase went fully
+    provider-agnostic (see CLAUDE.md, strip-to-tales-only branch).
     """
-    if provider:
-        try:
-            # Use ProviderConfig.call() which handles API key lookup
-            return provider.call(
-                prompt=prompt,
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
-        except (LLMAPIError, LLMConfigurationError) as e:
-            print(f"    Warning: Provider {provider.display_name} failed: {e}")
-            print(f"    Falling back to Gemini from environment variables")
+    if provider is None:
+        raise ValueError(
+            "No analysis LLM configured. Configure one in Admin → LLM Providers "
+            "(set use_for_analysis=True)."
+        )
 
-    # Fallback to Gemini from environment variables
-    if not GEMINI_API_KEY:
-        raise ValueError("No LLM available for report generation")
-
-    model = genai.GenerativeModel('gemini-2.5-pro')
-    response = model.generate_content(prompt)
-    return response.text
+    return provider.call(
+        prompt=prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
 
 
 def call_web_search_llm(
     prompt: str,
     web_search_providers: List[ProviderConfig] = None,
-    analysis_provider: Optional[ProviderConfig] = None
+    analysis_provider: Optional[ProviderConfig] = None  # kept for signature compat; not used
 ) -> Optional[str]:
     """
-    Call an LLM with web search capability for State of the LLMs section.
+    Call a web-search-capable LLM for the "State of the LLMs" section.
 
-    Tries web search providers in order, then falls back to analysis provider
-    without web search, then to Gemini from environment variables.
+    Tries each configured provider with supports_web_search=True in order.
+    Returns None if none are configured or all fail; the caller
+    (research_llm_state_changes) interprets None as "skip the section
+    entirely", which the report orchestrator already handles.
+
+    Web search is currently only implemented for Gemini (Google Search
+    grounding) and Perplexity (sonar built-in search). Azure-only or
+    OpenAI-only deployments get the graceful-skip behavior.
     """
-    # Try web search providers first
-    if web_search_providers:
-        for provider in web_search_providers:
-            try:
-                if provider.api_type == "google":
-                    # Gemini with Google Search grounding
-                    return provider.call_with_web_search(prompt=prompt)
-                elif provider.api_type == "openai_compatible" and provider.api_endpoint and "perplexity" in provider.api_endpoint.lower():
-                    # Perplexity has built-in web search
-                    return provider.call(
-                        prompt=prompt,
-                        max_tokens=4000,
-                        temperature=0.7
-                    )
-            except (LLMAPIError, LLMConfigurationError) as e:
-                print(f"    Web search provider {provider.display_name} failed: {e}")
-                continue
+    if not web_search_providers:
+        return None
 
-    # Fallback to environment variable Gemini with grounding
-    if GEMINI_API_KEY:
+    for provider in web_search_providers:
         try:
-            print("    Trying Gemini with Google Search grounding from environment...")
-            model = genai.GenerativeModel('gemini-2.5-pro')
-            from google.generativeai.types import Tool
-            search_tool = Tool(google_search_retrieval={})
-            response = model.generate_content(prompt, tools=[search_tool])
-            return response.text
-        except Exception as e:
-            print(f"    Gemini with grounding failed: {e}")
-
-    # Fallback to Perplexity from environment
-    if PERPLEXITY_API_KEY:
-        try:
-            print("    Trying Perplexity from environment...")
-            client = OpenAI(api_key=PERPLEXITY_API_KEY, base_url="https://api.perplexity.ai")
-            response = client.chat.completions.create(
-                model="sonar",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=4000
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"    Perplexity failed: {e}")
-
-    # Last resort: analysis provider without web search (cached knowledge)
-    if analysis_provider:
-        try:
-            print(f"    Trying {analysis_provider.display_name} without web search...")
-            return analysis_provider.call(
-                prompt=prompt,
-                max_tokens=4000,
-                temperature=0.7
-            )
-        except Exception as e:
-            print(f"    Analysis provider failed: {e}")
-
-    # Final fallback: Gemini without grounding
-    if GEMINI_API_KEY:
-        try:
-            print("    Trying Gemini without grounding (cached knowledge)...")
-            model = genai.GenerativeModel('gemini-2.5-pro')
-            response = model.generate_content(prompt)
-            return response.text
-        except Exception as e:
-            print(f"    Gemini without grounding failed: {e}")
+            if provider.api_type == "google":
+                return provider.call_with_web_search(prompt=prompt)
+            elif (
+                provider.api_type == "openai_compatible"
+                and provider.api_endpoint
+                and "perplexity" in provider.api_endpoint.lower()
+            ):
+                return provider.call(prompt=prompt, max_tokens=4000, temperature=0.7)
+        except (LLMAPIError, LLMConfigurationError) as e:
+            print(f"    Web search provider {provider.display_name} failed: {e}")
+            continue
 
     return None
 
@@ -1136,7 +1077,7 @@ def generate_competitor_threat_analysis(
     """
     Generate enhanced competitor threat analysis.
     Focuses on the top 3 threats as calculated by calculate_competitor_threats().
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     # Prepare SOV data for top 3 threats
@@ -1244,7 +1185,7 @@ def generate_strategic_priorities(
     web_search_providers: List[ProviderConfig] = None
 ) -> str:
     """Generate enhanced strategic priorities with rich context.
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     # Build strengths and weaknesses from actual responses
@@ -1469,13 +1410,14 @@ def research_llm_state_changes(
 Focus on official announcements, blog posts, and documented changes from these companies. Do not speculate."""
 
     # === WEB SEARCH FOR FRESH DATA ===
-    # Uses configurable web search providers with fallback to env vars
+    # Requires a configured provider with supports_web_search=True (Gemini or
+    # Perplexity). If none is configured, the section is omitted from the report.
     print("    - Researching LLM platform changes...")
     web_research = call_web_search_llm(research_query, web_search_providers, analysis_provider)
 
     if not web_research:
-        print(f"    - All LLMs failed, skipping State of the LLMs section")
-        results['platform_notes']['Status'] = "Skipped - all research methods unavailable"
+        print(f"    - No web-search-capable provider available; skipping State of the LLMs section")
+        results['platform_notes']['Status'] = "Skipped - no web search provider configured"
         return results
 
     results['raw_research'] = web_research
@@ -1589,7 +1531,7 @@ def generate_executive_summary(
     trend_summary: str = ""
 ) -> str:
     """Generate an enhanced executive summary with rich context.
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     # Build period context based on report type
@@ -1704,7 +1646,7 @@ def generate_positioning_insights(
     provider: Optional[ProviderConfig] = None
 ) -> str:
     """Generate AI-powered insights about brand positioning.
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     prompt = f"""You are analyzing brand positioning performance for {brand_name} in AI platform responses.
@@ -1741,7 +1683,7 @@ def generate_share_of_voice_insights(
     provider: Optional[ProviderConfig] = None
 ) -> str:
     """Generate AI-powered insights about share of voice.
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     top_competitors = sorted(competitor_analysis.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -1780,7 +1722,7 @@ def generate_descriptor_insights(
     provider: Optional[ProviderConfig] = None
 ) -> str:
     """Generate AI-powered insights about descriptor performance.
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     top_descriptors = sorted(descriptor_analysis.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -1824,7 +1766,7 @@ def generate_sentiment_insights(
     provider: Optional[ProviderConfig] = None
 ) -> str:
     """Generate AI-powered insights about sentiment distribution.
-    Uses configurable LLM provider or falls back to Gemini from env vars.
+    Uses the configured LLM provider (analysis_provider).
     """
 
     prompt = f"""You are analyzing sentiment performance for {brand_name} in AI platform responses.
@@ -2307,16 +2249,27 @@ def generate_report_main(
             if analysis_provider:
                 print(f"  - Using {analysis_provider.display_name} for report writing")
             else:
-                print(f"  - Using Gemini from environment variables for report writing")
+                # Fail fast: no provider means every downstream LLM call will raise.
+                # Doing it here avoids burning DB queries / web searches and ensures
+                # the task is marked failed so the UI doesn't hang in "running".
+                error_msg = (
+                    "No analysis LLM configured. Configure one in Admin → LLM Providers "
+                    "and set use_for_analysis=True on the provider you want."
+                )
+                print(f"  - ERROR: {error_msg}")
+                if task:
+                    task.status = "failed"
+                    task.error_message = error_msg
+                    db.commit()
+                return
 
             if web_search_providers:
                 print(f"  - Web search providers: {', '.join(p.display_name for p in web_search_providers)}")
             else:
-                print(f"  - No web search providers configured (State of the LLMs section may be limited)")
+                print(f"  - No web search providers configured (State of the LLMs section will be omitted)")
 
         except Exception as e:
             print(f"  - Warning: Could not load LLM providers from database: {e}")
-            print(f"  - Falling back to environment variable configuration")
 
         # Update task status: starting report generation
         if task:
@@ -2504,7 +2457,7 @@ def generate_report_main(
             }
 
         # Step 4: Generate AI insights with enhanced prompts
-        provider_name = analysis_provider.display_name if analysis_provider else "Gemini (from env vars)"
+        provider_name = analysis_provider.display_name if analysis_provider else "<no provider — will fail>"
         print(f"\nGenerating AI-powered insights with {provider_name}...")
         print("  - Executive summary...")
         executive_summary = generate_executive_summary(

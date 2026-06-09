@@ -81,6 +81,7 @@ def list_providers(
             "api_endpoint": p.api_endpoint,
             "model_name": p.model_name,
             "env_var_name": p.env_var_name,
+            "api_version": p.api_version,
             "color": p.color,
             "sort_order": p.sort_order,
             "is_enabled": p.is_enabled,
@@ -133,7 +134,7 @@ def create_provider(
         )
 
     # Validate api_type
-    valid_api_types = ["openai", "anthropic", "google", "openai_compatible"]
+    valid_api_types = ["openai", "anthropic", "google", "openai_compatible", "azure"]
     if provider.api_type not in valid_api_types:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -146,6 +147,19 @@ def create_provider(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="api_endpoint is required for openai_compatible API type"
         )
+
+    # Azure OpenAI requires resource URL + api_version
+    if provider.api_type == "azure":
+        if not provider.api_endpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_endpoint (Azure resource URL like https://<resource>.openai.azure.com/) is required for azure API type"
+            )
+        if not provider.api_version:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_version (e.g., '2024-10-21') is required for azure API type"
+            )
 
     # For custom providers (not in default mapping), require env_var_name
     is_default_type = provider.api_type in API_TYPE_TO_ENV_VAR
@@ -172,6 +186,7 @@ def create_provider(
         api_endpoint=provider.api_endpoint,
         model_name=provider.model_name,
         env_var_name=provider.env_var_name,
+        api_version=provider.api_version,
         color=provider.color,
         sort_order=provider.sort_order,
         is_enabled=provider.is_enabled,
@@ -261,11 +276,28 @@ def update_provider(
 
     # Validate api_type if being updated
     if "api_type" in update_data:
-        valid_api_types = ["openai", "anthropic", "google", "openai_compatible"]
+        valid_api_types = ["openai", "anthropic", "google", "openai_compatible", "azure"]
         if update_data["api_type"] not in valid_api_types:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid api_type. Must be one of: {', '.join(valid_api_types)}"
+            )
+
+    # If the post-update api_type is azure, require api_endpoint + api_version
+    # (use new values from update_data if present, else fall back to existing provider values).
+    effective_api_type = update_data.get("api_type", provider.api_type)
+    if effective_api_type == "azure":
+        effective_endpoint = update_data.get("api_endpoint", provider.api_endpoint)
+        effective_api_version = update_data.get("api_version", provider.api_version)
+        if not effective_endpoint:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_endpoint is required for azure API type"
+            )
+        if not effective_api_version:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="api_version is required for azure API type"
             )
 
     # Apply updates
@@ -361,6 +393,7 @@ def test_provider(
         api_key=api_key,
         model_name=provider.model_name,
         api_endpoint=provider.api_endpoint,
+        api_version=provider.api_version,
         test_prompt=test_prompt
     )
 

@@ -47,6 +47,7 @@ interface LLMProvider {
   api_endpoint: string | null;
   model_name: string;
   env_var_name: string | null;
+  api_version: string | null;
   color: string;
   sort_order: number;
   is_enabled: boolean;
@@ -61,6 +62,7 @@ const API_TYPE_OPTIONS = [
   { value: 'openai', label: 'OpenAI', description: 'GPT-4, GPT-3.5, etc.', envVar: 'OPENAI_API_KEY' },
   { value: 'anthropic', label: 'Anthropic', description: 'Claude models', envVar: 'ANTHROPIC_API_KEY' },
   { value: 'google', label: 'Google', description: 'Gemini models', envVar: 'GEMINI_API_KEY' },
+  { value: 'azure', label: 'Azure OpenAI', description: 'GPT-4o, GPT-4, etc. on Azure', envVar: 'AZURE_OPENAI_API_KEY' },
   { value: 'openai_compatible', label: 'OpenAI Compatible', description: 'Perplexity, local models, etc.', envVar: 'PERPLEXITY_API_KEY' },
 ];
 
@@ -94,6 +96,7 @@ const LLMConfiguration: React.FC = () => {
     api_endpoint: '',
     model_name: '',
     env_var_name: '',
+    api_version: '',
     color: '#666666',
     is_enabled: true,
     use_for_analysis: false,
@@ -141,6 +144,7 @@ const LLMConfiguration: React.FC = () => {
         api_endpoint: provider.api_endpoint || '',
         model_name: provider.model_name,
         env_var_name: provider.env_var_name || '',
+        api_version: provider.api_version || '',
         color: provider.color,
         is_enabled: provider.is_enabled,
         use_for_analysis: provider.use_for_analysis,
@@ -158,6 +162,7 @@ const LLMConfiguration: React.FC = () => {
         api_endpoint: '',
         model_name: '',
         env_var_name: '',
+        api_version: '',
         color: availableColor,
         is_enabled: true,
         use_for_analysis: providers.length === 0, // First provider defaults to analysis
@@ -229,6 +234,7 @@ const LLMConfiguration: React.FC = () => {
           api_endpoint: formData.api_endpoint || null,
           model_name: formData.model_name,
           env_var_name: formData.env_var_name || null,
+          api_version: formData.api_version || null,
           color: formData.color,
           is_enabled: formData.is_enabled,
           use_for_analysis: formData.use_for_analysis,
@@ -245,6 +251,7 @@ const LLMConfiguration: React.FC = () => {
           api_endpoint: formData.api_endpoint || undefined,
           model_name: formData.model_name,
           env_var_name: formData.env_var_name || undefined,
+          api_version: formData.api_version || undefined,
           color: formData.color,
           sort_order: providers.length,
           is_enabled: formData.is_enabled,
@@ -526,12 +533,16 @@ const LLMConfiguration: React.FC = () => {
 
             <TextField
               fullWidth
-              label="Model Name"
+              label={formData.api_type === 'azure' ? 'Deployment Name' : 'Model Name'}
               value={formData.model_name}
               onChange={(e) => setFormData({ ...formData, model_name: e.target.value })}
               required
               sx={{ mb: 2 }}
-              helperText="Model identifier (e.g., 'gpt-4o', 'claude-3-haiku-20240307', 'gemini-2.0-flash')"
+              helperText={
+                formData.api_type === 'azure'
+                  ? "Azure deployment name (the deployment you created in Azure OpenAI Studio, e.g., 'gpt-4o-prod')"
+                  : "Model identifier (e.g., 'gpt-4o', 'claude-3-haiku-20240307', 'gemini-2.0-flash')"
+              }
             />
 
             {(formData.api_type === 'openai_compatible') && (
@@ -543,6 +554,30 @@ const LLMConfiguration: React.FC = () => {
                 sx={{ mb: 2 }}
                 helperText="Custom endpoint URL (e.g., 'https://api.perplexity.ai')"
               />
+            )}
+
+            {(formData.api_type === 'azure') && (
+              <>
+                <TextField
+                  fullWidth
+                  label="Azure Resource URL"
+                  value={formData.api_endpoint}
+                  onChange={(e) => setFormData({ ...formData, api_endpoint: e.target.value })}
+                  required
+                  sx={{ mb: 2 }}
+                  helperText="e.g., 'https://your-resource.openai.azure.com/' (from Azure Portal)"
+                />
+                <TextField
+                  fullWidth
+                  label="API Version"
+                  value={formData.api_version}
+                  onChange={(e) => setFormData({ ...formData, api_version: e.target.value })}
+                  required
+                  sx={{ mb: 2 }}
+                  placeholder="2024-10-21"
+                  helperText="Azure OpenAI api_version (see Microsoft docs for current stable values)"
+                />
+              </>
             )}
 
             {/* Environment Variable Name - for custom providers */}

@@ -2,7 +2,7 @@
 Generic LLM Client for Tales Project
 
 Routes API calls to different LLM providers based on configuration.
-Supports OpenAI, Anthropic, Google (Gemini), and OpenAI-compatible APIs.
+Supports OpenAI, Anthropic, Google (Gemini), Azure OpenAI, and OpenAI-compatible APIs.
 """
 
 import os
@@ -11,7 +11,7 @@ import httpx
 
 # Import LLM SDKs
 try:
-    from openai import OpenAI
+    from openai import OpenAI, AzureOpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -53,6 +53,7 @@ class GenericLLMClient:
     - "openai": OpenAI API (GPT models)
     - "anthropic": Anthropic API (Claude models)
     - "google": Google GenAI API (Gemini models)
+    - "azure": Azure OpenAI (requires api_endpoint + api_version; model_name is the deployment name)
     - "openai_compatible": Any OpenAI-compatible API (Perplexity, local models, etc.)
     """
 
@@ -66,6 +67,7 @@ class GenericLLMClient:
         model_name: str,
         prompt: str,
         api_endpoint: Optional[str] = None,
+        api_version: Optional[str] = None,
         max_tokens: int = 4000,
         temperature: float = 0.7,
         timeout: float = DEFAULT_TIMEOUT
@@ -102,6 +104,19 @@ class GenericLLMClient:
             return GenericLLMClient._call_google(
                 api_key, model_name, prompt, max_tokens, temperature, timeout
             )
+        elif api_type == "azure":
+            if not api_endpoint:
+                raise LLMConfigurationError(
+                    "api_endpoint (Azure resource URL) is required for azure API type"
+                )
+            if not api_version:
+                raise LLMConfigurationError(
+                    "api_version is required for azure API type (e.g., '2024-10-21')"
+                )
+            return GenericLLMClient._call_azure(
+                api_key, model_name, prompt, api_endpoint, api_version,
+                max_tokens, temperature, timeout
+            )
         elif api_type == "openai_compatible":
             if not api_endpoint:
                 raise LLMConfigurationError(
@@ -128,6 +143,13 @@ class GenericLLMClient:
         Only supported for:
         - "google": Uses Google Search grounding tool
         - "openai_compatible" with Perplexity: Uses sonar model's built-in search
+
+        Azure OpenAI is intentionally NOT supported here. Azure-only deployments
+        gracefully omit the "State of the LLMs" report section (the caller in
+        scripts/admin/generate_report.py handles this by returning a "Skipped"
+        status that the report orchestrator reads to skip the section entirely).
+        To re-enable web search, configure a Gemini or Perplexity provider
+        alongside Azure.
 
         Args:
             api_type: One of "google", "openai_compatible"
@@ -277,6 +299,56 @@ class GenericLLMClient:
             raise LLMAPIError(f"Google GenAI API (with grounding) error: {str(e)}")
 
     @staticmethod
+    def _call_azure(
+        api_key: str,
+        deployment_name: str,
+        prompt: str,
+        azure_endpoint: str,
+        api_version: str,
+        max_tokens: int,
+        temperature: float,
+        timeout: float
+    ) -> str:
+        """Call Azure OpenAI.
+
+        For Azure, model_name is interpreted as the deployment name (Azure routes
+        requests by deployment, not by model id). azure_endpoint is the resource
+        URL like https://<resource>.openai.azure.com/.
+        """
+        if not OPENAI_AVAILABLE:
+            raise LLMConfigurationError("OpenAI SDK not installed. Run: pip install openai")
+
+        try:
+            with httpx.Client(timeout=timeout) as http_client:
+                client = AzureOpenAI(
+                    api_key=api_key,
+                    azure_endpoint=azure_endpoint,
+                    api_version=api_version,
+                    http_client=http_client,
+                )
+
+                response = client.chat.completions.create(
+                    model=deployment_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+
+            # Guard against empty choices (content filtering, API issues) and
+            # None content (model refusal, tool_calls without text).
+            if not response.choices:
+                raise LLMAPIError(
+                    f"Azure OpenAI returned no choices ({azure_endpoint}). "
+                    "This usually means the prompt was filtered or the deployment is misconfigured."
+                )
+            return response.choices[0].message.content or ""
+
+        except LLMAPIError:
+            raise
+        except Exception as e:
+            raise LLMAPIError(f"Azure OpenAI API error ({azure_endpoint}): {str(e)}")
+
+    @staticmethod
     def _call_openai_compatible(
         api_key: str,
         model_name: str,
@@ -315,6 +387,7 @@ class GenericLLMClient:
         api_key: str,
         model_name: str,
         api_endpoint: Optional[str] = None,
+        api_version: Optional[str] = None,
         test_prompt: str = "Hello, please respond with a brief greeting."
     ) -> tuple[bool, str, Optional[str]]:
         """
@@ -324,7 +397,8 @@ class GenericLLMClient:
             api_type: The API type
             api_key: The decrypted API key
             model_name: The model to use
-            api_endpoint: Custom endpoint URL (for openai_compatible)
+            api_endpoint: Custom endpoint URL (for openai_compatible / azure)
+            api_version: api_version (azure only)
             test_prompt: The prompt to send for testing
 
         Returns:
@@ -337,6 +411,7 @@ class GenericLLMClient:
                 model_name=model_name,
                 prompt=test_prompt,
                 api_endpoint=api_endpoint,
+                api_version=api_version,
                 max_tokens=100,
                 temperature=0.7,
                 timeout=30.0  # Shorter timeout for testing
