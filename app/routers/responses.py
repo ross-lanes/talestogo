@@ -48,7 +48,12 @@ def read_responses(
     Default limit raised to 10000 to cover real-world brand sizes like PPPL
     (~1,200 responses); matches the precedent used by the Excel export below
     (Bug #3 fix).
+
+    `limit` is defensively clamped to [1, 10000] so a malicious or buggy
+    client can't request a negative or oversized page that would either
+    return nothing or pull the entire table into memory.
     """
+    limit = max(1, min(limit, 10000))
     owner_user_id = get_data_owner_user_id(db, brand_id, current_user.id)
     return crud.get_responses(
         db,

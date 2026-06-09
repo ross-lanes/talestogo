@@ -9,9 +9,10 @@ display 0% for shared brands and large brands:
 - Bug #3 — default limit=100 was too small for real-world brands.
 """
 import pytest
+from fastapi import Depends
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.database import Base, get_db
 from app.main import app
@@ -80,7 +81,16 @@ def test_db():
 
 def _make_client(SessionLocal, as_user_id: int, active_brand_id: int):
     """Build a TestClient with get_db / get_current_user / get_active_brand_id
-    overridden to the requested user and active brand."""
+    overridden to the requested user and active brand.
+
+    `override_get_current_user` takes the request's DB session via Depends so
+    the returned User stays attached for the lifetime of the request. The
+    earlier version opened a fresh session and closed it before returning the
+    User, which would raise DetachedInstanceError if any handler ever touched
+    a lazy-loaded attribute (relationships, deferred columns). The current
+    route only reads `current_user.id` so it never triggered, but the pattern
+    is fragile — Depends fixes it for good.
+    """
     def override_get_db():
         db = SessionLocal()
         try:
@@ -88,12 +98,8 @@ def _make_client(SessionLocal, as_user_id: int, active_brand_id: int):
         finally:
             db.close()
 
-    def override_get_current_user():
-        db = SessionLocal()
-        try:
-            return db.query(models.User).filter(models.User.id == as_user_id).first()
-        finally:
-            db.close()
+    def override_get_current_user(db: Session = Depends(get_db)):
+        return db.query(models.User).filter(models.User.id == as_user_id).first()
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
@@ -138,3 +144,22 @@ def test_batch_id_query_param_filters_results(test_db):
     assert len(in_batch_2) == 2
     assert all("batch 2" in r["response_text"] for r in in_batch_2)
     assert len(no_filter) == 5
+
+
+def test_limit_clamp_rejects_negative_and_oversize(test_db):
+    """Defensive clamp: limit is bounded to [1, 10000].
+
+    A negative limit would otherwise return an empty result silently; a
+    pathologically large limit could exhaust memory. The clamp protects
+    both ends.
+    """
+    client = _make_client(test_db, as_user_id=OWNER_USER_ID, active_brand_id=BRAND_ID)
+
+    # Negative limit gets clamped up to 1 — should return at least one row.
+    negative = client.get(f"/responses/?brand_id={BRAND_ID}&limit=-5").json()
+    assert len(negative) == 1, "Negative limit should clamp to 1, not return zero rows"
+
+    # Oversized limit (1,000,000) clamps down to 10000 — fixture has only 5,
+    # so we just confirm the request succeeds and returns all 5.
+    huge = client.get(f"/responses/?brand_id={BRAND_ID}&limit=1000000").json()
+    assert len(huge) == 5
