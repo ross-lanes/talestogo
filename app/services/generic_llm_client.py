@@ -583,18 +583,26 @@ class GenericLLMClient:
                         text_content = getattr(msg, "content", None)
                         if isinstance(text_content, str):
                             return text_content
-                        # Newer SDKs wrap content as a list of typed blocks
+                        # Newer SDKs wrap content as a list of typed blocks.
+                        # Accumulate all non-empty text values rather than
+                        # returning the first one — longer responses (or runs
+                        # that interleave text with tool-call blocks) get split
+                        # across multiple blocks, and returning early truncates.
                         if isinstance(text_content, list) and text_content:
+                            parts: List[str] = []
                             for block in text_content:
                                 t = getattr(block, "text", None)
-                                if t is not None:
-                                    # Only return if we can extract real text —
-                                    # don't fall back to str(t), which would
-                                    # return a Python object repr, not the
-                                    # message content.
-                                    val = getattr(t, "value", None)
-                                    if val:
-                                        return val
+                                if t is None:
+                                    continue
+                                # Only collect if we can extract real text —
+                                # don't fall back to str(t), which would
+                                # return a Python object repr, not the
+                                # message content.
+                                val = getattr(t, "value", None)
+                                if val:
+                                    parts.append(val)
+                            if parts:
+                                return "\n\n".join(parts)
                 return ""
         except LLMConfigurationError:
             raise

@@ -501,3 +501,57 @@ class TestBingGroundedMessageExtraction:
         # Should return the second block's value, NOT a Python repr of the first.
         assert result == "actual text content"
         assert "<" not in result and "object at" not in result
+
+    def test_accumulates_multiple_text_blocks(self, monkeypatch):
+        """When the assistant's response is split across multiple text blocks
+        (longer responses, tool-call interleaving, newer SDK shapes), the
+        extraction must concatenate all of them — not return on the first."""
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
+
+        mock_project_cls = MagicMock()
+        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredential", MagicMock(), raising=False)
+        monkeypatch.setattr(glc, "DefaultAzureCredential", MagicMock(), raising=False)
+
+        client = MagicMock()
+        mock_project_cls.return_value = client
+        client.__enter__.return_value = client
+        client.__exit__.return_value = False
+        client.agents.threads.create.return_value = MagicMock(id="t1")
+        client.agents.runs.create_and_process.return_value = MagicMock(status="completed")
+
+        # Three blocks: two have real values, one is empty/skipped.
+        block_a = MagicMock()
+        block_a.text = MagicMock()
+        block_a.text.value = "First paragraph of the answer."
+
+        block_empty = MagicMock()
+        block_empty.text = MagicMock()
+        block_empty.text.value = None  # should be skipped
+
+        block_b = MagicMock()
+        block_b.text = MagicMock()
+        block_b.text.value = "Second paragraph with citations [1] [2]."
+
+        msg = MagicMock()
+        msg.role = "assistant"
+        msg.content = [block_a, block_empty, block_b]
+        client.agents.messages.list.return_value = [msg]
+
+        result = GenericLLMClient.call_with_web_search(
+            api_type="bing_grounded",
+            api_key="k",
+            model_name="agent-id",
+            prompt="Q?",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+        )
+        # Both non-empty blocks must appear; empty block must NOT contribute
+        # whitespace-only padding that breaks layout.
+        assert "First paragraph of the answer." in result
+        assert "Second paragraph with citations [1] [2]." in result
+        # Joined with the documented separator (double newline).
+        assert "\n\n" in result
+        # Sanity: no Python repr leaked through.
+        assert "<" not in result and "object at" not in result

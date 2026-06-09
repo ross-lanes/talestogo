@@ -182,3 +182,86 @@ def test_update_rejects_flipping_bing_to_analysis_provider(test_db):
     )
     assert resp.status_code == 400, resp.text
     assert "web-search-only" in resp.json()["detail"].lower() or "cannot be the analysis" in resp.json()["detail"].lower()
+
+
+# ============================================================
+# Round-2 finding: use_for_analysis=True + is_enabled=False is a footgun.
+# get_analysis_provider() silently falls back to the first enabled provider,
+# so the user's intent ("use THIS provider for analysis") is ignored without
+# any indication. Block it at config time so they get a clear error instead.
+# ============================================================
+
+def test_create_rejects_use_for_analysis_with_disabled(test_db):
+    """A non-Bing provider that's use_for_analysis=True but is_enabled=False
+    must be rejected at create — analysis would silently fall back to another
+    provider, defeating the user's intent."""
+    client = _make_admin_client(test_db)
+    resp = client.post("/admin/llm-providers", json={
+        "provider_key": "openai_disabled",
+        "display_name": "OpenAI (disabled)",
+        "api_type": "openai",
+        "model_name": "gpt-4o",
+        "use_for_analysis": True,
+        "is_enabled": False,  # ← the bad combination
+        "supports_web_search": False,
+    })
+    assert resp.status_code == 400, resp.text
+    assert "enabled" in resp.json()["detail"].lower()
+
+
+def test_update_rejects_disabling_a_provider_that_is_use_for_analysis(test_db):
+    """PUT is_enabled=False on a provider whose use_for_analysis=True must fail."""
+    # Seed an OpenAI provider with use_for_analysis=True and is_enabled=True.
+    db = test_db()
+    try:
+        p = models.LLMProvider(
+            tenant_id=None,
+            provider_key="openai_seed",
+            display_name="OpenAI seed",
+            api_type="openai",
+            model_name="gpt-4o",
+            is_enabled=True,
+            use_for_analysis=True,
+        )
+        db.add(p)
+        db.commit()
+        db.refresh(p)
+        provider_id = p.id
+    finally:
+        db.close()
+
+    client = _make_admin_client(test_db)
+    resp = client.put(
+        f"/admin/llm-providers/{provider_id}", json={"is_enabled": False}
+    )
+    assert resp.status_code == 400, resp.text
+    assert "enabled" in resp.json()["detail"].lower()
+
+
+def test_update_rejects_setting_use_for_analysis_on_disabled_provider(test_db):
+    """PUT use_for_analysis=True on a provider whose is_enabled=False must fail
+    (caller forgot to also flip is_enabled)."""
+    db = test_db()
+    try:
+        p = models.LLMProvider(
+            tenant_id=None,
+            provider_key="openai_dormant",
+            display_name="OpenAI dormant",
+            api_type="openai",
+            model_name="gpt-4o",
+            is_enabled=False,  # already disabled
+            use_for_analysis=False,
+        )
+        db.add(p)
+        db.commit()
+        db.refresh(p)
+        provider_id = p.id
+    finally:
+        db.close()
+
+    client = _make_admin_client(test_db)
+    resp = client.put(
+        f"/admin/llm-providers/{provider_id}", json={"use_for_analysis": True}
+    )
+    assert resp.status_code == 400, resp.text
+    assert "enabled" in resp.json()["detail"].lower()
