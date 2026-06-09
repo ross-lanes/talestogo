@@ -6,7 +6,7 @@ import json
 
 # Test the health/info endpoint first
 try:
-    response = requests.get("http://localhost:8000/")
+    response = requests.get("http://localhost:8000/", timeout=10)
     print(f"API Root endpoint: {response.status_code}")
     if response.status_code == 200:
         print(f"Response: {response.json()}")
@@ -18,7 +18,7 @@ except Exception as e:
 # Test reports endpoint (this will require authentication)
 # We'll just check if it responds with 401 or 403 (auth required) rather than 500 (server error)
 try:
-    response = requests.get("http://localhost:8000/reports/")
+    response = requests.get("http://localhost:8000/reports/", timeout=10)
     print(f"Reports endpoint: {response.status_code}")
 
     if response.status_code == 401:
