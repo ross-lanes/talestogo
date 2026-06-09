@@ -64,6 +64,8 @@ const API_TYPE_OPTIONS = [
   { value: 'google', label: 'Google', description: 'Gemini models', envVar: 'GEMINI_API_KEY' },
   { value: 'azure', label: 'Azure OpenAI', description: 'GPT-4o, GPT-4, etc. on Azure', envVar: 'AZURE_OPENAI_API_KEY' },
   { value: 'openai_compatible', label: 'OpenAI Compatible', description: 'Perplexity, local models, etc.', envVar: 'PERPLEXITY_API_KEY' },
+  { value: 'bing_v7', label: 'Bing Search v7', description: 'Web search; pairs with the analysis LLM. State of the LLMs only.', envVar: 'BING_SEARCH_V7_API_KEY' },
+  { value: 'bing_grounded', label: 'Azure AI Foundry — Bing Grounding', description: 'Azure-native grounded web search. Needs pip install talestogo[bing-grounded].', envVar: 'AZURE_FOUNDRY_API_KEY' },
 ];
 
 const DEFAULT_COLORS = [
@@ -191,12 +193,15 @@ const LLMConfiguration: React.FC = () => {
 
   // Auto-set web search capability based on API type and endpoint
   const handleApiTypeChange = (value: string) => {
-    const isGoogleOrPerplexity = value === 'google' ||
+    const isWebSearchType =
+      value === 'google' ||
+      value === 'bing_v7' ||
+      value === 'bing_grounded' ||
       (value === 'openai_compatible' && formData.api_endpoint.toLowerCase().includes('perplexity'));
     setFormData(prev => ({
       ...prev,
       api_type: value,
-      supports_web_search: isGoogleOrPerplexity,
+      supports_web_search: isWebSearchType,
       // Clear env_var_name if switching to a default type
       env_var_name: '',
     }));
@@ -207,7 +212,11 @@ const LLMConfiguration: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       api_endpoint: value,
-      supports_web_search: prev.api_type === 'google' || isPerplexity,
+      supports_web_search:
+        prev.api_type === 'google' ||
+        prev.api_type === 'bing_v7' ||
+        prev.api_type === 'bing_grounded' ||
+        isPerplexity,
     }));
   };
 
@@ -533,7 +542,15 @@ const LLMConfiguration: React.FC = () => {
 
             <TextField
               fullWidth
-              label={formData.api_type === 'azure' ? 'Deployment Name' : 'Model Name'}
+              label={
+                formData.api_type === 'azure'
+                  ? 'Deployment Name'
+                  : formData.api_type === 'bing_grounded'
+                  ? 'Agent ID'
+                  : formData.api_type === 'bing_v7'
+                  ? 'Identifier (label only)'
+                  : 'Model Name'
+              }
               value={formData.model_name}
               onChange={(e) => setFormData({ ...formData, model_name: e.target.value })}
               required
@@ -541,6 +558,10 @@ const LLMConfiguration: React.FC = () => {
               helperText={
                 formData.api_type === 'azure'
                   ? "Azure deployment name (the deployment you created in Azure OpenAI Studio, e.g., 'gpt-4o-prod')"
+                  : formData.api_type === 'bing_grounded'
+                  ? "Azure AI Foundry agent ID. The agent must have the Grounding-with-Bing-Search tool attached in AI Foundry Studio."
+                  : formData.api_type === 'bing_v7'
+                  ? "Not used by Bing v7 (no LLM call). Set anything you like — used as a label in charts/logs (e.g., 'bing')."
                   : "Model identifier (e.g., 'gpt-4o', 'claude-3-haiku-20240307', 'gemini-2.0-flash')"
               }
             />
@@ -576,6 +597,43 @@ const LLMConfiguration: React.FC = () => {
                   sx={{ mb: 2 }}
                   placeholder="2024-10-21"
                   helperText="Azure OpenAI api_version (see Microsoft docs for current stable values)"
+                />
+              </>
+            )}
+
+            {(formData.api_type === 'bing_v7') && (
+              <TextField
+                fullWidth
+                label="Bing Search v7 Endpoint"
+                value={formData.api_endpoint}
+                onChange={(e) => setFormData({ ...formData, api_endpoint: e.target.value })}
+                required
+                sx={{ mb: 2 }}
+                placeholder="https://api.bing.microsoft.com/"
+                helperText="Bing v7 REST endpoint. Bing v7 retrieves search results only — synthesis is done by whichever provider you flag use_for_analysis=True."
+              />
+            )}
+
+            {(formData.api_type === 'bing_grounded') && (
+              <>
+                <TextField
+                  fullWidth
+                  label="Azure AI Foundry Project Endpoint"
+                  value={formData.api_endpoint}
+                  onChange={(e) => setFormData({ ...formData, api_endpoint: e.target.value })}
+                  required
+                  sx={{ mb: 2 }}
+                  helperText="Your AI Foundry project endpoint (from Azure AI Foundry Studio → Project Properties). Requires `pip install talestogo[bing-grounded]` server-side."
+                />
+                <TextField
+                  fullWidth
+                  label="API Version"
+                  value={formData.api_version}
+                  onChange={(e) => setFormData({ ...formData, api_version: e.target.value })}
+                  required
+                  sx={{ mb: 2 }}
+                  placeholder="2025-05-15-preview"
+                  helperText="Azure AI Foundry Agents API version."
                 />
               </>
             )}

@@ -89,7 +89,7 @@ def call_report_llm(
 def call_web_search_llm(
     prompt: str,
     web_search_providers: List[ProviderConfig] = None,
-    analysis_provider: Optional[ProviderConfig] = None  # kept for signature compat; not used
+    analysis_provider: Optional[ProviderConfig] = None,
 ) -> Optional[str]:
     """
     Call a web-search-capable LLM for the "State of the LLMs" section.
@@ -99,17 +99,34 @@ def call_web_search_llm(
     (research_llm_state_changes) interprets None as "skip the section
     entirely", which the report orchestrator already handles.
 
-    Web search is currently only implemented for Gemini (Google Search
-    grounding) and Perplexity (sonar built-in search). Azure-only or
-    OpenAI-only deployments get the graceful-skip behavior.
+    Supported web-search providers:
+    - Gemini (Google Search grounding) — single round-trip
+    - Perplexity sonar (built-in search) — single round-trip
+    - Bing Search v7 — retrieves, then synthesizes with analysis_provider
+    - Azure AI Foundry Grounding with Bing — single round-trip (agent does both)
+
+    Deployments without any of these get the graceful-skip behavior.
     """
     if not web_search_providers:
         return None
 
     for provider in web_search_providers:
         try:
-            if provider.api_type == "google":
+            if provider.api_type in ("google", "bing_grounded"):
+                # Single-provider grounded calls. Bing-grounded uses an Azure AI
+                # Foundry agent that has the Grounding-with-Bing tool attached.
                 return provider.call_with_web_search(prompt=prompt)
+            elif provider.api_type == "bing_v7":
+                # Retrieve via Bing v7, synthesize with the analysis provider.
+                if analysis_provider is None:
+                    print(
+                        f"    Skipping {provider.display_name}: bing_v7 requires "
+                        "an analysis LLM (mark one provider use_for_analysis=True)"
+                    )
+                    continue
+                return provider.call_with_web_search(
+                    prompt=prompt, analysis_provider=analysis_provider
+                )
             elif (
                 provider.api_type == "openai_compatible"
                 and provider.api_endpoint

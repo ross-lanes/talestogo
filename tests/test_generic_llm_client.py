@@ -149,3 +149,131 @@ class TestWebSearchUnsupportedForAzure:
                 prompt="hi",
                 api_endpoint="https://x.openai.azure.com/",
             )
+
+
+# ==================== Bing Search v7 ====================
+
+def _mock_bing_response(snippets):
+    """Build a mock httpx.Response.json() return shape matching Bing v7."""
+    return {
+        "webPages": {
+            "value": [
+                {"name": title, "url": url, "snippet": text}
+                for (title, url, text) in snippets
+            ]
+        }
+    }
+
+
+class TestBingV7Search:
+    @patch("app.services.generic_llm_client.httpx.Client")
+    def test_bing_v7_search_parses_results(self, mock_client_cls):
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = _mock_bing_response([
+            ("Result A", "https://a.example", "snippet A"),
+            ("Result B", "https://b.example", "snippet B"),
+        ])
+        mock_resp.raise_for_status.return_value = None
+        mock_client_cls.return_value.__enter__.return_value.get.return_value = mock_resp
+
+        results = GenericLLMClient._call_bing_v7_search(
+            api_key="key", query="LLM news", api_endpoint="https://api.bing.microsoft.com/",
+            timeout=10.0,
+        )
+        assert len(results) == 2
+        assert results[0] == {"title": "Result A", "url": "https://a.example", "snippet": "snippet A"}
+
+        # Confirm the correct URL was assembled and the API-key header was set.
+        get_kwargs = mock_client_cls.return_value.__enter__.return_value.get.call_args.kwargs
+        get_args = mock_client_cls.return_value.__enter__.return_value.get.call_args.args
+        assert get_args[0] == "https://api.bing.microsoft.com/v7.0/search"
+        assert get_kwargs["headers"]["Ocp-Apim-Subscription-Key"] == "key"
+        assert get_kwargs["params"]["q"] == "LLM news"
+
+    def test_format_bing_results_handles_empty(self):
+        out = GenericLLMClient._format_bing_results_as_context([])
+        assert "no search results" in out.lower()
+
+    def test_format_bing_results_numbers_and_includes_urls(self):
+        out = GenericLLMClient._format_bing_results_as_context([
+            {"title": "T1", "url": "https://u1", "snippet": "S1"},
+            {"title": "T2", "url": "https://u2", "snippet": "S2"},
+        ])
+        assert "[1]" in out and "[2]" in out
+        assert "https://u1" in out and "https://u2" in out
+
+
+class TestBingV7GroundedSynthesis:
+    @patch("app.services.generic_llm_client.GenericLLMClient._call_bing_v7_search")
+    def test_synthesis_calls_analysis_provider_with_augmented_prompt(self, mock_search):
+        mock_search.return_value = [
+            {"title": "T1", "url": "https://u1", "snippet": "S1"},
+        ]
+        analysis_provider = MagicMock()
+        analysis_provider.call.return_value = "synthesized prose"
+
+        result = GenericLLMClient._call_bing_v7_grounded_synthesis(
+            bing_api_key="k", prompt="Q?", bing_endpoint="https://api.bing.microsoft.com/",
+            analysis_provider=analysis_provider, timeout=10.0,
+        )
+        assert result == "synthesized prose"
+
+        analysis_provider.call.assert_called_once()
+        call_kwargs = analysis_provider.call.call_args.kwargs
+        # The augmented prompt should contain both the original question and
+        # the formatted Bing results.
+        assert "Q?" in call_kwargs["prompt"]
+        assert "T1" in call_kwargs["prompt"]
+        assert "[1]" in call_kwargs["prompt"]
+
+    def test_bing_v7_requires_analysis_provider(self):
+        with pytest.raises(LLMConfigurationError, match="analysis"):
+            GenericLLMClient.call_with_web_search(
+                api_type="bing_v7",
+                api_key="k",
+                model_name="bing",
+                prompt="Q?",
+                api_endpoint="https://api.bing.microsoft.com/",
+                analysis_provider=None,
+            )
+
+    def test_bing_v7_requires_endpoint(self):
+        with pytest.raises(LLMConfigurationError, match="api_endpoint"):
+            GenericLLMClient.call_with_web_search(
+                api_type="bing_v7",
+                api_key="k",
+                model_name="bing",
+                prompt="Q?",
+                analysis_provider=MagicMock(),
+            )
+
+
+# ==================== Azure AI Foundry — Bing Grounded ====================
+
+class TestBingGroundedSDKGuard:
+    def test_bing_grounded_raises_clear_error_when_sdk_missing(self, monkeypatch):
+        """If the bing-grounded extra isn't installed, the user gets a clear
+        message instead of an ImportError."""
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", False)
+        with pytest.raises(LLMConfigurationError, match="bing-grounded"):
+            GenericLLMClient.call_with_web_search(
+                api_type="bing_grounded",
+                api_key="k",
+                model_name="agent-id",
+                prompt="Q?",
+                api_endpoint="https://my-foundry.example/",
+                api_version="2025-05-15-preview",
+            )
+
+    def test_bing_grounded_requires_endpoint(self, monkeypatch):
+        # Even with the SDK present, no endpoint must fail with a clear error.
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
+        with pytest.raises(LLMConfigurationError, match="api_endpoint"):
+            GenericLLMClient.call_with_web_search(
+                api_type="bing_grounded",
+                api_key="k",
+                model_name="agent-id",
+                prompt="Q?",
+            )

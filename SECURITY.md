@@ -67,6 +67,7 @@ All three commands exit zero with no findings on the current `main`.
 
 | Date | Branch / commit | bandit | pip-audit | npm audit | Notes |
 |------|-----------------|--------|-----------|-----------|-------|
+| 2026-06-09 | `bing-web-search` (pre-merge) | 0 medium/high | 0 CVEs | 0 vulns | Adds Bing as a web-search provider (`bing_v7` retrieval + analysis-LLM synthesis; `bing_grounded` via Azure AI Foundry, gated behind `pip install talestogo[bing-grounded]` optional extra). 64/64 pytest passing. The Azure AI Foundry SDK is NOT a base dependency — non-Bing deployers see no install-size or runtime impact. |
 | 2026-06-08 | `main` @ `7536ceaf` | 0 medium/high | 0 CVEs | 0 vulns | Post-merge re-audit covering PRs #1 (Azure provider-agnostic refactor — new `_call_azure` codepath, `api_version` plumbing) and #3 (`/responses/` defensive limit clamp). 53/53 pytest passing. Confirms the merged state is still clean. |
 | 2026-06-08 | `main` @ `f77ee3a8` | 0 medium/high | 0 CVEs | 0 vulns | Initial 2026-06-08 audit. Bumped `vitest` / `@vitest/ui` from 4.0.8 → 4.1.8 to clear [GHSA-5xrq-8626-4rwp](https://github.com/advisories/GHSA-5xrq-8626-4rwp) (critical, dev-only). Added `[tool.bandit]` exclusions for offline ops scripts. |
 | 2026-05-09 | `strip-to-tales-only` | 0 medium/high (after 3 `# nosec B608`) | 0 CVEs | 0 vulns | Initial post-strip baseline. Established the SBOMs below. |
