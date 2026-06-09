@@ -5,3 +5,17 @@ version = "0.1.0"
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["tests*"]
+
+# Bandit (Python SAST) configuration.
+#
+# Excludes one-shot ops scripts that are not part of the deployed application:
+# - scripts/admin/sync_prod_to_localhost.py builds dynamic SQL by inspecting
+#   the schema and is only run manually by the maintainer to copy prod data
+#   to a localhost dev DB. Its B608 SQL-injection findings are false positives
+#   (table/column identifiers come from SQLAlchemy schema inspection, not user
+#   input) and would otherwise drown out legitimate signal from app/.
+# - scripts/migrations/ contains one-shot historical migration scripts that
+#   aren't re-run.
+# Both directories are excluded from the deployment surface area.
+[tool.bandit]
+exclude_dirs = ["scripts/admin", "scripts/migrations"]
