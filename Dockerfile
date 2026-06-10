@@ -44,8 +44,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libssl3t64=3.5.6-1~deb13u2 \
-    openssl=3.5.6-1~deb13u2 \
+    libssl3t64 \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
@@ -62,9 +62,9 @@ WORKDIR /app
 # Install runtime dependencies with patched OpenSSL versions (CVE remediation)
 RUN apt-get update && apt-get install -y \
     libpq5 \
-    libssl3t64=3.5.6-1~deb13u2 \
-    openssl=3.5.6-1~deb13u2 \
-    openssl-provider-legacy=3.5.6-1~deb13u2 \
+    libssl3t64 \
+    openssl \
+    openssl-provider-legacy \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
