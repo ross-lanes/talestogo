@@ -36,14 +36,16 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage 2: Python Dependencies
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim AS python-deps
+FROM python:3.14-slim AS python-deps
 
 WORKDIR /app
 
-# Install build dependencies for Python packages
+# Install build dependencies and specific patched versions of OpenSSL packages (CVE remediation)
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    libssl3t64=3.5.6-1~deb13u2 \
+    openssl=3.5.6-1~deb13u2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
@@ -53,18 +55,21 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # ---------------------------------------------------------------------------
 # Stage 3: Final Runtime Image
 # ---------------------------------------------------------------------------
-FROM python:3.11-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 WORKDIR /app
 
-# Install only runtime dependencies
+# Install runtime dependencies with patched OpenSSL versions (CVE remediation)
 RUN apt-get update && apt-get install -y \
     libpq5 \
+    libssl3t64=3.5.6-1~deb13u2 \
+    openssl=3.5.6-1~deb13u2 \
+    openssl-provider-legacy=3.5.6-1~deb13u2 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
 # Copy Python packages from deps stage
-COPY --from=python-deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=python-deps /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
 # Copy application code

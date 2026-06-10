@@ -9,6 +9,8 @@ sqlalchemy
 psycopg2-binary
 pytest
 httpx
+jaraco-context>=6.1.0
+wheel>=0.46.2
 authlib
 python-jose[cryptography]
 bcrypt
