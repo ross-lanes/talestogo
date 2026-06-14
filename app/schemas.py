@@ -74,6 +74,8 @@ class LLMProvider(LLMProviderBase):
     id: int
     tenant_id: Optional[int] = None
     api_key_source: str = "environment"  # Always "environment" - keys come from env vars
+    api_key_present: bool = False  # True if the provider's API key env var is actually set on the server
+    resolved_env_var: Optional[str] = None  # Name of the env var the key is read from
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = ConfigDict(from_attributes=True)

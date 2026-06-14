@@ -88,6 +88,8 @@ def list_providers(
             "use_for_analysis": p.use_for_analysis,
             "supports_web_search": p.supports_web_search,
             "api_key_source": "environment",
+            "api_key_present": bool(_get_api_key_for_provider(p)),
+            "resolved_env_var": _get_env_var_for_provider(p),
             "created_at": p.created_at,
             "updated_at": p.updated_at,
         }
@@ -245,7 +247,9 @@ def create_provider(
 
     return {
         **db_provider.__dict__,
-        "api_key_source": "environment"
+        "api_key_source": "environment",
+        "api_key_present": bool(_get_api_key_for_provider(db_provider)),
+        "resolved_env_var": _get_env_var_for_provider(db_provider),
     }
 
 
@@ -277,7 +281,9 @@ def get_provider(
 
     return {
         **provider.__dict__,
-        "api_key_source": "environment"
+        "api_key_source": "environment",
+        "api_key_present": bool(_get_api_key_for_provider(provider)),
+        "resolved_env_var": _get_env_var_for_provider(provider),
     }
 
 
@@ -402,7 +408,9 @@ def update_provider(
 
     return {
         **provider.__dict__,
-        "api_key_source": "environment"
+        "api_key_source": "environment",
+        "api_key_present": bool(_get_api_key_for_provider(provider)),
+        "resolved_env_var": _get_env_var_for_provider(provider),
     }
 
 
