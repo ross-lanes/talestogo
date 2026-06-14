@@ -11,11 +11,12 @@ JWT_SECRET_KEY=<random-string>
 ENCRYPTION_KEY=<random-string>
 DATABASE_URL=postgresql://user:pass@host:port/database
 
-# Optional: LLM keys can be configured via Admin UI after deployment
+# LLM API keys — set at least one (required for data collection).
+# Set them here for Docker, or in your platform's environment settings for Railway/Render.
 # GEMINI_API_KEY=<your-gemini-key>
 ```
 
-**Note:** LLM API keys are optional in the .env file. You can configure them through the Admin UI (Admin Menu > LLM Configuration) after deployment instead.
+**Note:** LLM API keys must be provided as **environment variables** — in this `.env` file (Docker) or your hosting platform's environment settings (e.g., the Railway/Render dashboard). The Admin UI (Admin Menu > LLM Configuration) does **not** store API keys; it only configures provider display settings (name, model, color). At least one LLM key is required for data collection.
 
 ---
 

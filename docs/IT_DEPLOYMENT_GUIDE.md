@@ -106,7 +106,7 @@ OIDC_DISCOVERY_URL=https://login.microsoftonline.com/{tenant-id}/v2.0/.well-know
 
 ### Required API Keys
 
-You will need API keys from at least one LLM provider. Tales is provider-agnostic — any one of the supported providers can run the full pipeline. API keys are configured exclusively through environment variables in the `.env` file; non-key settings (Azure resource URL, deployment name, web-search flag) are configured in **Admin → LLM Providers** after first login.
+You will need API keys from at least one LLM provider. Tales is provider-agnostic — any one of the supported providers can run the full pipeline. **API keys are set exclusively as environment variables** — in a `.env` file (Docker Compose) or your hosting platform's environment settings (e.g., the Railway or Render dashboard). The **Admin → LLM Providers** page does **not** store API keys; it only configures non-key settings (name, model, color, Azure resource URL, deployment name, web-search flag) after first login.
 
 | Provider | Environment Variable | Get API Key |
 |----------|---------------------|-------------|

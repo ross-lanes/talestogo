@@ -54,6 +54,8 @@ interface LLMProvider {
   use_for_analysis: boolean;
   supports_web_search: boolean;
   api_key_source: string;
+  api_key_present?: boolean;
+  resolved_env_var?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -362,9 +364,10 @@ const LLMConfiguration: React.FC = () => {
           Setting up LLM providers is a two-part process:
         </Typography>
         <Typography variant="body2" component="div" sx={{ mb: 1 }}>
-          <strong>Part 1 (Environment):</strong> API keys must be added to the server's <code>.env</code> file
+          <strong>Part 1 (Environment):</strong> API keys are set as <strong>environment variables</strong> on the server &mdash;
+          in your hosting platform's settings (e.g., the Railway or Render dashboard) or a <code>.env</code> file for Docker
           (e.g., <code>GEMINI_API_KEY=your-key</code>, <code>ANTHROPIC_API_KEY=your-key</code>).
-          The server must be restarted after adding keys.
+          Redeploy or restart the server after adding keys.
         </Typography>
         <Typography variant="body2" component="div" sx={{ mb: 1 }}>
           <strong>Part 2 (This Page):</strong> Configure display settings for each provider (name, model, color, options).
@@ -386,7 +389,7 @@ const LLMConfiguration: React.FC = () => {
             No LLMs Configured
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Before adding a provider here, ensure the API key is set in the server's <code>.env</code> file.
+            Before adding a provider here, set the API key as an environment variable on the server &mdash; in your hosting platform's settings (Railway/Render dashboard) or a <code>.env</code> file for Docker.
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Example: <code>GEMINI_API_KEY=AIzaSy...</code> or <code>ANTHROPIC_API_KEY=sk-ant-...</code>
@@ -466,9 +469,25 @@ const LLMConfiguration: React.FC = () => {
                     )}
                   </Box>
 
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    API Key: {getEnvVarForProvider(provider.api_type, provider.env_var_name)}
-                  </Typography>
+                  {(() => {
+                    const envVar = provider.resolved_env_var || getEnvVarForProvider(provider.api_type, provider.env_var_name);
+                    const present = provider.api_key_present === true;
+                    return (
+                      <Box sx={{ mb: 1 }}>
+                        <Chip
+                          size="small"
+                          label={present ? 'API key detected' : 'No API key found'}
+                          color={present ? 'success' : 'error'}
+                          variant={present ? 'filled' : 'outlined'}
+                        />
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                          {present
+                            ? `Key loaded from environment variable ${envVar}`
+                            : `No key in environment variable ${envVar}. Set it in your deployment environment (Railway/Render settings or a .env file for Docker), then redeploy/restart. API keys are NOT entered on this page.`}
+                        </Typography>
+                      </Box>
+                    );
+                  })()}
 
                   {provider.api_endpoint && (
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
