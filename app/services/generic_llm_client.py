@@ -720,18 +720,45 @@ class GenericLLMClient:
             Tuple of (success: bool, message: str, response_preview: Optional[str])
         """
         try:
-            response = GenericLLMClient.call(
-                api_type=api_type,
-                api_key=api_key,
-                model_name=model_name,
-                prompt=test_prompt,
-                api_endpoint=api_endpoint,
-                api_version=api_version,
-                max_tokens=100,
-                temperature=0.7,
-                timeout=30.0  # Shorter timeout for testing
-            )
-            return True, "Connection successful", response[:200] if response else None
+            if api_type == "bing_v7":
+                if not api_endpoint:
+                    raise LLMConfigurationError(
+                        "api_endpoint is required for bing_v7 (e.g., 'https://api.bing.microsoft.com/')"
+                    )
+                results = GenericLLMClient._call_bing_v7_search(
+                    api_key=api_key,
+                    query="test",
+                    api_endpoint=api_endpoint,
+                    timeout=30.0,
+                    count=1,
+                )
+                preview = results[0]["snippet"][:200] if results else "(no results returned)"
+                return True, "Bing Search v7 connection successful", preview
+
+            elif api_type == "bing_grounded":
+                response = GenericLLMClient._call_bing_grounded(
+                    api_key=api_key,
+                    agent_id_or_deployment=model_name,
+                    prompt=test_prompt,
+                    api_endpoint=api_endpoint or "",
+                    api_version=api_version,
+                    timeout=30.0,
+                )
+                return True, "Azure AI Foundry (Bing Grounded) connection successful", response[:200] if response else None
+
+            else:
+                response = GenericLLMClient.call(
+                    api_type=api_type,
+                    api_key=api_key,
+                    model_name=model_name,
+                    prompt=test_prompt,
+                    api_endpoint=api_endpoint,
+                    api_version=api_version,
+                    max_tokens=100,
+                    temperature=0.7,
+                    timeout=30.0,
+                )
+                return True, "Connection successful", response[:200] if response else None
 
         except LLMConfigurationError as e:
             return False, f"Configuration error: {str(e)}", None

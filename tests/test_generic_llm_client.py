@@ -555,3 +555,103 @@ class TestBingGroundedMessageExtraction:
         assert "\n\n" in result
         # Sanity: no Python repr leaked through.
         assert "<" not in result and "object at" not in result
+
+
+# ==================== test_connection() ====================
+
+
+class TestTestConnection:
+    @patch("app.services.generic_llm_client.GenericLLMClient._call_bing_v7_search")
+    def test_bing_v7_test_connection_calls_search(self, mock_search):
+        mock_search.return_value = [
+            {"title": "Result", "url": "https://example.com", "snippet": "A test snippet"},
+        ]
+        success, message, preview = GenericLLMClient.test_connection(
+            api_type="bing_v7",
+            api_key="test-key",
+            model_name="bing-v7-label",
+            api_endpoint="https://api.bing.microsoft.com/",
+        )
+        assert success is True
+        assert "Bing Search v7" in message
+        assert "A test snippet" in preview
+        mock_search.assert_called_once_with(
+            api_key="test-key",
+            query="test",
+            api_endpoint="https://api.bing.microsoft.com/",
+            timeout=30.0,
+            count=1,
+        )
+
+    @patch("app.services.generic_llm_client.GenericLLMClient._call_bing_v7_search")
+    def test_bing_v7_test_connection_api_error(self, mock_search):
+        mock_search.side_effect = LLMAPIError("Bing returned 403")
+        success, message, preview = GenericLLMClient.test_connection(
+            api_type="bing_v7",
+            api_key="bad-key",
+            model_name="bing",
+            api_endpoint="https://api.bing.microsoft.com/",
+        )
+        assert success is False
+        assert "API error" in message
+        assert "403" in message
+        assert preview is None
+
+    def test_bing_v7_test_connection_missing_endpoint(self):
+        success, message, preview = GenericLLMClient.test_connection(
+            api_type="bing_v7",
+            api_key="key",
+            model_name="bing",
+        )
+        assert success is False
+        assert "Configuration error" in message
+        assert "api_endpoint" in message
+
+    @patch("app.services.generic_llm_client.GenericLLMClient._call_bing_grounded")
+    def test_bing_grounded_test_connection_success(self, mock_grounded):
+        mock_grounded.return_value = "Hello! I'm an Azure AI agent."
+        success, message, preview = GenericLLMClient.test_connection(
+            api_type="bing_grounded",
+            api_key="azure-key",
+            model_name="agent-id-123",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+        )
+        assert success is True
+        assert "Bing Grounded" in message
+        assert "Hello!" in preview
+        mock_grounded.assert_called_once_with(
+            api_key="azure-key",
+            agent_id_or_deployment="agent-id-123",
+            prompt="Hello, please respond with a brief greeting.",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+            timeout=30.0,
+        )
+
+    def test_bing_grounded_test_connection_sdk_missing(self, monkeypatch):
+        import app.services.generic_llm_client as glc
+        monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", False)
+        success, message, preview = GenericLLMClient.test_connection(
+            api_type="bing_grounded",
+            api_key="k",
+            model_name="agent-id",
+            api_endpoint="https://my-foundry.example/",
+            api_version="2025-05-15-preview",
+        )
+        assert success is False
+        assert "Configuration error" in message
+        assert "bing-grounded" in message
+
+    @patch("app.services.generic_llm_client.GenericLLMClient.call")
+    def test_standard_type_still_routes_through_call(self, mock_call):
+        mock_call.return_value = "Hi there!"
+        success, message, preview = GenericLLMClient.test_connection(
+            api_type="openai",
+            api_key="sk-test",
+            model_name="gpt-4",
+        )
+        assert success is True
+        assert message == "Connection successful"
+        assert "Hi there!" in preview
+        mock_call.assert_called_once()
