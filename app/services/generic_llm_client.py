@@ -30,15 +30,16 @@ try:
 except ImportError:
     GOOGLE_AVAILABLE = False
 
-# Azure AI Foundry SDK — used only by the `bing_grounded` api_type. Declared
+# Azure AI Agents SDK — used only by the `bing_grounded` api_type. Declared
 # as an optional extra in pyproject.toml ([project.optional-dependencies]
 # bing-grounded). Installed via `pip install .[bing-grounded]`. If absent,
 # `bing_grounded` calls return a clear "install the bing-grounded extra"
 # error rather than a bare ImportError. `bing_v7` does not need this SDK.
 try:
-    from azure.ai.projects import AIProjectClient
+    from azure.ai.agents import AgentsClient
     from azure.identity import DefaultAzureCredential
     from azure.core.credentials import AzureKeyCredential
+    from azure.core.pipeline.policies import AzureKeyCredentialPolicy
     AZURE_AI_FOUNDRY_AVAILABLE = True
 except ImportError:
     AZURE_AI_FOUNDRY_AVAILABLE = False
@@ -519,9 +520,9 @@ class GenericLLMClient:
         """
         if not AZURE_AI_FOUNDRY_AVAILABLE:
             raise LLMConfigurationError(
-                "Azure AI Foundry SDK not installed. Run: "
+                "Azure AI Agents SDK not installed. Run: "
                 "pip install talestogo[bing-grounded] (or "
-                "pip install azure-ai-projects azure-ai-agents azure-identity)"
+                "pip install azure-ai-agents azure-identity)"
             )
 
         if not agent_id_or_deployment:
@@ -531,37 +532,39 @@ class GenericLLMClient:
             )
 
         try:
-            # The endpoint here is the AI Foundry project endpoint, not an OpenAI
-            # deployment URL. Two auth paths are supported:
-            # - If AZURE_FOUNDRY_API_KEY is set (api_key non-empty), use
-            #   AzureKeyCredential — explicit key-based auth.
+            # Two auth paths are supported:
+            # - If api_key is non-empty, use AzureKeyCredentialPolicy for
+            #   header-based key auth (sends 'api-key' header).
             # - Otherwise fall back to DefaultAzureCredential, which auto-discovers
             #   managed identity (when running on Azure), az-login, or the standard
             #   AZURE_CLIENT_ID + AZURE_TENANT_ID + AZURE_CLIENT_SECRET service-
             #   principal env vars.
+            client_kwargs: Dict[str, Any] = {}
+            if api_version:
+                client_kwargs["api_version"] = api_version
             if api_key:
-                credential = AzureKeyCredential(api_key)  # type: ignore[name-defined]
+                credential = DefaultAzureCredential()  # type: ignore[name-defined]
+                client_kwargs["authentication_policy"] = AzureKeyCredentialPolicy(  # type: ignore[name-defined]
+                    AzureKeyCredential(api_key), "api-key"  # type: ignore[name-defined]
+                )
             else:
                 credential = DefaultAzureCredential()  # type: ignore[name-defined]
 
-            credential_kwargs: Dict[str, Any] = {}
-            if api_version:
-                credential_kwargs["api_version"] = api_version
-            client = AIProjectClient(  # type: ignore[name-defined]
+            client = AgentsClient(  # type: ignore[name-defined]
                 endpoint=api_endpoint,
                 credential=credential,
-                **credential_kwargs,
+                **client_kwargs,
             )
 
             # Run the configured agent with the user prompt. The Grounding-with-Bing
             # tool is attached at agent-definition time (in Azure AI Foundry Studio),
             # not per-call, so we only need to invoke the agent and read the response.
             with client:
-                thread = client.agents.threads.create()
-                client.agents.messages.create(
+                thread = client.threads.create()
+                client.messages.create(
                     thread_id=thread.id, role="user", content=prompt
                 )
-                run = client.agents.runs.create_and_process(
+                run = client.runs.create_and_process(
                     thread_id=thread.id, agent_id=agent_id_or_deployment
                 )
 
@@ -577,7 +580,7 @@ class GenericLLMClient:
                     )
 
                 # Read back the assistant's reply from the thread.
-                messages = list(client.agents.messages.list(thread_id=thread.id))
+                messages = list(client.messages.list(thread_id=thread.id))
                 for msg in messages:
                     if getattr(msg, "role", "") == "assistant":
                         text_content = getattr(msg, "content", None)

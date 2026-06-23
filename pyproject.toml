@@ -18,7 +18,6 @@ version = "0.1.0"
 # extra, attempting to configure a bing_grounded provider returns a
 # clear "install the bing-grounded extra" error rather than ImportError.
 bing-grounded = [
-    "azure-ai-projects>=1.0.0,<3.0.0",
     "azure-ai-agents>=1.0.0,<2.0.0",
     "azure-identity>=1.15.0",
 ]

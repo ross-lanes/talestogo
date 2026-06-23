@@ -351,43 +351,45 @@ class TestBingGroundedAuth:
     """
 
     def _setup_sdk_mocks(self, monkeypatch):
-        """Patch AIProjectClient, credentials, and the SDK-available flag.
-        Returns (mock_project_client_cls, mock_key_cred_cls, mock_default_cred_cls).
+        """Patch AgentsClient, credentials, and the SDK-available flag.
+        Returns (mock_agents_client_cls, mock_key_cred_cls, mock_default_cred_cls).
         """
         import app.services.generic_llm_client as glc
         monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
 
-        mock_project_cls = MagicMock()
+        mock_agents_cls = MagicMock()
         mock_key_cred_cls = MagicMock()
         mock_default_cred_cls = MagicMock()
+        mock_key_policy_cls = MagicMock()
 
-        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        monkeypatch.setattr(glc, "AgentsClient", mock_agents_cls, raising=False)
         monkeypatch.setattr(glc, "AzureKeyCredential", mock_key_cred_cls, raising=False)
         monkeypatch.setattr(glc, "DefaultAzureCredential", mock_default_cred_cls, raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredentialPolicy", mock_key_policy_cls, raising=False)
 
         # Make the inner agent flow return a successful run with one assistant message.
         client = MagicMock()
-        mock_project_cls.return_value = client
+        mock_agents_cls.return_value = client
         # The `with client:` context manager hands back the client itself.
         client.__enter__.return_value = client
         client.__exit__.return_value = False
 
         thread = MagicMock(id="thread-1")
-        client.agents.threads.create.return_value = thread
+        client.threads.create.return_value = thread
 
         run = MagicMock()
         run.status = "completed"
-        client.agents.runs.create_and_process.return_value = run
+        client.runs.create_and_process.return_value = run
 
         msg = MagicMock()
         msg.role = "assistant"
         msg.content = "agent response"
-        client.agents.messages.list.return_value = [msg]
+        client.messages.list.return_value = [msg]
 
-        return mock_project_cls, mock_key_cred_cls, mock_default_cred_cls
+        return mock_agents_cls, mock_key_cred_cls, mock_default_cred_cls
 
     def test_uses_azure_key_credential_when_api_key_set(self, monkeypatch):
-        project_cls, key_cred_cls, default_cred_cls = self._setup_sdk_mocks(monkeypatch)
+        agents_cls, key_cred_cls, default_cred_cls = self._setup_sdk_mocks(monkeypatch)
 
         GenericLLMClient.call_with_web_search(
             api_type="bing_grounded",
@@ -398,13 +400,13 @@ class TestBingGroundedAuth:
             api_version="2025-05-15-preview",
         )
 
-        # AzureKeyCredential should be constructed with our key, and
-        # DefaultAzureCredential should NOT be touched.
+        # AzureKeyCredential should be constructed with our key for policy-based auth.
         key_cred_cls.assert_called_once_with("secret-key")
-        default_cred_cls.assert_not_called()
+        # DefaultAzureCredential is still called (as a dummy credential for the constructor).
+        default_cred_cls.assert_called_once()
 
     def test_falls_back_to_default_credential_when_no_key(self, monkeypatch):
-        project_cls, key_cred_cls, default_cred_cls = self._setup_sdk_mocks(monkeypatch)
+        agents_cls, key_cred_cls, default_cred_cls = self._setup_sdk_mocks(monkeypatch)
 
         GenericLLMClient.call_with_web_search(
             api_type="bing_grounded",
@@ -429,21 +431,22 @@ class TestBingGroundedRunStatus:
         import app.services.generic_llm_client as glc
         monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
 
-        mock_project_cls = MagicMock()
-        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        mock_agents_cls = MagicMock()
+        monkeypatch.setattr(glc, "AgentsClient", mock_agents_cls, raising=False)
         monkeypatch.setattr(glc, "AzureKeyCredential", MagicMock(), raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredentialPolicy", MagicMock(), raising=False)
         monkeypatch.setattr(glc, "DefaultAzureCredential", MagicMock(), raising=False)
 
         client = MagicMock()
-        mock_project_cls.return_value = client
+        mock_agents_cls.return_value = client
         client.__enter__.return_value = client
         client.__exit__.return_value = False
-        client.agents.threads.create.return_value = MagicMock(id="t1")
+        client.threads.create.return_value = MagicMock(id="t1")
 
         run = MagicMock()
         run.status = status
         run.last_error = "transient failure"
-        client.agents.runs.create_and_process.return_value = run
+        client.runs.create_and_process.return_value = run
 
         with pytest.raises(LLMAPIError, match=str(status)):
             GenericLLMClient.call_with_web_search(
@@ -464,17 +467,18 @@ class TestBingGroundedMessageExtraction:
         import app.services.generic_llm_client as glc
         monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
 
-        mock_project_cls = MagicMock()
-        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        mock_agents_cls = MagicMock()
+        monkeypatch.setattr(glc, "AgentsClient", mock_agents_cls, raising=False)
         monkeypatch.setattr(glc, "AzureKeyCredential", MagicMock(), raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredentialPolicy", MagicMock(), raising=False)
         monkeypatch.setattr(glc, "DefaultAzureCredential", MagicMock(), raising=False)
 
         client = MagicMock()
-        mock_project_cls.return_value = client
+        mock_agents_cls.return_value = client
         client.__enter__.return_value = client
         client.__exit__.return_value = False
-        client.agents.threads.create.return_value = MagicMock(id="t1")
-        client.agents.runs.create_and_process.return_value = MagicMock(status="completed")
+        client.threads.create.return_value = MagicMock(id="t1")
+        client.runs.create_and_process.return_value = MagicMock(status="completed")
 
         # Build a message with two blocks: first has no .text.value, second does.
         first_block = MagicMock()
@@ -488,7 +492,7 @@ class TestBingGroundedMessageExtraction:
         msg = MagicMock()
         msg.role = "assistant"
         msg.content = [first_block, second_block]
-        client.agents.messages.list.return_value = [msg]
+        client.messages.list.return_value = [msg]
 
         result = GenericLLMClient.call_with_web_search(
             api_type="bing_grounded",
@@ -509,17 +513,18 @@ class TestBingGroundedMessageExtraction:
         import app.services.generic_llm_client as glc
         monkeypatch.setattr(glc, "AZURE_AI_FOUNDRY_AVAILABLE", True)
 
-        mock_project_cls = MagicMock()
-        monkeypatch.setattr(glc, "AIProjectClient", mock_project_cls, raising=False)
+        mock_agents_cls = MagicMock()
+        monkeypatch.setattr(glc, "AgentsClient", mock_agents_cls, raising=False)
         monkeypatch.setattr(glc, "AzureKeyCredential", MagicMock(), raising=False)
+        monkeypatch.setattr(glc, "AzureKeyCredentialPolicy", MagicMock(), raising=False)
         monkeypatch.setattr(glc, "DefaultAzureCredential", MagicMock(), raising=False)
 
         client = MagicMock()
-        mock_project_cls.return_value = client
+        mock_agents_cls.return_value = client
         client.__enter__.return_value = client
         client.__exit__.return_value = False
-        client.agents.threads.create.return_value = MagicMock(id="t1")
-        client.agents.runs.create_and_process.return_value = MagicMock(status="completed")
+        client.threads.create.return_value = MagicMock(id="t1")
+        client.runs.create_and_process.return_value = MagicMock(status="completed")
 
         # Three blocks: two have real values, one is empty/skipped.
         block_a = MagicMock()
@@ -537,7 +542,7 @@ class TestBingGroundedMessageExtraction:
         msg = MagicMock()
         msg.role = "assistant"
         msg.content = [block_a, block_empty, block_b]
-        client.agents.messages.list.return_value = [msg]
+        client.messages.list.return_value = [msg]
 
         result = GenericLLMClient.call_with_web_search(
             api_type="bing_grounded",
