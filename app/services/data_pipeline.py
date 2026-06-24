@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app import models
-from app.email import send_email
+from app.services.email_notifications import send_email
 from app.services.site_config import get_site_url, get_site_name, get_admin_email
 
 
