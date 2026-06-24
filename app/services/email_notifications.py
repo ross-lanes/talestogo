@@ -66,6 +66,11 @@ def _smtp_send(to_email: str, subject: str, body: str, html: bool = False):
     if not cfg:
         raise ValueError("SMTP_HOST is required for SMTP email sending")
 
+    if not cfg['from_email']:
+        raise ValueError(
+            "No from address configured. Set SMTP_FROM_EMAIL, FROM_EMAIL, or SMTP_USER."
+        )
+
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = f"{cfg['from_name']} <{cfg['from_email']}>"
