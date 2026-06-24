@@ -85,7 +85,10 @@ def _smtp_send(to_email: str, subject: str, body: str, html: bool = False):
             server.login(cfg['user'], cfg['password'])
         server.send_message(msg)
     finally:
-        server.quit()
+        try:
+            server.quit()
+        except smtplib.SMTPException:
+            server.close()
 
     logger.info(f"Email sent via SMTP to {to_email}")
 
