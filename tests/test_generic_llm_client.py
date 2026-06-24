@@ -430,6 +430,7 @@ class TestAzureFoundryAgentsAuth:
         openai_client = MagicMock()
         project.get_openai_client.return_value = openai_client
         response = MagicMock()
+        response.status = None
         response.output_text = "grounded response"
         openai_client.responses.create.return_value = response
 
@@ -487,6 +488,7 @@ class TestAzureFoundryAgentsCreation:
         openai_client = MagicMock()
         project.get_openai_client.return_value = openai_client
         response = MagicMock()
+        response.status = None
         response.output_text = "created agent response"
         openai_client.responses.create.return_value = response
 
@@ -537,6 +539,7 @@ class TestAzureFoundryAgentsOutputExtraction:
 
         # response.output_text is empty; must fallback to output items
         response = MagicMock()
+        response.status = None
         response.output_text = ""
         block1 = MagicMock()
         block1.text = "Part one."
