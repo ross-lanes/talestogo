@@ -84,8 +84,18 @@ def _smtp_send(to_email: str, subject: str, body: str, html: bool = False):
     logger.info(f"Email sent via SMTP to {to_email}")
 
 
-async def _send_via_resend(to_email: str, subject: str, body: str):
+async def _send_via_resend(to_email: str, subject: str, body: str, html: bool = False):
     """Send email via Resend API (async)."""
+    payload = {
+        "from": FROM_EMAIL,
+        "to": [to_email],
+        "subject": subject,
+    }
+    if html:
+        payload["html"] = body
+    else:
+        payload["text"] = body
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             "https://api.resend.com/emails",
@@ -93,12 +103,7 @@ async def _send_via_resend(to_email: str, subject: str, body: str):
                 "Authorization": f"Bearer {RESEND_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "from": FROM_EMAIL,
-                "to": [to_email],
-                "subject": subject,
-                "text": body,
-            },
+            json=payload,
         )
         if response.status_code == 200:
             logger.info(f"Email sent via Resend to {to_email}")
@@ -107,8 +112,18 @@ async def _send_via_resend(to_email: str, subject: str, body: str):
             raise Exception(f"Resend API error: {response.status_code}")
 
 
-def _send_via_resend_sync(to_email: str, subject: str, body: str):
+def _send_via_resend_sync(to_email: str, subject: str, body: str, html: bool = False):
     """Send email via Resend API (sync)."""
+    payload = {
+        "from": FROM_EMAIL,
+        "to": [to_email],
+        "subject": subject,
+    }
+    if html:
+        payload["html"] = body
+    else:
+        payload["text"] = body
+
     with httpx.Client(timeout=30.0) as client:
         response = client.post(
             "https://api.resend.com/emails",
@@ -116,12 +131,7 @@ def _send_via_resend_sync(to_email: str, subject: str, body: str):
                 "Authorization": f"Bearer {RESEND_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "from": FROM_EMAIL,
-                "to": [to_email],
-                "subject": subject,
-                "text": body,
-            },
+            json=payload,
         )
         if response.status_code == 200:
             logger.info(f"Email sent via Resend to {to_email}")
@@ -142,7 +152,7 @@ async def send_email(to_email: str, subject: str, body: str, html: bool = False)
         return
 
     if RESEND_API_KEY:
-        await _send_via_resend(to_email, subject, body)
+        await _send_via_resend(to_email, subject, body, html=html)
         return
 
     error_msg = "No email backend configured. Set SMTP_HOST or RESEND_API_KEY."
@@ -158,7 +168,7 @@ def send_email_sync(to_email: str, subject: str, body: str, html: bool = False):
         return
 
     if RESEND_API_KEY:
-        _send_via_resend_sync(to_email, subject, body)
+        _send_via_resend_sync(to_email, subject, body, html=html)
         return
 
     error_msg = "No email backend configured. Set SMTP_HOST or RESEND_API_KEY."
