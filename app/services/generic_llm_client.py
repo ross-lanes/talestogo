@@ -658,6 +658,15 @@ class GenericLLMClient:
                 },
             )
 
+            # Check for error/incomplete status before extracting text
+            resp_status = getattr(response, "status", None)
+            if resp_status and resp_status not in ("completed", None):
+                error_detail = getattr(response, "error", None) or "(no error detail)"
+                raise LLMAPIError(
+                    f"Azure AI Foundry Agents response did not complete "
+                    f"(status={resp_status!r}): {error_detail}"
+                )
+
             if hasattr(response, "output_text") and response.output_text:
                 return response.output_text
 
@@ -670,7 +679,14 @@ class GenericLLMClient:
                         text = getattr(block, "text", None)
                         if text:
                             parts.append(text)
-            return "\n\n".join(parts) if parts else ""
+            if parts:
+                return "\n\n".join(parts)
+
+            raise LLMAPIError(
+                "Azure AI Foundry Agents returned an empty response — the agent "
+                "produced no text output. This may indicate a content filter, "
+                "rate limit, or misconfigured agent."
+            )
 
         except LLMConfigurationError:
             raise
