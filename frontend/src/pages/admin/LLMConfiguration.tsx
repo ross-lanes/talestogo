@@ -683,20 +683,22 @@ const LLMConfiguration: React.FC = () => {
               </>
             )}
 
-            {/* Environment Variable Name - for custom providers */}
-            <TextField
-              fullWidth
-              label="Environment Variable Name (optional)"
-              value={formData.env_var_name}
-              onChange={(e) => setFormData({ ...formData, env_var_name: e.target.value })}
-              sx={{ mb: 2 }}
-              placeholder={API_TYPE_OPTIONS.find(o => o.value === formData.api_type)?.envVar || ''}
-              helperText={
-                formData.env_var_name
-                  ? `Will read API key from: ${formData.env_var_name}`
-                  : `Default: ${API_TYPE_OPTIONS.find(o => o.value === formData.api_type)?.envVar || 'Unknown'}. Override for custom providers (e.g., MISTRAL_API_KEY).`
-              }
-            />
+            {/* Environment Variable Name - for custom providers (hidden for azure_foundry_agents which uses no API key) */}
+            {formData.api_type !== 'azure_foundry_agents' && (
+              <TextField
+                fullWidth
+                label="Environment Variable Name (optional)"
+                value={formData.env_var_name}
+                onChange={(e) => setFormData({ ...formData, env_var_name: e.target.value })}
+                sx={{ mb: 2 }}
+                placeholder={API_TYPE_OPTIONS.find(o => o.value === formData.api_type)?.envVar || ''}
+                helperText={
+                  formData.env_var_name
+                    ? `Will read API key from: ${formData.env_var_name}`
+                    : `Default: ${API_TYPE_OPTIONS.find(o => o.value === formData.api_type)?.envVar || 'Unknown'}. Override for custom providers (e.g., MISTRAL_API_KEY).`
+                }
+              />
+            )}
 
             <Box sx={{ mb: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
