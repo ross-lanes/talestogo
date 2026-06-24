@@ -43,13 +43,19 @@ def _get_smtp_config():
     host = os.getenv('SMTP_HOST')
     if not host:
         return None
+    user = os.getenv('SMTP_USER')
+    password = os.getenv('SMTP_PASSWORD')
+    has_credentials = bool(user and password)
+    # Default TLS to on when credentials are configured (protects passwords in transit).
+    # For unauthenticated relays, TLS defaults to off (internal relay servers often don't support it).
+    tls_default = 'true' if has_credentials else 'false'
     return {
         'host': host,
-        'port': int(os.getenv('SMTP_PORT', '25')),
-        'user': os.getenv('SMTP_USER'),
-        'password': os.getenv('SMTP_PASSWORD'),
-        'use_tls': os.getenv('SMTP_USE_TLS', 'false').lower() in ('true', '1', 'yes'),
-        'from_email': os.getenv('SMTP_FROM_EMAIL', FROM_EMAIL or os.getenv('SMTP_USER') or ''),
+        'port': int(os.getenv('SMTP_PORT', '587' if has_credentials else '25')),
+        'user': user,
+        'password': password,
+        'use_tls': os.getenv('SMTP_USE_TLS', tls_default).lower() in ('true', '1', 'yes'),
+        'from_email': os.getenv('SMTP_FROM_EMAIL', FROM_EMAIL or user or ''),
         'from_name': os.getenv('SMTP_FROM_NAME', 'TALES'),
     }
 
