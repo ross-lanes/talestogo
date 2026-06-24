@@ -381,11 +381,25 @@ def update_provider(
             detail="api_endpoint is required for bing_v7"
         )
 
-    if effective_api_type == "azure_foundry_agents":
+    if effective_api_type in ("azure_foundry_agents", "bing_grounded"):
         if not effective_endpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="api_endpoint (Azure AI Foundry project endpoint) is required for azure_foundry_agents"
+            )
+        effective_model = update_data.get("model_name", provider.model_name)
+        if not effective_model:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="model_name (deployment name) is required for azure_foundry_agents"
+            )
+        effective_bing_conn = update_data.get(
+            "bing_connection_name", provider.bing_connection_name
+        ) or os.getenv("AZURE_AI_BING_CONNECTION_NAME")
+        if not effective_bing_conn:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="bing_connection_name is required for azure_foundry_agents (or set AZURE_AI_BING_CONNECTION_NAME env var)"
             )
 
     # Same analysis-provider invariants as create: must be enabled, and must
