@@ -152,9 +152,10 @@ def _send_via_resend_sync(to_email: str, subject: str, body: str, html: bool = F
 
 async def send_email(to_email: str, subject: str, body: str, html: bool = False):
     """Async send — tries SMTP first, falls back to Resend."""
+    import asyncio
     cfg = _get_smtp_config()
     if cfg:
-        _smtp_send(to_email, subject, body, html=html)
+        await asyncio.to_thread(_smtp_send, to_email, subject, body, html)
         return
 
     if RESEND_API_KEY:
