@@ -529,10 +529,8 @@ class GenericLLMClient:
             "bing_conn_hash": hashlib.sha256(bing_connection_id.encode()).hexdigest()[:16],
         }
 
-        try:
-            project.agents.get(agent_name=agent_name)
-        except ResourceNotFoundError:
-            definition = PromptAgentDefinition(
+        def _build_definition() -> Any:
+            return PromptAgentDefinition(
                 model=deployment_name,
                 instructions="You are a helpful assistant. Answer the user's question using web search results from Bing.",
                 tools=[
@@ -547,49 +545,49 @@ class GenericLLMClient:
                     )
                 ],
             )
+
+        def _create_version() -> None:
             project.agents.create_version(
                 agent_name=agent_name,
-                definition=definition,
+                definition=_build_definition(),
                 metadata=metadata,
                 description="Tales AI Foundry agent for Bing-grounded web search",
             )
+
+        def _has_compatible_version() -> bool:
+            versions = project.agents.list_versions(agent_name=agent_name, order="desc", limit=10)
+            for v in versions:
+                v_meta = getattr(v, "metadata", None) or {}
+                v_status = getattr(v, "status", None)
+                if (
+                    v_status == "active"
+                    and v_meta.get("schema_version") == metadata["schema_version"]
+                    and v_meta.get("model") == metadata["model"]
+                    and v_meta.get("bing_conn_hash") == metadata["bing_conn_hash"]
+                ):
+                    return True
+            return False
+
+        try:
+            project.agents.get(agent_name=agent_name)
+        except ResourceNotFoundError:
+            try:
+                _create_version()
+            except Exception:
+                # Race condition: another request created it simultaneously.
+                # Verify it exists now; if not, re-raise.
+                try:
+                    project.agents.get(agent_name=agent_name)
+                except ResourceNotFoundError:
+                    raise
             return agent_name
 
         # Agent exists — find an active version with matching metadata
-        versions = project.agents.list_versions(agent_name=agent_name, order="desc", limit=10)
-        for v in versions:
-            v_meta = getattr(v, "metadata", None) or {}
-            v_status = getattr(v, "status", None)
-            if (
-                v_status == "active"
-                and v_meta.get("schema_version") == metadata["schema_version"]
-                and v_meta.get("model") == metadata["model"]
-                and v_meta.get("bing_conn_hash") == metadata["bing_conn_hash"]
-            ):
-                return agent_name
+        if _has_compatible_version():
+            return agent_name
 
         # No compatible version — create a new one
-        definition = PromptAgentDefinition(
-            model=deployment_name,
-            instructions="You are a helpful assistant. Answer the user's question using web search results from Bing.",
-            tools=[
-                BingGroundingTool(
-                    bing_grounding=BingGroundingSearchToolParameters(
-                        search_configurations=[
-                            BingGroundingSearchConfiguration(
-                                project_connection_id=bing_connection_id
-                            )
-                        ]
-                    )
-                )
-            ],
-        )
-        project.agents.create_version(
-            agent_name=agent_name,
-            definition=definition,
-            metadata=metadata,
-            description="Tales AI Foundry agent for Bing-grounded web search",
-        )
+        _create_version()
         return agent_name
 
     @staticmethod
