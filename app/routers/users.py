@@ -182,7 +182,7 @@ async def send_invitation_email(
     Send invitation email to a user (admin only).
     Generates domain-specific email content.
     """
-    from ..email import send_email
+    from ..services.email_notifications import send_email
 
     # Get the user
     user = db.query(models.User).filter(models.User.id == user_id).first()
