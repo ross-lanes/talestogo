@@ -692,8 +692,13 @@ class GenericLLMClient:
         except LLMAPIError:
             raise
         except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(
+                "Azure AI Foundry Agents error (%s): %s", api_endpoint, e, exc_info=True
+            )
             raise LLMAPIError(
-                f"Azure AI Foundry Agents error ({api_endpoint}): {str(e)}"
+                f"Azure AI Foundry Agents error: {type(e).__name__} — "
+                "check server logs for details"
             )
 
     @staticmethod
