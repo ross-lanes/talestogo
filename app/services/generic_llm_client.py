@@ -650,6 +650,7 @@ class GenericLLMClient:
                 input=prompt,
                 tool_choice="required",
                 max_output_tokens=4000,
+                timeout=timeout,
                 extra_body={
                     "agent_reference": {
                         "name": agent_name,
