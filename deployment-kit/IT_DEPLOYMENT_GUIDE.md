@@ -40,7 +40,7 @@ You will need API keys from at least one LLM provider. Tales is provider-agnosti
 
 **Azure-only deployment WITH the State of the LLMs section:** add a second provider after the Azure one — either:
 - **Bing Search v7**: set `BING_SEARCH_V7_API_KEY` in `.env`, add a provider with `api_type = Bing Search v7`, endpoint `https://api.bing.microsoft.com/`. Bing v7 fetches search results; your Azure OpenAI provider (flagged `use_for_analysis=True`) writes the section's prose from those results.
-- **Azure AI Foundry — Bing Grounding** (single-vendor Azure story): run `pip install talestogo[bing-grounded]` server-side, set `AZURE_FOUNDRY_API_KEY`, add a provider with `api_type = Azure AI Foundry — Bing Grounding`, your AI Foundry project endpoint, `api_version`, and the agent ID. The agent must have the Grounding-with-Bing-Search tool attached in AI Foundry Studio. **This path is currently treated as beta — needs live validation against your tenant; report any SDK-surface adjustments to the maintainer.**
+- **Azure AI Foundry Agents** (single-vendor Azure story): run `pip install talestogo[azure-foundry]` server-side, set `AZURE_AI_PROJECT_ENDPOINT` and `AZURE_AI_BING_CONNECTION_NAME` in your environment, then add a provider with `api_type = Azure AI Foundry Agents`, your AI Foundry project endpoint, deployment name (e.g., `gpt-4o`), and Bing connection name (from AI Foundry → Project → Connections tab). Auth is via `DefaultAzureCredential` (managed identity, `az login`, or service principal env vars) — no API key is stored.
 
 **Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available.
 
@@ -384,7 +384,7 @@ Tales is provider-agnostic — pick whichever provider(s) fit your environment. 
 | Anthropic (Claude) | No | Good for analysis and data collection |
 | Azure OpenAI | No (directly) | Good for analysis and data collection. Pair with **Bing** for web search. |
 | **Bing Search v7** | Yes (retrieval only) | Pairs with the configured analysis provider for synthesis. Microsoft retired v7 in Aug 2025 — still operational for existing resources. |
-| **Azure AI Foundry — Bing Grounding** | Yes (single-vendor Azure story) | Requires `pip install talestogo[bing-grounded]`. Single-provider config: agent retrieves + synthesizes. Beta — needs live validation. |
+| **Azure AI Foundry Agents** | Yes (single-vendor Azure story) | Requires `pip install talestogo[azure-foundry]`. Uses Foundry Prompt Agents + Grounding with Bing Search. Auth via Azure Entra ID. |
 
 If no web-search-capable provider is configured (e.g., an OpenAI-only deployment without Bing), the "State of the LLMs" section will be omitted from generated reports. **All other report sections will work normally.**
 
