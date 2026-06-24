@@ -822,11 +822,15 @@ class GenericLLMClient:
                 return True, "Bing Search v7 connection successful", preview
 
             elif api_type in ("azure_foundry_agents", "bing_grounded"):
+                if not api_endpoint:
+                    raise LLMConfigurationError(
+                        "api_endpoint (Azure AI Foundry project endpoint) is required for azure_foundry_agents"
+                    )
                 response = GenericLLMClient._call_azure_foundry_agents(
                     api_key=api_key,
                     deployment_name=model_name,
                     prompt=test_prompt,
-                    api_endpoint=api_endpoint or "",
+                    api_endpoint=api_endpoint,
                     api_version=api_version,
                     timeout=60.0,
                     bing_connection_name=bing_connection_name,
