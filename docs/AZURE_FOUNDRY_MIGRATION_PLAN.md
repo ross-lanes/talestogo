@@ -57,7 +57,7 @@ from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 
 project = AIProjectClient(
-    endpoint='https://foundryeitw2-d-tales.services.ai.azure.com/api/projects/tales',
+    endpoint='https://your-foundry.services.ai.azure.com/api/projects/your-project',
     credential=DefaultAzureCredential(),
 )
 openai = project.get_openai_client()
@@ -95,7 +95,7 @@ Backward compatibility:
 
 | Field | DB Column | Env Var Fallback | Example |
 |-------|-----------|------------------|---------|
-| Project endpoint | `api_endpoint` | `AZURE_AI_PROJECT_ENDPOINT` | `https://foundryeitw2-d-tales.services.ai.azure.com/api/projects/tales` |
+| Project endpoint | `api_endpoint` | `AZURE_AI_PROJECT_ENDPOINT` | `https://your-foundry.services.ai.azure.com/api/projects/your-project` |
 | Deployment name | `model_name` | — | `gpt-5-4` |
 | Bing connection name | `bing_connection_name` (NEW) | `AZURE_AI_BING_CONNECTION_NAME` | `bing-grounding` |
 
