@@ -37,9 +37,8 @@ except ImportError:
 # error rather than a bare ImportError. `bing_v7` does not need this SDK.
 try:
     from azure.ai.agents import AgentsClient
+    from azure.ai.agents.models import AgentThreadCreationOptions, ThreadMessageOptions
     from azure.identity import DefaultAzureCredential
-    from azure.core.credentials import AzureKeyCredential
-    from azure.core.pipeline.policies import AzureKeyCredentialPolicy
     AZURE_AI_FOUNDRY_AVAILABLE = True
 except ImportError:
     AZURE_AI_FOUNDRY_AVAILABLE = False
@@ -507,16 +506,10 @@ class GenericLLMClient:
     ) -> str:
         """Call an Azure AI Foundry agent that has the Grounding-with-Bing tool attached.
 
-        Single round-trip — the agent retrieves via Bing and synthesizes the answer
-        internally; we just send the prompt and read the response.
+        Uses the GA azure-ai-agents SDK's create_thread_and_process_run() which
+        combines thread creation, message submission, and run polling in one call.
 
-        Requires the optional `bing-grounded` extra to be installed:
-            pip install talestogo[bing-grounded]
-
-        NOTE: This implementation targets Azure AI Foundry's Agents API. The SDK
-        surface is evolving; operators may need to adjust based on their tenant's
-        actual API version. The plan documents this as "beta — needs live
-        validation against a real provisioned resource."
+        Requires: pip install azure-ai-agents azure-identity
         """
         if not AZURE_AI_FOUNDRY_AVAILABLE:
             raise LLMConfigurationError(
@@ -532,23 +525,16 @@ class GenericLLMClient:
             )
 
         try:
-            # Two auth paths are supported:
-            # - If api_key is non-empty, use AzureKeyCredentialPolicy for
-            #   header-based key auth (sends 'api-key' header).
-            # - Otherwise fall back to DefaultAzureCredential, which auto-discovers
-            #   managed identity (when running on Azure), az-login, or the standard
-            #   AZURE_CLIENT_ID + AZURE_TENANT_ID + AZURE_CLIENT_SECRET service-
-            #   principal env vars.
-            client_kwargs: Dict[str, Any] = {}
+            client_kwargs: Dict[str, Any] = {
+                "credential_scopes": ["https://ai.azure.com/.default"],
+            }
             if api_version:
                 client_kwargs["api_version"] = api_version
-            if api_key:
-                credential = DefaultAzureCredential()  # type: ignore[name-defined]
-                client_kwargs["authentication_policy"] = AzureKeyCredentialPolicy(  # type: ignore[name-defined]
-                    AzureKeyCredential(api_key), "api-key"  # type: ignore[name-defined]
-                )
-            else:
-                credential = DefaultAzureCredential()  # type: ignore[name-defined]
+
+            # Azure AI Foundry Agents runtime requires Entra ID (AAD) auth.
+            # DefaultAzureCredential discovers: managed identity, az-login,
+            # or AZURE_CLIENT_ID + AZURE_TENANT_ID + AZURE_CLIENT_SECRET.
+            credential = DefaultAzureCredential()  # type: ignore[name-defined]
 
             client = AgentsClient(  # type: ignore[name-defined]
                 endpoint=api_endpoint,
@@ -556,21 +542,14 @@ class GenericLLMClient:
                 **client_kwargs,
             )
 
-            # Run the configured agent with the user prompt. The Grounding-with-Bing
-            # tool is attached at agent-definition time (in Azure AI Foundry Studio),
-            # not per-call, so we only need to invoke the agent and read the response.
             with client:
-                thread = client.threads.create()
-                client.messages.create(
-                    thread_id=thread.id, role="user", content=prompt
-                )
-                run = client.runs.create_and_process(
-                    thread_id=thread.id, agent_id=agent_id_or_deployment
+                run = client.create_thread_and_process_run(
+                    agent_id=agent_id_or_deployment,
+                    thread=AgentThreadCreationOptions(  # type: ignore[name-defined]
+                        messages=[ThreadMessageOptions(role="user", content=prompt)]  # type: ignore[name-defined]
+                    ),
                 )
 
-                # Check positively for completion. Any other status (failed,
-                # cancelled, expired, requires_action, …) means we shouldn't try
-                # to read messages — they'll be empty or stale.
                 run_status = getattr(run, "status", None)
                 if run_status != "completed":
                     last_error = getattr(run, "last_error", None) or "(no error detail)"
@@ -579,28 +558,18 @@ class GenericLLMClient:
                         f"(status={run_status!r}): {last_error}"
                     )
 
-                # Read back the assistant's reply from the thread.
-                messages = list(client.messages.list(thread_id=thread.id))
+                messages = list(client.messages.list(thread_id=run.thread_id))
                 for msg in messages:
                     if getattr(msg, "role", "") == "assistant":
                         text_content = getattr(msg, "content", None)
                         if isinstance(text_content, str):
                             return text_content
-                        # Newer SDKs wrap content as a list of typed blocks.
-                        # Accumulate all non-empty text values rather than
-                        # returning the first one — longer responses (or runs
-                        # that interleave text with tool-call blocks) get split
-                        # across multiple blocks, and returning early truncates.
                         if isinstance(text_content, list) and text_content:
                             parts: List[str] = []
                             for block in text_content:
                                 t = getattr(block, "text", None)
                                 if t is None:
                                     continue
-                                # Only collect if we can extract real text —
-                                # don't fall back to str(t), which would
-                                # return a Python object repr, not the
-                                # message content.
                                 val = getattr(t, "value", None)
                                 if val:
                                     parts.append(val)
