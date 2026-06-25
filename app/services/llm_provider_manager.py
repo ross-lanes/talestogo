@@ -79,7 +79,7 @@ class ProviderConfig:
     def call(self, prompt: str, max_tokens: int = 4000, temperature: float = 0.7) -> str:
         """Call this provider with a prompt."""
         api_key = self._get_api_key()
-        if not api_key:
+        if not api_key and self.api_type not in ("azure_foundry_agents", "bing_grounded"):
             env_var = self.env_var_name or API_TYPE_TO_ENV_VAR.get(self.api_type, "UNKNOWN")
             raise LLMConfigurationError(f"API key not found in environment variable: {env_var}")
 
@@ -91,7 +91,8 @@ class ProviderConfig:
             api_endpoint=self.api_endpoint,
             api_version=self.api_version,
             max_tokens=max_tokens,
-            temperature=temperature
+            temperature=temperature,
+            bing_connection_name=self.bing_connection_name,
         )
 
     def call_with_web_search(
