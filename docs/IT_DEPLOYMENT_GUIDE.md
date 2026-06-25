@@ -122,7 +122,24 @@ You will need API keys from at least one LLM provider. Tales is provider-agnosti
 
 **Azure-only deployment WITH the State of the LLMs section:** add a second provider after the Azure one — either:
 - **Bing Search v7**: set `BING_SEARCH_V7_API_KEY` in `.env`, add a provider with `api_type = Bing Search v7`, endpoint `https://api.bing.microsoft.com/`. Bing v7 fetches search results; your Azure OpenAI provider (flagged `use_for_analysis=True`) writes the section's prose from those results.
-- **Azure AI Foundry Agents** (single-vendor Azure story): run `pip install talestogo[azure-foundry]` server-side, set `AZURE_AI_PROJECT_ENDPOINT` and `AZURE_AI_BING_CONNECTION_NAME` in your environment, then add a provider with `api_type = Azure AI Foundry Agents`, your AI Foundry project endpoint, deployment name (e.g., `gpt-4o`), and Bing connection name (from AI Foundry → Project → Connections tab). Auth is via `DefaultAzureCredential` (managed identity, `az login`, or service principal env vars) — no API key is stored.
+- **Azure AI Foundry Agents** (single-vendor Azure story): run `pip install talestogo[azure-foundry]` server-side, set `AZURE_AI_PROJECT_ENDPOINT` and `AZURE_AI_BING_CONNECTION_NAME` in your environment, then add a provider with `api_type = Azure AI Foundry Agents`, your AI Foundry project endpoint, deployment name (e.g., `gpt-5-4`), and Bing connection name (from AI Foundry → Project → Connections tab). Auth is via `DefaultAzureCredential` (managed identity, `az login`, or service principal env vars) — no API key is stored.
+
+  **Required RBAC role for the managed identity (or service principal):**
+
+  | Role | Role ID | Scope | Grants |
+  |------|---------|-------|--------|
+  | **Foundry User** (minimum) | `53ca6127-db72-4b80-b1b0-d745d6d5456d` | Foundry resource | All data actions (`Microsoft.CognitiveServices/*`): read connections, create agent versions, call Responses API |
+
+  Assign via Azure Portal (Foundry resource → Access control (IAM) → Add role assignment) or CLI:
+  ```bash
+  # Assign Foundry User to a user-assigned managed identity
+  az role assignment create \
+    --assignee <managed-identity-client-id> \
+    --role "53ca6127-db72-4b80-b1b0-d745d6d5456d" \
+    --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<foundry-resource>
+  ```
+
+  **Note:** The role must be assigned on the **Foundry resource** scope (the `Microsoft.CognitiveServices/accounts` level), not on the project or subscription. After assigning, wait 5-10 minutes for RBAC propagation, then restart the container to force a fresh token acquisition (cached managed identity tokens won't reflect new roles until refreshed).
 
 **Partial Configuration:** You do not need API keys for all providers. Tales automatically detects which API keys are present and only makes those providers available.
 

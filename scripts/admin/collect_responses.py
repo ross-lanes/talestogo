@@ -151,9 +151,14 @@ class ResponseCollector:
             print("  ✗ No LLM providers configured; skipping.")
             return results
 
+        # bing_v7 is retrieval-only (no LLM) — skip it in normal collection.
+        COLLECTION_SKIP_TYPES = ("bing_v7",)
+
         # If the caller passed a platforms filter, intersect by display_name.
         for provider in self.dynamic_providers:
             if not provider.is_enabled:
+                continue
+            if provider.api_type in COLLECTION_SKIP_TYPES:
                 continue
             if platforms is not None and provider.display_name not in platforms:
                 continue
@@ -192,8 +197,9 @@ class ResponseCollector:
             queries = queries[:limit]
 
         # Determine platforms to use - dynamic providers take precedence
+        # bing_v7 is retrieval-only (no LLM) — exclude from collection count.
         if self.dynamic_providers:
-            platforms_list = [p.display_name for p in self.dynamic_providers if p.is_enabled]
+            platforms_list = [p.display_name for p in self.dynamic_providers if p.is_enabled and p.api_type != "bing_v7"]
         else:
             platforms_list = platforms or ['ChatGPT', 'Claude', 'Gemini', 'Perplexity']
 

@@ -90,7 +90,8 @@ class GenericLLMClient:
         api_version: Optional[str] = None,
         max_tokens: int = 4000,
         temperature: float = 0.7,
-        timeout: float = DEFAULT_TIMEOUT
+        timeout: float = DEFAULT_TIMEOUT,
+        bing_connection_name: Optional[str] = None,
     ) -> str:
         """
         Call an LLM API and return the response text.
@@ -144,6 +145,15 @@ class GenericLLMClient:
                 )
             return GenericLLMClient._call_openai_compatible(
                 api_key, model_name, prompt, api_endpoint, max_tokens, temperature, timeout
+            )
+        elif api_type in ("azure_foundry_agents", "bing_grounded"):
+            if not api_endpoint:
+                raise LLMConfigurationError(
+                    "api_endpoint (Azure AI Foundry project endpoint) is required for azure_foundry_agents"
+                )
+            return GenericLLMClient._call_azure_foundry_agents(
+                api_key, model_name, prompt, api_endpoint, api_version, timeout,
+                bing_connection_name=bing_connection_name,
             )
         else:
             raise LLMConfigurationError(f"Unknown API type: {api_type}")
