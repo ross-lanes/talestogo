@@ -475,7 +475,7 @@ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 
 1. Go to [Azure Portal App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
 2. Create a new App Registration
-3. Under "Authentication", add a Single-page application redirect URI: `http://your-tales-url/login` (e.g., `http://localhost:8080/login`)
+3. Under "Authentication", add a Single-page application redirect URI: `http://your-tales-url` (e.g., `http://localhost:8080`)
 4. No client secret is needed — the app uses MSAL's client-side PKCE flow
 5. Add to your `.env`:
 
@@ -486,6 +486,9 @@ ENABLE_MICROSOFT_AUTH=true
 # Microsoft OAuth credentials (no secret needed — client-side PKCE flow)
 OIDC_CLIENT_ID=your-app-client-id
 ```
+
+> **Using redirect mode?** If you set `AUTH_FLOW_TYPE=redirect`, register
+> `http://your-tales-url/login` as the redirect URI instead of the root.
 
 ### After Adding OAuth Credentials
 
